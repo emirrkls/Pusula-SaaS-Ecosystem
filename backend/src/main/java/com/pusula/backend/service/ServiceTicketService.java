@@ -2,25 +2,44 @@ package com.pusula.backend.service;
 
 import com.pusula.backend.dto.PublicServiceRequestDTO;
 import com.pusula.backend.dto.ServiceTicketDTO;
+import com.pusula.backend.dto.ServiceUsedPartDTO;
 import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.CustomerRepository;
+import com.pusula.backend.repository.InventoryRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
-import lombok.RequiredArgsConstructor;
+import com.pusula.backend.repository.ServiceUsedPartRepository;
+import com.pusula.backend.repository.UserRepository;
+
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class ServiceTicketService {
 
     private final ServiceTicketRepository repository;
     private final CustomerRepository customerRepository;
+    private final UserRepository userRepository;
+    private final InventoryRepository inventoryRepository;
+    private final ServiceUsedPartRepository serviceUsedPartRepository;
+
+    public ServiceTicketService(ServiceTicketRepository repository,
+            CustomerRepository customerRepository,
+            UserRepository userRepository,
+            InventoryRepository inventoryRepository,
+            ServiceUsedPartRepository serviceUsedPartRepository) {
+        this.repository = repository;
+        this.customerRepository = customerRepository;
+        this.userRepository = userRepository;
+        this.inventoryRepository = inventoryRepository;
+        this.serviceUsedPartRepository = serviceUsedPartRepository;
+    }
 
     private User getCurrentUser() {
         return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -97,6 +116,79 @@ public class ServiceTicketService {
 
         ServiceTicket saved = repository.save(ticket);
         return mapToDTO(saved);
+    }
+
+    public ServiceTicketDTO assignTechnician(UUID ticketId, UUID technicianId) {
+        User currentUser = getCurrentUser();
+        ServiceTicket ticket = repository.findById(ticketId)
+                .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
+
+        User technician = userRepository.findById(technicianId)
+                .filter(u -> u.getCompanyId().equals(currentUser.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Technician not found or access denied"));
+
+        ticket.setAssignedTechnicianId(technician.getId());
+        ticket.setStatus(ServiceTicket.TicketStatus.ASSIGNED);
+
+        return mapToDTO(repository.save(ticket));
+    }
+
+    @Transactional
+    public ServiceUsedPartDTO addUsedPart(UUID ticketId, ServiceUsedPartDTO dto) {
+        User currentUser = getCurrentUser();
+        ServiceTicket ticket = repository.findById(ticketId)
+                .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
+
+        com.pusula.backend.entity.Inventory inventory = inventoryRepository.findById(dto.getInventoryId())
+                .filter(i -> i.getCompanyId().equals(currentUser.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Inventory item not found"));
+
+        if (inventory.getQuantity() < dto.getQuantityUsed()) {
+            throw new RuntimeException("Insufficient stock for item: " + inventory.getPartName());
+        }
+
+        // Deduct stock
+        inventory.setQuantity(inventory.getQuantity() - dto.getQuantityUsed());
+        inventoryRepository.save(inventory);
+
+        // Create Used Part record
+        com.pusula.backend.entity.ServiceUsedPart usedPart = com.pusula.backend.entity.ServiceUsedPart.builder()
+                .companyId(currentUser.getCompanyId())
+                .serviceTicket(ticket)
+                .inventory(inventory)
+                .quantityUsed(dto.getQuantityUsed())
+                .sellingPriceSnapshot(inventory.getSellPrice())
+                .build();
+
+        com.pusula.backend.entity.ServiceUsedPart saved = serviceUsedPartRepository.save(usedPart);
+
+        return new ServiceUsedPartDTO(
+                saved.getId(),
+                saved.getServiceTicket().getId(),
+                saved.getInventory().getId(),
+                saved.getInventory().getPartName(),
+                saved.getQuantityUsed(),
+                saved.getSellingPriceSnapshot());
+    }
+
+    public List<ServiceUsedPartDTO> getUsedParts(UUID ticketId) {
+        User currentUser = getCurrentUser();
+        // Verify access to ticket
+        repository.findById(ticketId)
+                .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
+
+        return serviceUsedPartRepository.findByServiceTicketId(ticketId).stream()
+                .map(part -> new ServiceUsedPartDTO(
+                        part.getId(),
+                        part.getServiceTicket().getId(),
+                        part.getInventory().getId(),
+                        part.getInventory().getPartName(),
+                        part.getQuantityUsed(),
+                        part.getSellingPriceSnapshot()))
+                .collect(Collectors.toList());
     }
 
     private ServiceTicketDTO mapToDTO(ServiceTicket ticket) {

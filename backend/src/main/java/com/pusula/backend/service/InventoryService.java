@@ -4,7 +4,7 @@ import com.pusula.backend.dto.InventoryDTO;
 import com.pusula.backend.entity.Inventory;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.InventoryRepository;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -13,10 +13,13 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class InventoryService {
 
     private final InventoryRepository repository;
+
+    public InventoryService(InventoryRepository repository) {
+        this.repository = repository;
+    }
 
     private User getCurrentUser() {
         return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();

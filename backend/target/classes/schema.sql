@@ -1,9 +1,6 @@
--- Enable UUID extension if not already enabled
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- Companies Table (Tenants)
 CREATE TABLE companies (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID DEFAULT random_uuid() PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     subscription_status VARCHAR(50) NOT NULL, -- e.g., ACTIVE, SUSPENDED
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -11,7 +8,7 @@ CREATE TABLE companies (
 
 -- Users Table
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID DEFAULT random_uuid() PRIMARY KEY,
     company_id UUID NOT NULL,
     username VARCHAR(100) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -19,12 +16,12 @@ CREATE TABLE users (
     full_name VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_users_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
-    CONSTRAINT uq_users_username_company UNIQUE (username, company_id) -- Username unique per company or globally? Usually globally or per company. Assuming per company for now, but email is better globally. Prompt says username.
+    CONSTRAINT uq_users_username_company UNIQUE (username, company_id)
 );
 
 -- Device Types Table
 CREATE TABLE device_types (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID DEFAULT random_uuid() PRIMARY KEY,
     company_id UUID NOT NULL,
     name VARCHAR(100) NOT NULL,
     CONSTRAINT fk_devicetypes_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
@@ -32,7 +29,7 @@ CREATE TABLE device_types (
 
 -- Customers Table
 CREATE TABLE customers (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID DEFAULT random_uuid() PRIMARY KEY,
     company_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     phone VARCHAR(50),
@@ -44,7 +41,7 @@ CREATE TABLE customers (
 
 -- Inventory Table
 CREATE TABLE inventory (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID DEFAULT random_uuid() PRIMARY KEY,
     company_id UUID NOT NULL,
     part_name VARCHAR(255) NOT NULL,
     quantity INTEGER NOT NULL DEFAULT 0,
@@ -56,7 +53,7 @@ CREATE TABLE inventory (
 
 -- Service Tickets Table
 CREATE TABLE service_tickets (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID DEFAULT random_uuid() PRIMARY KEY,
     company_id UUID NOT NULL,
     customer_id UUID NOT NULL,
     assigned_technician_id UUID,
@@ -72,7 +69,7 @@ CREATE TABLE service_tickets (
 
 -- Service Photos Table
 CREATE TABLE service_photos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID DEFAULT random_uuid() PRIMARY KEY,
     ticket_id UUID NOT NULL,
     url TEXT NOT NULL,
     type VARCHAR(50) NOT NULL, -- BEFORE, AFTER
