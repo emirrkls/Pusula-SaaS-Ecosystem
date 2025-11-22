@@ -2,7 +2,7 @@ package com.pusula.backend.controller;
 
 import com.pusula.backend.dto.InventoryDTO;
 import com.pusula.backend.service.InventoryService;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,10 +11,13 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/inventory")
-@RequiredArgsConstructor
 public class InventoryController {
 
     private final InventoryService service;
+
+    public InventoryController(InventoryService service) {
+        this.service = service;
+    }
 
     @GetMapping
     public ResponseEntity<List<InventoryDTO>> getAllInventory() {

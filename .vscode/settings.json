@@ -1,0 +1,8 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.project.sourcePaths": [
+        "backend/src",
+        "frontend-desktop/src/main/java/com/pusula/desktop"
+    ],
+    "java.configuration.updateBuildConfiguration": "interactive"
+}
