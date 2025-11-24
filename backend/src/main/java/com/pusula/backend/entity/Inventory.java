@@ -1,20 +1,16 @@
 package com.pusula.backend.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 @Entity
 @Table(name = "inventory")
-public class Inventory {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
-
-    @Column(name = "company_id", nullable = false)
-    private UUID companyId;
+@SQLDelete(sql = "UPDATE inventory SET is_deleted = true WHERE id = ?")
+@Where(clause = "is_deleted = false")
+public class Inventory extends BaseEntity {
 
     @Column(name = "part_name", nullable = false)
     private String partName;
@@ -34,10 +30,10 @@ public class Inventory {
     public Inventory() {
     }
 
-    public Inventory(UUID id, UUID companyId, String partName, Integer quantity, BigDecimal buyPrice,
+    public Inventory(Long id, Long companyId, String partName, Integer quantity, BigDecimal buyPrice,
             BigDecimal sellPrice, Integer criticalLevel) {
-        this.id = id;
-        this.companyId = companyId;
+        this.setId(id);
+        this.setCompanyId(companyId);
         this.partName = partName;
         this.quantity = quantity;
         this.buyPrice = buyPrice;
@@ -47,22 +43,6 @@ public class Inventory {
 
     public static InventoryBuilder builder() {
         return new InventoryBuilder();
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public UUID getCompanyId() {
-        return companyId;
-    }
-
-    public void setCompanyId(UUID companyId) {
-        this.companyId = companyId;
     }
 
     public String getPartName() {
@@ -106,8 +86,8 @@ public class Inventory {
     }
 
     public static class InventoryBuilder {
-        private UUID id;
-        private UUID companyId;
+        private Long id;
+        private Long companyId;
         private String partName;
         private Integer quantity;
         private BigDecimal buyPrice;
@@ -117,12 +97,12 @@ public class Inventory {
         InventoryBuilder() {
         }
 
-        public InventoryBuilder id(UUID id) {
+        public InventoryBuilder id(Long id) {
             this.id = id;
             return this;
         }
 
-        public InventoryBuilder companyId(UUID companyId) {
+        public InventoryBuilder companyId(Long companyId) {
             this.companyId = companyId;
             return this;
         }

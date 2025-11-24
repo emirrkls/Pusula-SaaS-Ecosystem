@@ -1,20 +1,16 @@
 package com.pusula.backend.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 @Entity
 @Table(name = "service_used_parts")
-public class ServiceUsedPart {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
-
-    @Column(name = "company_id", nullable = false)
-    private UUID companyId;
+@SQLDelete(sql = "UPDATE service_used_parts SET is_deleted = true WHERE id = ?")
+@Where(clause = "is_deleted = false")
+public class ServiceUsedPart extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticket_id", nullable = false)
@@ -33,10 +29,10 @@ public class ServiceUsedPart {
     public ServiceUsedPart() {
     }
 
-    public ServiceUsedPart(UUID id, UUID companyId, ServiceTicket serviceTicket, Inventory inventory,
+    public ServiceUsedPart(Long id, Long companyId, ServiceTicket serviceTicket, Inventory inventory,
             Integer quantityUsed, BigDecimal sellingPriceSnapshot) {
-        this.id = id;
-        this.companyId = companyId;
+        this.setId(id);
+        this.setCompanyId(companyId);
         this.serviceTicket = serviceTicket;
         this.inventory = inventory;
         this.quantityUsed = quantityUsed;
@@ -45,22 +41,6 @@ public class ServiceUsedPart {
 
     public static ServiceUsedPartBuilder builder() {
         return new ServiceUsedPartBuilder();
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public UUID getCompanyId() {
-        return companyId;
-    }
-
-    public void setCompanyId(UUID companyId) {
-        this.companyId = companyId;
     }
 
     public ServiceTicket getServiceTicket() {
@@ -96,8 +76,8 @@ public class ServiceUsedPart {
     }
 
     public static class ServiceUsedPartBuilder {
-        private UUID id;
-        private UUID companyId;
+        private Long id;
+        private Long companyId;
         private ServiceTicket serviceTicket;
         private Inventory inventory;
         private Integer quantityUsed;
@@ -106,12 +86,12 @@ public class ServiceUsedPart {
         ServiceUsedPartBuilder() {
         }
 
-        public ServiceUsedPartBuilder id(UUID id) {
+        public ServiceUsedPartBuilder id(Long id) {
             this.id = id;
             return this;
         }
 
-        public ServiceUsedPartBuilder companyId(UUID companyId) {
+        public ServiceUsedPartBuilder companyId(Long companyId) {
             this.companyId = companyId;
             return this;
         }

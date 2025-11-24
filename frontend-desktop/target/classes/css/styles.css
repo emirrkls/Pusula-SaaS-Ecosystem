@@ -1,0 +1,173 @@
+/* =========================================
+   AUTO-COMPLETE POPUP (Light Theme Fix)
+   ========================================= */
+
+/* The main container list */
+.auto-complete-popup .list-view {
+    -fx-background-color: #ffffff !important;
+    -fx-background-insets: 0;
+    -fx-border-color: #d0d7de;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.2), 8, 0, 0, 4);
+    -fx-min-height: 250px;
+    -fx-pref-width: 550px;
+}
+
+/* Individual rows/cells */
+.auto-complete-popup .list-cell {
+    -fx-background-color: #ffffff !important;
+    -fx-text-fill: #1f2328 !important;
+    -fx-padding: 10px 12px;
+    -fx-font-size: 14px;
+    -fx-alignment: CENTER-LEFT;
+    -fx-border-color: transparent transparent #eaeef2 transparent;
+    -fx-border-width: 0 0 1px 0;
+}
+
+/* Hover & Selection State */
+.auto-complete-popup .list-cell:filled:selected,
+.auto-complete-popup .list-cell:filled:hover {
+    -fx-background-color: #0969da !important;
+    -fx-text-fill: #ffffff !important;
+    -fx-cursor: hand;
+}
+
+/* Empty cells should also have white background */
+.auto-complete-popup .list-cell:empty {
+    -fx-background-color: #ffffff !important;
+}
+
+/* =========================================
+   TABLE STYLING
+   ========================================= */
+
+/* Table View Row Highlights */
+.table-row-cell:filled:selected {
+    -fx-background-color: #0969da;
+    -fx-text-fill: white;
+}
+
+/* Alternating row colors for better readability */
+.table-row-cell:filled {
+    -fx-background-color: #ffffff;
+}
+
+.table-row-cell:filled:odd {
+    -fx-background-color: #f6f8fa;
+}
+
+/* Table header styling */
+.table-view .column-header {
+    -fx-background-color: #f6f8fa;
+    -fx-padding: 12px 8px;
+    -fx-font-weight: bold;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #f6f8fa;
+}
+
+/* =========================================
+   CRITICAL STOCK ALERT STYLING
+   ========================================= */
+
+/* Modern critical stock indicator with left border */
+.table-row-critical {
+    -fx-background-color: #fff5f5 !important;
+    -fx-border-color: transparent transparent transparent #cf222e;
+    -fx-border-width: 0 0 0 4px;
+}
+
+.table-row-critical .table-cell {
+    -fx-text-fill: #cf222e !important;
+    -fx-font-weight: bold;
+}
+
+.table-row-critical:selected {
+    -fx-background-color: #dc3545 !important;
+    -fx-border-color: transparent transparent transparent #a71d2a;
+}
+
+.table-row-critical:selected .table-cell {
+    -fx-text-fill: white !important;
+}
+
+.table-row-critical:hover {
+    -fx-background-color: #ffeef0 !important;
+}
+
+/* =========================================
+   DASHBOARD CARDS STYLING
+   ========================================= */
+
+/* Base Card Style */
+.card {
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-padding: 30px 20px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.1), 10, 0, 0, 5);
+    -fx-cursor: hand;
+    -fx-min-width: 280px;
+    -fx-spacing: 10px;
+}
+
+.card:hover {
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.2), 15, 0, 0, 7);
+}
+
+/* Blue Card (Active Services) */
+.card-accent-blue {
+    -fx-background-color: #e1f5fe;
+    -fx-border-color: transparent transparent transparent #039be5;
+    -fx-border-width: 0 0 0 4px;
+}
+
+.card-accent-blue .card-title {
+    -fx-text-fill: #0277bd;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.card-accent-blue .card-value {
+    -fx-text-fill: #01579b;
+    -fx-font-size: 36px;
+    -fx-font-weight: bold;
+}
+
+/* Red Card (Critical Stock) */
+.card-accent-red {
+    -fx-background-color: #ffebee;
+    -fx-border-color: transparent transparent transparent #e53935;
+    -fx-border-width: 0 0 0 4px;
+}
+
+.card-accent-red .card-title {
+    -fx-text-fill: #c62828;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.card-accent-red .card-value {
+    -fx-text-fill: #b71c1c;
+    -fx-font-size: 36px;
+    -fx-font-weight: bold;
+}
+
+/* Green Card (Income/Proposals) */
+.card-accent-green {
+    -fx-background-color: #e8f5e9;
+    -fx-border-color: transparent transparent transparent #43a047;
+    -fx-border-width: 0 0 0 4px;
+}
+
+.card-accent-green .card-title {
+    -fx-text-fill: #2e7d32;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.card-accent-green .card-value {
+    -fx-text-fill: #1b5e20;
+    -fx-font-size: 36px;
+    -fx-font-weight: bold;
+}

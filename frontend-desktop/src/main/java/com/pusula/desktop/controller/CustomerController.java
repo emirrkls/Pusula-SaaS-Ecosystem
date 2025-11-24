@@ -11,6 +11,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -35,7 +36,11 @@ public class CustomerController {
     @FXML
     private TableColumn<CustomerDTO, String> colCoordinates;
 
+    @FXML
+    private TextField searchField;
+
     private final ObservableList<CustomerDTO> customerList = FXCollections.observableArrayList();
+    private javafx.collections.transformation.FilteredList<CustomerDTO> filteredList;
 
     @FXML
     public void initialize() {
@@ -44,9 +49,65 @@ public class CustomerController {
         colAddress.setCellValueFactory(new PropertyValueFactory<>("address"));
         colCoordinates.setCellValueFactory(new PropertyValueFactory<>("coordinates"));
 
-        customersTable.setItems(customerList);
+        // Setup search/filter logic
+        filteredList = new javafx.collections.transformation.FilteredList<>(customerList, p -> true);
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            filteredList.setPredicate(customer -> {
+                if (newValue == null || newValue.isEmpty()) {
+                    return true;
+                }
+                String lowerCaseFilter = newValue.toLowerCase();
+
+                // Search by name
+                if (customer.getName() != null && customer.getName().toLowerCase().contains(lowerCaseFilter)) {
+                    return true;
+                }
+
+                // Search by phone number
+                if (customer.getPhone() != null && customer.getPhone().toLowerCase().contains(lowerCaseFilter)) {
+                    return true;
+                }
+
+                return false;
+            });
+        });
+
+        customersTable.setItems(filteredList);
+
+        customersTable.setRowFactory(tv -> {
+            javafx.scene.control.TableRow<CustomerDTO> row = new javafx.scene.control.TableRow<>();
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2 && (!row.isEmpty())) {
+                    CustomerDTO rowData = row.getItem();
+                    handleEditCustomer(rowData);
+                }
+            });
+            return row;
+        });
 
         loadCustomers();
+    }
+
+    private void handleEditCustomer(CustomerDTO customer) {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                    getClass().getResource("/view/customer_detail.fxml"));
+            javafx.scene.Parent root = loader.load();
+
+            CustomerDetailController controller = loader.getController();
+            controller.setCustomer(customer);
+            controller.setOnSaveSuccess(this::loadCustomers);
+
+            javafx.stage.Stage stage = new javafx.stage.Stage();
+            stage.setTitle("Customer Details");
+            stage.setScene(new javafx.scene.Scene(root));
+            stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+            stage.showAndWait();
+        } catch (Exception e) {
+            e.printStackTrace();
+            AlertHelper.showAlert(Alert.AlertType.ERROR, customersTable.getScene().getWindow(),
+                    "Error", "Could not open details: " + e.getMessage());
+        }
     }
 
     @FXML

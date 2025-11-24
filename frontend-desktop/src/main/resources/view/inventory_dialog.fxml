@@ -13,14 +13,14 @@
       <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
    </padding>
    <children>
-      <Label text="New Inventory Item">
+      <Label fx:id="titleLabel" text="%inventory.form.title.add">
          <font>
             <Font name="System Bold" size="18.0" />
          </font>
       </Label>
       <VBox spacing="5.0">
          <children>
-            <Label text="Part Name" />
+            <Label text="%inventory.form.partname" />
             <TextField fx:id="partNameField" promptText="e.g. AC Filter" />
          </children>
       </VBox>
@@ -28,13 +28,13 @@
          <children>
             <VBox spacing="5.0" HBox.hgrow="ALWAYS">
                <children>
-                  <Label text="Quantity" />
+                  <Label text="%inventory.form.quantity" />
                   <TextField fx:id="quantityField" promptText="0" />
                </children>
             </VBox>
             <VBox spacing="5.0" HBox.hgrow="ALWAYS">
                <children>
-                  <Label text="Critical Level" />
+                  <Label text="%inventory.form.critical" />
                   <TextField fx:id="criticalLevelField" promptText="5" />
                </children>
             </VBox>
@@ -44,13 +44,13 @@
          <children>
             <VBox spacing="5.0" HBox.hgrow="ALWAYS">
                <children>
-                  <Label text="Buy Price" />
+                  <Label text="%inventory.form.buyprice" />
                   <TextField fx:id="buyPriceField" promptText="0.00" />
                </children>
             </VBox>
             <VBox spacing="5.0" HBox.hgrow="ALWAYS">
                <children>
-                  <Label text="Sell Price" />
+                  <Label text="%inventory.form.sellprice" />
                   <TextField fx:id="sellPriceField" promptText="0.00" />
                </children>
             </VBox>
@@ -58,8 +58,8 @@
       </HBox>
       <HBox alignment="CENTER_RIGHT" spacing="10.0">
          <children>
-            <Button mnemonicParsing="false" onAction="#handleCancel" text="Cancel" />
-            <Button defaultButton="true" mnemonicParsing="false" onAction="#handleSave" style="-fx-background-color: #2ecc71; -fx-text-fill: white;" text="Save Item" />
+            <Button mnemonicParsing="false" onAction="#handleCancel" text="%btn.cancel" />
+            <Button defaultButton="true" mnemonicParsing="false" onAction="#handleSave" style="-fx-background-color: #2ecc71; -fx-text-fill: white;" text="%inventory.form.save" />
          </children>
          <VBox.margin>
             <Insets top="10.0" />

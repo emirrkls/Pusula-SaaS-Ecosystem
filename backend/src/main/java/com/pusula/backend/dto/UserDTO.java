@@ -1,9 +1,7 @@
 package com.pusula.backend.dto;
 
-import java.util.UUID;
-
 public class UserDTO {
-    private UUID id;
+    private Long id;
     private String username;
     private String fullName;
     private String role;
@@ -11,7 +9,7 @@ public class UserDTO {
     public UserDTO() {
     }
 
-    public UserDTO(UUID id, String username, String fullName, String role) {
+    public UserDTO(Long id, String username, String fullName, String role) {
         this.id = id;
         this.username = username;
         this.fullName = fullName;
@@ -22,11 +20,11 @@ public class UserDTO {
         return new UserDTOBuilder();
     }
 
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -55,7 +53,7 @@ public class UserDTO {
     }
 
     public static class UserDTOBuilder {
-        private UUID id;
+        private Long id;
         private String username;
         private String fullName;
         private String role;
@@ -63,7 +61,7 @@ public class UserDTO {
         UserDTOBuilder() {
         }
 
-        public UserDTOBuilder id(UUID id) {
+        public UserDTOBuilder id(Long id) {
             this.id = id;
             return this;
         }

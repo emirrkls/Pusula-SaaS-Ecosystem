@@ -16,8 +16,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -72,7 +73,7 @@ public class ServiceTicketService {
         return mapToDTO(saved);
     }
 
-    public ServiceTicketDTO updateTicket(UUID id, ServiceTicketDTO dto) {
+    public ServiceTicketDTO updateTicket(Long id, ServiceTicketDTO dto) {
         User user = getCurrentUser();
         ServiceTicket ticket = repository.findById(id)
                 .filter(t -> t.getCompanyId().equals(user.getCompanyId()))
@@ -118,7 +119,7 @@ public class ServiceTicketService {
         return mapToDTO(saved);
     }
 
-    public ServiceTicketDTO assignTechnician(UUID ticketId, UUID technicianId) {
+    public ServiceTicketDTO assignTechnician(Long ticketId, Long technicianId) {
         User currentUser = getCurrentUser();
         ServiceTicket ticket = repository.findById(ticketId)
                 .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
@@ -135,7 +136,7 @@ public class ServiceTicketService {
     }
 
     @Transactional
-    public ServiceUsedPartDTO addUsedPart(UUID ticketId, ServiceUsedPartDTO dto) {
+    public ServiceUsedPartDTO addUsedPart(Long ticketId, ServiceUsedPartDTO dto) {
         User currentUser = getCurrentUser();
         ServiceTicket ticket = repository.findById(ticketId)
                 .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
@@ -173,7 +174,7 @@ public class ServiceTicketService {
                 saved.getSellingPriceSnapshot());
     }
 
-    public List<ServiceUsedPartDTO> getUsedParts(UUID ticketId) {
+    public List<ServiceUsedPartDTO> getUsedParts(Long ticketId) {
         User currentUser = getCurrentUser();
         // Verify access to ticket
         repository.findById(ticketId)
@@ -191,6 +192,61 @@ public class ServiceTicketService {
                 .collect(Collectors.toList());
     }
 
+    public ServiceTicketDTO completeService(Long ticketId, BigDecimal collectedAmount) {
+        User currentUser = getCurrentUser();
+        ServiceTicket ticket = repository.findById(ticketId)
+                .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
+
+        ticket.setStatus(ServiceTicket.TicketStatus.COMPLETED);
+        ticket.setCollectedAmount(collectedAmount);
+
+        return mapToDTO(repository.save(ticket));
+    }
+
+    public ServiceTicketDTO cancelService(Long ticketId) {
+        User currentUser = getCurrentUser();
+        ServiceTicket ticket = repository.findById(ticketId)
+                .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
+
+        ticket.setStatus(ServiceTicket.TicketStatus.CANCELLED);
+
+        return mapToDTO(repository.save(ticket));
+    }
+
+    public ServiceTicketDTO createFollowUpTicket(Long originalTicketId) {
+        User currentUser = getCurrentUser();
+
+        // Fetch original ticket
+        ServiceTicket originalTicket = repository.findById(originalTicketId)
+                .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Original ticket not found or access denied"));
+
+        // Verify original ticket is COMPLETED
+        if (originalTicket.getStatus() != ServiceTicket.TicketStatus.COMPLETED) {
+            throw new RuntimeException("Can only create follow-up for completed tickets");
+        }
+
+        // Create new ticket
+        ServiceTicket followUpTicket = new ServiceTicket();
+        followUpTicket.setCompanyId(currentUser.getCompanyId());
+        followUpTicket.setCustomerId(originalTicket.getCustomerId());
+        followUpTicket.setDescription("RECALL: " + originalTicket.getDescription());
+        followUpTicket.setStatus(ServiceTicket.TicketStatus.PENDING);
+        followUpTicket.setParentTicketId(originalTicketId);
+
+        // Check if warranty call (completed less than 30 days ago)
+        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        boolean isWarranty = originalTicket.getUpdatedAt() != null &&
+                originalTicket.getUpdatedAt().isAfter(thirtyDaysAgo);
+        followUpTicket.setWarrantyCall(isWarranty);
+
+        // Save and return
+        ServiceTicket saved = repository.save(followUpTicket);
+        return mapToDTO(saved);
+    }
+
     private ServiceTicketDTO mapToDTO(ServiceTicket ticket) {
         return ServiceTicketDTO.builder()
                 .id(ticket.getId())
@@ -200,7 +256,10 @@ public class ServiceTicketService {
                 .scheduledDate(ticket.getScheduledDate())
                 .description(ticket.getDescription())
                 .notes(ticket.getNotes())
+                .collectedAmount(ticket.getCollectedAmount())
                 .createdAt(ticket.getCreatedAt())
+                .parentTicketId(ticket.getParentTicketId())
+                .isWarrantyCall(ticket.isWarrantyCall())
                 .build();
     }
 }

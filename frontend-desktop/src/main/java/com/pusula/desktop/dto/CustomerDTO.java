@@ -1,11 +1,10 @@
 package com.pusula.desktop.dto;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 public class CustomerDTO {
-    private UUID id;
-    private UUID companyId;
+    private Long id;
+    private Long companyId;
     private String name;
     private String phone;
     private String address;
@@ -13,19 +12,19 @@ public class CustomerDTO {
     private LocalDateTime createdAt;
 
     // Getters and Setters
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
-    public UUID getCompanyId() {
+    public Long getCompanyId() {
         return companyId;
     }
 
-    public void setCompanyId(UUID companyId) {
+    public void setCompanyId(Long companyId) {
         this.companyId = companyId;
     }
 

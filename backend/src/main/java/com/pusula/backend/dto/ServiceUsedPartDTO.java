@@ -1,12 +1,11 @@
 package com.pusula.backend.dto;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 public class ServiceUsedPartDTO {
-    private UUID id;
-    private UUID ticketId;
-    private UUID inventoryId;
+    private Long id;
+    private Long ticketId;
+    private Long inventoryId;
     private String partName;
     private Integer quantityUsed;
     private BigDecimal sellingPriceSnapshot;
@@ -14,7 +13,7 @@ public class ServiceUsedPartDTO {
     public ServiceUsedPartDTO() {
     }
 
-    public ServiceUsedPartDTO(UUID id, UUID ticketId, UUID inventoryId, String partName, Integer quantityUsed,
+    public ServiceUsedPartDTO(Long id, Long ticketId, Long inventoryId, String partName, Integer quantityUsed,
             BigDecimal sellingPriceSnapshot) {
         this.id = id;
         this.ticketId = ticketId;
@@ -28,27 +27,27 @@ public class ServiceUsedPartDTO {
         return new ServiceUsedPartDTOBuilder();
     }
 
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
-    public UUID getTicketId() {
+    public Long getTicketId() {
         return ticketId;
     }
 
-    public void setTicketId(UUID ticketId) {
+    public void setTicketId(Long ticketId) {
         this.ticketId = ticketId;
     }
 
-    public UUID getInventoryId() {
+    public Long getInventoryId() {
         return inventoryId;
     }
 
-    public void setInventoryId(UUID inventoryId) {
+    public void setInventoryId(Long inventoryId) {
         this.inventoryId = inventoryId;
     }
 
@@ -77,9 +76,9 @@ public class ServiceUsedPartDTO {
     }
 
     public static class ServiceUsedPartDTOBuilder {
-        private UUID id;
-        private UUID ticketId;
-        private UUID inventoryId;
+        private Long id;
+        private Long ticketId;
+        private Long inventoryId;
         private String partName;
         private Integer quantityUsed;
         private BigDecimal sellingPriceSnapshot;
@@ -87,17 +86,17 @@ public class ServiceUsedPartDTO {
         ServiceUsedPartDTOBuilder() {
         }
 
-        public ServiceUsedPartDTOBuilder id(UUID id) {
+        public ServiceUsedPartDTOBuilder id(Long id) {
             this.id = id;
             return this;
         }
 
-        public ServiceUsedPartDTOBuilder ticketId(UUID ticketId) {
+        public ServiceUsedPartDTOBuilder ticketId(Long ticketId) {
             this.ticketId = ticketId;
             return this;
         }
 
-        public ServiceUsedPartDTOBuilder inventoryId(UUID inventoryId) {
+        public ServiceUsedPartDTOBuilder inventoryId(Long inventoryId) {
             this.inventoryId = inventoryId;
             return this;
         }

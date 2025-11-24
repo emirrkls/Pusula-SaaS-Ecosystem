@@ -61,6 +61,7 @@ CREATE TABLE service_tickets (
     scheduled_date TIMESTAMP WITH TIME ZONE,
     description TEXT,
     notes TEXT,
+    collected_amount DECIMAL(10, 2),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_tickets_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
     CONSTRAINT fk_tickets_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,

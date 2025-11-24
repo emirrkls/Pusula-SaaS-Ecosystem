@@ -7,7 +7,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/customers")
@@ -24,13 +23,18 @@ public class CustomerController {
         return ResponseEntity.ok(customerService.getAllCustomers());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<Customer> getCustomerById(@PathVariable Long id) {
+        return ResponseEntity.ok(customerService.getCustomerById(id));
+    }
+
     @PostMapping
     public ResponseEntity<Customer> createCustomer(@RequestBody Customer customer) {
         return ResponseEntity.ok(customerService.createCustomer(customer));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Customer> updateCustomer(@PathVariable UUID id, @RequestBody Customer customer) {
+    public ResponseEntity<Customer> updateCustomer(@PathVariable Long id, @RequestBody Customer customer) {
         return ResponseEntity.ok(customerService.updateCustomer(id, customer));
     }
 }

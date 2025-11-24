@@ -10,7 +10,6 @@ import retrofit2.http.PUT;
 import retrofit2.http.Path;
 
 import java.util.List;
-import java.util.UUID;
 
 public interface InventoryApi {
     @GET("api/inventory")
@@ -20,8 +19,8 @@ public interface InventoryApi {
     Call<InventoryDTO> createInventory(@Body InventoryDTO inventory);
 
     @PUT("api/inventory/{id}")
-    Call<InventoryDTO> updateInventory(@Path("id") UUID id, @Body InventoryDTO inventory);
+    Call<InventoryDTO> updateInventory(@Path("id") Long id, @Body InventoryDTO inventory);
 
     @DELETE("api/inventory/{id}")
-    Call<Void> deleteInventory(@Path("id") UUID id);
+    Call<Void> deleteInventory(@Path("id") Long id);
 }

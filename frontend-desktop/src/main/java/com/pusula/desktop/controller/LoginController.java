@@ -49,11 +49,16 @@ public class LoginController {
 
                     Platform.runLater(() -> {
                         try {
-                            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/main_dashboard.fxml"));
+                            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
+                                    new java.util.Locale("tr", "TR"));
+                            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/main_dashboard.fxml"),
+                                    bundle);
                             Parent root = loader.load();
                             Stage stage = (Stage) usernameField.getScene().getWindow();
-                            stage.setScene(new Scene(root));
-                            stage.setTitle("Pusula - Main Dashboard");
+                            Scene scene = new Scene(root);
+                            scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+                            stage.setScene(scene);
+                            stage.setTitle(bundle.getString("app.title"));
                             stage.setMaximized(true);
                         } catch (Exception e) {
                             e.printStackTrace();

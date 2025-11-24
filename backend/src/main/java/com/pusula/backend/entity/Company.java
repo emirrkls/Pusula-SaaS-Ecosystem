@@ -1,19 +1,16 @@
 package com.pusula.backend.entity;
 
 import jakarta.persistence.*;
-
-import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "companies")
-public class Company {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+@SQLDelete(sql = "UPDATE companies SET is_deleted = true WHERE id = ?")
+@Where(clause = "is_deleted = false")
+public class Company extends BaseEntity {
 
     @Column(nullable = false)
     private String name;
@@ -21,30 +18,18 @@ public class Company {
     @Column(name = "subscription_status", nullable = false)
     private String subscriptionStatus;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
     public Company() {
     }
 
-    public Company(UUID id, String name, String subscriptionStatus, LocalDateTime createdAt) {
-        this.id = id;
+    public Company(Long id, String name, String subscriptionStatus, LocalDateTime createdAt) {
+        this.setId(id);
         this.name = name;
         this.subscriptionStatus = subscriptionStatus;
-        this.createdAt = createdAt;
+        this.setCreatedAt(createdAt);
     }
 
     public static CompanyBuilder builder() {
         return new CompanyBuilder();
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
     }
 
     public String getName() {
@@ -63,16 +48,8 @@ public class Company {
         this.subscriptionStatus = subscriptionStatus;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
     public static class CompanyBuilder {
-        private UUID id;
+        private Long id;
         private String name;
         private String subscriptionStatus;
         private LocalDateTime createdAt;
@@ -80,7 +57,7 @@ public class Company {
         CompanyBuilder() {
         }
 
-        public CompanyBuilder id(UUID id) {
+        public CompanyBuilder id(Long id) {
             this.id = id;
             return this;
         }

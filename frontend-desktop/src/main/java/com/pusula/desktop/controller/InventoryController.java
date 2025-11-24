@@ -41,7 +41,11 @@ public class InventoryController {
     @FXML
     private TableColumn<InventoryDTO, Integer> colCriticalLevel;
 
+    @FXML
+    private javafx.scene.control.TextField searchField;
+
     private final ObservableList<InventoryDTO> inventoryList = FXCollections.observableArrayList();
+    private javafx.collections.transformation.FilteredList<InventoryDTO> filteredList;
 
     @FXML
     public void initialize() {
@@ -51,7 +55,45 @@ public class InventoryController {
         colSellPrice.setCellValueFactory(new PropertyValueFactory<>("sellPrice"));
         colCriticalLevel.setCellValueFactory(new PropertyValueFactory<>("criticalLevel"));
 
-        inventoryTable.setItems(inventoryList);
+        // 1. Search Logic
+        filteredList = new javafx.collections.transformation.FilteredList<>(inventoryList, p -> true);
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            filteredList.setPredicate(item -> {
+                if (newValue == null || newValue.isEmpty()) {
+                    return true;
+                }
+                String lowerCaseFilter = newValue.toLowerCase();
+                return item.getPartName().toLowerCase().contains(lowerCaseFilter);
+            });
+        });
+        inventoryTable.setItems(filteredList);
+
+        // 2. Visual Alert (Row Factory) & Double Click
+        inventoryTable.setRowFactory(tv -> {
+            javafx.scene.control.TableRow<InventoryDTO> row = new javafx.scene.control.TableRow<>() {
+                @Override
+                protected void updateItem(InventoryDTO item, boolean empty) {
+                    super.updateItem(item, empty);
+                    // Remove all custom style classes first
+                    getStyleClass().removeAll("table-row-critical");
+
+                    if (item != null && !empty) {
+                        // Add critical style class if quantity is at or below critical level
+                        if (item.getQuantity() <= item.getCriticalLevel()) {
+                            getStyleClass().add("table-row-critical");
+                        }
+                    }
+                }
+            };
+
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2 && (!row.isEmpty())) {
+                    InventoryDTO rowData = row.getItem();
+                    handleEditItem(rowData);
+                }
+            });
+            return row;
+        });
 
         loadInventory();
     }
@@ -63,16 +105,33 @@ public class InventoryController {
 
     @FXML
     private void handleAddItem() {
+        openDialog(null);
+    }
+
+    private void handleEditItem(InventoryDTO item) {
+        openDialog(item);
+    }
+
+    private void openDialog(InventoryDTO item) {
         try {
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
                     getClass().getResource("/view/inventory_dialog.fxml"));
+
+            // Set resources bundle for localization
+            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
+                    new java.util.Locale("tr", "TR"));
+            loader.setResources(bundle);
+
             javafx.scene.Parent root = loader.load();
 
             InventoryDialogController controller = loader.getController();
+            if (item != null) {
+                controller.setInventoryItem(item);
+            }
             controller.setOnSaveSuccess(this::loadInventory);
 
             javafx.stage.Stage stage = new javafx.stage.Stage();
-            stage.setTitle("Add Inventory Item");
+            stage.setTitle(item == null ? "Add Inventory Item" : "Edit Inventory Item");
             stage.setScene(new javafx.scene.Scene(root));
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             stage.showAndWait();

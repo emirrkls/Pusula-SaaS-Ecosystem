@@ -1,9 +1,7 @@
 package com.pusula.backend.dto;
 
-import java.util.UUID;
-
 public class RegisterRequest {
-    private UUID companyId;
+    private Long companyId;
     private String username;
     private String password;
     private String fullName;
@@ -12,7 +10,7 @@ public class RegisterRequest {
     public RegisterRequest() {
     }
 
-    public RegisterRequest(UUID companyId, String username, String password, String fullName, String role) {
+    public RegisterRequest(Long companyId, String username, String password, String fullName, String role) {
         this.companyId = companyId;
         this.username = username;
         this.password = password;
@@ -24,11 +22,11 @@ public class RegisterRequest {
         return new RegisterRequestBuilder();
     }
 
-    public UUID getCompanyId() {
+    public Long getCompanyId() {
         return companyId;
     }
 
-    public void setCompanyId(UUID companyId) {
+    public void setCompanyId(Long companyId) {
         this.companyId = companyId;
     }
 
@@ -65,7 +63,7 @@ public class RegisterRequest {
     }
 
     public static class RegisterRequestBuilder {
-        private UUID companyId;
+        private Long companyId;
         private String username;
         private String password;
         private String fullName;
@@ -74,7 +72,7 @@ public class RegisterRequest {
         RegisterRequestBuilder() {
         }
 
-        public RegisterRequestBuilder companyId(UUID companyId) {
+        public RegisterRequestBuilder companyId(Long companyId) {
             this.companyId = companyId;
             return this;
         }
