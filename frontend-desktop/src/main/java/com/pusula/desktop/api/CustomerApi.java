@@ -9,15 +9,17 @@ import retrofit2.http.PUT;
 import retrofit2.http.Path;
 
 import java.util.List;
-import java.util.UUID;
 
 public interface CustomerApi {
     @GET("api/customers")
     Call<List<CustomerDTO>> getAllCustomers();
 
+    @GET("api/customers/{id}")
+    Call<CustomerDTO> getCustomerById(@Path("id") Long id);
+
     @POST("api/customers")
     Call<CustomerDTO> createCustomer(@Body CustomerDTO customer);
 
     @PUT("api/customers/{id}")
-    Call<CustomerDTO> updateCustomer(@Path("id") UUID id, @Body CustomerDTO customer);
+    Call<CustomerDTO> updateCustomer(@Path("id") Long id, @Body CustomerDTO customer);
 }

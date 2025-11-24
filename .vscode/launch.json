@@ -3,6 +3,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "PusulaDesktopApp",
+            "request": "launch",
+            "mainClass": "com.pusula.desktop.PusulaDesktopApp",
+            "projectName": "frontend-desktop"
+        },
+        {
+            "type": "java",
             "name": "Launcher",
             "request": "launch",
             "mainClass": "com.pusula.desktop.Launcher",

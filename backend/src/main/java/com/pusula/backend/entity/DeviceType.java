@@ -1,19 +1,14 @@
 package com.pusula.backend.entity;
 
 import jakarta.persistence.*;
-
-import java.util.UUID;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 @Entity
 @Table(name = "device_types")
-public class DeviceType {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
-
-    @Column(name = "company_id", nullable = false)
-    private UUID companyId;
+@SQLDelete(sql = "UPDATE device_types SET is_deleted = true WHERE id = ?")
+@Where(clause = "is_deleted = false")
+public class DeviceType extends BaseEntity {
 
     @Column(nullable = false)
     private String name;
@@ -21,30 +16,14 @@ public class DeviceType {
     public DeviceType() {
     }
 
-    public DeviceType(UUID id, UUID companyId, String name) {
-        this.id = id;
-        this.companyId = companyId;
+    public DeviceType(Long id, Long companyId, String name) {
+        this.setId(id);
+        this.setCompanyId(companyId);
         this.name = name;
     }
 
     public static DeviceTypeBuilder builder() {
         return new DeviceTypeBuilder();
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public UUID getCompanyId() {
-        return companyId;
-    }
-
-    public void setCompanyId(UUID companyId) {
-        this.companyId = companyId;
     }
 
     public String getName() {
@@ -56,19 +35,19 @@ public class DeviceType {
     }
 
     public static class DeviceTypeBuilder {
-        private UUID id;
-        private UUID companyId;
+        private Long id;
+        private Long companyId;
         private String name;
 
         DeviceTypeBuilder() {
         }
 
-        public DeviceTypeBuilder id(UUID id) {
+        public DeviceTypeBuilder id(Long id) {
             this.id = id;
             return this;
         }
 
-        public DeviceTypeBuilder companyId(UUID companyId) {
+        public DeviceTypeBuilder companyId(Long companyId) {
             this.companyId = companyId;
             return this;
         }

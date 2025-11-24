@@ -7,7 +7,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/tickets")
@@ -31,24 +30,40 @@ public class ServiceTicketController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ServiceTicketDTO> updateTicket(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @RequestBody ServiceTicketDTO dto) {
         return ResponseEntity.ok(service.updateTicket(id, dto));
     }
 
     @PatchMapping("/{id}/assign")
-    public ResponseEntity<ServiceTicketDTO> assignTechnician(@PathVariable UUID id, @RequestParam UUID technicianId) {
+    public ResponseEntity<ServiceTicketDTO> assignTechnician(@PathVariable Long id, @RequestParam Long technicianId) {
         return ResponseEntity.ok(service.assignTechnician(id, technicianId));
     }
 
     @PostMapping("/{id}/parts")
-    public ResponseEntity<com.pusula.backend.dto.ServiceUsedPartDTO> addUsedPart(@PathVariable UUID id,
+    public ResponseEntity<com.pusula.backend.dto.ServiceUsedPartDTO> addUsedPart(@PathVariable Long id,
             @RequestBody com.pusula.backend.dto.ServiceUsedPartDTO dto) {
         return ResponseEntity.ok(service.addUsedPart(id, dto));
     }
 
     @GetMapping("/{id}/parts")
-    public ResponseEntity<List<com.pusula.backend.dto.ServiceUsedPartDTO>> getUsedParts(@PathVariable UUID id) {
+    public ResponseEntity<List<com.pusula.backend.dto.ServiceUsedPartDTO>> getUsedParts(@PathVariable Long id) {
         return ResponseEntity.ok(service.getUsedParts(id));
+    }
+
+    @PatchMapping("/{id}/complete")
+    public ResponseEntity<ServiceTicketDTO> completeService(@PathVariable Long id,
+            @RequestParam java.math.BigDecimal amount) {
+        return ResponseEntity.ok(service.completeService(id, amount));
+    }
+
+    @PatchMapping("/{id}/cancel")
+    public ResponseEntity<ServiceTicketDTO> cancelService(@PathVariable Long id) {
+        return ResponseEntity.ok(service.cancelService(id));
+    }
+
+    @PostMapping("/{id}/follow-up")
+    public ResponseEntity<ServiceTicketDTO> createFollowUp(@PathVariable Long id) {
+        return ResponseEntity.ok(service.createFollowUpTicket(id));
     }
 }

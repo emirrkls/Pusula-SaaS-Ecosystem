@@ -39,7 +39,25 @@ public class UserController {
                     .collect(Collectors.toList());
         }
 
-        List<UserDTO> dtos = users.stream()
+        return ResponseEntity.ok(mapToDTOs(users));
+    }
+
+    @GetMapping("/technicians")
+    public ResponseEntity<List<UserDTO>> getTechnicians() {
+        User currentUser = getCurrentUser();
+        List<User> users = userRepository.findByCompanyId(currentUser.getCompanyId());
+
+        // Filter for technicians - checking for both "TECHNICIAN" and "ADMIN" for now
+        // since sample data might be mixed
+        List<User> technicians = users.stream()
+                .filter(u -> "TECHNICIAN".equalsIgnoreCase(u.getRole()) || "ADMIN".equalsIgnoreCase(u.getRole()))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(mapToDTOs(technicians));
+    }
+
+    private List<UserDTO> mapToDTOs(List<User> users) {
+        return users.stream()
                 .map(u -> UserDTO.builder()
                         .id(u.getId())
                         .username(u.getUsername())
@@ -47,7 +65,5 @@ public class UserController {
                         .role(u.getRole())
                         .build())
                 .collect(Collectors.toList());
-
-        return ResponseEntity.ok(dtos);
     }
 }

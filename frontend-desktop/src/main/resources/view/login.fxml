@@ -14,15 +14,15 @@
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
     </padding>
 
-    <Label text="Pusula Login">
+    <Label text="%login.title">
         <font>
             <Font size="24.0"/>
         </font>
     </Label>
     
-    <TextField fx:id="usernameField" promptText="Username" maxWidth="300"/>
-    <PasswordField fx:id="passwordField" promptText="Password" maxWidth="300"/>
+    <TextField fx:id="usernameField" promptText="%login.username" maxWidth="300"/>
+    <PasswordField fx:id="passwordField" promptText="%login.password" maxWidth="300"/>
     
-    <Button text="Login" onAction="#handleLogin"/>
+    <Button text="%login.button" onAction="#handleLogin"/>
     <Label fx:id="messageLabel"/>
 </VBox>

@@ -1,49 +1,52 @@
 package com.pusula.desktop.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 public class ServiceTicketDTO {
-    private UUID id;
-    private UUID companyId;
-    private UUID customerId;
-    private UUID assignedTechnicianId;
+    private Long id;
+    private Long companyId;
+    private Long customerId;
+    private Long assignedTechnicianId;
     private String status;
     private LocalDateTime scheduledDate;
     private String description;
     private String notes;
+    private BigDecimal collectedAmount;
     private LocalDateTime createdAt;
+    private Long parentTicketId;
+    private boolean isWarrantyCall;
 
     // Getters and Setters
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
-    public UUID getCompanyId() {
+    public Long getCompanyId() {
         return companyId;
     }
 
-    public void setCompanyId(UUID companyId) {
+    public void setCompanyId(Long companyId) {
         this.companyId = companyId;
     }
 
-    public UUID getCustomerId() {
+    public Long getCustomerId() {
         return customerId;
     }
 
-    public void setCustomerId(UUID customerId) {
+    public void setCustomerId(Long customerId) {
         this.customerId = customerId;
     }
 
-    public UUID getAssignedTechnicianId() {
+    public Long getAssignedTechnicianId() {
         return assignedTechnicianId;
     }
 
-    public void setAssignedTechnicianId(UUID assignedTechnicianId) {
+    public void setAssignedTechnicianId(Long assignedTechnicianId) {
         this.assignedTechnicianId = assignedTechnicianId;
     }
 
@@ -85,5 +88,29 @@ public class ServiceTicketDTO {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public BigDecimal getCollectedAmount() {
+        return collectedAmount;
+    }
+
+    public void setCollectedAmount(BigDecimal collectedAmount) {
+        this.collectedAmount = collectedAmount;
+    }
+
+    public Long getParentTicketId() {
+        return parentTicketId;
+    }
+
+    public void setParentTicketId(Long parentTicketId) {
+        this.parentTicketId = parentTicketId;
+    }
+
+    public boolean isWarrantyCall() {
+        return isWarrantyCall;
+    }
+
+    public void setWarrantyCall(boolean warrantyCall) {
+        isWarrantyCall = warrantyCall;
     }
 }

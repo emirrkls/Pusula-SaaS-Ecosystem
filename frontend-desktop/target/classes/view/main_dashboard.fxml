@@ -21,7 +21,7 @@
                   <Insets bottom="20.0" left="20.0" top="20.0" />
                </VBox.margin>
             </Label>
-            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showDashboard" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="Dashboard">
+            <Button fx:id="dashboardButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showDashboard" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="%menu.dashboard">
                <padding>
                   <Insets bottom="10.0" left="20.0" top="10.0" />
                </padding>
@@ -29,7 +29,7 @@
                   <Font size="14.0" />
                </font>
             </Button>
-            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showServiceManagement" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="Service Tickets">
+            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showServiceManagement" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="%menu.tickets">
                <padding>
                   <Insets bottom="10.0" left="20.0" top="10.0" />
                </padding>
@@ -37,7 +37,7 @@
                   <Font size="14.0" />
                </font>
             </Button>
-            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showInventory" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="Inventory">
+            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showInventory" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="%menu.inventory">
                <padding>
                   <Insets bottom="10.0" left="20.0" top="10.0" />
                </padding>
@@ -45,7 +45,15 @@
                   <Font size="14.0" />
                </font>
             </Button>
-            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showCustomers" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="Customers">
+            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showCustomers" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="%menu.customers">
+               <padding>
+                  <Insets bottom="10.0" left="20.0" top="10.0" />
+               </padding>
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </Button>
+            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showFinance" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="%menu.finance">
                <padding>
                   <Insets bottom="10.0" left="20.0" top="10.0" />
                </padding>
@@ -55,7 +63,7 @@
             </Button>
             <VBox alignment="BOTTOM_LEFT" VBox.vgrow="ALWAYS">
                <children>
-                  <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleLogout" style="-fx-background-color: #e74c3c; -fx-text-fill: white;" text="Logout">
+                  <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleLogout" style="-fx-background-color: #e74c3c; -fx-text-fill: white;" text="%common.logout">
                      <VBox.margin>
                         <Insets bottom="20.0" left="20.0" right="20.0" />
                      </VBox.margin>
@@ -68,7 +76,7 @@
    <center>
       <StackPane fx:id="contentArea" prefHeight="150.0" prefWidth="200.0" BorderPane.alignment="CENTER">
          <children>
-            <Label text="Welcome to Pusula Service Ecosystem">
+            <Label text="%app.title">
                <font>
                   <Font size="18.0" />
                </font>
@@ -79,6 +87,11 @@
    <top>
       <HBox alignment="CENTER_RIGHT" prefHeight="50.0" prefWidth="200.0" style="-fx-background-color: #ecf0f1;" BorderPane.alignment="CENTER">
          <children>
+            <Button mnemonicParsing="false" onAction="#toggleTheme" text="%common.theme">
+               <HBox.margin>
+                  <Insets right="20.0" />
+               </HBox.margin>
+            </Button>
             <Label fx:id="userLabel" text="Welcome, User">
                <HBox.margin>
                   <Insets right="20.0" />

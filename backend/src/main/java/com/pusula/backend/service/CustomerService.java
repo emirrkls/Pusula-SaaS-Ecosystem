@@ -9,7 +9,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class CustomerService {
@@ -33,13 +32,25 @@ public class CustomerService {
         return customerRepository.findByCompanyId(user.getCompanyId());
     }
 
+    public Customer getCustomerById(Long id) {
+        User user = getCurrentUser();
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer not found"));
+
+        if (!customer.getCompanyId().equals(user.getCompanyId())) {
+            throw new RuntimeException("Unauthorized access to customer");
+        }
+
+        return customer;
+    }
+
     public Customer createCustomer(Customer customer) {
         User user = getCurrentUser();
         customer.setCompanyId(user.getCompanyId());
         return customerRepository.save(customer);
     }
 
-    public Customer updateCustomer(UUID id, Customer updatedCustomer) {
+    public Customer updateCustomer(Long id, Customer updatedCustomer) {
         User user = getCurrentUser();
         Customer existing = customerRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Customer not found"));

@@ -1,22 +1,16 @@
 package com.pusula.backend.entity;
 
 import jakarta.persistence.*;
-
-import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "customers")
-public class Customer {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
-
-    @Column(name = "company_id", nullable = false)
-    private UUID companyId;
+@SQLDelete(sql = "UPDATE customers SET is_deleted = true WHERE id = ?")
+@Where(clause = "is_deleted = false")
+public class Customer extends BaseEntity {
 
     @Column(nullable = false)
     private String name;
@@ -27,42 +21,22 @@ public class Customer {
 
     private String coordinates; // Format: "lat,long"
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
     public Customer() {
     }
 
-    public Customer(UUID id, UUID companyId, String name, String phone, String address, String coordinates,
+    public Customer(Long id, Long companyId, String name, String phone, String address, String coordinates,
             LocalDateTime createdAt) {
-        this.id = id;
-        this.companyId = companyId;
+        this.setId(id);
+        this.setCompanyId(companyId);
         this.name = name;
         this.phone = phone;
         this.address = address;
         this.coordinates = coordinates;
-        this.createdAt = createdAt;
+        this.setCreatedAt(createdAt);
     }
 
     public static CustomerBuilder builder() {
         return new CustomerBuilder();
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public UUID getCompanyId() {
-        return companyId;
-    }
-
-    public void setCompanyId(UUID companyId) {
-        this.companyId = companyId;
     }
 
     public String getName() {
@@ -97,17 +71,9 @@ public class Customer {
         this.coordinates = coordinates;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
     public static class CustomerBuilder {
-        private UUID id;
-        private UUID companyId;
+        private Long id;
+        private Long companyId;
         private String name;
         private String phone;
         private String address;
@@ -117,12 +83,12 @@ public class Customer {
         CustomerBuilder() {
         }
 
-        public CustomerBuilder id(UUID id) {
+        public CustomerBuilder id(Long id) {
             this.id = id;
             return this;
         }
 
-        public CustomerBuilder companyId(UUID companyId) {
+        public CustomerBuilder companyId(Long companyId) {
             this.companyId = companyId;
             return this;
         }

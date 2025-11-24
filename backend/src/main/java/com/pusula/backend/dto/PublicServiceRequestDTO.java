@@ -1,9 +1,7 @@
 package com.pusula.backend.dto;
 
-import java.util.UUID;
-
 public class PublicServiceRequestDTO {
-    private UUID companyId;
+    private Long companyId;
     private String customerName;
     private String customerPhone;
     private String customerAddress;
@@ -12,7 +10,7 @@ public class PublicServiceRequestDTO {
     public PublicServiceRequestDTO() {
     }
 
-    public PublicServiceRequestDTO(UUID companyId, String customerName, String customerPhone, String customerAddress,
+    public PublicServiceRequestDTO(Long companyId, String customerName, String customerPhone, String customerAddress,
             String description) {
         this.companyId = companyId;
         this.customerName = customerName;
@@ -25,11 +23,11 @@ public class PublicServiceRequestDTO {
         return new PublicServiceRequestDTOBuilder();
     }
 
-    public UUID getCompanyId() {
+    public Long getCompanyId() {
         return companyId;
     }
 
-    public void setCompanyId(UUID companyId) {
+    public void setCompanyId(Long companyId) {
         this.companyId = companyId;
     }
 
@@ -66,7 +64,7 @@ public class PublicServiceRequestDTO {
     }
 
     public static class PublicServiceRequestDTOBuilder {
-        private UUID companyId;
+        private Long companyId;
         private String customerName;
         private String customerPhone;
         private String customerAddress;
@@ -75,7 +73,7 @@ public class PublicServiceRequestDTO {
         PublicServiceRequestDTOBuilder() {
         }
 
-        public PublicServiceRequestDTOBuilder companyId(UUID companyId) {
+        public PublicServiceRequestDTOBuilder companyId(Long companyId) {
             this.companyId = companyId;
             return this;
         }

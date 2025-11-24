@@ -7,7 +7,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/inventory")
@@ -31,13 +30,13 @@ public class InventoryController {
 
     @PutMapping("/{id}")
     public ResponseEntity<InventoryDTO> updateInventory(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @RequestBody InventoryDTO dto) {
         return ResponseEntity.ok(service.updateInventory(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteInventory(@PathVariable UUID id) {
+    public ResponseEntity<Void> deleteInventory(@PathVariable Long id) {
         service.deleteInventory(id);
         return ResponseEntity.noContent().build();
     }

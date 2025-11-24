@@ -1,10 +1,9 @@
 package com.pusula.backend.dto;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 public class InventoryDTO {
-    private UUID id;
+    private Long id;
     private String partName;
     private Integer quantity;
     private BigDecimal buyPrice;
@@ -14,7 +13,7 @@ public class InventoryDTO {
     public InventoryDTO() {
     }
 
-    public InventoryDTO(UUID id, String partName, Integer quantity, BigDecimal buyPrice, BigDecimal sellPrice,
+    public InventoryDTO(Long id, String partName, Integer quantity, BigDecimal buyPrice, BigDecimal sellPrice,
             Integer criticalLevel) {
         this.id = id;
         this.partName = partName;
@@ -28,11 +27,11 @@ public class InventoryDTO {
         return new InventoryDTOBuilder();
     }
 
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -77,7 +76,7 @@ public class InventoryDTO {
     }
 
     public static class InventoryDTOBuilder {
-        private UUID id;
+        private Long id;
         private String partName;
         private Integer quantity;
         private BigDecimal buyPrice;
@@ -87,7 +86,7 @@ public class InventoryDTO {
         InventoryDTOBuilder() {
         }
 
-        public InventoryDTOBuilder id(UUID id) {
+        public InventoryDTOBuilder id(Long id) {
             this.id = id;
             return this;
         }

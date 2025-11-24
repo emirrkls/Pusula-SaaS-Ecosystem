@@ -9,7 +9,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,7 +45,7 @@ public class InventoryService {
         return mapToDTO(saved);
     }
 
-    public InventoryDTO updateInventory(UUID id, InventoryDTO dto) {
+    public InventoryDTO updateInventory(Long id, InventoryDTO dto) {
         User user = getCurrentUser();
         Inventory inventory = repository.findById(id)
                 .filter(inv -> inv.getCompanyId().equals(user.getCompanyId()))
@@ -62,7 +61,7 @@ public class InventoryService {
         return mapToDTO(saved);
     }
 
-    public void deleteInventory(UUID id) {
+    public void deleteInventory(Long id) {
         User user = getCurrentUser();
         Inventory inventory = repository.findById(id)
                 .filter(inv -> inv.getCompanyId().equals(user.getCompanyId()))

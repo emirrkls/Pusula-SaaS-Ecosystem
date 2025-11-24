@@ -1,7 +1,8 @@
 package com.pusula.backend.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -9,18 +10,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-public class User implements UserDetails {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
-
-    @Column(name = "company_id", nullable = false)
-    private UUID companyId;
+@SQLDelete(sql = "UPDATE users SET is_deleted = true WHERE id = ?")
+@Where(clause = "is_deleted = false")
+public class User extends BaseEntity implements UserDetails {
 
     @Column(nullable = false)
     private String username;
@@ -34,42 +29,22 @@ public class User implements UserDetails {
     @Column(name = "full_name")
     private String fullName;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
     public User() {
     }
 
-    public User(UUID id, UUID companyId, String username, String passwordHash, String role, String fullName,
+    public User(Long id, Long companyId, String username, String passwordHash, String role, String fullName,
             LocalDateTime createdAt) {
-        this.id = id;
-        this.companyId = companyId;
+        this.setId(id);
+        this.setCompanyId(companyId);
         this.username = username;
         this.passwordHash = passwordHash;
         this.role = role;
         this.fullName = fullName;
-        this.createdAt = createdAt;
+        this.setCreatedAt(createdAt);
     }
 
     public static UserBuilder builder() {
         return new UserBuilder();
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public UUID getCompanyId() {
-        return companyId;
-    }
-
-    public void setCompanyId(UUID companyId) {
-        this.companyId = companyId;
     }
 
     public void setUsername(String username) {
@@ -98,14 +73,6 @@ public class User implements UserDetails {
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
     }
 
     @Override
@@ -144,8 +111,8 @@ public class User implements UserDetails {
     }
 
     public static class UserBuilder {
-        private UUID id;
-        private UUID companyId;
+        private Long id;
+        private Long companyId;
         private String username;
         private String passwordHash;
         private String role;
@@ -155,12 +122,12 @@ public class User implements UserDetails {
         UserBuilder() {
         }
 
-        public UserBuilder id(UUID id) {
+        public UserBuilder id(Long id) {
             this.id = id;
             return this;
         }
 
-        public UserBuilder companyId(UUID companyId) {
+        public UserBuilder companyId(Long companyId) {
             this.companyId = companyId;
             return this;
         }

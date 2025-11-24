@@ -1,28 +1,23 @@
 package com.pusula.backend.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
-import org.hibernate.annotations.CreationTimestamp;
-
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "service_tickets")
-public class ServiceTicket {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
-
-    @Column(name = "company_id", nullable = false)
-    private UUID companyId;
+@SQLDelete(sql = "UPDATE service_tickets SET is_deleted = true WHERE id = ?")
+@Where(clause = "is_deleted = false")
+public class ServiceTicket extends BaseEntity {
 
     @Column(name = "customer_id", nullable = false)
-    private UUID customerId;
+    private Long customerId;
 
     @Column(name = "assigned_technician_id")
-    private UUID assignedTechnicianId;
+    private Long assignedTechnicianId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -35,59 +30,50 @@ public class ServiceTicket {
 
     private String notes;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "collected_amount")
+    private BigDecimal collectedAmount;
+
+    @Column(name = "parent_ticket_id")
+    private Long parentTicketId;
+
+    @Column(name = "is_warranty_call")
+    private boolean isWarrantyCall = false;
 
     public ServiceTicket() {
     }
 
-    public ServiceTicket(UUID id, UUID companyId, UUID customerId, UUID assignedTechnicianId, TicketStatus status,
-            LocalDateTime scheduledDate, String description, String notes, LocalDateTime createdAt) {
-        this.id = id;
-        this.companyId = companyId;
+    public ServiceTicket(Long id, Long companyId, Long customerId, Long assignedTechnicianId, TicketStatus status,
+            LocalDateTime scheduledDate, String description, String notes, BigDecimal collectedAmount,
+            LocalDateTime createdAt) {
+        this.setId(id);
+        this.setCompanyId(companyId);
         this.customerId = customerId;
         this.assignedTechnicianId = assignedTechnicianId;
         this.status = status;
         this.scheduledDate = scheduledDate;
         this.description = description;
         this.notes = notes;
-        this.createdAt = createdAt;
+        this.collectedAmount = collectedAmount;
+        this.setCreatedAt(createdAt);
     }
 
     public static ServiceTicketBuilder builder() {
         return new ServiceTicketBuilder();
     }
 
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public UUID getCompanyId() {
-        return companyId;
-    }
-
-    public void setCompanyId(UUID companyId) {
-        this.companyId = companyId;
-    }
-
-    public UUID getCustomerId() {
+    public Long getCustomerId() {
         return customerId;
     }
 
-    public void setCustomerId(UUID customerId) {
+    public void setCustomerId(Long customerId) {
         this.customerId = customerId;
     }
 
-    public UUID getAssignedTechnicianId() {
+    public Long getAssignedTechnicianId() {
         return assignedTechnicianId;
     }
 
-    public void setAssignedTechnicianId(UUID assignedTechnicianId) {
+    public void setAssignedTechnicianId(Long assignedTechnicianId) {
         this.assignedTechnicianId = assignedTechnicianId;
     }
 
@@ -123,12 +109,28 @@ public class ServiceTicket {
         this.notes = notes;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    public BigDecimal getCollectedAmount() {
+        return collectedAmount;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
+    public void setCollectedAmount(BigDecimal collectedAmount) {
+        this.collectedAmount = collectedAmount;
+    }
+
+    public Long getParentTicketId() {
+        return parentTicketId;
+    }
+
+    public void setParentTicketId(Long parentTicketId) {
+        this.parentTicketId = parentTicketId;
+    }
+
+    public boolean isWarrantyCall() {
+        return isWarrantyCall;
+    }
+
+    public void setWarrantyCall(boolean warrantyCall) {
+        isWarrantyCall = warrantyCall;
     }
 
     public enum TicketStatus {
@@ -136,35 +138,36 @@ public class ServiceTicket {
     }
 
     public static class ServiceTicketBuilder {
-        private UUID id;
-        private UUID companyId;
-        private UUID customerId;
-        private UUID assignedTechnicianId;
+        private Long id;
+        private Long companyId;
+        private Long customerId;
+        private Long assignedTechnicianId;
         private TicketStatus status;
         private LocalDateTime scheduledDate;
         private String description;
         private String notes;
+        private BigDecimal collectedAmount;
         private LocalDateTime createdAt;
 
         ServiceTicketBuilder() {
         }
 
-        public ServiceTicketBuilder id(UUID id) {
+        public ServiceTicketBuilder id(Long id) {
             this.id = id;
             return this;
         }
 
-        public ServiceTicketBuilder companyId(UUID companyId) {
+        public ServiceTicketBuilder companyId(Long companyId) {
             this.companyId = companyId;
             return this;
         }
 
-        public ServiceTicketBuilder customerId(UUID customerId) {
+        public ServiceTicketBuilder customerId(Long customerId) {
             this.customerId = customerId;
             return this;
         }
 
-        public ServiceTicketBuilder assignedTechnicianId(UUID assignedTechnicianId) {
+        public ServiceTicketBuilder assignedTechnicianId(Long assignedTechnicianId) {
             this.assignedTechnicianId = assignedTechnicianId;
             return this;
         }
@@ -189,6 +192,11 @@ public class ServiceTicket {
             return this;
         }
 
+        public ServiceTicketBuilder collectedAmount(BigDecimal collectedAmount) {
+            this.collectedAmount = collectedAmount;
+            return this;
+        }
+
         public ServiceTicketBuilder createdAt(LocalDateTime createdAt) {
             this.createdAt = createdAt;
             return this;
@@ -196,7 +204,7 @@ public class ServiceTicket {
 
         public ServiceTicket build() {
             return new ServiceTicket(id, companyId, customerId, assignedTechnicianId, status, scheduledDate,
-                    description, notes, createdAt);
+                    description, notes, collectedAmount, createdAt);
         }
     }
 }

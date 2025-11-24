@@ -1,10 +1,9 @@
 package com.pusula.desktop.dto;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 public class InventoryDTO {
-    private UUID id;
+    private Long id;
     private String partName;
     private Integer quantity;
     private BigDecimal buyPrice;
@@ -12,11 +11,11 @@ public class InventoryDTO {
     private Integer criticalLevel;
 
     // Getters and Setters
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
