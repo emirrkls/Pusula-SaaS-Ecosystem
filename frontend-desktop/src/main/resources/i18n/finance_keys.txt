@@ -1,0 +1,13 @@
+﻿# Finance Module
+finance.title=Finans Yönetimi
+finance.income=Gelir
+finance.expense=Gider
+finance.profit=Net Kâr
+finance.add_expense=Gider Ekle
+finance.recent=Son İşlemler
+category.RENT=Kira
+category.SALARY=Maaş
+category.BILLS=Faturalar
+category.FUEL=Yakıt
+category.FOOD=Yemek
+category.OTHER=Diğer
