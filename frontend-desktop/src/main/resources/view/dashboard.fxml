@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.chart.LineChart?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<VBox spacing="20.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.DashboardController">
+   <padding>
+      <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+   </padding>
+   <children>
+      <Label text="%menu.dashboard">
+         <font>
+            <Font name="System Bold" size="24.0" />
+         </font>
+      </Label>
+      <HBox spacing="20.0">
+         <children>
+            <VBox fx:id="activeTicketsCard" onMouseClicked="#handleActiveTicketsClick" alignment="CENTER" prefHeight="150.0" prefWidth="200.0" styleClass="card, card-accent-blue" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label fx:id="activeTicketsLabel" styleClass="card-value" text="0" />
+                  <Label styleClass="card-title" text="%dashboard.active_tickets" />
+               </children>
+            </VBox>
+            <VBox fx:id="criticalStockCard" onMouseClicked="#handleCriticalStockClick" alignment="CENTER" prefHeight="150.0" prefWidth="200.0" styleClass="card, card-accent-red" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label fx:id="criticalStockLabel" styleClass="card-value" text="0" />
+                  <Label styleClass="card-title" text="%dashboard.critical_stock" />
+               </children>
+            </VBox>
+            <VBox fx:id="pendingProposalsCard" onMouseClicked="#handlePendingProposalsClick" alignment="CENTER" prefHeight="150.0" prefWidth="200.0" styleClass="card, card-accent-green" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label fx:id="pendingProposalsLabel" styleClass="card-value" text="0" />
+                  <Label styleClass="card-title" text="%dashboard.proposals" />
+               </children>
+            </VBox>
+         </children>
+      </HBox>
+      <SplitPane dividerPositions="0.6" VBox.vgrow="ALWAYS">
+         <items>
+            <!-- Left: Performance Chart -->
+            <VBox spacing="10.0">
+               <padding>
+                  <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+               </padding>
+               <children>
+                  <Label text="Teknisyen Performansı (Son 7 Gün)">
+                     <font>
+                        <Font name="System Bold" size="16.0" />
+                     </font>
+                  </Label>
+                  <LineChart fx:id="performanceChart" VBox.vgrow="ALWAYS">
+                     <xAxis>
+                        <CategoryAxis label="Tarih" side="BOTTOM" />
+                     </xAxis>
+                     <yAxis>
+                        <NumberAxis label="Tamamlanan İşler" side="LEFT" />
+                     </yAxis>
+                  </LineChart>
+               </children>
+            </VBox>
+            <!-- Right: Today's Agenda -->
+            <VBox spacing="10.0">
+               <padding>
+                  <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+               </padding>
+               <children>
+                  <Label text="Bugünkü Randevular">
+                     <font>
+                        <Font name="System Bold" size="16.0" />
+                     </font>
+                  </Label>
+                  <TableView fx:id="agendaTable" VBox.vgrow="ALWAYS">
+                    <columns>
+                      <TableColumn fx:id="colCustomer" text="%dashboard.table.customer" prefWidth="150.0" />
+                      <TableColumn fx:id="colTime" text="%dashboard.table.time" prefWidth="80.0" />
+                      <TableColumn fx:id="colStatus" text="%dashboard.table.status" prefWidth="100.0" />
+                      <TableColumn fx:id="colTechnician" text="%dashboard.table.technician" prefWidth="120.0" />
+                      <TableColumn fx:id="colActions" text="İşlemler" prefWidth="120.0" />
+                    </columns>
+                     <columnResizePolicy>
+                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                     </columnResizePolicy>
+                  </TableView>
+               </children>
+            </VBox>
+         </items>
+      </SplitPane>
+   </children>
+</VBox>

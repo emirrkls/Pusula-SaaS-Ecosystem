@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<VBox spacing="15.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.pusula.desktop.controller.ExpenseDialogController">
+   <padding>
+      <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+   </padding>
+   <children>
+      <Label text="Yeni Gider Ekle">
+         <font>
+            <Font name="System Bold" size="18.0" />
+         </font>
+      </Label>
+
+      <Label text="Kategori:" />
+      <ComboBox fx:id="comboCategory" maxWidth="1.7976931348623157E308" />
+
+      <Label text="Tutar (₺):" />
+      <TextField fx:id="txtAmount" promptText="0.00" />
+
+      <Label text="Tarih:" />
+      <DatePicker fx:id="datePicker" maxWidth="1.7976931348623157E308" />
+
+      <Label text="Açıklama:" />
+      <TextArea fx:id="txtDescription" prefRowCount="3" promptText="Açıklama girin..." />
+
+      <HBox spacing="10.0">
+         <children>
+            <Region HBox.hgrow="ALWAYS" />
+            <Button mnemonicParsing="false" onAction="#handleCancel" text="İptal" />
+            <Button mnemonicParsing="false" onAction="#handleSave"
+                    style="-fx-background-color: #27ae60; -fx-text-fill: white;" text="Kaydet" />
+         </children>
+      </HBox>
+   </children>
+</VBox>
