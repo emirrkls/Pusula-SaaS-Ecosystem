@@ -6,5 +6,7 @@ public enum ExpenseCategory {
     BILLS,
     FUEL,
     FOOD,
+    TAX,
+    MATERIAL,
     OTHER
 }

@@ -27,6 +27,8 @@ public class RetrofitClient {
             com.google.gson.Gson gson = new com.google.gson.GsonBuilder()
                     .registerTypeAdapter(java.time.LocalDateTime.class,
                             new com.pusula.desktop.util.LocalDateTimeTypeAdapter())
+                    .registerTypeAdapter(java.time.LocalDate.class,
+                            new com.pusula.desktop.util.LocalDateTypeAdapter())
                     .create();
 
             retrofit = new Retrofit.Builder()
