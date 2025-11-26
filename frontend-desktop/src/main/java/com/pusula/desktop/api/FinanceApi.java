@@ -46,6 +46,17 @@ public interface FinanceApi {
         @GET("/api/finance/fixed-expenses")
         Call<List<FixedExpenseDefinitionDTO>> getFixedExpenses(@Query("companyId") Long companyId);
 
+        @POST("/api/finance/fixed-expenses")
+        Call<FixedExpenseDefinitionDTO> createFixedExpense(@Body FixedExpenseDefinitionDTO definition);
+
+        @PUT("/api/finance/fixed-expenses/{id}")
+        Call<FixedExpenseDefinitionDTO> updateFixedExpense(
+                        @Path("id") Long id,
+                        @Body FixedExpenseDefinitionDTO definition);
+
+        @DELETE("/api/finance/fixed-expenses/{id}")
+        Call<Void> deleteFixedExpense(@Path("id") Long id);
+
         @POST("/api/finance/fixed-expenses/pay/{id}")
         Call<ExpenseDTO> payFixedExpense(
                         @Path("id") Long id,
@@ -53,4 +64,9 @@ public interface FinanceApi {
 
         @GET("/api/finance/daily-totals")
         Call<List<DailyTotalDTO>> get30DayTotals(@Query("companyId") Long companyId);
+
+        @GET("/api/finance/upcoming-fixed-expenses")
+        Call<List<FixedExpenseDefinitionDTO>> getUpcomingFixedExpenses(
+                        @Query("companyId") Long companyId,
+                        @Query("daysThreshold") int daysThreshold);
 }

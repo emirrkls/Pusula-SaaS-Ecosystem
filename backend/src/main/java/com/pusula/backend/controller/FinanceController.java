@@ -1,5 +1,6 @@
 package com.pusula.backend.controller;
 
+import com.pusula.backend.dto.FixedExpenseDefinitionDTO;
 import com.pusula.backend.dto.CategoryReportDTO;
 import com.pusula.backend.dto.CloseDayRequest;
 import com.pusula.backend.dto.DailySummaryDTO;
@@ -74,10 +75,31 @@ public class FinanceController {
         return ResponseEntity.ok(financeService.getCategoryReport(companyId, start, end));
     }
 
+    // ============= FIXED EXPENSE CRUD ENDPOINTS =============
+
     @GetMapping("/fixed-expenses")
-    public ResponseEntity<List<FixedExpenseDefinition>> getFixedExpenses(
-            @RequestParam(defaultValue = "1") Long companyId) {
-        return ResponseEntity.ok(financeService.getFixedExpenses(companyId));
+    public ResponseEntity<List<FixedExpenseDefinitionDTO>> getFixedExpenses(
+            @RequestParam Long companyId) {
+        return ResponseEntity.ok(financeService.getFixedExpensesWithStatus(companyId));
+    }
+
+    @PostMapping("/fixed-expenses")
+    public ResponseEntity<FixedExpenseDefinition> createFixedExpense(
+            @RequestBody FixedExpenseDefinition definition) {
+        return ResponseEntity.ok(financeService.createFixedExpense(definition));
+    }
+
+    @PutMapping("/fixed-expenses/{id}")
+    public ResponseEntity<FixedExpenseDefinition> updateFixedExpense(
+            @PathVariable Long id,
+            @RequestBody FixedExpenseDefinition definition) {
+        return ResponseEntity.ok(financeService.updateFixedExpense(id, definition));
+    }
+
+    @DeleteMapping("/fixed-expenses/{id}")
+    public ResponseEntity<Void> deleteFixedExpense(@PathVariable Long id) {
+        financeService.deleteFixedExpense(id);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/fixed-expenses/pay/{id}")
@@ -91,5 +113,12 @@ public class FinanceController {
     public ResponseEntity<List<FinanceService.DailyTotal>> get30DayTotals(
             @RequestParam(defaultValue = "1") Long companyId) {
         return ResponseEntity.ok(financeService.get30DayTotals(companyId));
+    }
+
+    @GetMapping("/upcoming-fixed-expenses")
+    public ResponseEntity<List<FixedExpenseDefinitionDTO>> getUpcomingFixedExpenses(
+            @RequestParam Long companyId,
+            @RequestParam(defaultValue = "3") int daysThreshold) {
+        return ResponseEntity.ok(financeService.getUpcomingFixedExpenses(companyId, daysThreshold));
     }
 }

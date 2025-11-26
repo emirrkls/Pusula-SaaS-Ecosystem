@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" 
+            fx:controller="com.pusula.desktop.controller.SettingsController">
+    <top>
+        <Label text="%settings.title" BorderPane.alignment="CENTER_LEFT">
+            <font>
+                <Font name="System Bold" size="24.0" />
+            </font>
+            <BorderPane.margin>
+                <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+            </BorderPane.margin>
+        </Label>
+    </top>
+    <center>
+        <TabPane tabClosingPolicy="UNAVAILABLE" BorderPane.alignment="CENTER">
+            <tabs>
+                <!-- Finance Settings Tab -->
+                <Tab text="%settings.finance">
+                    <content>
+                        <VBox spacing="15.0">
+                            <padding>
+                                <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                            </padding>
+                            <children>
+                                <Label text="%settings.fixed_expenses">
+                                    <font>
+                                        <Font name="System Bold" size="16.0" />
+                                    </font>
+                                </Label>
+                                
+                                <HBox spacing="10.0" alignment="CENTER_LEFT">
+                                    <children>
+                                        <Button text="%settings.add_fixed_expense" onAction="#handleAddFixedExpense"
+                                                style="-fx-background-color: #27ae60; -fx-text-fill: white;" />
+                                        <Button text="%settings.edit_fixed_expense" onAction="#handleEditFixedExpense"
+                                                style="-fx-background-color: #3498db; -fx-text-fill: white;" />
+                                        <Button text="%settings.delete_fixed_expense" onAction="#handleDeleteFixedExpense"
+                                                style="-fx-background-color: #e74c3c; -fx-text-fill: white;" />
+                                    </children>
+                                </HBox>
+                                
+                                <TableView fx:id="fixedExpensesTable" VBox.vgrow="ALWAYS">
+                                    <columns>
+                                        <TableColumn fx:id="colName" prefWidth="200.0" text="%settings.name" />
+                                        <TableColumn fx:id="colAmount" prefWidth="120.0" text="%settings.default_amount" />
+                                        <TableColumn fx:id="colCategory" prefWidth="120.0" text="%table.category" />
+                                        <TableColumn fx:id="colDayOfMonth" prefWidth="100.0" text="%settings.day_of_month" />
+                                        <TableColumn fx:id="colDescription" prefWidth="200.0" text="%table.description" />
+                                    </columns>
+                                    <columnResizePolicy>
+                                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                                    </columnResizePolicy>
+                                </TableView>
+                            </children>
+                        </VBox>
+                    </content>
+                </Tab>
+            </tabs>
+        </TabPane>
+    </center>
+</BorderPane>
