@@ -16,16 +16,15 @@
            style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
     
     <!-- Table -->
-    <TableView fx:id="expensesTable" VBox.vgrow="ALWAYS">
+    <TableView fx:id="tableFixedExpenses">
         <columns>
-            <TableColumn fx:id="colSelect" text="" prefWidth="50" editable="true"/>
-            <TableColumn fx:id="colName" text="%finance.pay_fixed_expense_dialog.name" prefWidth="150"/>
-            <TableColumn fx:id="colCategory" text="%fixed_expense.category" prefWidth="120"/>
-            <TableColumn fx:id="colAmount" text="%fixed_expense.amount" prefWidth="100"/>
-            <TableColumn fx:id="colDayOfMonth" text="%fixed_expense.day_of_month" prefWidth="80"/>
-            <TableColumn fx:id="colDaysUntil" text="%finance.pay_fixed_expense_dialog.days_until" prefWidth="90"/>
-            <TableColumn fx:id="colStatus" text="%finance.pay_fixed_expense_dialog.status" prefWidth="100"/>
+            <TableColumn text="%fixed_expense.name" prefWidth="200.0" />
+            <TableColumn text="%fixed_expense.category" prefWidth="150.0" />
+            <TableColumn text="%fixed_expense.amount" prefWidth="120.0" />
         </columns>
+        <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+        </columnResizePolicy>
     </TableView>
     
     <!-- Buttons -->

@@ -9,6 +9,7 @@
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.text.Font?>
 
 <VBox prefHeight="600.0" prefWidth="800.0" spacing="20.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.TicketDetailsController">
@@ -87,13 +88,16 @@
       
       <HBox spacing="10.0" alignment="CENTER_RIGHT">
          <children>
+            <Button fx:id="btnPrintPdf" text="%btn.print" onAction="#handlePrintPdf"
+                    style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-weight: bold;"
+                    prefWidth="120.0" />
             <Button fx:id="btnCreateRecall" text="%ticket.recall" onAction="#handleCreateRecall"
                     style="-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-weight: bold;"
                     visible="false" managed="false" prefWidth="180.0"/>
             <Button fx:id="btnEditCompleted" text="%btn.edit_completed" onAction="#handleEditCompleted"
                     style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-weight: bold;"
                     visible="false" managed="false" prefWidth="220.0"/>
-            <javafx.scene.layout.Region HBox.hgrow="ALWAYS" />
+            <Region HBox.hgrow="ALWAYS" />
             <Button fx:id="btnCancelService" mnemonicParsing="false" onAction="#handleCancelService" prefWidth="150.0" 
                     style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;" text="%ticket.cancel" />
             <Button fx:id="btnCompleteService" mnemonicParsing="false" onAction="#handleCompleteService" prefWidth="150.0" 

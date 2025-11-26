@@ -6,12 +6,11 @@ import com.pusula.backend.repository.UserRepository;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -19,9 +18,11 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserController(UserRepository userRepository) {
+    public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     private User getCurrentUser() {
@@ -65,5 +66,121 @@ public class UserController {
                         .role(u.getRole())
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Create a new user with encrypted password
+     */
+    @PostMapping
+    public ResponseEntity<UserDTO> createUser(@RequestBody UserDTO userDTO) {
+        User currentUser = getCurrentUser();
+
+        // Validate password is provided
+        if (userDTO.getPassword() == null || userDTO.getPassword().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        // Create new user
+        User newUser = User.builder()
+                .username(userDTO.getUsername())
+                .passwordHash(passwordEncoder.encode(userDTO.getPassword())) // BCrypt hash
+                .fullName(userDTO.getFullName())
+                .role(userDTO.getRole())
+                .companyId(currentUser.getCompanyId()) // Same company as creator
+                .build();
+
+        User saved = userRepository.save(newUser);
+
+        return ResponseEntity.ok(mapToDTO(saved));
+    }
+
+    /**
+     * Update an existing user (password is optional)
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<UserDTO> updateUser(@PathVariable Long id, @RequestBody UserDTO userDTO) {
+        User currentUser = getCurrentUser();
+
+        User existingUser = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Security: Ensure user belongs to same company
+        if (!existingUser.getCompanyId().equals(currentUser.getCompanyId())) {
+            return ResponseEntity.status(403).build();
+        }
+
+        // Update fields
+        existingUser.setUsername(userDTO.getUsername());
+        existingUser.setFullName(userDTO.getFullName());
+        existingUser.setRole(userDTO.getRole());
+
+        // Update password only if provided
+        if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
+            existingUser.setPasswordHash(passwordEncoder.encode(userDTO.getPassword()));
+        }
+
+        User updated = userRepository.save(existingUser);
+
+        return ResponseEntity.ok(mapToDTO(updated));
+    }
+
+    /**
+     * Delete a user (soft delete)
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        User currentUser = getCurrentUser();
+
+        User userToDelete = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Security: Ensure user belongs to same company
+        if (!userToDelete.getCompanyId().equals(currentUser.getCompanyId())) {
+            return ResponseEntity.status(403).build();
+        }
+
+        // Prevent self-deletion
+        if (userToDelete.getId().equals(currentUser.getId())) {
+            return ResponseEntity.status(400).build(); // Bad Request
+        }
+
+        userRepository.delete(userToDelete); // Soft delete via @SQLDelete
+
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Reset user password
+     */
+    @PostMapping("/{id}/reset-password")
+    public ResponseEntity<Void> resetPassword(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        User currentUser = getCurrentUser();
+
+        String newPassword = payload.get("password");
+        if (newPassword == null || newPassword.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        User userToReset = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Security: Ensure user belongs to same company
+        if (!userToReset.getCompanyId().equals(currentUser.getCompanyId())) {
+            return ResponseEntity.status(403).build();
+        }
+
+        userToReset.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(userToReset);
+
+        return ResponseEntity.ok().build();
+    }
+
+    private UserDTO mapToDTO(User user) {
+        return UserDTO.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .fullName(user.getFullName())
+                .role(user.getRole())
+                .build(); // Don't include password in response
     }
 }

@@ -1,6 +1,7 @@
 package com.pusula.desktop.controller;
 
 import com.pusula.desktop.api.ServiceTicketApi;
+import com.pusula.desktop.api.ReportApi;
 import com.pusula.desktop.api.UserApi;
 import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.dto.ServiceUsedPartDTO;
@@ -13,6 +14,8 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.GridPane;
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -25,6 +28,9 @@ import com.pusula.desktop.dto.AuthResponse;
 import com.pusula.desktop.api.AuthApi;
 import com.pusula.desktop.util.UTF8Control;
 import java.util.Locale;
+import javafx.stage.FileChooser;
+import java.io.File;
+import java.nio.file.Files;
 
 public class TicketDetailsController {
 
@@ -56,6 +62,8 @@ public class TicketDetailsController {
     private Label lblParentLink;
     @FXML
     private Button btnCreateRecall;
+    @FXML
+    private Button btnPrintPdf;
     private java.util.ResourceBundle resourceBundle;
 
     private ServiceTicketDTO currentTicket;
@@ -318,16 +326,29 @@ public class TicketDetailsController {
         if (currentTicket == null || !"COMPLETED".equals(currentTicket.getStatus()))
             return;
         // Show password dialog
-        TextInputDialog passwordDialog = new TextInputDialog();
-        passwordDialog.setTitle(resourceBundle.getString("dialog.admin.title"));
-        passwordDialog.setHeaderText(resourceBundle.getString("dialog.admin.header"));
-        passwordDialog.setContentText(resourceBundle.getString("dialog.admin.content"));
-
-        // Make it a password field
-        passwordDialog.getEditor().setPromptText("••••••••");
-
-        passwordDialog.showAndWait().ifPresent(password -> {
-            // Verify password against admin user
+        // Create custom dialog
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle("Admin Doğrulama");
+        dialog.setHeaderText("Admin şifresi gerekli");
+        // Create PasswordField
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText("Şifre");
+        // Set dialog content
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.add(new Label("Şifre:"), 0, 0);
+        grid.add(passwordField, 1, 0);
+        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        // Convert result
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == ButtonType.OK) {
+                return passwordField.getText();
+            }
+            return null;
+        });
+        dialog.showAndWait().ifPresent(password -> {
             verifyAdminPassword(password);
         });
     }
@@ -504,6 +525,78 @@ public class TicketDetailsController {
             } catch (Exception e) {
                 AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
                         "Error", "Invalid amount: " + e.getMessage());
+            }
+        });
+    }
+
+    @FXML
+    private void handlePrintPdf() {
+        if (currentTicket == null)
+            return;
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("PDF Kaydet");
+        fileChooser.setInitialFileName("servis_raporu_" + currentTicket.getId() + ".pdf");
+        fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("PDF Dosyaları", "*.pdf"));
+
+        File file = fileChooser.showSaveDialog(lblStatus.getScene().getWindow());
+        if (file != null) {
+            downloadServicePdf(currentTicket.getId(), file);
+        }
+    }
+
+    private void downloadServicePdf(Long ticketId, File destination) {
+        ReportApi reportApi = RetrofitClient.getClient().create(ReportApi.class);
+        reportApi.downloadServiceReport(ticketId).enqueue(new Callback<ResponseBody>() {
+            @Override
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    try {
+                        byte[] bytes = response.body().bytes();
+                        Files.write(destination.toPath(), bytes);
+
+                        Platform.runLater(() -> {
+                            AlertHelper.showAlert(Alert.AlertType.INFORMATION,
+                                    lblStatus.getScene().getWindow(),
+                                    resourceBundle.getString("dialog.title.success"),
+                                    resourceBundle.getString("report.save_success"));
+
+                            // Optional: Auto-open PDF
+                            try {
+                                if (java.awt.Desktop.isDesktopSupported()) {
+                                    java.awt.Desktop.getDesktop().open(destination);
+                                }
+                            } catch (Exception e) {
+                                // Silently fail if can't open
+                            }
+                        });
+                    } catch (Exception e) {
+                        Platform.runLater(() -> {
+                            AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                    lblStatus.getScene().getWindow(),
+                                    resourceBundle.getString("dialog.title.error"),
+                                    resourceBundle.getString("report.save_error") + ": " + e.getMessage());
+                        });
+                    }
+                } else {
+                    Platform.runLater(() -> {
+                        AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                lblStatus.getScene().getWindow(),
+                                resourceBundle.getString("dialog.title.error"),
+                                "PDF oluşturulamadı: " + response.code());
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+                Platform.runLater(() -> {
+                    AlertHelper.showAlert(Alert.AlertType.ERROR,
+                            lblStatus.getScene().getWindow(),
+                            resourceBundle.getString("dialog.title.error"),
+                            t.getMessage());
+                });
             }
         });
     }

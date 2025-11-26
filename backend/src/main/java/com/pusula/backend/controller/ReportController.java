@@ -4,14 +4,15 @@ import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.ServiceTicketRepository;
 import com.pusula.backend.repository.UserRepository;
+import com.pusula.backend.service.ReportService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/reports")
@@ -20,10 +21,14 @@ public class ReportController {
 
     private final ServiceTicketRepository ticketRepository;
     private final UserRepository userRepository;
+    private final ReportService reportService;
 
-    public ReportController(ServiceTicketRepository ticketRepository, UserRepository userRepository) {
+    public ReportController(ServiceTicketRepository ticketRepository,
+            UserRepository userRepository,
+            ReportService reportService) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
+        this.reportService = reportService;
     }
 
     /**
@@ -66,5 +71,47 @@ public class ReportController {
         }
 
         return ResponseEntity.ok(performanceData);
+    }
+
+    /**
+     * Download Service Report PDF
+     */
+    @GetMapping("/pdf/service/{ticketId}")
+    public ResponseEntity<byte[]> downloadServiceReport(@PathVariable Long ticketId) {
+        try {
+            byte[] pdfBytes = reportService.generateServiceReport(ticketId);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", "servis_raporu_" + ticketId + ".pdf");
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(pdfBytes);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Download Proposal PDF
+     */
+    @GetMapping("/pdf/proposal/{proposalId}")
+    public ResponseEntity<byte[]> downloadProposal(@PathVariable Long proposalId) {
+        try {
+            byte[] pdfBytes = reportService.generateProposalForm(proposalId);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", "teklif_" + proposalId + ".pdf");
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(pdfBytes);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }
