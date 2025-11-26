@@ -33,12 +33,12 @@ public class PdfReportGenerator {
 
                 // Title
                 Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
-                Paragraph title = new Paragraph("Inventory Report", titleFont);
+                Paragraph title = new Paragraph("Envanter Raporu", titleFont);
                 title.setAlignment(Element.ALIGN_CENTER);
                 document.add(title);
 
-                document.add(new Paragraph("Generated on: "
-                        + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+                document.add(new Paragraph("Oluşturulma Tarihi: "
+                        + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))));
                 document.add(new Paragraph(" ")); // Spacer
 
                 // Table
@@ -47,11 +47,11 @@ public class PdfReportGenerator {
                 table.setWidths(new float[] { 3, 1, 1, 1, 1 });
 
                 // Headers
-                addTableHeader(table, "Part Name");
-                addTableHeader(table, "Quantity");
-                addTableHeader(table, "Buy Price");
-                addTableHeader(table, "Sell Price");
-                addTableHeader(table, "Critical");
+                addTableHeader(table, "Parça Adı");
+                addTableHeader(table, "Miktar");
+                addTableHeader(table, "Alış Fiyatı");
+                addTableHeader(table, "Satış Fiyatı");
+                addTableHeader(table, "Kritik Seviye");
 
                 // Data
                 for (InventoryDTO item : inventoryList) {
@@ -65,8 +65,8 @@ public class PdfReportGenerator {
                 document.add(table);
                 document.close();
 
-                AlertHelper.showAlert(javafx.scene.control.Alert.AlertType.INFORMATION, stage, "Success",
-                        "Report saved successfully!");
+                AlertHelper.showAlert(javafx.scene.control.Alert.AlertType.INFORMATION, stage, "Başarılı",
+                        "Rapor başarıyla kaydedildi!");
 
             } catch (DocumentException | IOException e) {
                 e.printStackTrace();
