@@ -105,7 +105,7 @@ public class CustomerController {
             controller.setOnSaveSuccess(this::loadCustomers);
 
             javafx.stage.Stage stage = new javafx.stage.Stage();
-            stage.setTitle("Customer Details");
+            stage.setTitle(bundle.getString("customer.details.title"));
             stage.setScene(new javafx.scene.Scene(root));
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             stage.showAndWait();
