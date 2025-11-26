@@ -1,4 +1,4 @@
-package com.pusula.desktop.dto;
+package com.pusula.backend.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -9,15 +9,11 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import retrofit2.Call;
@@ -39,7 +35,9 @@ public class FinanceController {
     @FXML
     private Label currentDateLabel;
     @FXML
-    private ListView<FixedExpenseDefinitionDTO> fixedExpensesListView;
+    private javafx.scene.layout.VBox paymentAlertBox; // Alert container
+    @FXML
+    private Label alertMessageLabel; // Alert message text
     @FXML
     private TableView<DailySummaryDTO.ExpenseItemDTO> todayExpensesTable;
     @FXML
@@ -50,6 +48,16 @@ public class FinanceController {
     private TableColumn<DailySummaryDTO.ExpenseItemDTO, String> colTodayAmount;
     @FXML
     private Label todayExpenseLabel;
+    @FXML
+    private TableView<DailySummaryDTO.IncomeItemDTO> todayIncomesTable;
+    @FXML
+    private TableColumn<DailySummaryDTO.IncomeItemDTO, String> colIncomeCustomer;
+    @FXML
+    private TableColumn<DailySummaryDTO.IncomeItemDTO, String> colIncomeTicket;
+    @FXML
+    private TableColumn<DailySummaryDTO.IncomeItemDTO, String> colIncomeAmount;
+    @FXML
+    private Label todayIncomeLabel;
     @FXML
     private Label netCashLabel;
     @FXML
@@ -74,10 +82,10 @@ public class FinanceController {
 
         setupDateDisplay();
         setupTodayExpensesTable();
-        setupFixedExpensesListView();
+        setupTodayIncomesTable();
 
         loadDailySummary(currentDate);
-        loadFixedExpenses();
+        checkUpcomingPayments();
         load30DayTrends();
         loadCategoryPieChart();
     }
@@ -102,37 +110,15 @@ public class FinanceController {
                 String.format("%.2f ₺", cellData.getValue().getAmount())));
     }
 
-    private void setupFixedExpensesListView() {
-        fixedExpensesListView.setCellFactory(param -> new ListCell<FixedExpenseDefinitionDTO>() {
-            @Override
-            protected void updateItem(FixedExpenseDefinitionDTO item, boolean empty) {
-                super.updateItem(item, empty);
+    private void setupTodayIncomesTable() {
+        colIncomeCustomer.setCellValueFactory(
+                cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getCustomerName()));
 
-                if (empty || item == null) {
-                    setGraphic(null);
-                    setText(null);
-                } else {
-                    HBox hbox = new HBox(10);
-                    hbox.setPadding(new Insets(5));
+        colIncomeTicket.setCellValueFactory(
+                cellData -> new javafx.beans.property.SimpleStringProperty("#" + cellData.getValue().getTicketId()));
 
-                    Label nameLabel = new Label(item.getName());
-                    nameLabel.setStyle("-fx-font-weight: bold;");
-
-                    Label amountLabel = new Label(String.format("%.2f ₺", item.getDefaultAmount()));
-
-                    Region spacer = new Region();
-                    HBox.setHgrow(spacer, Priority.ALWAYS);
-
-                    Button payButton = new Button(bundle.getString("finance.pay_fixed_expense"));
-                    payButton.setStyle(
-                            "-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10;");
-                    payButton.setOnAction(e -> handlePayFixedExpense(item));
-
-                    hbox.getChildren().addAll(nameLabel, amountLabel, spacer, payButton);
-                    setGraphic(hbox);
-                }
-            }
-        });
+        colIncomeAmount.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
+                formatCurrency(cellData.getValue().getAmount())));
     }
 
     private void loadDailySummary(LocalDate date) {
@@ -156,8 +142,15 @@ public class FinanceController {
     }
 
     private void updateDailySummaryUI(DailySummaryDTO summary) {
+        // Update expense table
         todayExpensesTable.setItems(FXCollections.observableArrayList(summary.getExpenseDetails()));
         todayExpenseLabel.setText(formatCurrency(summary.getTotalExpense()));
+
+        // Update income table
+        todayIncomesTable.setItems(FXCollections.observableArrayList(summary.getIncomeDetails()));
+        todayIncomeLabel.setText(formatCurrency(summary.getTotalIncome()));
+
+        // Update net cash
         netCashLabel.setText(formatCurrency(summary.getNetCash()));
         updateNetCashColor(summary.getNetCash());
 
@@ -180,58 +173,36 @@ public class FinanceController {
         }
     }
 
-    private void loadFixedExpenses() {
-        financeApi.getFixedExpenses(1L).enqueue(new Callback<List<FixedExpenseDefinitionDTO>>() {
+    private void checkUpcomingPayments() {
+        financeApi.getUpcomingFixedExpenses(1L, 3).enqueue(new Callback<List<FixedExpenseDefinitionDTO>>() {
             @Override
             public void onResponse(Call<List<FixedExpenseDefinitionDTO>> call,
                     Response<List<FixedExpenseDefinitionDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
+                    List<FixedExpenseDefinitionDTO> upcoming = response.body();
                     Platform.runLater(() -> {
-                        fixedExpensesListView.setItems(FXCollections.observableArrayList(response.body()));
+                        if (upcoming == null || upcoming.isEmpty()) {
+                            paymentAlertBox.setVisible(false);
+                            paymentAlertBox.setManaged(false);
+                        } else {
+                            paymentAlertBox.setVisible(true);
+                            paymentAlertBox.setManaged(true);
+                            String message = String.format("Dikkat: %d adet sabit giderin ödeme günü yaklaşıyor!",
+                                    upcoming.size());
+                            alertMessageLabel.setText(message);
+                        }
                     });
                 }
             }
 
             @Override
             public void onFailure(Call<List<FixedExpenseDefinitionDTO>> call, Throwable t) {
-                System.err.println("Failed to load fixed expenses: " + t.getMessage());
+                System.err.println("Failed to load upcoming expenses: " + t.getMessage());
             }
         });
     }
 
-    private void handlePayFixedExpense(FixedExpenseDefinitionDTO fixedExpense) {
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle(bundle.getString("finance.pay_fixed_expense"));
-        confirmation
-                .setHeaderText(String.format("%s - %.2f ₺", fixedExpense.getName(), fixedExpense.getDefaultAmount()));
-        confirmation.setContentText("Bu gideri bugüne kaydetmek istediğinize emin misiniz?");
-
-        confirmation.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                financeApi.payFixedExpense(fixedExpense.getId(), 1L).enqueue(new Callback<ExpenseDTO>() {
-                    @Override
-                    public void onResponse(Call<ExpenseDTO> call, Response<ExpenseDTO> response) {
-                        if (response.isSuccessful()) {
-                            Platform.runLater(() -> {
-                                AlertHelper.showAlert(Alert.AlertType.INFORMATION, null, "Başarılı",
-                                        "Gider başarıyla eklendi!");
-                                loadDailySummary(currentDate);
-                                loadCategoryPieChart();
-                            });
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(Call<ExpenseDTO> call, Throwable t) {
-                        Platform.runLater(() -> {
-                            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
-                                    "Gider eklenirken hata oluştu: " + t.getMessage());
-                        });
-                    }
-                });
-            }
-        });
-    }
+    // Removed: Individual pay button handler - now using centralized dialog only
 
     private void load30DayTrends() {
         financeApi.get30DayTotals(1L).enqueue(new Callback<List<DailyTotalDTO>>() {
@@ -328,6 +299,30 @@ public class FinanceController {
         } catch (Exception e) {
             e.printStackTrace();
             AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata", "Gider ekle penceresi açılamadı!");
+        }
+    }
+
+    @FXML
+    private void handlePayFixedExpense() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/pay_fixed_expense_dialog.fxml"), bundle);
+            javafx.scene.Parent root = loader.load();
+
+            PayFixedExpenseDialogController controller = loader.getController();
+            controller.setOnSuccess(() -> {
+                loadDailySummary(currentDate);
+                loadCategoryPieChart();
+                load30DayTrends();
+            });
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.setTitle(bundle.getString("finance.pay_fixed_expense_dialog.title"));
+            stage.setScene(new Scene(root));
+            stage.showAndWait();
+        } catch (Exception e) {
+            e.printStackTrace();
+            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata", "Sabit gider ödeme penceresi açılamadı!");
         }
     }
 

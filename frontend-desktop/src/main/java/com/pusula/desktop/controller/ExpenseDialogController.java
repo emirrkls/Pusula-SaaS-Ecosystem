@@ -4,17 +4,21 @@ import com.pusula.desktop.api.FinanceApi;
 import com.pusula.desktop.dto.ExpenseDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.UTF8Control;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
+import javafx.util.StringConverter;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Locale;
+import java.util.ResourceBundle;
 
 public class ExpenseDialogController {
 
@@ -28,12 +32,43 @@ public class ExpenseDialogController {
     private TextArea txtDescription;
 
     private Runnable onSaveSuccess;
+    private ResourceBundle bundle;
 
     @FXML
     public void initialize() {
-        // Populate categories
+        // Load resource bundle for Turkish localization
+        bundle = ResourceBundle.getBundle("i18n.messages",
+                Locale.forLanguageTag("tr-TR"), new UTF8Control());
+
+        // Populate categories with all enum values
         comboCategory.setItems(FXCollections.observableArrayList(
-                "RENT", "SALARY", "BILLS", "FUEL", "FOOD", "OTHER"));
+                "RENT", "SALARY", "BILLS", "FUEL", "FOOD", "TAX", "MATERIAL", "OTHER"));
+
+        // Set StringConverter to display Turkish names
+        comboCategory.setConverter(new StringConverter<String>() {
+            @Override
+            public String toString(String enumValue) {
+                if (enumValue == null)
+                    return "";
+                String key = "category." + enumValue;
+                return bundle.containsKey(key) ? bundle.getString(key) : enumValue;
+            }
+
+            @Override
+            public String fromString(String displayText) {
+                // Reverse lookup: Turkish text -> Enum value
+                if (displayText == null)
+                    return null;
+                for (String enumValue : comboCategory.getItems()) {
+                    String key = "category." + enumValue;
+                    if (bundle.containsKey(key) &&
+                            bundle.getString(key).equals(displayText)) {
+                        return enumValue;
+                    }
+                }
+                return displayText; // Fallback to original if not found
+            }
+        });
 
         datePicker.setValue(LocalDate.now());
     }

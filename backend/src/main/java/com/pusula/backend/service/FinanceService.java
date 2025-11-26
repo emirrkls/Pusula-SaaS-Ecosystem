@@ -1,5 +1,6 @@
 package com.pusula.backend.service;
 
+import com.pusula.backend.dto.FixedExpenseDefinitionDTO;
 import com.pusula.backend.dto.CategoryReportDTO;
 import com.pusula.backend.dto.DailySummaryDTO;
 import com.pusula.backend.entity.DailyClosing;
@@ -21,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -136,15 +138,17 @@ public class FinanceService {
                 .filter(amount -> amount != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Build income details with customer names
+        // Build income details with customer names (FIXED: proper customer name
+        // retrieval)
         List<DailySummaryDTO.IncomeItemDTO> incomeDetails = new ArrayList<>();
         for (ServiceTicket ticket : completedTicketsToday) {
             String customerName = "Unknown";
+
+            // Fetch customer name properly using map() instead of broken ifPresent()
             if (ticket.getCustomerId() != null) {
-                customerRepository.findById(ticket.getCustomerId())
-                        .ifPresent(customer -> {
-                            // Assuming Customer entity has a getName method
-                        });
+                customerName = customerRepository.findById(ticket.getCustomerId())
+                        .map(customer -> customer.getName())
+                        .orElse("Unknown");
             }
 
             incomeDetails.add(DailySummaryDTO.IncomeItemDTO.builder()
@@ -234,8 +238,40 @@ public class FinanceService {
     }
 
     /**
-     * Get all fixed expense definitions for a company
+     * Get all fixed expense definitions with payment status for current month
      */
+    public List<FixedExpenseDefinitionDTO> getFixedExpensesWithStatus(Long companyId) {
+        List<FixedExpenseDefinition> definitions = fixedExpenseDefinitionRepository.findByCompanyId(companyId);
+
+        // Get expenses for current month
+        LocalDate startOfMonth = LocalDate.now().withDayOfMonth(1);
+        LocalDate endOfMonth = LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth());
+        List<Expense> monthExpenses = expenseRepository.findByCompanyIdAndDateBetween(
+                companyId, startOfMonth, endOfMonth);
+
+        // Convert to DTOs with payment status
+        return definitions.stream().map(def -> {
+            // Check if this fixed expense was paid this month (by matching description)
+            boolean isPaid = monthExpenses.stream()
+                    .anyMatch(expense -> expense.getDescription().startsWith(def.getName()));
+
+            return FixedExpenseDefinitionDTO.builder()
+                    .id(def.getId())
+                    .companyId(def.getCompanyId())
+                    .name(def.getName())
+                    .defaultAmount(def.getDefaultAmount())
+                    .category(def.getCategory().name())
+                    .dayOfMonth(def.getDayOfMonth())
+                    .description(def.getDescription())
+                    .isPaidThisMonth(isPaid)
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * @deprecated Use getFixedExpensesWithStatus instead
+     */
+    @Deprecated
     public List<FixedExpenseDefinition> getFixedExpenses(Long companyId) {
         return fixedExpenseDefinitionRepository.findByCompanyId(companyId);
     }
@@ -258,6 +294,36 @@ public class FinanceService {
                 .build();
 
         return expenseRepository.save(expense);
+    }
+
+    /**
+     * Create a new fixed expense definition
+     */
+    public FixedExpenseDefinition createFixedExpense(FixedExpenseDefinition definition) {
+        return fixedExpenseDefinitionRepository.save(definition);
+    }
+
+    /**
+     * Update an existing fixed expense definition
+     */
+    public FixedExpenseDefinition updateFixedExpense(Long id, FixedExpenseDefinition definition) {
+        FixedExpenseDefinition existing = fixedExpenseDefinitionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Fixed expense definition not found: " + id));
+
+        existing.setName(definition.getName());
+        existing.setDefaultAmount(definition.getDefaultAmount());
+        existing.setCategory(definition.getCategory());
+        existing.setDayOfMonth(definition.getDayOfMonth());
+        existing.setDescription(definition.getDescription());
+
+        return fixedExpenseDefinitionRepository.save(existing);
+    }
+
+    /**
+     * Delete a fixed expense definition
+     */
+    public void deleteFixedExpense(Long id) {
+        fixedExpenseDefinitionRepository.deleteById(id);
     }
 
     /**
@@ -312,5 +378,73 @@ public class FinanceService {
         }
 
         return totals;
+    }
+
+    /**
+     * Get fixed expenses that are due within the specified number of days
+     * and have not been paid this month (for alert notifications)
+     */
+    public List<FixedExpenseDefinitionDTO> getUpcomingFixedExpenses(Long companyId, int daysThreshold) {
+        List<FixedExpenseDefinition> allDefinitions = fixedExpenseDefinitionRepository.findByCompanyId(companyId);
+        LocalDate today = LocalDate.now();
+
+        // Get expenses for current month to check payment status
+        LocalDate startOfMonth = today.withDayOfMonth(1);
+        LocalDate endOfMonth = today.withDayOfMonth(today.lengthOfMonth());
+        List<Expense> monthExpenses = expenseRepository.findByCompanyIdAndDateBetween(
+                companyId, startOfMonth, endOfMonth);
+
+        return allDefinitions.stream()
+                .filter(def -> {
+                    if (def.getDayOfMonth() == null)
+                        return false;
+
+                    // Check if already paid this month
+                    boolean isPaid = monthExpenses.stream()
+                            .anyMatch(expense -> expense.getDescription().startsWith(def.getName()));
+                    if (isPaid)
+                        return false;
+
+                    // Calculate the next due date for this expense
+                    LocalDate dueDate;
+                    int dueDayOfMonth = def.getDayOfMonth();
+                    int currentDayOfMonth = today.getDayOfMonth();
+
+                    if (dueDayOfMonth >= currentDayOfMonth) {
+                        // Due date is later this month or today
+                        try {
+                            dueDate = today.withDayOfMonth(dueDayOfMonth);
+                        } catch (Exception e) {
+                            // Handle invalid dates (e.g., Feb 30)
+                            dueDate = today.withDayOfMonth(today.lengthOfMonth());
+                        }
+                    } else {
+                        // Due date has passed this month, so it's next month
+                        LocalDate nextMonth = today.plusMonths(1);
+                        try {
+                            dueDate = nextMonth.withDayOfMonth(dueDayOfMonth);
+                        } catch (Exception e) {
+                            // Handle invalid dates (e.g., Feb 30)
+                            dueDate = nextMonth.withDayOfMonth(nextMonth.lengthOfMonth());
+                        }
+                    }
+
+                    // Calculate days until due
+                    long daysUntil = ChronoUnit.DAYS.between(today, dueDate);
+
+                    // Check if due within threshold
+                    return daysUntil >= 0 && daysUntil <= daysThreshold;
+                })
+                .map(def -> FixedExpenseDefinitionDTO.builder()
+                        .id(def.getId())
+                        .companyId(def.getCompanyId())
+                        .name(def.getName())
+                        .defaultAmount(def.getDefaultAmount())
+                        .category(def.getCategory().name())
+                        .dayOfMonth(def.getDayOfMonth())
+                        .description(def.getDescription())
+                        .isPaidThisMonth(false) // Already filtered out paid ones
+                        .build())
+                .collect(Collectors.toList());
     }
 }

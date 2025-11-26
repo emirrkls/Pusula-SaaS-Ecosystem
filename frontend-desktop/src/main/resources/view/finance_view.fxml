@@ -21,168 +21,258 @@
       </Label>
    </top>
    <center>
-      <SplitPane dividerPositions="0.6" BorderPane.alignment="CENTER">
-         <items>
-            <!-- LEFT PANEL: DAILY OPERATIONS -->
-            <VBox spacing="12.0" styleClass="finance-panel">
-               <padding>
-                  <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
-               </padding>
-               <children>
-                  <!-- Header with Date -->
-                  <HBox alignment="CENTER_LEFT" spacing="10.0">
-                     <children>
-                        <Label text="%finance.daily_operations" styleClass="section-title">
-                           <font>
-                              <Font name="System Bold" size="18.0" />
-                           </font>
-                        </Label>
-                        <Region HBox.hgrow="ALWAYS" />
-                        <Label fx:id="currentDateLabel" styleClass="date-label">
-                           <font>
-                              <Font size="14.0" />
-                           </font>
-                        </Label>
-                     </children>
-                  </HBox>
+      <TabPane BorderPane.alignment="CENTER" tabClosingPolicy="UNAVAILABLE">
+         <tabs>
+            <!-- TAB 1: OPERASYON (DAILY OPERATIONS) -->
+            <Tab text="%finance.tab.operations">
+               <VBox spacing="12.0" styleClass="finance-panel">
+                  <padding>
+                     <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
+                  </padding>
+                  <children>
+                     <!-- Header with Date -->
+                     <HBox alignment="CENTER_LEFT" spacing="10.0">
+                        <children>
+                           <Label text="%finance.daily_operations" styleClass="section-title">
+                              <font>
+                                 <Font name="System Bold" size="18.0" />
+                              </font>
+                           </Label>
+                           <Region HBox.hgrow="ALWAYS" />
+                           <Label fx:id="currentDateLabel" styleClass="date-label">
+                              <font>
+                                 <Font size="14.0" />
+                              </font>
+                           </Label>
+                        </children>
+                     </HBox>
 
-                  <Separator />
+                     <Separator />
 
-                  <!-- Fixed Monthly Expenses Section -->
-                  <VBox spacing="8.0">
-                     <children>
-                        <Label text="%finance.fixed_monthly_expenses">
-                           <font>
-                              <Font name="System Bold" size="14.0" />
-                           </font>
-                        </Label>
-                        <ListView fx:id="fixedExpensesListView" prefHeight="120.0">
-                           <placeholder>
-                              <Label text="%finance.no_fixed_expenses" />
-                           </placeholder>
-                        </ListView>
-                     </children>
-                  </VBox>
+                     <!-- Payment Alert Box (Conditional - shown only when expenses due within 3 days) -->
+                     <VBox fx:id="paymentAlertBox" spacing="8.0" 
+                           style="-fx-background-color: #fff3cd; -fx-border-color: #ffc107; -fx-border-width: 1; -fx-padding: 12; -fx-border-radius: 5; -fx-background-radius: 5;"
+                          visible="false" managed="false">
+                        <children>
+                           <HBox alignment="CENTER_LEFT" spacing="10.0">
+                              <children>
+                                 <Label text="⚠️" style="-fx-font-size: 18px;"/>
+                                 <Label fx:id="alertMessageLabel" 
+                                        text="Dikkat: X adet sabit giderin ödeme günü yaklaşıyor!" 
+                                        style="-fx-font-weight: bold; -fx-text-fill: #856404;"
+                                        wrapText="true" HBox.hgrow="ALWAYS"/>
+                                 <Button text="Öde" onAction="#handlePayFixedExpense"
+                                         style="-fx-background-color: #ffc107; -fx-text-fill: #856404; -fx-font-weight: bold;"/>
+                              </children>
+                           </HBox>
+                        </children>
+                     </VBox>
 
-                  <Separator />
+                     <!-- Split Table: Expenses & Incomes -->
+                     <SplitPane dividerPositions="0.5" VBox.vgrow="ALWAYS">
+                        <items>
+                           <!-- LEFT: Today's Expenses -->
+                           <VBox spacing="8.0">
+                              <children>
+                                 <HBox alignment="CENTER_LEFT" spacing="10.0">
+                                    <children>
+                                       <Label text="%finance.todays_expense">
+                                          <font>
+                                             <Font name="System Bold" size="14.0" />
+                                          </font>
+                                       </Label>
+                                       <Region HBox.hgrow="ALWAYS" />
+                                       <Button mnemonicParsing="false" onAction="#handlePayFixedExpense" 
+                                               style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 11px;" 
+                                               text="%finance.pay_fixed_expense" />
+                                       <Button mnemonicParsing="false" onAction="#handleAddExpense" 
+                                               style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 11px;" 
+                                               text="%finance.quick_add_expense" />
+                                    </children>
+                                 </HBox>
+                                 <TableView fx:id="todayExpensesTable" VBox.vgrow="ALWAYS">
+                                    <columns>
+                                       <TableColumn fx:id="colTodayCategory" prefWidth="90.0" text="%table.category" />
+                                       <TableColumn fx:id="colTodayDescription" prefWidth="120.0" text="%table.description" />
+                                       <TableColumn fx:id="colTodayAmount" prefWidth="80.0" text="%table.amount" />
+                                    </columns>
+                                    <columnResizePolicy>
+                                       <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                                    </columnResizePolicy>
+                                 </TableView>
+                                 <HBox alignment="CENTER_RIGHT" spacing="10.0">
+                                    <children>
+                                       <Label text="%finance.total_expense" styleClass="total-label" />
+                                       <Label fx:id="todayExpenseLabel" text="0 ₺" styleClass="total-value" 
+                                              style="-fx-text-fill: #e74c3c;">
+                                          <font>
+                                             <Font name="System Bold" size="14.0" />
+                                          </font>
+                                       </Label>
+                                    </children>
+                                 </HBox>
+                              </children>
+                           </VBox>
+                           
+                           <!-- RIGHT: Today's Incomes -->
+                           <VBox spacing="8.0">
+                              <children>
+                                 <!-- Header with matching height to left panel -->
+                                 <HBox alignment="CENTER_LEFT" spacing="10.0">
+                                    <children>
+                                       <Label text="%finance.todays_income">
+                                          <font>
+                                             <Font name="System Bold" size="14.0" />
+                                          </font>
+                                       </Label>
+                                       <Region HBox.hgrow="ALWAYS" />
+                                       <!-- Empty space to match left panel button bar height -->
+                                       <Region prefHeight="29.0" />
+                                    </children>
+                                 </HBox>
+                                 <TableView fx:id="todayIncomesTable" VBox.vgrow="ALWAYS">
+                                    <columns>
+                                       <TableColumn fx:id="colIncomeCustomer" prefWidth="120.0" text="%table.customer" />
+                                       <TableColumn fx:id="colIncomeTicket" prefWidth="80.0" text="%finance.ticket_id" />
+                                       <TableColumn fx:id="colIncomeAmount" prefWidth="100.0" text="%table.amount" />
+                                    </columns>
+                                    <columnResizePolicy>
+                                       <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                                    </columnResizePolicy>
+                                 </TableView>
+                                 <HBox alignment="CENTER_RIGHT" spacing="10.0">
+                                    <children>
+                                       <Label text="%finance.total_income" styleClass="total-label" />
+                                       <Label fx:id="todayIncomeLabel" text="0 ₺" styleClass="total-value" 
+                                              style="-fx-text-fill: #27ae60;">
+                                          <font>
+                                             <Font name="System Bold" size="14.0" />
+                                          </font>
+                                       </Label>
+                                    </children>
+                                 </HBox>
+                              </children>
+                           </VBox>
+                        </items>
+                     </SplitPane>
 
-                  <!-- Today's Expense Section -->
-                  <VBox spacing="8.0" VBox.vgrow="ALWAYS">
-                     <children>
-                        <HBox alignment="CENTER_LEFT" spacing="10.0">
-                           <children>
-                              <Label text="%finance.todays_expense">
-                                 <font>
-                                    <Font name="System Bold" size="14.0" />
-                                 </font>
-                              </Label>
-                              <Region HBox.hgrow="ALWAYS" />
-                              <Button mnemonicParsing="false" onAction="#handleAddExpense" 
-                                      style="-fx-background-color: #27ae60; -fx-text-fill: white;" 
-                                      text="%finance.quick_add_expense" />
-                           </children>
-                        </HBox>
-                        <TableView fx:id="todayExpensesTable" VBox.vgrow="ALWAYS">
-                           <columns>
-                              <TableColumn fx:id="colTodayCategory" prefWidth="90.0" text="%table.category" />
-                              <TableColumn fx:id="colTodayDescription" prefWidth="160.0" text="%table.description" />
-                              <TableColumn fx:id="colTodayAmount" prefWidth="70.0" text="%table.amount" />
-                           </columns>
-                           <columnResizePolicy>
-                              <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                           </columnResizePolicy>
-                        </TableView>
-                        <HBox alignment="CENTER_RIGHT" spacing="10.0">
-                           <children>
-                              <Label text="%finance.total_expense" styleClass="total-label" />
-                              <Label fx:id="todayExpenseLabel" text="0 ₺" styleClass="total-value" 
-                                     style="-fx-text-fill: #e74c3c;">
-                                 <font>
-                                    <Font name="System Bold" size="16.0" />
-                                 </font>
-                              </Label>
-                           </children>
-                        </HBox>
-                     </children>
-                  </VBox>
+                     <Separator />
 
-                  <Separator />
+                     <!-- Net Cash and Close Day Button -->
+                     <VBox spacing="12.0">
+                        <children>
+                           <HBox alignment="CENTER" spacing="15.0" style="-fx-background-color: #ecf0f1; -fx-padding: 12;">
+                              <children>
+                                 <Label text="%finance.net_cash">
+                                    <font>
+                                       <Font name="System Bold" size="16.0" />
+                                    </font>
+                                 </Label>
+                                 <Label fx:id="netCashLabel" text="0 ₺" styleClass="net-cash-value">
+                                    <font>
+                                       <Font name="System Bold" size="18.0" />
+                                    </font>
+                                 </Label>
+                              </children>
+                           </HBox>
+                           <Button fx:id="closeDayButton" mnemonicParsing="false" maxWidth="Infinity" 
+                                   onAction="#handleCloseDay" 
+                                   style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 12;" 
+                                   text="%finance.close_day" />
+                        </children>
+                     </VBox>
+                  </children>
+               </VBox>
+            </Tab>
 
-                  <!-- Net Cash and Close Day Button -->
-                  <VBox spacing="12.0">
-                     <children>
-                        <HBox alignment="CENTER" spacing="15.0" style="-fx-background-color: #ecf0f1; -fx-padding: 12;">
-                           <children>
-                              <Label text="%finance.net_cash">
-                                 <font>
-                                    <Font name="System Bold" size="16.0" />
-                                 </font>
-                              </Label>
-                              <Label fx:id="netCashLabel" text="0 ₺" styleClass="net-cash-value">
-                                 <font>
-                                    <Font name="System Bold" size="18.0" />
-                                 </font>
-                              </Label>
-                           </children>
-                        </HBox>
-                        <Button fx:id="closeDayButton" mnemonicParsing="false" maxWidth="Infinity" 
-                                onAction="#handleCloseDay" 
-                                style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 12;" 
-                                text="%finance.close_day" />
-                     </children>
-                  </VBox>
-               </children>
-            </VBox>
+            <!-- TAB 2: ANALİZ (ANALYTICS & CHARTS) -->
+            <Tab text="%finance.tab.analytics">
+               <VBox spacing="20.0" styleClass="finance-panel">
+                  <padding>
+                     <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                  </padding>
+                  <children>
+                     <Label text="%finance.analytics" styleClass="section-title">
+                        <font>
+                           <Font name="System Bold" size="18.0" />
+                        </font>
+                     </Label>
 
-            <!-- RIGHT PANEL: ANALYTICS & CHARTS -->
-            <VBox spacing="15.0" styleClass="finance-panel">
-               <padding>
-                  <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
-               </padding>
-               <children>
-                  <Label text="%finance.analytics" styleClass="section-title">
-                     <font>
-                        <Font name="System Bold" size="18.0" />
-                     </font>
-                  </Label>
+                     <Separator />
 
-                  <Separator />
+                     <!-- LineChart for Income/Expense Trends (BIGGER) -->
+                     <VBox spacing="8.0" VBox.vgrow="ALWAYS">
+                        <children>
+                           <Label text="%finance.income_expense_trend">
+                              <font>
+                                 <Font name="System Bold" size="14.0" />
+                              </font>
+                           </Label>
+                           <LineChart fx:id="trendChart" VBox.vgrow="ALWAYS" legendVisible="true" 
+                                      prefHeight="350.0">
+                              <xAxis>
+                                 <javafx.scene.chart.CategoryAxis label="%chart.date" />
+                              </xAxis>
+                              <yAxis>
+                                 <NumberAxis label="%chart.amount_tl" />
+                              </yAxis>
+                           </LineChart>
+                        </children>
+                     </VBox>
 
-                  <!-- LineChart for Income/Expense Trends -->
-                  <VBox spacing="8.0" VBox.vgrow="ALWAYS">
-                     <children>
-                        <Label text="%finance.income_expense_trend">
-                           <font>
-                              <Font name="System Bold" size="14.0" />
-                           </font>
-                        </Label>
-                        <LineChart fx:id="trendChart" VBox.vgrow="ALWAYS" legendVisible="true">
-                           <xAxis>
-                              <javafx.scene.chart.CategoryAxis label="%chart.date" />
-                           </xAxis>
-                           <yAxis>
-                              <NumberAxis label="%chart.amount_tl" />
-                           </yAxis>
-                        </LineChart>
-                     </children>
-                  </VBox>
+                     <Separator />
 
-                  <Separator />
+                     <!-- PieChart for Category Distribution (BIGGER) -->
+                     <VBox spacing="8.0" VBox.vgrow="ALWAYS">
+                        <children>
+                           <Label text="%finance.expense_distribution">
+                              <font>
+                                 <Font name="System Bold" size="14.0" />
+                              </font>
+                           </Label>
+                           <PieChart fx:id="expensePieChart" legendVisible="true" VBox.vgrow="ALWAYS" 
+                                     prefHeight="350.0" />
+                        </children>
+                     </VBox>
+                  </children>
+               </VBox>
+            </Tab>
 
-                  <!-- PieChart for Category Distribution -->
-                  <VBox spacing="8.0" VBox.vgrow="ALWAYS">
-                     <children>
-                        <Label text="%finance.expense_distribution">
-                           <font>
-                              <Font name="System Bold" size="14.0" />
-                           </font>
-                        </Label>
-                        <PieChart fx:id="expensePieChart" legendVisible="true" VBox.vgrow="ALWAYS" />
-                     </children>
-                  </VBox>
-               </children>
-            </VBox>
-         </items>
-      </SplitPane>
+            <!-- TAB 3: RAPORLAR (REPORTS - PLACEHOLDER) -->
+            <Tab text="%finance.tab.reports">
+               <VBox spacing="15.0" styleClass="finance-panel" alignment="CENTER">
+                  <padding>
+                     <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
+                  </padding>
+                  <children>
+                     <Label text="%finance.reports" styleClass="section-title">
+                        <font>
+                           <Font name="System Bold" size="18.0" />
+                        </font>
+                     </Label>
+
+                     <Separator />
+
+                     <!-- Placeholder Content -->
+                     <VBox spacing="10.0" alignment="CENTER" VBox.vgrow="ALWAYS">
+                        <children>
+                           <Label text="%finance.reports_coming_soon" styleClass="placeholder-text">
+                              <font>
+                                 <Font size="16.0" />
+                              </font>
+                           </Label>
+                           <Label text="%finance.reports_description" wrapText="true" maxWidth="500.0" 
+                                  textAlignment="CENTER" style="-fx-text-fill: #7f8c8d;">
+                              <font>
+                                 <Font size="14.0" />
+                              </font>
+                           </Label>
+                        </children>
+                     </VBox>
+                  </children>
+               </VBox>
+            </Tab>
+         </tabs>
+      </TabPane>
    </center>
 </BorderPane>
