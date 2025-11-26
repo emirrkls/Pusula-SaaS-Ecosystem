@@ -53,7 +53,7 @@
                   <HBox spacing="10.0">
                      <children>
                         <ComboBox fx:id="comboTechnician" prefWidth="200.0" promptText="%ticket.select.technician" />
-                        <Button mnemonicParsing="false" onAction="#handleAssign" style="-fx-background-color: #3498db; -fx-text-fill: white;" text="%ticket.assign" />
+                        <Button mnemonicParsing="false" onAction="#handleAssign" style="-fx-background-color: #3498db; -fx-text-fill: white;" text="%btn.assign" minWidth="70.0" prefWidth="90.0" />
                      </children>
                   </HBox>
                </children>

@@ -7,6 +7,8 @@ import com.pusula.desktop.api.FinanceApi;
 import com.pusula.desktop.api.InventoryApi;
 import com.pusula.desktop.api.ReportsApi;
 import com.pusula.desktop.api.ServiceTicketApi;
+import com.pusula.desktop.api.UserApi;
+import com.pusula.desktop.dto.UserDTO;
 import com.pusula.desktop.dto.CustomerDTO;
 import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.network.RetrofitClient;
@@ -116,10 +118,123 @@ public class DashboardController {
 
         colStatus.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getStatus()));
 
+        // Load resource bundle
+        java.util.ResourceBundle resourceBundle = java.util.ResourceBundle.getBundle("i18n.messages",
+                java.util.Locale.of("tr", "TR"), new UTF8Control());
+
+        // Set custom cell factory for Status column
+        colStatus.setCellFactory(column -> new TableCell<ServiceTicketDTO, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (empty || getIndex() >= getTableView().getItems().size()) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+
+                ServiceTicketDTO ticket = getTableView().getItems().get(getIndex());
+                String status = ticket.getStatus();
+
+                if (status == null) {
+                    setText("");
+                    setStyle("");
+                    return;
+                }
+
+                // Translate the status
+                String translatedStatus = switch (status) {
+                    case "PENDING" -> resourceBundle.getString("status.pending");
+                    case "IN_PROGRESS" -> resourceBundle.getString("status.in_progress");
+                    case "COMPLETED" -> resourceBundle.getString("status.completed");
+                    case "CANCELLED" -> resourceBundle.getString("status.cancelled");
+                    case "ASSIGNED" -> resourceBundle.getString("status.assigned");
+                    default -> status;
+                };
+
+                setText(translatedStatus);
+
+                // Set color based on status
+                switch (status) {
+                    case "COMPLETED":
+                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                        break;
+                    case "IN_PROGRESS":
+                        setStyle("-fx-text-fill: #2980b9; -fx-font-weight: bold;");
+                        break;
+                    case "CANCELLED":
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                        break;
+                    case "PENDING":
+                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                        break;
+                    case "ASSIGNED":
+                        setStyle("-fx-text-fill: #8e44ad; -fx-font-weight: bold;");
+                        break;
+                    default:
+                        setStyle("");
+                }
+            }
+        });
+
+        // Set custom cell factory for Technician column
+        colTechnician.setCellFactory(column -> new TableCell<ServiceTicketDTO, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (empty || getIndex() >= getTableView().getItems().size()) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+
+                ServiceTicketDTO ticket = getTableView().getItems().get(getIndex());
+                Long technicianId = ticket.getAssignedTechnicianId();
+
+                if (technicianId == null) {
+                    setText(resourceBundle.getString("dashboard.unassigned"));
+                    setStyle("-fx-background-color: #fff3cd; -fx-text-fill: #856404;");
+                } else {
+                    UserApi userApi = RetrofitClient.getClient().create(UserApi.class);
+                    userApi.getAllUsers().enqueue(new retrofit2.Callback<java.util.List<UserDTO>>() {
+                        @Override
+                        public void onResponse(retrofit2.Call<java.util.List<UserDTO>> call,
+                                retrofit2.Response<java.util.List<UserDTO>> response) {
+                            if (response.isSuccessful() && response.body() != null) {
+                                UserDTO tech = response.body().stream()
+                                        .filter(u -> u.getId().equals(technicianId))
+                                        .findFirst()
+                                        .orElse(null);
+
+                                Platform.runLater(() -> {
+                                    if (tech != null) {
+                                        setText(tech.getFullName());
+                                    } else {
+                                        setText("Teknisyen " + technicianId);
+                                    }
+                                    setStyle("");
+                                });
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(retrofit2.Call<java.util.List<UserDTO>> call, Throwable t) {
+                            Platform.runLater(() -> {
+                                setText("Teknisyen " + technicianId);
+                                setStyle("");
+                            });
+                        }
+                    });
+                }
+            }
+        });
+
         colTechnician.setCellValueFactory(
                 cellData -> new SimpleStringProperty(cellData.getValue().getAssignedTechnicianId() != null
-                        ? "Teknisyen " + cellData.getValue().getAssignedTechnicianId()
-                        : "Atanmamış"));
+                        ? cellData.getValue().getAssignedTechnicianId().toString()
+                        : ""));
 
         // Add double-click handler to open ticket details
         agendaTable.setRowFactory(tv -> {
@@ -313,16 +428,32 @@ public class DashboardController {
             public void onResponse(retrofit2.Call<java.util.List<ServiceTicketDTO>> call,
                     retrofit2.Response<java.util.List<ServiceTicketDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
+                    System.out.println("=== DASHBOARD DEBUG ===");
+                    System.out.println("Total tickets from API: " + response.body().size());
+                    System.out.println("Today's date (client): " + java.time.LocalDate.now());
+
                     long activeCount = response.body().stream()
                             .filter(t -> !Arrays.asList("COMPLETED", "CANCELLED").contains(t.getStatus()))
                             .count();
                     Platform.runLater(() -> activeTicketsLabel.setText(String.valueOf(activeCount)));
 
                     // Agenda (Today's tickets)
+                    response.body().forEach(t -> {
+                        System.out.println("Ticket ID=" + t.getId() +
+                                ", ScheduledDate=" + t.getScheduledDate() +
+                                ", Date only="
+                                + (t.getScheduledDate() != null ? t.getScheduledDate().toLocalDate() : "null") +
+                                ", Status=" + t.getStatus());
+                    });
+
                     java.util.List<ServiceTicketDTO> todayTickets = response.body().stream()
                             .filter(t -> t.getScheduledDate() != null &&
                                     t.getScheduledDate().toLocalDate().isEqual(java.time.LocalDate.now()))
                             .collect(java.util.stream.Collectors.toList());
+
+                    System.out.println("Filtered today's tickets: " + todayTickets.size());
+                    System.out.println("======================");
+
                     Platform.runLater(() -> agendaTable.setItems(FXCollections.observableArrayList(todayTickets)));
                 }
             }
