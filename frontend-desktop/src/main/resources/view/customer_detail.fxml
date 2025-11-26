@@ -15,7 +15,7 @@
       <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
    </padding>
    <children>
-      <Label text="Müşteri Detayı">
+      <Label text="%customer.details.title">
          <font>
             <Font name="System Bold" size="18.0" />
          </font>
@@ -24,13 +24,13 @@
          <children>
             <VBox spacing="10.0" HBox.hgrow="ALWAYS">
                <children>
-                  <Label text="Ad Soyad" />
+                  <Label text="%customer.name" />
                   <TextField fx:id="nameField" />
                </children>
             </VBox>
             <VBox spacing="10.0" HBox.hgrow="ALWAYS">
                <children>
-                  <Label text="Telefon" />
+                  <Label text="%customer.phone" />
                   <TextField fx:id="phoneField" />
                </children>
             </VBox>
@@ -38,17 +38,17 @@
       </HBox>
       <VBox spacing="10.0">
          <children>
-            <Label text="Adres" />
+            <Label text="%customer.address" />
             <TextField fx:id="addressField" />
          </children>
       </VBox>
       <HBox spacing="10.0" alignment="CENTER_RIGHT">
          <children>
-            <Button mnemonicParsing="false" onAction="#handleSave" style="-fx-background-color: #2ecc71; -fx-text-fill: white;" text="Kaydet" />
-            <Button mnemonicParsing="false" onAction="#handleCancel" text="İptal" />
+            <Button mnemonicParsing="false" onAction="#handleSave" style="-fx-background-color: #2ecc71; -fx-text-fill: white;" text="%btn.save" />
+            <Button mnemonicParsing="false" onAction="#handleCancel" text="%btn.cancel" />
          </children>
       </HBox>
-      <Label text="Servis Geçmişi">
+      <Label text="%customer.history.title">
          <font>
             <Font name="System Bold" size="16.0" />
          </font>

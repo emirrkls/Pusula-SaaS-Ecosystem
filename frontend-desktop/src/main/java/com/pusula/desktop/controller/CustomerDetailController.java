@@ -2,8 +2,10 @@ package com.pusula.desktop.controller;
 
 import com.pusula.desktop.api.CustomerApi;
 import com.pusula.desktop.api.ServiceTicketApi;
+import com.pusula.desktop.api.UserApi;
 import com.pusula.desktop.dto.CustomerDTO;
 import com.pusula.desktop.dto.ServiceTicketDTO;
+import com.pusula.desktop.dto.UserDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
 import javafx.application.Platform;
@@ -50,10 +52,16 @@ public class CustomerDetailController {
 
     private CustomerDTO currentCustomer;
     private Runnable onSaveSuccess;
+    private java.util.ResourceBundle resourceBundle;
+    private java.util.Map<Long, String> technicianMap = new java.util.HashMap<>();
 
     @FXML
     public void initialize() {
+        // Load resource bundle
+        resourceBundle = java.util.ResourceBundle.getBundle("i18n.messages",
+                java.util.Locale.of("tr", "TR"), new com.pusula.desktop.util.UTF8Control());
         setupTable();
+        loadTechnicians();
     }
 
     private void setupTable() {
@@ -63,11 +71,69 @@ public class CustomerDetailController {
                     date != null ? date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "-");
         });
         colIssue.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getDescription()));
+
+        // Status column - set value factory first, then cell factory for styling
         colStatus.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getStatus()));
-        colTechnician.setCellValueFactory(cellData -> new SimpleStringProperty(
-                cellData.getValue().getAssignedTechnicianId() != null
-                        ? "Teknisyen " + cellData.getValue().getAssignedTechnicianId()
-                        : "Atanmamış"));
+        colStatus.setCellFactory(column -> new javafx.scene.control.TableCell<>() {
+            @Override
+            protected void updateItem(String status, boolean empty) {
+                super.updateItem(status, empty);
+                if (empty || status == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    // Translate status
+                    String translatedStatus = switch (status) {
+                        case "PENDING" -> resourceBundle.getString("status.pending");
+                        case "IN_PROGRESS" -> resourceBundle.getString("status.in_progress");
+                        case "COMPLETED" -> resourceBundle.getString("status.completed");
+                        case "CANCELLED" -> resourceBundle.getString("status.cancelled");
+                        case "ASSIGNED" -> resourceBundle.getString("status.assigned");
+                        default -> status;
+                    };
+
+                    // Apply colors
+                    String color = switch (status) {
+                        case "COMPLETED" -> "-fx-text-fill: #2ecc71; -fx-font-weight: bold;";
+                        case "IN_PROGRESS", "ASSIGNED" -> "-fx-text-fill: #3498db; -fx-font-weight: bold;";
+                        case "CANCELLED" -> "-fx-text-fill: #e74c3c; -fx-font-weight: bold;";
+                        case "PENDING" -> "-fx-text-fill: #f39c12; -fx-font-weight: bold;";
+                        default -> "";
+                    };
+
+                    setText(translatedStatus);
+                    setStyle(color);
+                }
+            }
+        });
+
+        colTechnician.setCellValueFactory(cellData -> {
+            Long techId = cellData.getValue().getAssignedTechnicianId();
+            if (techId == null) {
+                return new SimpleStringProperty("Atanmamış");
+            }
+            String techName = technicianMap.get(techId);
+            return new SimpleStringProperty(techName != null ? techName : "Atanmamış");
+        });
+    }
+
+    private void loadTechnicians() {
+        UserApi api = RetrofitClient.getClient().create(UserApi.class);
+        api.getTechnicians().enqueue(new Callback<>() {
+            @Override
+            public void onResponse(Call<List<UserDTO>> call, Response<List<UserDTO>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    for (UserDTO user : response.body()) {
+                        technicianMap.put(user.getId(), user.getFullName());
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<UserDTO>> call, Throwable t) {
+                System.err.println("Failed to load technicians: " + t.getMessage());
+            }
+        });
     }
 
     public void setCustomer(CustomerDTO customer) {
