@@ -41,10 +41,17 @@
    TABLE STYLING
    ========================================= */
 
-/* Table View Row Highlights */
-.table-row-cell:filled:selected {
-    -fx-background-color: #0969da;
-    -fx-text-fill: white;
+/* Table View Row Highlights - MUST override alternating colors */
+.table-row-cell:filled:selected,
+.table-row-cell:filled:odd:selected,
+.table-row-cell:filled:even:selected {
+    -fx-background-color: #0969da !important;
+    -fx-text-fill: white !important;
+}
+
+/* Hover state for better UX */
+.table-row-cell:filled:hover {
+    -fx-background-color: #ddf4ff;
 }
 
 /* Alternating row colors for better readability */

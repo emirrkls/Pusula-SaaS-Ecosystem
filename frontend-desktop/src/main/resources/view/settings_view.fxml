@@ -20,6 +20,97 @@
     <center>
         <TabPane tabClosingPolicy="UNAVAILABLE" BorderPane.alignment="CENTER">
             <tabs>
+                <!-- User Management Tab -->
+                <Tab text="%settings.users">
+                    <content>
+                        <VBox spacing="15.0">
+                            <padding>
+                                <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                            </padding>
+                            <children>
+                                <Label text="%settings.user_management">
+                                    <font>
+                                        <Font name="System Bold" size="16.0" />
+                                    </font>
+                                </Label>
+                                
+                                <HBox spacing="10.0" alignment="CENTER_LEFT">
+                                    <children>
+                                        <Button text="%settings.add_user" onAction="#handleAddUser"
+                                                style="-fx-background-color: #27ae60; -fx-text-fill: white;" />
+                                        <Button text="%settings.edit_user" onAction="#handleEditUser"
+                                                style="-fx-background-color: #3498db; -fx-text-fill: white;" />
+                                        <Button text="%settings.reset_password" onAction="#handleResetPassword"
+                                                style="-fx-background-color: #f39c12; -fx-text-fill: white;" />
+                                        <Button text="%settings.delete_user" onAction="#handleDeleteUser"
+                                                style="-fx-background-color: #e74c3c; -fx-text-fill: white;" />
+                                    </children>
+                                </HBox>
+                                
+                                <TableView fx:id="usersTable" VBox.vgrow="ALWAYS">
+                                    <columns>
+                                        <TableColumn fx:id="colUsername" prefWidth="150.0" text="%settings.username" />
+                                        <TableColumn fx:id="colFullName" prefWidth="200.0" text="%settings.full_name" />
+                                        <TableColumn fx:id="colRole" prefWidth="120.0" text="%settings.role" />
+                                    </columns>
+                                    <columnResizePolicy>
+                                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                                    </columnResizePolicy>
+                                </TableView>
+                            </children>
+                        </VBox>
+                    </content>
+                </Tab>
+                
+                <!-- Company Profile Tab -->
+                <Tab text="%settings.company">
+                    <content>
+                        <VBox spacing="15.0">
+                            <padding>
+                                <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                            </padding>
+                            <children>
+                                <Label text="%settings.company_profile">
+                                    <font>
+                                        <Font name="System Bold" size="16.0" />
+                                    </font>
+                                </Label>
+                                
+                                <GridPane hgap="15.0" vgap="12.0" maxWidth="600.0">
+                                    <columnConstraints>
+                                        <ColumnConstraints hgrow="NEVER" minWidth="120.0" />
+                                        <ColumnConstraints hgrow="ALWAYS" />
+                                    </columnConstraints>
+                                    
+                                    <!-- Company Name -->
+                                    <Label text="%settings.company_name" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                                    <TextField fx:id="txtCompanyName" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+                                    
+                                    <!-- Phone -->
+                                    <Label text="%settings.company_phone" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                                    <TextField fx:id="txtCompanyPhone" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                    
+                                    <!-- Email -->
+                                    <Label text="%settings.company_email" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                                    <TextField fx:id="txtCompanyEmail" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                                    
+                                    <!-- Address -->
+                                    <Label text="%settings.company_address" GridPane.columnIndex="0" GridPane.rowIndex="3" />
+                                    <TextArea fx:id="txtCompanyAddress" prefRowCount="3" 
+                                              GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                                </GridPane>
+                                
+                                <HBox spacing="10.0">
+                                    <children>
+                                        <Button text="%settings.save_company" onAction="#handleSaveCompany"
+                                                style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;" />
+                                    </children>
+                                </HBox>
+                            </children>
+                        </VBox>
+                    </content>
+                </Tab>
+                
                 <!-- Finance Settings Tab -->
                 <Tab text="%settings.finance">
                     <content>

@@ -14,6 +14,7 @@ public class UserDTO {
     private String username;
     private String fullName;
     private String role;
+    private String password; // Optional - for creation/reset only
 
     @Override
     public String toString() {

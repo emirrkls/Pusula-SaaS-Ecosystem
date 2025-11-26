@@ -5,15 +5,17 @@ public class UserDTO {
     private String username;
     private String fullName;
     private String role;
+    private String password; // Optional - only used for creation or reset
 
     public UserDTO() {
     }
 
-    public UserDTO(Long id, String username, String fullName, String role) {
+    public UserDTO(Long id, String username, String fullName, String role, String password) {
         this.id = id;
         this.username = username;
         this.fullName = fullName;
         this.role = role;
+        this.password = password;
     }
 
     public static UserDTOBuilder builder() {
@@ -52,11 +54,20 @@ public class UserDTO {
         this.role = role;
     }
 
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
     public static class UserDTOBuilder {
         private Long id;
         private String username;
         private String fullName;
         private String role;
+        private String password;
 
         UserDTOBuilder() {
         }
@@ -81,8 +92,13 @@ public class UserDTO {
             return this;
         }
 
+        public UserDTOBuilder password(String password) {
+            this.password = password;
+            return this;
+        }
+
         public UserDTO build() {
-            return new UserDTO(id, username, fullName, role);
+            return new UserDTO(id, username, fullName, role, password);
         }
     }
 }
