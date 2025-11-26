@@ -75,6 +75,104 @@ public class ServiceTicketController {
         colHistoryStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
         colHistoryDate.setCellValueFactory(new PropertyValueFactory<>("scheduledDate"));
 
+        // Load resource bundle for translations
+        java.util.ResourceBundle resourceBundle = java.util.ResourceBundle.getBundle("i18n.messages",
+                java.util.Locale.of("tr", "TR"), new UTF8Control());
+
+        // Set custom cell factory for Active Status column
+        colActiveStatus.setCellFactory(column -> new TableCell<ServiceTicketDTO, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+
+                // Translate the status
+                String translatedStatus = switch (item) {
+                    case "PENDING" -> resourceBundle.getString("status.pending");
+                    case "IN_PROGRESS" -> resourceBundle.getString("status.in_progress");
+                    case "COMPLETED" -> resourceBundle.getString("status.completed");
+                    case "CANCELLED" -> resourceBundle.getString("status.cancelled");
+                    case "ASSIGNED" -> resourceBundle.getString("status.assigned");
+                    default -> item;
+                };
+
+                setText(translatedStatus);
+
+                // Set color based on status
+                switch (item) {
+                    case "COMPLETED":
+                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                        break;
+                    case "IN_PROGRESS":
+                        setStyle("-fx-text-fill: #2980b9; -fx-font-weight: bold;");
+                        break;
+                    case "CANCELLED":
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                        break;
+                    case "PENDING":
+                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                        break;
+                    case "ASSIGNED":
+                        setStyle("-fx-text-fill: #8e44ad; -fx-font-weight: bold;");
+                        break;
+                    default:
+                        setStyle("");
+                }
+            }
+        });
+
+        // Set custom cell factory for History Status column
+        colHistoryStatus.setCellFactory(column -> new TableCell<ServiceTicketDTO, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+
+                // Translate the status
+                String translatedStatus = switch (item) {
+                    case "PENDING" -> resourceBundle.getString("status.pending");
+                    case "IN_PROGRESS" -> resourceBundle.getString("status.in_progress");
+                    case "COMPLETED" -> resourceBundle.getString("status.completed");
+                    case "CANCELLED" -> resourceBundle.getString("status.cancelled");
+                    case "ASSIGNED" -> resourceBundle.getString("status.assigned");
+                    default -> item;
+                };
+
+                setText(translatedStatus);
+
+                // Set color based on status
+                switch (item) {
+                    case "COMPLETED":
+                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                        break;
+                    case "IN_PROGRESS":
+                        setStyle("-fx-text-fill: #2980b9; -fx-font-weight: bold;");
+                        break;
+                    case "CANCELLED":
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                        break;
+                    case "PENDING":
+                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                        break;
+                    case "ASSIGNED":
+                        setStyle("-fx-text-fill: #8e44ad; -fx-font-weight: bold;");
+                        break;
+                    default:
+                        setStyle("");
+                }
+            }
+        });
+
         // Create filtered lists
         activeFilteredList = new FilteredList<>(allTicketsList, ticket -> "PENDING".equals(ticket.getStatus())
                 || "IN_PROGRESS".equals(ticket.getStatus()) || "ASSIGNED".equals(ticket.getStatus()));

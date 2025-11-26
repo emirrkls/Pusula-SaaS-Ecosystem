@@ -1,0 +1,144 @@
+IMPORTANT: The git restore command removed your manual fixes!
+
+You need to RE-APPLY the Dashboard fixes again:
+
+STEP 1: Add these imports at the top (after line 9):
+========================================================
+import com.pusula.desktop.api.UserApi;
+import com.pusula.desktop.dto.UserDTO;
+
+
+STEP 2: In setupTable() method, REPLACE lines 117-122:
+========================================================
+FROM (current broken code):
+        colStatus.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getStatus()));
+
+        colTechnician.setCellValueFactory(
+                cellData -> new SimpleStringProperty(cellData.getValue().getAssignedTechnicianId() != null
+                        ? "Teknisyen " + cellData.getValue().getAssignedTechnicianId()
+                        : "Atanmamış"));
+
+TO (fixed code - see below in next section)
+
+
+STEP 3: Copy this EXACT code to replace the section above:
+========================================================
+        colStatus.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getStatus()));
+        
+        // Load resource bundle
+        java.util.ResourceBundle resourceBundle = java.util.ResourceBundle.getBundle("i18n.messages",
+                java.util.Locale.of("tr", "TR"), new UTF8Control());
+        
+        // Set custom cell factory for Status column
+        colStatus.setCellFactory(column -> new TableCell<ServiceTicketDTO, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                
+                if (empty || getIndex() >= getTableView().getItems().size()) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+                
+                ServiceTicketDTO ticket = getTableView().getItems().get(getIndex());
+                String status = ticket.getStatus();
+                
+                if (status == null) {
+                    setText("");
+                    setStyle("");
+                    return;
+                }
+                
+                // Translate the status
+                String translatedStatus = switch (status) {
+                    case "PENDING" -> resourceBundle.getString("status.pending");
+                    case "IN_PROGRESS" -> resourceBundle.getString("status.in_progress");
+                    case "COMPLETED" -> resourceBundle.getString("status.completed");
+                    case "CANCELLED" -> resourceBundle.getString("status.cancelled");
+                    case "ASSIGNED" -> resourceBundle.getString("status.assigned");
+                    default -> status;
+                };
+                
+                setText(translatedStatus);
+                
+                // Set color based on status
+                switch (status) {
+                    case "COMPLETED":
+                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                        break;
+                    case "IN_PROGRESS":
+                        setStyle("-fx-text-fill: #2980b9; -fx-font-weight: bold;");
+                        break;
+                    case "CANCELLED":
+                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                        break;
+                    case "PENDING":
+                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
+                        break;
+                    case "ASSIGNED":
+                        setStyle("-fx-text-fill: #8e44ad; -fx-font-weight: bold;");
+                        break;
+                    default:
+                        setStyle("");
+                }
+            }
+        });
+        
+        // Set custom cell factory for Technician column
+        colTechnician.setCellFactory(column -> new TableCell<ServiceTicketDTO, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                
+                if (empty || getIndex() >= getTableView().getItems().size()) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+                
+                ServiceTicketDTO ticket = getTableView().getItems().get(getIndex());
+                Long technicianId = ticket.getAssignedTechnicianId();
+                
+                if (technicianId == null) {
+                    setText(resourceBundle.getString("dashboard.unassigned"));
+                    setStyle("-fx-background-color: #fff3cd; -fx-text-fill: #856404;");
+                } else {
+                    UserApi userApi = RetrofitClient.getClient().create(UserApi.class);
+                    userApi.getAllUsers().enqueue(new retrofit2.Callback<java.util.List<UserDTO>>() {
+                        @Override
+                        public void onResponse(retrofit2.Call<java.util.List<UserDTO>> call,
+                                retrofit2.Response<java.util.List<UserDTO>> response) {
+                            if (response.isSuccessful() && response.body() != null) {
+                                UserDTO tech = response.body().stream()
+                                        .filter(u -> u.getId().equals(technicianId))
+                                        .findFirst()
+                                        .orElse(null);
+                                
+                                Platform.runLater(() -> {
+                                    if (tech != null) {
+                                        setText(tech.getFullName());
+                                    } else {
+                                        setText("Teknisyen " + technicianId);
+                                    }
+                                    setStyle("");
+                                });
+                            }
+                        }
+                        
+                        @Override
+                        public void onFailure(retrofit2.Call<java.util.List<UserDTO>> call, Throwable t) {
+                            Platform.runLater(() -> {
+                                setText("Teknisyen " + technicianId);
+                                setStyle("");
+                            });
+                        }
+                    });
+                }
+            }
+        });
+
+        colTechnician.setCellValueFactory(
+                cellData -> new SimpleStringProperty(cellData.getValue().getAssignedTechnicianId() != null
+                        ? cellData.getValue().getAssignedTechnicianId().toString()
+                        : ""));

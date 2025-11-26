@@ -237,8 +237,9 @@ public class TicketDetailsController {
                     Platform.runLater(() -> {
                         currentTicket = response.body();
                         updateUI();
-                        AlertHelper.showAlert(Alert.AlertType.INFORMATION, lblStatus.getScene().getWindow(), "Success",
-                                "Technician assigned.");
+                        AlertHelper.showAlert(Alert.AlertType.INFORMATION, lblStatus.getScene().getWindow(),
+                                resourceBundle.getString("dialog.assign.title"),
+                                resourceBundle.getString("dialog.assign.message"));
                     });
                 }
             }
@@ -494,9 +495,9 @@ public class TicketDetailsController {
             return;
 
         TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Complete Service");
-        dialog.setHeaderText("Enter service charge amount");
-        dialog.setContentText("Amount:");
+        dialog.setTitle(resourceBundle.getString("dialog.complete.title"));
+        dialog.setHeaderText(resourceBundle.getString("dialog.complete.header"));
+        dialog.setContentText(resourceBundle.getString("dialog.complete.amount"));
 
         dialog.showAndWait().ifPresent(result -> {
             try {
@@ -511,7 +512,8 @@ public class TicketDetailsController {
                                 currentTicket = response.body();
                                 updateUI();
                                 AlertHelper.showAlert(Alert.AlertType.INFORMATION, lblStatus.getScene().getWindow(),
-                                        "Success", "Service completed.");
+                                        resourceBundle.getString("dialog.title.success"),
+                                        resourceBundle.getString("dialog.complete.success"));
                             });
                         }
                     }
