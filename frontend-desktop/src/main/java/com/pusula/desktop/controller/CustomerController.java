@@ -92,6 +92,12 @@ public class CustomerController {
         try {
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
                     getClass().getResource("/view/customer_detail.fxml"));
+
+            // Set resources for localization
+            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
+                    new java.util.Locale("tr", "TR"), new com.pusula.desktop.util.UTF8Control());
+            loader.setResources(bundle);
+
             javafx.scene.Parent root = loader.load();
 
             CustomerDetailController controller = loader.getController();
