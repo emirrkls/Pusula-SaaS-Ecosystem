@@ -54,12 +54,42 @@ public class PdfReportGenerator {
                 addTableHeader(table, "Kritik Seviye");
 
                 // Data
+                java.awt.Color criticalColor = new java.awt.Color(255, 200, 200); // Light red for critical items
+
                 for (InventoryDTO item : inventoryList) {
-                    table.addCell(item.getPartName());
-                    table.addCell(String.valueOf(item.getQuantity()));
-                    table.addCell(item.getBuyPrice() != null ? item.getBuyPrice().toString() : "0.00");
-                    table.addCell(item.getSellPrice() != null ? item.getSellPrice().toString() : "0.00");
-                    table.addCell(String.valueOf(item.getCriticalLevel()));
+                    boolean isCritical = item.getQuantity() <= item.getCriticalLevel();
+
+                    // Create cells with conditional background
+                    PdfPCell cellPartName = new PdfPCell(new Phrase(item.getPartName()));
+                    PdfPCell cellQuantity = new PdfPCell(new Phrase(String.valueOf(item.getQuantity())));
+                    PdfPCell cellBuyPrice = new PdfPCell(
+                            new Phrase(item.getBuyPrice() != null ? item.getBuyPrice().toString() : "0.00"));
+                    PdfPCell cellSellPrice = new PdfPCell(
+                            new Phrase(item.getSellPrice() != null ? item.getSellPrice().toString() : "0.00"));
+                    PdfPCell cellCritical = new PdfPCell(new Phrase(String.valueOf(item.getCriticalLevel())));
+
+                    // Apply background color if critical
+                    if (isCritical) {
+                        cellPartName.setBackgroundColor(criticalColor);
+                        cellQuantity.setBackgroundColor(criticalColor);
+                        cellBuyPrice.setBackgroundColor(criticalColor);
+                        cellSellPrice.setBackgroundColor(criticalColor);
+                        cellCritical.setBackgroundColor(criticalColor);
+                    }
+
+                    // Set padding for all cells
+                    cellPartName.setPadding(5);
+                    cellQuantity.setPadding(5);
+                    cellBuyPrice.setPadding(5);
+                    cellSellPrice.setPadding(5);
+                    cellCritical.setPadding(5);
+
+                    // Add cells to table
+                    table.addCell(cellPartName);
+                    table.addCell(cellQuantity);
+                    table.addCell(cellBuyPrice);
+                    table.addCell(cellSellPrice);
+                    table.addCell(cellCritical);
                 }
 
                 document.add(table);
