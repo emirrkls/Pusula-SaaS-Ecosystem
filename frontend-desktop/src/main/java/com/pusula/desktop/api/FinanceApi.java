@@ -78,4 +78,14 @@ public interface FinanceApi {
         Call<List<FixedExpenseDefinitionDTO>> getUpcomingFixedExpenses(
                         @Query("companyId") Long companyId,
                         @Query("daysThreshold") int daysThreshold);
+
+        // Monthly Reporting
+        @GET("/api/reports/finance/archives")
+        Call<List<com.pusula.desktop.dto.MonthlySummaryDTO>> getMonthlyArchives(
+                        @Query("companyId") Long companyId);
+
+        @GET("/api/reports/finance/pdf")
+        Call<okhttp3.ResponseBody> downloadMonthlyPDF(
+                        @Query("month") String month,
+                        @Query("companyId") Long companyId);
 }

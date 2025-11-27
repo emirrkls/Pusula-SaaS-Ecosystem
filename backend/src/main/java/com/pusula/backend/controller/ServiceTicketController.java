@@ -4,6 +4,7 @@ import com.pusula.backend.dto.ServiceTicketDTO;
 import com.pusula.backend.service.ServiceTicketService;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,6 +37,7 @@ public class ServiceTicketController {
     }
 
     @PatchMapping("/{id}/assign")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ServiceTicketDTO> assignTechnician(@PathVariable Long id, @RequestParam Long technicianId) {
         return ResponseEntity.ok(service.assignTechnician(id, technicianId));
     }

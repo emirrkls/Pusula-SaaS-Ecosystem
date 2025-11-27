@@ -9,7 +9,8 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Component
+// Disabled DataSeeder - using SQL seed data instead
+// @Component
 public class DataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;

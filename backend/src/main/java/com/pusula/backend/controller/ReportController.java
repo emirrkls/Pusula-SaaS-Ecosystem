@@ -114,4 +114,36 @@ public class ReportController {
             return ResponseEntity.internalServerError().build();
         }
     }
+
+    /**
+     * Get list of monthly financial archives
+     */
+    @GetMapping("/finance/archives")
+    public List<com.pusula.backend.dto.MonthlySummaryDTO> getMonthlyArchives(
+            @RequestParam(defaultValue = "1") Long companyId) {
+        return reportService.getMonthlyArchives(companyId);
+    }
+
+    /**
+     * Download monthly financial report as PDF
+     */
+    @GetMapping("/finance/pdf")
+    public ResponseEntity<byte[]> downloadMonthlyPDF(
+            @RequestParam String month, // Format: "2025-11"
+            @RequestParam(defaultValue = "1") Long companyId) {
+        try {
+            java.time.YearMonth period = java.time.YearMonth.parse(month);
+            byte[] pdfBytes = reportService.generateMonthlyPDF(period, companyId);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", "mali_rapor_" + month + ".pdf");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(pdfBytes);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
 }

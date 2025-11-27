@@ -1,5 +1,9 @@
 package com.pusula.desktop.controller;
 
+import javafx.stage.FileChooser;
+import java.io.File;
+import java.nio.file.Files;
+
 import com.pusula.desktop.api.FinanceApi;
 import com.pusula.desktop.dto.*;
 import com.pusula.desktop.util.AlertHelper;
@@ -59,6 +63,18 @@ public class FinanceController {
     @FXML
     private TableColumn<DailySummaryDTO.IncomeItemDTO, String> colIncomeAmount;
     @FXML
+    private TableView<MonthlySummaryDTO> reportsTable;
+    @FXML
+    private TableColumn<MonthlySummaryDTO, String> colReportPeriod;
+    @FXML
+    private TableColumn<MonthlySummaryDTO, String> colReportIncome;
+    @FXML
+    private TableColumn<MonthlySummaryDTO, String> colReportExpense;
+    @FXML
+    private TableColumn<MonthlySummaryDTO, String> colReportProfit;
+    @FXML
+    private TableColumn<MonthlySummaryDTO, Void> colReportActions;
+    @FXML
     private Label todayIncomeLabel;
     @FXML
     private Label netCashLabel;
@@ -90,6 +106,8 @@ public class FinanceController {
         checkUpcomingPayments();
         load30DayTrends();
         loadCategoryPieChart();
+        setupReportsTable();
+        loadMonthlyReports();
     }
 
     private void setupDateDisplay() {
@@ -110,7 +128,7 @@ public class FinanceController {
 
         colTodayAmount.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
                 String.format("%.2f ₺", cellData.getValue().getAmount())));
-        
+
         // Actions column with Edit and Delete buttons
         colTodayActions.setCellFactory(param -> new TableCell<>() {
             private final Button btnEdit = new Button("✏️");
@@ -118,25 +136,27 @@ public class FinanceController {
             private final javafx.scene.layout.HBox hbox = new javafx.scene.layout.HBox(5, btnEdit, btnDelete);
 
             {
-        btnEdit.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand; -fx-font-size: 14px;");
-        btnDelete.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand; -fx-font-size: 14px;");
-        
-        btnEdit.setOnAction(event -> {
-            DailySummaryDTO.ExpenseItemDTO expense = getTableView().getItems().get(getIndex());
-            handleEditExpense(expense);
-        });
-        
-        btnDelete.setOnAction(event -> {
-            DailySummaryDTO.ExpenseItemDTO expense = getTableView().getItems().get(getIndex());
-            handleDeleteExpense(expense);
-        });
-    }
+                btnEdit.setStyle(
+                        "-fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand; -fx-font-size: 14px;");
+                btnDelete.setStyle(
+                        "-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand; -fx-font-size: 14px;");
 
-    @Override
-    protected void updateItem(Void item, boolean empty) {
-        super.updateItem(item, empty);
-        setGraphic(empty ? null : hbox);
-    }
+                btnEdit.setOnAction(event -> {
+                    DailySummaryDTO.ExpenseItemDTO expense = getTableView().getItems().get(getIndex());
+                    handleEditExpense(expense);
+                });
+
+                btnDelete.setOnAction(event -> {
+                    DailySummaryDTO.ExpenseItemDTO expense = getTableView().getItems().get(getIndex());
+                    handleDeleteExpense(expense);
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : hbox);
+            }
         });
     }
 
@@ -355,73 +375,73 @@ public class FinanceController {
             AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata", "Sabit gider ödeme penceresi açılamadı!");
         }
     }
+
     private void handleEditExpense(DailySummaryDTO.ExpenseItemDTO expenseItem) {
-    try {
-        // Convert ExpenseItemDTO to ExpenseDTO
-        ExpenseDTO expense = new ExpenseDTO();
-        expense.setId(expenseItem.getId());
-        expense.setCategory(expenseItem.getCategory());
-        expense.setDescription(expenseItem.getDescription());
-        expense.setAmount(expenseItem.getAmount());
-        expense.setDate(currentDate.toString());
+        try {
+            // Convert ExpenseItemDTO to ExpenseDTO
+            ExpenseDTO expense = new ExpenseDTO();
+            expense.setId(expenseItem.getId());
+            expense.setCategory(expenseItem.getCategory());
+            expense.setDescription(expenseItem.getDescription());
+            expense.setAmount(expenseItem.getAmount());
+            expense.setDate(currentDate.toString());
 
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/expense_dialog.fxml"), bundle);
-        javafx.scene.Parent root = loader.load();
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/expense_dialog.fxml"), bundle);
+            javafx.scene.Parent root = loader.load();
 
-        ExpenseDialogController controller = loader.getController();
-        controller.setExpenseToEdit(expense); // Set edit mode
-        controller.setOnSaveSuccess(() -> {
-            loadDailySummary(currentDate);
-            loadCategoryPieChart();
-            load30DayTrends();
-        });
-
-        Stage stage = new Stage();
-        stage.initModality(Modality.APPLICATION_MODAL);
-        stage.setTitle("Gider Düzenle");
-        stage.setScene(new Scene(root));
-        stage.showAndWait();
-    } catch (Exception e) {
-        e.printStackTrace();
-        AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata", "Gider düzenleme penceresi açılamadı!");
-    }
-}
-
-private void handleDeleteExpense(DailySummaryDTO.ExpenseItemDTO expenseItem) {
-    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-    confirm.setTitle("Gider Sil");
-    confirm.setHeaderText("Bu gideri silmek istediğinizden emin misiniz?");
-    confirm.setContentText(expenseItem.getDescription() + " - " + formatCurrency(expenseItem.getAmount()));
-
-    confirm.showAndWait().ifPresent(response -> {
-        if (response == ButtonType.OK) {
-            financeApi.deleteExpense(expenseItem.getId()).enqueue(new Callback<Void>() {
-                @Override
-                public void onResponse(Call<Void> call, Response<Void> response) {
-                    if (response.isSuccessful()) {
-                        Platform.runLater(() -> {
-                            AlertHelper.showAlert(Alert.AlertType.INFORMATION, null,
-                                    "Başarılı", "Gider silindi!");
-                            loadDailySummary(currentDate);
-                            loadCategoryPieChart();
-                            load30DayTrends();
-                        });
-                    } else {
-                        Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
-                                null, "Hata", "Gider silinemedi!"));
-                    }
-                }
-
-                @Override
-                public void onFailure(Call<Void> call, Throwable t) {
-                    Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
-                            null, "Hata", "Bağlantı hatası: " + t.getMessage()));
-                }
+            ExpenseDialogController controller = loader.getController();
+            controller.setExpenseToEdit(expense); // Set edit mode
+            controller.setOnSaveSuccess(() -> {
+                loadDailySummary(currentDate);
+                loadCategoryPieChart();
+                load30DayTrends();
             });
-        }
-    });
-}
 
+            Stage stage = new Stage();
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.setTitle("Gider Düzenle");
+            stage.setScene(new Scene(root));
+            stage.showAndWait();
+        } catch (Exception e) {
+            e.printStackTrace();
+            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata", "Gider düzenleme penceresi açılamadı!");
+        }
+    }
+
+    private void handleDeleteExpense(DailySummaryDTO.ExpenseItemDTO expenseItem) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Gider Sil");
+        confirm.setHeaderText("Bu gideri silmek istediğinizden emin misiniz?");
+        confirm.setContentText(expenseItem.getDescription() + " - " + formatCurrency(expenseItem.getAmount()));
+
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                financeApi.deleteExpense(expenseItem.getId()).enqueue(new Callback<Void>() {
+                    @Override
+                    public void onResponse(Call<Void> call, Response<Void> response) {
+                        if (response.isSuccessful()) {
+                            Platform.runLater(() -> {
+                                AlertHelper.showAlert(Alert.AlertType.INFORMATION, null,
+                                        "Başarılı", "Gider silindi!");
+                                loadDailySummary(currentDate);
+                                loadCategoryPieChart();
+                                load30DayTrends();
+                            });
+                        } else {
+                            Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                    null, "Hata", "Gider silinemedi!"));
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<Void> call, Throwable t) {
+                        Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                null, "Hata", "Bağlantı hatası: " + t.getMessage()));
+                    }
+                });
+            }
+        });
+    }
 
     @FXML
     private void handleCloseDay() {
@@ -481,5 +501,108 @@ private void handleDeleteExpense(DailySummaryDTO.ExpenseItemDTO expenseItem) {
         if (amount == null)
             return "0.00 ₺";
         return String.format("%.2f ₺", amount);
+    }
+
+    private void setupReportsTable() {
+        colReportPeriod.setCellValueFactory(
+                cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getDisplayPeriod()));
+
+        colReportIncome.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
+                formatCurrency(cellData.getValue().getTotalIncome())));
+
+        colReportExpense.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
+                formatCurrency(cellData.getValue().getTotalExpense())));
+
+        colReportProfit.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
+                formatCurrency(cellData.getValue().getNetProfit())));
+
+        // Actions column with PDF download button
+        colReportActions.setCellFactory(param -> new TableCell<>() {
+            private final Button btnPDF = new Button("📄 PDF");
+            {
+                btnPDF.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand;");
+                btnPDF.setOnAction(event -> {
+                    MonthlySummaryDTO summary = getTableView().getItems().get(getIndex());
+                    handleDownloadPDF(summary.getPeriod());
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : btnPDF);
+            }
+        });
+    }
+
+    private void loadMonthlyReports() {
+        financeApi.getMonthlyArchives(1L).enqueue(new Callback<List<MonthlySummaryDTO>>() {
+            @Override
+            public void onResponse(Call<List<MonthlySummaryDTO>> call, Response<List<MonthlySummaryDTO>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Platform.runLater(() -> {
+                        reportsTable.setItems(FXCollections.observableArrayList(response.body()));
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<MonthlySummaryDTO>> call, Throwable t) {
+                System.err.println("Failed to load reports: " + t.getMessage());
+            }
+        });
+    }
+
+    private void handleDownloadPDF(String period) {
+        financeApi.downloadMonthlyPDF(period, 1L).enqueue(new Callback<okhttp3.ResponseBody>() {
+            @Override
+            public void onResponse(Call<okhttp3.ResponseBody> call, Response<okhttp3.ResponseBody> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    try {
+                        // Get PDF bytes first (on background thread)
+                        final byte[] pdfBytes = response.body().bytes();
+
+                        // Then show file chooser on JavaFX thread
+                        Platform.runLater(() -> {
+                            try {
+                                FileChooser fileChooser = new FileChooser();
+                                fileChooser.setTitle("PDF Kaydet");
+                                fileChooser.setInitialFileName("mali_rapor_" + period + ".pdf");
+                                fileChooser.getExtensionFilters().add(
+                                        new FileChooser.ExtensionFilter("PDF Files", "*.pdf"));
+
+                                javafx.stage.Stage stage = (javafx.stage.Stage) reportsTable.getScene().getWindow();
+                                File file = fileChooser.showSaveDialog(stage);
+
+                                if (file != null) {
+                                    // Write PDF bytes to file
+                                    Files.write(file.toPath(), pdfBytes);
+                                    AlertHelper.showAlert(Alert.AlertType.INFORMATION, null,
+                                            "Başarılı", "PDF başarıyla kaydedildi!");
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                                AlertHelper.showAlert(Alert.AlertType.ERROR, null,
+                                        "Hata", "PDF kaydedilemedi: " + e.getMessage());
+                            }
+                        });
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        Platform.runLater(() -> {
+                            AlertHelper.showAlert(Alert.AlertType.ERROR, null,
+                                    "Hata", "PDF okunamadı: " + e.getMessage());
+                        });
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<okhttp3.ResponseBody> call, Throwable t) {
+                Platform.runLater(() -> {
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, null,
+                            "Hata", "PDF indirilemedi: " + t.getMessage());
+                });
+            }
+        });
     }
 }

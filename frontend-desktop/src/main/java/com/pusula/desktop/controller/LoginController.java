@@ -45,7 +45,8 @@ public class LoginController {
             public void onResponse(Call<AuthResponse> call, Response<AuthResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     String token = response.body().getToken();
-                    SessionManager.setSession(token, username);
+                    String role = response.body().getRole();
+                    SessionManager.setSession(token, username, role);
 
                     Platform.runLater(() -> {
                         try {

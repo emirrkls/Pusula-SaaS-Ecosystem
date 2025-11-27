@@ -37,7 +37,7 @@ public class ServiceTicket extends BaseEntity {
     private Long parentTicketId;
 
     @Column(name = "is_warranty_call")
-    private boolean isWarrantyCall = false;
+    private Boolean isWarrantyCall;
 
     public ServiceTicket() {
     }
@@ -125,11 +125,11 @@ public class ServiceTicket extends BaseEntity {
         this.parentTicketId = parentTicketId;
     }
 
-    public boolean isWarrantyCall() {
-        return isWarrantyCall;
+    public Boolean isWarrantyCall() {
+        return isWarrantyCall != null ? isWarrantyCall : false;
     }
 
-    public void setWarrantyCall(boolean warrantyCall) {
+    public void setWarrantyCall(Boolean warrantyCall) {
         isWarrantyCall = warrantyCall;
     }
 

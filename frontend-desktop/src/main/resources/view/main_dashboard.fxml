@@ -53,7 +53,7 @@
                   <Font size="14.0" />
                </font>
             </Button>
-            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showFinance" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="%menu.finance">
+            <Button fx:id="btnFinance" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showFinance" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="%menu.finance">
                <padding>
                   <Insets bottom="10.0" left="20.0" top="10.0" />
                </padding>
@@ -61,7 +61,7 @@
                   <Font size="14.0" />
                </font>
             </Button>
-            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showSettings" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="%menu.settings">
+            <Button fx:id="btnSettings" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showSettings" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="%menu.settings">
                <padding>
                   <Insets bottom="10.0" left="20.0" top="10.0" />
                </padding>

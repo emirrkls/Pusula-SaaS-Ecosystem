@@ -115,6 +115,12 @@ public class TicketDetailsController {
         // Disable editing for closed tickets
         txtNotes.setEditable(!isClosed);
         comboTechnician.setDisable(isClosed);
+
+        // Disable assignment controls for Technicians
+        if (com.pusula.desktop.util.SessionManager.isTechnician()) {
+            comboTechnician.setDisable(true);
+        }
+
         // Show parent link if this is a follow-up ticket
         if (currentTicket.getParentTicketId() != null) {
             lblParentLink.setText("Bu servis #" + currentTicket.getParentTicketId() + " nolu fişin devamıdır");
