@@ -198,7 +198,7 @@ public class DashboardController {
                     setStyle("-fx-background-color: #fff3cd; -fx-text-fill: #856404;");
                 } else {
                     UserApi userApi = RetrofitClient.getClient().create(UserApi.class);
-                    userApi.getAllUsers().enqueue(new retrofit2.Callback<java.util.List<UserDTO>>() {
+                    userApi.getTechnicians().enqueue(new retrofit2.Callback<java.util.List<UserDTO>>() {
                         @Override
                         public void onResponse(retrofit2.Call<java.util.List<UserDTO>> call,
                                 retrofit2.Response<java.util.List<UserDTO>> response) {

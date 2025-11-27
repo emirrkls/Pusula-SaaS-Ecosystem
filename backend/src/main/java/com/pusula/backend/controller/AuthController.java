@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -37,6 +39,16 @@ public class AuthController {
             System.err.println("AuthController: Authentication failed: " + e.getMessage());
             e.printStackTrace();
             throw e;
+        }
+    }
+
+    @PostMapping("/verify-password")
+    public ResponseEntity<Map<String, Boolean>> verifyPassword(@RequestBody AuthRequest request) {
+        try {
+            service.authenticate(request);
+            return ResponseEntity.ok(java.util.Map.of("valid", true));
+        } catch (Exception e) {
+            return ResponseEntity.ok(java.util.Map.of("valid", false));
         }
     }
 }

@@ -2,12 +2,14 @@ package com.pusula.backend.dto;
 
 public class AuthResponse {
     private String token;
+    private String role;
 
     public AuthResponse() {
     }
 
-    public AuthResponse(String token) {
+    public AuthResponse(String token, String role) {
         this.token = token;
+        this.role = role;
     }
 
     public static AuthResponseBuilder builder() {
@@ -22,8 +24,17 @@ public class AuthResponse {
         this.token = token;
     }
 
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
     public static class AuthResponseBuilder {
         private String token;
+        private String role;
 
         AuthResponseBuilder() {
         }
@@ -33,8 +44,13 @@ public class AuthResponse {
             return this;
         }
 
+        public AuthResponseBuilder role(String role) {
+            this.role = role;
+            return this;
+        }
+
         public AuthResponse build() {
-            return new AuthResponse(token);
+            return new AuthResponse(token, role);
         }
     }
 }

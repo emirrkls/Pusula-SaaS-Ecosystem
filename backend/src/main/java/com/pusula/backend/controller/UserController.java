@@ -5,6 +5,7 @@ import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.UserRepository;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +31,7 @@ public class UserController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<List<UserDTO>> getUsers(@RequestParam(required = false) String role) {
         User currentUser = getCurrentUser();
         List<User> users = userRepository.findByCompanyId(currentUser.getCompanyId());
@@ -43,6 +45,8 @@ public class UserController {
         return ResponseEntity.ok(mapToDTOs(users));
     }
 
+    // Technicians endpoint is accessible to all authenticated users for operational
+    // needs
     @GetMapping("/technicians")
     public ResponseEntity<List<UserDTO>> getTechnicians() {
         User currentUser = getCurrentUser();
@@ -72,6 +76,7 @@ public class UserController {
      * Create a new user with encrypted password
      */
     @PostMapping
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<UserDTO> createUser(@RequestBody UserDTO userDTO) {
         User currentUser = getCurrentUser();
 
@@ -98,6 +103,7 @@ public class UserController {
      * Update an existing user (password is optional)
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<UserDTO> updateUser(@PathVariable Long id, @RequestBody UserDTO userDTO) {
         User currentUser = getCurrentUser();
 
@@ -128,6 +134,7 @@ public class UserController {
      * Delete a user (soft delete)
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         User currentUser = getCurrentUser();
 
@@ -153,6 +160,7 @@ public class UserController {
      * Reset user password
      */
     @PostMapping("/{id}/reset-password")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Void> resetPassword(@PathVariable Long id, @RequestBody Map<String, String> payload) {
         User currentUser = getCurrentUser();
 

@@ -1,0 +1,226 @@
+
+    // ========== MONTHLY FINANCIAL REPORTS ==========
+
+    public List<com.pusula.backend.dto.MonthlySummaryDTO> getMonthlyArchives(Long companyId) {
+        List<DailyClosing> closings = dailyClosingRepository.findAll().stream()
+                .filter(dc -> dc.getCompanyId().equals(companyId))
+                .collect(java.util.stream.Collectors.toList());
+
+        Map<java.time.YearMonth, List<DailyClosing>> monthlyGroups = closings.stream()
+                .collect(java.util.stream.Collectors.groupingBy(dc -> java.time.YearMonth.from(dc.getDate())));
+
+        List<com.pusula.backend.dto.MonthlySummaryDTO> summaries = new ArrayList<>();
+        DateTimeFormatter turkishFormat = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.of("tr", "TR"));
+
+        for (Map.Entry<java.time.YearMonth, List<DailyClosing>> entry : monthlyGroups.entrySet()) {
+            java.time.YearMonth month = entry.getKey();
+            List<DailyClosing> monthClosings = entry.getValue();
+
+            BigDecimal totalIncome = monthClosings.stream()
+                    .map(DailyClosing::getTotalIncome)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal totalExpense = monthClosings.stream()
+                    .map(DailyClosing::getTotalExpense)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            summaries.add(com.pusula.backend.dto.MonthlySummaryDTO.builder()
+                    .period(month.toString())
+                    .displayPeriod(month.atDay(1).format(turkishFormat))
+                    .totalIncome(totalIncome)
+                    .totalExpense(totalExpense)
+                    .netProfit(totalIncome.subtract(totalExpense))
+                    .build());
+        }
+
+        summaries.sort(Comparator.comparing(com.pusula.backend.dto.MonthlySummaryDTO::getPeriod).reversed());
+        return summaries;
+    }
+
+    public byte[] generateMonthlyPDF(java.time.YearMonth period, Long companyId) throws DocumentException {
+        Document document = new Document(PageSize.A4, 50, 50, 50, 50);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        PdfWriter.getInstance(document, baos);
+        document.open();
+
+        DateTimeFormatter turkishFormat = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.of("tr", "TR"));
+        String displayPeriod = period.atDay(1).format(turkishFormat);
+
+        Paragraph title = new Paragraph("AYLIK FİNANSAL RAPOR", HEADER_FONT);
+        title.setAlignment(Element.ALIGN_CENTER);
+        document.add(title);
+
+        Paragraph periodPara = new Paragraph(displayPeriod.toUpperCase(), SECTION_FONT);
+        periodPara.setAlignment(Element.ALIGN_CENTER);
+        periodPara.setSpacingAfter(20);
+        document.add(periodPara);
+
+        java.time.LocalDate startDate = period.atDay(1);
+        java.time.LocalDate endDate = period.atEndOfMonth();
+
+        List<DailyClosing> closings = dailyClosingRepository.findAll().stream()
+                .filter(dc -> dc.getCompanyId().equals(companyId))
+                .filter(dc -> !dc.getDate().isBefore(startDate) && !dc.getDate().isAfter(endDate))
+                .collect(java.util.stream.Collectors.toList());
+
+        BigDecimal totalIncome = closings.stream()
+                .map(DailyClosing::getTotalIncome)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalExpense = closings.stream()
+                .map(DailyClosing::getTotalExpense)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal netProfit = totalIncome.subtract(totalExpense);
+
+        PdfPTable summaryTable = new PdfPTable(2);
+        summaryTable.setWidthPercentage(100);
+        summaryTable.setSpacingBefore(10);
+        summaryTable.setSpacingAfter(20);
+
+        addFinancialRow(summaryTable, "Toplam Gelir:", String.format("%.2f ₺", totalIncome));
+        addFinancialRow(summaryTable, "Toplam Gider:", String.format("%.2f ₺", totalExpense));
+        addFinancialRow(summaryTable, "Net Kâr:", String.format("%.2f ₺", netProfit));
+        document.add(summaryTable);
+
+        List<Expense> expenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate);
+        Map<String, BigDecimal> categoryBreakdown = expenses.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        e -> e.getCategory().name(),
+                        java.util.stream.Collectors.reducing(BigDecimal.ZERO, Expense::getAmount, BigDecimal::add)));
+
+        if (!categoryBreakdown.isEmpty()) {
+            Paragraph breakdownTitle = new Paragraph("Gider Dağılımı (Kategorilere Göre)", SECTION_FONT);
+            breakdownTitle.setSpacingBefore(10);
+            document.add(breakdownTitle);
+
+            PdfPTable categoryTable = new PdfPTable(2);
+            categoryTable.setWidthPercentage(100);
+            categoryTable.setSpacingBefore(5);
+            categoryTable.setSpacingAfter(10);
+
+            for (Map.Entry<String, BigDecimal> entry : categoryBreakdown.entrySet()) {
+                addCategoryRow(categoryTable, getCategoryNameTurkish(entry.getKey()),
+                        String.format("%.2f ₺", entry.getValue()));
+            }
+            document.add(categoryTable);
+        }
+
+        // DETAILED DAILY EXPENSE BREAKDOWN
+        if (!expenses.isEmpty()) {
+            Paragraph detailTitle = new Paragraph("Detaylı Gider Listesi", SECTION_FONT);
+            detailTitle.setSpacingBefore(20);
+            document.add(detailTitle);
+
+            PdfPTable detailTable = new PdfPTable(new float[]{2, 2, 4, 2});
+            detailTable.setWidthPercentage(100);
+            detailTable.setSpacingBefore(5);
+
+            addTableHeader(detailTable, "Tarih", new Color(70, 130, 180));
+            addTableHeader(detailTable, "Kategori", new Color(70, 130, 180));
+            addTableHeader(detailTable, "Açıklama", new Color(70, 130, 180));
+            addTableHeader(detailTable, "Tutar", new Color(70, 130, 180));
+
+            List<Expense> sortedExpenses = new ArrayList<>(expenses);
+            sortedExpenses.sort(Comparator.comparing(Expense::getDate));
+
+            java.time.LocalDate currentDate = null;
+            BigDecimal dailyTotal = BigDecimal.ZERO;
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.of("tr", "TR"));
+
+            for (Expense exp : sortedExpenses) {
+                if (currentDate != null && !exp.getDate().equals(currentDate)) {
+                    PdfPCell totalLabelCell = new PdfPCell(new Paragraph("Günlük Toplam", SMALL_BOLD_FONT));
+                    totalLabelCell.setColspan(3);
+                    totalLabelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    totalLabelCell.setBackgroundColor(new Color(240, 240, 240));
+                    totalLabelCell.setPadding(5);
+                    detailTable.addCell(totalLabelCell);
+
+                    PdfPCell totalAmountCell = new PdfPCell(new Paragraph(String.format("%.2f ₺", dailyTotal), SMALL_BOLD_FONT));
+                    totalAmountCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    totalAmountCell.setBackgroundColor(new Color(240, 240, 240));
+                    totalAmountCell.setPadding(5);
+                    detailTable.addCell(totalAmountCell);
+                    dailyTotal = BigDecimal.ZERO;
+                }
+
+                currentDate = exp.getDate();
+                dailyTotal = dailyTotal.add(exp.getAmount());
+
+                detailTable.addCell(new PdfPCell(new Paragraph(exp.getDate().format(dateFormatter), SMALL_FONT)));
+                detailTable.addCell(new PdfPCell(new Paragraph(getCategoryNameTurkish(exp.getCategory().name()), SMALL_FONT)));
+                detailTable.addCell(new PdfPCell(new Paragraph(exp.getDescription(), SMALL_FONT)));
+
+                PdfPCell amountCell = new PdfPCell(new Paragraph(String.format("%.2f ₺", exp.getAmount()), SMALL_FONT));
+                amountCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                detailTable.addCell(amountCell);
+            }
+
+            if (currentDate != null) {
+                PdfPCell totalLabelCell = new PdfPCell(new Paragraph("Günlük Toplam", SMALL_BOLD_FONT));
+                totalLabelCell.setColspan(3);
+                totalLabelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                totalLabelCell.setBackgroundColor(new Color(240, 240, 240));
+                totalLabelCell.setPadding(5);
+                detailTable.addCell(totalLabelCell);
+
+                PdfPCell totalAmountCell = new PdfPCell(new Paragraph(String.format("%.2f ₺", dailyTotal), SMALL_BOLD_FONT));
+                totalAmountCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                totalAmountCell.setBackgroundColor(new Color(240, 240, 240));
+                totalAmountCell.setPadding(5);
+                detailTable.addCell(totalAmountCell);
+            }
+
+            document.add(detailTable);
+        }
+
+        Paragraph footer = new Paragraph("Rapor Oluşturma Tarihi: " + java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")), SMALL_FONT);
+        footer.setAlignment(Element.ALIGN_RIGHT);
+        footer.setSpacingBefore(30);
+        document.add(footer);
+
+        document.close();
+        return baos.toByteArray();
+    }
+
+    private void addFinancialRow(PdfPTable table, String label, String value) {
+        PdfPCell labelCell = new PdfPCell(new Phrase(label, SECTION_FONT));
+        labelCell.setBorder(Rectangle.NO_BORDER);
+        labelCell.setPadding(5);
+
+        PdfPCell valueCell = new PdfPCell(new Phrase(value, NORMAL_FONT));
+        valueCell.setBorder(Rectangle.NO_BORDER);
+        valueCell.setPadding(5);
+        valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+
+        table.addCell(labelCell);
+        table.addCell(valueCell);
+    }
+
+    private void addCategoryRow(PdfPTable table, String category, String amount) {
+        PdfPCell categoryCell = new PdfPCell(new Phrase(category, NORMAL_FONT));
+        categoryCell.setBorder(Rectangle.NO_BORDER);
+        categoryCell.setPadding(3);
+
+        PdfPCell amountCell = new PdfPCell(new Phrase(amount, NORMAL_FONT));
+        amountCell.setBorder(Rectangle.NO_BORDER);
+        amountCell.setPadding(3);
+        amountCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+
+        table.addCell(categoryCell);
+        table.addCell(amountCell);
+    }
+
+    private String getCategoryNameTurkish(String category) {
+        Map<String, String> categoryNames = Map.of(
+                "RENT", "Kira",
+                "SALARY", "Maaş",
+                "BILLS", "Faturalar",
+                "FUEL", "Yakıt",
+                "FOOD", "Yemek",
+                "TAX", "Vergi",
+                "MATERIAL", "Malzeme",
+                "OTHER", "Diğer");
+        return categoryNames.getOrDefault(category, category);
+    }
