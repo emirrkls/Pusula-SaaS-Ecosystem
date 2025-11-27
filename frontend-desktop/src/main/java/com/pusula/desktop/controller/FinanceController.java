@@ -47,6 +47,8 @@ public class FinanceController {
     @FXML
     private TableColumn<DailySummaryDTO.ExpenseItemDTO, String> colTodayAmount;
     @FXML
+    private TableColumn<DailySummaryDTO.ExpenseItemDTO, Void> colTodayActions;
+    @FXML
     private Label todayExpenseLabel;
     @FXML
     private TableView<DailySummaryDTO.IncomeItemDTO> todayIncomesTable;
@@ -108,6 +110,34 @@ public class FinanceController {
 
         colTodayAmount.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
                 String.format("%.2f ₺", cellData.getValue().getAmount())));
+        
+        // Actions column with Edit and Delete buttons
+        colTodayActions.setCellFactory(param -> new TableCell<>() {
+            private final Button btnEdit = new Button("✏️");
+            private final Button btnDelete = new Button("🗑️");
+            private final javafx.scene.layout.HBox hbox = new javafx.scene.layout.HBox(5, btnEdit, btnDelete);
+
+            {
+        btnEdit.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand; -fx-font-size: 14px;");
+        btnDelete.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand; -fx-font-size: 14px;");
+        
+        btnEdit.setOnAction(event -> {
+            DailySummaryDTO.ExpenseItemDTO expense = getTableView().getItems().get(getIndex());
+            handleEditExpense(expense);
+        });
+        
+        btnDelete.setOnAction(event -> {
+            DailySummaryDTO.ExpenseItemDTO expense = getTableView().getItems().get(getIndex());
+            handleDeleteExpense(expense);
+        });
+    }
+
+    @Override
+    protected void updateItem(Void item, boolean empty) {
+        super.updateItem(item, empty);
+        setGraphic(empty ? null : hbox);
+    }
+        });
     }
 
     private void setupTodayIncomesTable() {
@@ -325,6 +355,73 @@ public class FinanceController {
             AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata", "Sabit gider ödeme penceresi açılamadı!");
         }
     }
+    private void handleEditExpense(DailySummaryDTO.ExpenseItemDTO expenseItem) {
+    try {
+        // Convert ExpenseItemDTO to ExpenseDTO
+        ExpenseDTO expense = new ExpenseDTO();
+        expense.setId(expenseItem.getId());
+        expense.setCategory(expenseItem.getCategory());
+        expense.setDescription(expenseItem.getDescription());
+        expense.setAmount(expenseItem.getAmount());
+        expense.setDate(currentDate.toString());
+
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/expense_dialog.fxml"), bundle);
+        javafx.scene.Parent root = loader.load();
+
+        ExpenseDialogController controller = loader.getController();
+        controller.setExpenseToEdit(expense); // Set edit mode
+        controller.setOnSaveSuccess(() -> {
+            loadDailySummary(currentDate);
+            loadCategoryPieChart();
+            load30DayTrends();
+        });
+
+        Stage stage = new Stage();
+        stage.initModality(Modality.APPLICATION_MODAL);
+        stage.setTitle("Gider Düzenle");
+        stage.setScene(new Scene(root));
+        stage.showAndWait();
+    } catch (Exception e) {
+        e.printStackTrace();
+        AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata", "Gider düzenleme penceresi açılamadı!");
+    }
+}
+
+private void handleDeleteExpense(DailySummaryDTO.ExpenseItemDTO expenseItem) {
+    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+    confirm.setTitle("Gider Sil");
+    confirm.setHeaderText("Bu gideri silmek istediğinizden emin misiniz?");
+    confirm.setContentText(expenseItem.getDescription() + " - " + formatCurrency(expenseItem.getAmount()));
+
+    confirm.showAndWait().ifPresent(response -> {
+        if (response == ButtonType.OK) {
+            financeApi.deleteExpense(expenseItem.getId()).enqueue(new Callback<Void>() {
+                @Override
+                public void onResponse(Call<Void> call, Response<Void> response) {
+                    if (response.isSuccessful()) {
+                        Platform.runLater(() -> {
+                            AlertHelper.showAlert(Alert.AlertType.INFORMATION, null,
+                                    "Başarılı", "Gider silindi!");
+                            loadDailySummary(currentDate);
+                            loadCategoryPieChart();
+                            load30DayTrends();
+                        });
+                    } else {
+                        Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                null, "Hata", "Gider silinemedi!"));
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<Void> call, Throwable t) {
+                    Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                            null, "Hata", "Bağlantı hatası: " + t.getMessage()));
+                }
+            });
+        }
+    });
+}
+
 
     @FXML
     private void handleCloseDay() {

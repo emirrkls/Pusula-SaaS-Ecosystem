@@ -95,6 +95,7 @@
                                        <TableColumn fx:id="colTodayCategory" prefWidth="90.0" text="%table.category" />
                                        <TableColumn fx:id="colTodayDescription" prefWidth="120.0" text="%table.description" />
                                        <TableColumn fx:id="colTodayAmount" prefWidth="80.0" text="%table.amount" />
+                                       <TableColumn fx:id="colTodayActions" text="%table.actions" prefWidth="120.0" />
                                     </columns>
                                     <columnResizePolicy>
                                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />

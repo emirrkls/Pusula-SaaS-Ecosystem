@@ -31,6 +31,8 @@ public class ExpenseDialogController {
     @FXML
     private TextArea txtDescription;
 
+    private ExpenseDTO expenseToEdit = null;
+    private boolean isEditMode = false;
     private Runnable onSaveSuccess;
     private ResourceBundle bundle;
 
@@ -76,44 +78,60 @@ public class ExpenseDialogController {
     public void setOnSaveSuccess(Runnable onSaveSuccess) {
         this.onSaveSuccess = onSaveSuccess;
     }
+    public void setExpenseToEdit(ExpenseDTO expense) {
+    this.expenseToEdit = expense;
+    this.isEditMode = true;
 
-    @FXML
-    private void handleSave() {
-        if (!validateInput())
-            return;
+    // Pre-fill form
+    comboCategory.setValue(expense.getCategory());
+    txtAmount.setText(expense.getAmount().toString());
+    txtDescription.setText(expense.getDescription());
+    datePicker.setValue(LocalDate.parse(expense.getDate()));
+}
 
-        ExpenseDTO expense = new ExpenseDTO();
-        expense.setCompanyId(1L);
-        expense.setCategory(comboCategory.getValue());
-        expense.setAmount(new BigDecimal(txtAmount.getText()));
-        expense.setDescription(txtDescription.getText());
-        expense.setDate(datePicker.getValue().toString()); // Convert LocalDate to String
+@FXML
+private void handleSave() {
+    if (!validateInput())
+        return;
 
-        FinanceApi api = RetrofitClient.getClient().create(FinanceApi.class);
-        api.addExpense(expense).enqueue(new Callback<ExpenseDTO>() {
-            @Override
-            public void onResponse(Call<ExpenseDTO> call, Response<ExpenseDTO> response) {
-                if (response.isSuccessful()) {
-                    Platform.runLater(() -> {
-                        if (onSaveSuccess != null)
-                            onSaveSuccess.run();
-                        closeDialog();
-                    });
-                } else {
-                    Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
-                            txtAmount.getScene().getWindow(), "Hata",
-                            "Gider kaydedilemedi: " + response.code()));
-                }
-            }
+    ExpenseDTO expense = expenseToEdit != null ? expenseToEdit : new ExpenseDTO();
+    expense.setCompanyId(1L);
+    expense.setCategory(comboCategory.getValue());
+    expense.setAmount(new BigDecimal(txtAmount.getText()));
+    expense.setDescription(txtDescription.getText());
+    expense.setDate(datePicker.getValue().toString());
 
-            @Override
-            public void onFailure(Call<ExpenseDTO> call, Throwable t) {
+    FinanceApi api = RetrofitClient.getClient().create(FinanceApi.class);
+
+    // Use update or add based on mode
+    Call<ExpenseDTO> call = isEditMode
+            ? api.updateExpense(expense.getId(), expense)
+            : api.addExpense(expense);
+
+    call.enqueue(new Callback<ExpenseDTO>() {
+        @Override
+        public void onResponse(Call<ExpenseDTO> call, Response<ExpenseDTO> response) {
+            if (response.isSuccessful()) {
+                Platform.runLater(() -> {
+                    if (onSaveSuccess != null)
+                        onSaveSuccess.run();
+                    closeDialog();
+                });
+            } else {
                 Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
                         txtAmount.getScene().getWindow(), "Hata",
-                        "Bağlantı hatası: " + t.getMessage()));
+                        "Gider kaydedilemedi: " + response.code()));
             }
-        });
-    }
+        }
+
+        @Override
+        public void onFailure(Call<ExpenseDTO> call, Throwable t) {
+            Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                    txtAmount.getScene().getWindow(), "Hata",
+                    "Bağlantı hatası: " + t.getMessage()));
+        }
+    });
+}
 
     @FXML
     private void handleCancel() {
