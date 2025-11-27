@@ -114,6 +114,22 @@ public class FinanceService {
         return expenseRepository.findByCompanyId(companyId);
     }
 
+    public Expense updateExpense(Long id, Expense updatedExpense) {
+        Expense existing = expenseRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Expense not found: " + id));
+
+        existing.setDate(updatedExpense.getDate());
+        existing.setAmount(updatedExpense.getAmount());
+        existing.setCategory(updatedExpense.getCategory());
+        existing.setDescription(updatedExpense.getDescription());
+
+        return expenseRepository.save(existing);
+    }
+
+    public void deleteExpense(Long id) {
+        expenseRepository.deleteById(id);
+    }
+
     /**
      * Get daily summary for a specific date
      */
@@ -279,17 +295,39 @@ public class FinanceService {
     /**
      * Pay a fixed expense - creates an Expense record from the definition
      */
-    public Expense payFixedExpense(Long definitionId, Long companyId) {
+    public Expense payFixedExpense(Long definitionId, Long companyId, LocalDate paymentDate) {
         FixedExpenseDefinition definition = fixedExpenseDefinitionRepository.findById(definitionId)
                 .orElseThrow(() -> new IllegalArgumentException("Fixed expense definition not found: " + definitionId));
+
+        // Check if this expense has already been paid in the target month
+        LocalDate startOfMonth = paymentDate.withDayOfMonth(1);
+        LocalDate endOfMonth = paymentDate.withDayOfMonth(paymentDate.lengthOfMonth());
+
+        List<Expense> monthExpenses = expenseRepository.findByCompanyIdAndDateBetween(
+                companyId, startOfMonth, endOfMonth);
+
+        boolean alreadyPaid = monthExpenses.stream()
+                .anyMatch(expense -> expense.getDescription().startsWith(definition.getName() + " ("));
+
+        if (alreadyPaid) {
+            java.time.format.DateTimeFormatter monthFormatter = java.time.format.DateTimeFormatter
+                    .ofPattern("MMMM yyyy", new java.util.Locale("tr", "TR"));
+            String monthYear = paymentDate.format(monthFormatter);
+            throw new IllegalStateException(
+                    definition.getName() + " zaten " + monthYear + " ayı için ödendi!");
+        }
+
+        // Format description with month and year (e.g., "Kira (Kasım 2025)")
+        java.time.format.DateTimeFormatter monthFormatter = java.time.format.DateTimeFormatter
+                .ofPattern("MMMM yyyy", new java.util.Locale("tr", "TR"));
+        String monthYear = paymentDate.format(monthFormatter);
 
         // Create expense from definition
         Expense expense = Expense.builder()
                 .companyId(companyId)
                 .amount(definition.getDefaultAmount())
-                .description(definition.getName()
-                        + (definition.getDescription() != null ? " - " + definition.getDescription() : ""))
-                .date(LocalDate.now())
+                .description(definition.getName() + " (" + monthYear + ")")
+                .date(paymentDate)
                 .category(definition.getCategory())
                 .build();
 

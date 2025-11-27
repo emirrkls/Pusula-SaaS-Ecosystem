@@ -40,6 +40,8 @@ public class PayFixedExpenseDialogController {
     private TableColumn<FixedExpenseRow, String> colDaysUntil;
     @FXML
     private TableColumn<FixedExpenseRow, String> colStatus;
+    @FXML
+    private DatePicker dtPaymentDate;
     private FinanceApi financeApi;
     private ResourceBundle bundle;
     private Runnable onSuccess;
@@ -48,6 +50,10 @@ public class PayFixedExpenseDialogController {
     public void initialize() {
         bundle = ResourceBundle.getBundle("i18n.messages", new java.util.Locale("tr", "TR"), new UTF8Control());
         financeApi = RetrofitClient.getClient().create(FinanceApi.class);
+
+        // Initialize date picker to today
+        dtPaymentDate.setValue(LocalDate.now());
+
         setupTable();
         loadFixedExpenses();
     }
@@ -162,34 +168,75 @@ public class PayFixedExpenseDialogController {
                     bundle.getString("finance.pay_fixed_expense_dialog.no_selection"));
             return;
         }
-        AtomicInteger successCount = new AtomicInteger(0);
-        AtomicInteger totalCount = new AtomicInteger(selectedRows.size());
-        for (FixedExpenseRow row : selectedRows) {
-            financeApi.payFixedExpense(row.getDto().getId(), 1L).enqueue(new Callback<ExpenseDTO>() {
-                @Override
-                public void onResponse(Call<ExpenseDTO> call, Response<ExpenseDTO> response) {
-                    if (response.isSuccessful()) {
-                        successCount.incrementAndGet();
-                    }
-                    checkCompletion(successCount.get(), totalCount.get());
-                }
 
-                @Override
-                public void onFailure(Call<ExpenseDTO> call, Throwable t) {
-                    checkCompletion(successCount.get(), totalCount.get());
-                }
-            });
+        // Get selected payment date
+        LocalDate paymentDate = dtPaymentDate.getValue();
+        if (paymentDate == null) {
+            paymentDate = LocalDate.now();
+        }
+
+        AtomicInteger successCount = new AtomicInteger(0);
+        AtomicInteger failureCount = new AtomicInteger(0);
+        AtomicInteger totalCount = new AtomicInteger(selectedRows.size());
+        final LocalDate finalDate = paymentDate;
+
+        for (FixedExpenseRow row : selectedRows) {
+            financeApi.payFixedExpense(row.getDto().getId(), 1L, finalDate.toString())
+                    .enqueue(new Callback<ExpenseDTO>() {
+                        @Override
+                        public void onResponse(Call<ExpenseDTO> call, Response<ExpenseDTO> response) {
+                            if (response.isSuccessful()) {
+                                successCount.incrementAndGet();
+                            } else {
+                                failureCount.incrementAndGet();
+                                // Try to extract error message from response
+                                try {
+                                    String errorBody = response.errorBody().string();
+                                    // Parse JSON to get error message
+                                    if (errorBody.contains("\"error\"")) {
+                                        int start = errorBody.indexOf("\"error\":\"") + 9;
+                                        int end = errorBody.indexOf("\"", start);
+                                        String errorMsg = errorBody.substring(start, end);
+                                        Platform.runLater(() -> {
+                                            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata", errorMsg);
+                                        });
+                                    }
+                                } catch (Exception e) {
+                                    // Fallback error message
+                                    Platform.runLater(() -> {
+                                        AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
+                                                "Gider ödemesi başarısız oldu!");
+                                    });
+                                }
+                            }
+                            checkCompletion(successCount.get(), failureCount.get(), totalCount.get());
+                        }
+
+                        @Override
+                        public void onFailure(Call<ExpenseDTO> call, Throwable t) {
+                            failureCount.incrementAndGet();
+                            Platform.runLater(() -> {
+                                AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
+                                        "Bağlantı hatası: " + t.getMessage());
+                            });
+                            checkCompletion(successCount.get(), failureCount.get(), totalCount.get());
+                        }
+                    });
         }
     }
 
-    private void checkCompletion(int success, int total) {
-        if (success == total) {
+    private void checkCompletion(int success, int failure, int total) {
+        if (success + failure == total) {
             Platform.runLater(() -> {
-                AlertHelper.showAlert(Alert.AlertType.INFORMATION, null, "Başarılı",
-                        bundle.getString("finance.pay_fixed_expense_dialog.success"));
-                if (onSuccess != null)
-                    onSuccess.run();
-                closeDialog();
+                if (success > 0) {
+                    AlertHelper.showAlert(Alert.AlertType.INFORMATION, null, "Başarılı",
+                            success + " gider başarıyla ödendi!");
+                    if (onSuccess != null)
+                        onSuccess.run();
+                }
+                if (success > 0 || failure == total) {
+                    closeDialog();
+                }
             });
         }
     }

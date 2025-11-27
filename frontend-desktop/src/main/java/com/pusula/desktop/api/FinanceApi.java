@@ -26,6 +26,14 @@ public interface FinanceApi {
         @POST("/api/finance/expenses")
         Call<ExpenseDTO> addExpense(@Body ExpenseDTO expense);
 
+        @PUT("/api/finance/expenses/{id}")
+        Call<ExpenseDTO> updateExpense(
+                        @Path("id") Long id,
+                        @Body ExpenseDTO expense);
+
+        @DELETE("/api/finance/expenses/{id}")
+        Call<Void> deleteExpense(@Path("id") Long id);
+
         @GET("/api/finance/expenses")
         Call<List<ExpenseDTO>> getExpenses(@Query("companyId") Long companyId);
 
@@ -60,7 +68,8 @@ public interface FinanceApi {
         @POST("/api/finance/fixed-expenses/pay/{id}")
         Call<ExpenseDTO> payFixedExpense(
                         @Path("id") Long id,
-                        @Query("companyId") Long companyId);
+                        @Query("companyId") Long companyId,
+                        @Query("date") String date);
 
         @GET("/api/finance/daily-totals")
         Call<List<DailyTotalDTO>> get30DayTotals(@Query("companyId") Long companyId);

@@ -45,6 +45,19 @@ public class FinanceController {
         return ResponseEntity.ok(financeService.getRecentExpenses(companyId));
     }
 
+    @PutMapping("/expenses/{id}")
+    public ResponseEntity<Expense> updateExpense(
+            @PathVariable Long id,
+            @RequestBody Expense expense) {
+        return ResponseEntity.ok(financeService.updateExpense(id, expense));
+    }
+
+    @DeleteMapping("/expenses/{id}")
+    public ResponseEntity<Void> deleteExpense(@PathVariable Long id) {
+        financeService.deleteExpense(id);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/daily-summary")
     public ResponseEntity<DailySummaryDTO> getDailySummary(
             @RequestParam(defaultValue = "1") Long companyId,
@@ -103,10 +116,17 @@ public class FinanceController {
     }
 
     @PostMapping("/fixed-expenses/pay/{id}")
-    public ResponseEntity<Expense> payFixedExpense(
+    public ResponseEntity<?> payFixedExpense(
             @PathVariable Long id,
-            @RequestParam(defaultValue = "1") Long companyId) {
-        return ResponseEntity.ok(financeService.payFixedExpense(id, companyId));
+            @RequestParam(defaultValue = "1") Long companyId,
+            @RequestParam(required = false) String date) {
+        try {
+            LocalDate paymentDate = (date != null) ? LocalDate.parse(date) : LocalDate.now();
+            return ResponseEntity.ok(financeService.payFixedExpense(id, companyId, paymentDate));
+        } catch (IllegalStateException e) {
+            // Duplicate payment error
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        }
     }
 
     @GetMapping("/daily-totals")
