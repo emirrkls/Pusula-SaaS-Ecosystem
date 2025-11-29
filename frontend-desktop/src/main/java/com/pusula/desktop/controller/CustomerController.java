@@ -124,8 +124,10 @@ public class CustomerController {
     @FXML
     private void handleAddCustomer() {
         try {
+            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
+                    java.util.Locale.forLanguageTag("tr-TR"), new UTF8Control());
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
-                    getClass().getResource("/view/customer_dialog.fxml"));
+                    getClass().getResource("/view/customer_dialog.fxml"), bundle);
             javafx.scene.Parent root = loader.load();
 
             CustomerDialogController controller = loader.getController();
