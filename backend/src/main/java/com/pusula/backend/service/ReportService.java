@@ -156,6 +156,21 @@ public class ReportService {
                 Paragraph companyAddress = new Paragraph(
                                 "Adres: " + (company.getAddress() != null ? company.getAddress() : "N/A"), SMALL_FONT);
 
+                // Add Logo if exists
+                if (company.getLogoPath() != null && !company.getLogoPath().isEmpty()) {
+                        try {
+                                java.nio.file.Path path = java.nio.file.Paths.get("uploads", company.getLogoPath());
+                                if (java.nio.file.Files.exists(path)) {
+                                        Image logo = Image.getInstance(path.toAbsolutePath().toString());
+                                        logo.scaleToFit(100, 50); // Scale to fit
+                                        logo.setAlignment(Element.ALIGN_LEFT);
+                                        companyCell.addElement(logo);
+                                }
+                        } catch (Exception e) {
+                                System.err.println("Failed to load logo: " + e.getMessage());
+                        }
+                }
+
                 companyCell.addElement(companyTitle);
                 companyCell.addElement(companyName);
                 companyCell.addElement(companyPhone);
@@ -190,7 +205,7 @@ public class ReportService {
 
                 addInfoRow(table, "Açıklama", ticket.getDescription() != null ? ticket.getDescription() : "N/A");
                 addInfoRow(table, "Notlar", ticket.getNotes() != null ? ticket.getNotes() : "Yok");
-                addInfoRow(table, "Durum", ticket.getStatus() != null ? ticket.getStatus().toString() : "N/A");
+                addInfoRow(table, "Durum", ticket.getStatus() != null ? getStatusTurkish(ticket.getStatus()) : "N/A");
                 addInfoRow(table, "Tarih",
                                 ticket.getCreatedAt() != null ? ticket.getCreatedAt().format(DATE_FORMAT) : "N/A");
                 addInfoRow(table, "Planlanan Tarih",
@@ -555,5 +570,15 @@ public class ReportService {
                                 "MATERIAL", "Malzeme",
                                 "OTHER", "Diğer");
                 return categoryNames.getOrDefault(category, category);
+        }
+
+        private String getStatusTurkish(ServiceTicket.TicketStatus status) {
+                Map<ServiceTicket.TicketStatus, String> statusNames = Map.of(
+                                ServiceTicket.TicketStatus.PENDING, "Beklemede",
+                                ServiceTicket.TicketStatus.ASSIGNED, "Atandı",
+                                ServiceTicket.TicketStatus.IN_PROGRESS, "Devam Ediyor",
+                                ServiceTicket.TicketStatus.COMPLETED, "Tamamlandı",
+                                ServiceTicket.TicketStatus.CANCELLED, "İptal Edildi");
+                return statusNames.getOrDefault(status, status.toString());
         }
 }

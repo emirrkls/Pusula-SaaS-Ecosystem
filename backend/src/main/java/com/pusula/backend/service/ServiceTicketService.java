@@ -103,12 +103,12 @@ public class ServiceTicketService {
         }
 
         // Track old values for audit logging
-        String oldStatus = ticket.getStatus() != null ? ticket.getStatus().toString() : null;
+        String oldStatus = ticket.getStatus() != null ? getStatusInTurkish(ticket.getStatus()) : null;
         Long oldTechnicianId = ticket.getAssignedTechnicianId();
 
         // Apply updates
         if (dto.getStatus() != null && !dto.getStatus().equals(ticket.getStatus())) {
-            String newStatus = dto.getStatus().toString();
+            String newStatus = getStatusInTurkish(dto.getStatus());
             auditLogService.log(
                     "UPDATE",
                     "TICKET",
@@ -315,5 +315,16 @@ public class ServiceTicketService {
                 .parentTicketId(ticket.getParentTicketId())
                 .isWarrantyCall(ticket.isWarrantyCall())
                 .build();
+    }
+
+    private String getStatusInTurkish(ServiceTicket.TicketStatus status) {
+        switch (status) {
+            case PENDING: return "Beklemede";
+            case ASSIGNED: return "Atandı";
+            case IN_PROGRESS: return "Devam Ediyor";
+            case COMPLETED: return "Tamamlandı";
+            case CANCELLED: return "İptal Edildi";
+            default: return status.toString();
+        }
     }
 }

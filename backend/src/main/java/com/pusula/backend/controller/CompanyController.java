@@ -13,9 +13,12 @@ import org.springframework.web.bind.annotation.*;
 public class CompanyController {
 
     private final CompanyRepository companyRepository;
+    private final com.pusula.backend.service.FileUploadService fileUploadService;
 
-    public CompanyController(CompanyRepository companyRepository) {
+    public CompanyController(CompanyRepository companyRepository,
+            com.pusula.backend.service.FileUploadService fileUploadService) {
         this.companyRepository = companyRepository;
+        this.fileUploadService = fileUploadService;
     }
 
     private User getCurrentUser() {
@@ -50,5 +53,26 @@ public class CompanyController {
 
         Company updated = companyRepository.save(existing);
         return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Upload company logo
+     */
+    @PostMapping("/me/logo")
+    public ResponseEntity<Company> uploadLogo(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        try {
+            User currentUser = getCurrentUser();
+            Company company = companyRepository.findById(currentUser.getCompanyId())
+                    .orElseThrow(() -> new RuntimeException("Company not found"));
+
+            String logoPath = fileUploadService.uploadCompanyLogo(company.getId(), file);
+            company.setLogoPath(logoPath);
+
+            Company updated = companyRepository.save(company);
+            return ResponseEntity.ok(updated);
+        } catch (java.io.IOException e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }

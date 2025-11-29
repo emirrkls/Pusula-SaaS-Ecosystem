@@ -27,6 +27,9 @@ public class Company extends BaseEntity {
     @Column(name = "email")
     private String email;
 
+    @Column(name = "logo_path")
+    private String logoPath;
+
     public Company() {
     }
 
@@ -85,6 +88,15 @@ public class Company extends BaseEntity {
         this.email = email;
     }
 
+    @com.fasterxml.jackson.annotation.JsonProperty("logoUrl")
+    public String getLogoPath() {
+        return logoPath;
+    }
+
+    public void setLogoPath(String logoPath) {
+        this.logoPath = logoPath;
+    }
+
     public static class CompanyBuilder {
         private Long id;
         private String name;
@@ -92,6 +104,7 @@ public class Company extends BaseEntity {
         private String phone;
         private String address;
         private String email;
+        private String logoPath;
         private LocalDateTime createdAt;
 
         CompanyBuilder() {
@@ -132,8 +145,15 @@ public class Company extends BaseEntity {
             return this;
         }
 
+        public CompanyBuilder logoPath(String logoPath) {
+            this.logoPath = logoPath;
+            return this;
+        }
+
         public Company build() {
-            return new Company(id, name, subscriptionStatus, phone, address, email, createdAt);
+            Company company = new Company(id, name, subscriptionStatus, phone, address, email, createdAt);
+            company.setLogoPath(logoPath);
+            return company;
         }
     }
 }

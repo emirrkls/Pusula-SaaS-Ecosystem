@@ -38,7 +38,9 @@ public class SessionManager {
     }
 
     public static boolean isAdmin() {
-        return "COMPANY_ADMIN".equals(userRole) || "SUPER_ADMIN".equals(userRole);
+        return "ADMIN".equals(userRole) ||
+                "COMPANY_ADMIN".equals(userRole) ||
+                "SUPER_ADMIN".equals(userRole);
     }
 
     public static boolean isTechnician() {
