@@ -347,6 +347,72 @@ public class ReportService {
                 table.setSpacingBefore(40);
                 table.setWidths(new float[] { 1f, 1f });
 
+                // Technician Signature
+                PdfPCell techCell = new PdfPCell();
+                techCell.setBorder(Rectangle.NO_BORDER);
+                techCell.setHorizontalAlignment(Element.ALIGN_LEFT);
+                techCell.setMinimumHeight(70f);
+
+                // Try to load signature image
+                boolean signatureLoaded = false;
+                if (technician != null && technician.getSignaturePath() != null
+                                && !technician.getSignaturePath().isEmpty()) {
+                        try {
+                                java.nio.file.Path path = java.nio.file.Paths.get("uploads",
+                                                technician.getSignaturePath());
+                                if (java.nio.file.Files.exists(path)) {
+                                        Image signatureImg = Image.getInstance(path.toAbsolutePath().toString());
+                                        signatureImg.scaleToFit(150, 50); // Max signature size
+                                        techCell.addElement(signatureImg);
+                                        signatureLoaded = true;
+                                }
+                        } catch (Exception e) {
+                                // If signature image fails, fall back to text
+                        }
+                }
+
+                // Fallback: name + line if no signature image
+                if (!signatureLoaded) {
+                        String techName = technician != null && technician.getFullName() != null
+                                        ? technician.getFullName()
+                                        : "";
+                        Paragraph techNameP = new Paragraph(techName, NORMAL_FONT);
+                        techCell.addElement(techNameP);
+
+                        // Add signature line
+                        Paragraph techLine = new Paragraph("_______________________", NORMAL_FONT);
+                        techLine.setSpacingBefore(3);
+                        techCell.addElement(techLine);
+                }
+
+                Paragraph techSigP = new Paragraph("Teknisyen İmzası", SMALL_FONT);
+                techSigP.setSpacingBefore(2);
+                techCell.addElement(techSigP);
+                table.addCell(techCell);
+
+                // Customer Signature (always text, no image)
+                PdfPCell custCell = new PdfPCell();
+                custCell.setBorder(Rectangle.NO_BORDER);
+                custCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                custCell.setMinimumHeight(70f);
+                String custName = customer != null && customer.getName() != null ? customer.getName()
+                                : "";
+                Paragraph pCust = new Paragraph(custName, NORMAL_FONT);
+                pCust.setAlignment(Element.ALIGN_RIGHT);
+                custCell.addElement(pCust);
+
+                // Add signature line
+                Paragraph custLine = new Paragraph("_______________________", NORMAL_FONT);
+                custLine.setAlignment(Element.ALIGN_RIGHT);
+                custLine.setSpacingBefore(3);
+                custCell.addElement(custLine);
+
+                Paragraph pSign = new Paragraph("Müşteri İmzası", SMALL_FONT);
+                pSign.setAlignment(Element.ALIGN_RIGHT);
+                pSign.setSpacingBefore(2);
+                custCell.addElement(pSign);
+                table.addCell(custCell);
+
                 document.add(table);
         }
 

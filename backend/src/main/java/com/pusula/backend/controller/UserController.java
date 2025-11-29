@@ -3,12 +3,14 @@ package com.pusula.backend.controller;
 import com.pusula.backend.dto.UserDTO;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.UserRepository;
+import com.pusula.backend.service.FileUploadService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -21,9 +23,13 @@ public class UserController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    private final FileUploadService fileUploadService;
+
+    public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder,
+            FileUploadService fileUploadService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.fileUploadService = fileUploadService;
     }
 
     private User getCurrentUser() {
@@ -181,6 +187,29 @@ public class UserController {
         userRepository.save(userToReset);
 
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/upload-signature")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<String> uploadSignature(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        User currentUser = getCurrentUser();
+
+        User userToUpload = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Security: Ensure user belongs to same company
+        if (!userToUpload.getCompanyId().equals(currentUser.getCompanyId())) {
+            return ResponseEntity.status(403).build();
+        }
+
+        try {
+            String filePath = fileUploadService.uploadUserSignature(id, file);
+            userToUpload.setSignaturePath(filePath);
+            userRepository.save(userToUpload);
+            return ResponseEntity.ok(filePath);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
     }
 
     private UserDTO mapToDTO(User user) {
