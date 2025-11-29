@@ -5,3 +5,4 @@ public class Launcher {
         PusulaDesktopApp.main(args);
     }
 }
+

@@ -24,6 +24,7 @@ public class ReportService {
         private final CompanyRepository companyRepository;
         private final DailyClosingRepository dailyClosingRepository;
         private final ExpenseRepository expenseRepository;
+        private final UserRepository userRepository;
 
         private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -50,20 +51,26 @@ public class ReportService {
                 }
         }
 
+        private final ServiceUsedPartRepository serviceUsedPartRepository;
+
         public ReportService(ServiceTicketRepository ticketRepository,
                         CustomerRepository customerRepository,
                         CompanyRepository companyRepository,
                         DailyClosingRepository dailyClosingRepository,
-                        ExpenseRepository expenseRepository) {
+                        ExpenseRepository expenseRepository,
+                        UserRepository userRepository,
+                        ServiceUsedPartRepository serviceUsedPartRepository) {
                 this.ticketRepository = ticketRepository;
                 this.customerRepository = customerRepository;
                 this.companyRepository = companyRepository;
                 this.dailyClosingRepository = dailyClosingRepository;
                 this.expenseRepository = expenseRepository;
+                this.userRepository = userRepository;
+                this.serviceUsedPartRepository = serviceUsedPartRepository;
         }
 
         /**
-         * Generate Service Report PDF for a completed ticket
+         * Generate Service Report PDF for a completed ticket (Professional Layout)
          */
         public byte[] generateServiceReport(Long ticketId) {
                 ServiceTicket ticket = ticketRepository.findById(ticketId)
@@ -75,30 +82,41 @@ public class ReportService {
                 Company company = companyRepository.findById(ticket.getCompanyId())
                                 .orElseThrow(() -> new RuntimeException("Company not found"));
 
+                User technician = null;
+                if (ticket.getAssignedTechnicianId() != null) {
+                        technician = userRepository.findById(ticket.getAssignedTechnicianId()).orElse(null);
+                }
+
                 try {
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                        Document document = new Document(PageSize.A4, 50, 50, 50, 50);
+                        Document document = new Document(PageSize.A4, 30, 30, 30, 30); // Reduced margins
                         PdfWriter.getInstance(document, baos);
                         document.open();
 
-                        // Title
-                        addTitle(document, "SERVİS RAPORU");
-                        document.add(new Paragraph(" ")); // Spacer
+                        // 1. HEADER SECTION (Logo Left, Info Right)
+                        addHeaderSection(document, company);
 
-                        // Company & Customer Info Side by Side
-                        addCompanyCustomerInfo(document, company, customer);
-                        document.add(new Paragraph(" "));
+                        // 2. TITLE
+                        Paragraph title = new Paragraph("SERVİS FORMU", HEADER_FONT);
+                        title.setAlignment(Element.ALIGN_CENTER);
+                        title.setSpacingBefore(10);
+                        title.setSpacingAfter(10);
+                        document.add(title);
 
-                        // Ticket Info
-                        addTicketInfo(document, ticket);
-                        document.add(new Paragraph(" "));
+                        // 3. CUSTOMER & DATES (Left: Customer, Right: Dates)
+                        addCustomerAndDates(document, customer, ticket);
 
-                        // Payment Table
-                        addPaymentTable(document, ticket);
-                        document.add(new Paragraph(" "));
+                        // 4. TECHNICIAN NOTE (Full Width)
+                        addTechnicianNote(document, ticket);
 
-                        // Footer
-                        addFooter(document);
+                        // 5. FINANCIALS (Parts & Service Fee Table + Totals)
+                        addFinancialSection(document, ticket);
+
+                        // 6. SIGNATURES (Left: Tech, Right: Customer)
+                        addSignatureSection(document, technician, customer);
+
+                        // 7. FOOTER (Warranty Info)
+                        addFooterSection(document);
 
                         document.close();
                         return baos.toByteArray();
@@ -108,209 +126,270 @@ public class ReportService {
                 }
         }
 
-        /**
-         * Generate Proposal Form PDF (placeholder for future implementation)
-         */
-        public byte[] generateProposalForm(Long proposalId) {
-                try {
-                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                        Document document = new Document(PageSize.A4, 50, 50, 50, 50);
-                        PdfWriter.getInstance(document, baos);
-                        document.open();
+        // ========== LAYOUT HELPERS ==========
 
-                        addTitle(document, "TEKLİF FORMU");
-                        document.add(new Paragraph("Proposal ID: " + proposalId, NORMAL_FONT));
-                        document.add(new Paragraph("Bu özellik yakında eklenecektir.", NORMAL_FONT));
+        private void addHeaderSection(Document document, Company company) throws DocumentException {
+                PdfPTable headerTable = new PdfPTable(2);
+                headerTable.setWidthPercentage(100);
+                headerTable.setWidths(new float[] { 1f, 1f }); // Equal width, but content aligned
 
-                        document.close();
-                        return baos.toByteArray();
-                } catch (Exception e) {
-                        throw new RuntimeException("Failed to generate proposal PDF: " + e.getMessage(), e);
-                }
-        }
+                // Left: Logo
+                PdfPCell logoCell = new PdfPCell();
+                logoCell.setBorder(Rectangle.NO_BORDER);
+                logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+                logoCell.setHorizontalAlignment(Element.ALIGN_LEFT);
 
-        // ========== HELPER METHODS ==========
-
-        private void addTitle(Document document, String title) throws DocumentException {
-                Paragraph titleParagraph = new Paragraph(title, HEADER_FONT);
-                titleParagraph.setAlignment(Element.ALIGN_CENTER);
-                document.add(titleParagraph);
-        }
-
-        private void addCompanyCustomerInfo(Document document, Company company, Customer customer)
-                        throws DocumentException {
-                PdfPTable table = new PdfPTable(2);
-                table.setWidthPercentage(100);
-
-                // Company Info Column
-                PdfPCell companyCell = new PdfPCell();
-                companyCell.setBorder(Rectangle.BOX);
-                companyCell.setBackgroundColor(new Color(240, 240, 240));
-                companyCell.setPadding(10);
-
-                Paragraph companyTitle = new Paragraph("Şirket Bilgileri", SECTION_FONT);
-                Paragraph companyName = new Paragraph(company.getName(), NORMAL_FONT);
-                Paragraph companyPhone = new Paragraph(
-                                "Tel: " + (company.getPhone() != null ? company.getPhone() : "N/A"),
-                                NORMAL_FONT);
-                Paragraph companyAddress = new Paragraph(
-                                "Adres: " + (company.getAddress() != null ? company.getAddress() : "N/A"), SMALL_FONT);
-
-                // Add Logo if exists
                 if (company.getLogoPath() != null && !company.getLogoPath().isEmpty()) {
                         try {
                                 java.nio.file.Path path = java.nio.file.Paths.get("uploads", company.getLogoPath());
                                 if (java.nio.file.Files.exists(path)) {
                                         Image logo = Image.getInstance(path.toAbsolutePath().toString());
-                                        logo.scaleToFit(100, 50); // Scale to fit
-                                        logo.setAlignment(Element.ALIGN_LEFT);
-                                        companyCell.addElement(logo);
+                                        logo.scaleToFit(120, 60);
+                                        logoCell.addElement(logo);
                                 }
                         } catch (Exception e) {
-                                System.err.println("Failed to load logo: " + e.getMessage());
+                                // Ignore if logo fails
                         }
+                } else {
+                        // Fallback text if no logo
+                        Paragraph p = new Paragraph(company.getName(), SECTION_FONT);
+                        logoCell.addElement(p);
+                }
+                headerTable.addCell(logoCell);
+
+                // Right: Company Info
+                PdfPCell infoCell = new PdfPCell();
+                infoCell.setBorder(Rectangle.NO_BORDER);
+                infoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+                infoCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+
+                Paragraph nameP = new Paragraph(company.getName(), SECTION_FONT);
+                nameP.setAlignment(Element.ALIGN_RIGHT);
+                infoCell.addElement(nameP);
+
+                Paragraph addressP = new Paragraph(company.getAddress() != null ? company.getAddress() : "",
+                                SMALL_FONT);
+                addressP.setAlignment(Element.ALIGN_RIGHT);
+                infoCell.addElement(addressP);
+
+                Paragraph phoneP = new Paragraph(company.getPhone() != null ? company.getPhone() : "", SMALL_FONT);
+                phoneP.setAlignment(Element.ALIGN_RIGHT);
+                infoCell.addElement(phoneP);
+
+                Paragraph emailP = new Paragraph(company.getEmail() != null ? company.getEmail() : "", SMALL_FONT);
+                emailP.setAlignment(Element.ALIGN_RIGHT);
+                infoCell.addElement(emailP);
+
+                headerTable.addCell(infoCell);
+                document.add(headerTable);
+        }
+
+        private void addCustomerAndDates(Document document, Customer customer, ServiceTicket ticket)
+                        throws DocumentException {
+                PdfPTable table = new PdfPTable(2);
+                table.setWidthPercentage(100);
+                table.setSpacingBefore(15);
+                table.setWidths(new float[] { 1f, 1f });
+
+                // Left: Customer Info
+                PdfPCell customerCell = new PdfPCell();
+                customerCell.setBorder(Rectangle.NO_BORDER);
+                customerCell.setVerticalAlignment(Element.ALIGN_TOP);
+
+                Paragraph custTitle = new Paragraph("MÜŞTERİ BİLGİLERİ", SECTION_FONT);
+                custTitle.setSpacingAfter(5);
+                customerCell.addElement(custTitle);
+
+                customerCell.addElement(new Paragraph("Ad Soyad: " + customer.getName(), NORMAL_FONT));
+                if (customer.getAddress() != null && !customer.getAddress().isEmpty()) {
+                        customerCell.addElement(new Paragraph("Adres: " + customer.getAddress(), SMALL_FONT));
+                }
+                customerCell.addElement(new Paragraph("Telefon: " + customer.getPhone(), SMALL_FONT));
+                table.addCell(customerCell);
+
+                // Right: Dates
+                PdfPCell dateCell = new PdfPCell();
+                dateCell.setBorder(Rectangle.NO_BORDER);
+                dateCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                dateCell.setVerticalAlignment(Element.ALIGN_TOP);
+
+                DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+                String startDate = ticket.getCreatedAt() != null ? ticket.getCreatedAt().format(fmt) : "-";
+                String endDate = "-";
+                if (ticket.getStatus() == ServiceTicket.TicketStatus.COMPLETED && ticket.getUpdatedAt() != null) {
+                        endDate = ticket.getUpdatedAt().format(fmt);
                 }
 
-                companyCell.addElement(companyTitle);
-                companyCell.addElement(companyName);
-                companyCell.addElement(companyPhone);
-                companyCell.addElement(companyAddress);
+                Paragraph pStart = new Paragraph("Müracaat Tarihi: " + startDate, NORMAL_FONT);
+                pStart.setAlignment(Element.ALIGN_RIGHT);
+                dateCell.addElement(pStart);
 
-                // Customer Info Column
-                PdfPCell customerCell = new PdfPCell();
-                customerCell.setBorder(Rectangle.BOX);
-                customerCell.setBackgroundColor(new Color(240, 240, 240));
-                customerCell.setPadding(10);
+                Paragraph pEnd = new Paragraph("Bitiş Tarihi: " + endDate, NORMAL_FONT);
+                pEnd.setAlignment(Element.ALIGN_RIGHT);
+                pEnd.setSpacingBefore(3);
+                dateCell.addElement(pEnd);
 
-                Paragraph customerTitle = new Paragraph("Müşteri Bilgileri", SECTION_FONT);
-                Paragraph customerName = new Paragraph(customer.getName(), NORMAL_FONT);
-                Paragraph customerPhone = new Paragraph("Tel: " + customer.getPhone(), NORMAL_FONT);
-                Paragraph customerAddress = new Paragraph(
-                                "Adres: " + (customer.getAddress() != null ? customer.getAddress() : "N/A"),
-                                SMALL_FONT);
-
-                customerCell.addElement(customerTitle);
-                customerCell.addElement(customerName);
-                customerCell.addElement(customerPhone);
-                customerCell.addElement(customerAddress);
-
-                table.addCell(companyCell);
-                table.addCell(customerCell);
+                table.addCell(dateCell);
                 document.add(table);
         }
 
-        private void addTicketInfo(Document document, ServiceTicket ticket) throws DocumentException {
-                PdfPTable table = new PdfPTable(2);
+        private void addTechnicianNote(Document document, ServiceTicket ticket) throws DocumentException {
+                Paragraph title = new Paragraph("TEKNİSYEN NOTU", SECTION_FONT);
+                title.setSpacingBefore(15);
+                title.setSpacingAfter(5);
+                document.add(title);
+
+                PdfPTable table = new PdfPTable(1);
                 table.setWidthPercentage(100);
-
-                addInfoRow(table, "Açıklama", ticket.getDescription() != null ? ticket.getDescription() : "N/A");
-                addInfoRow(table, "Notlar", ticket.getNotes() != null ? ticket.getNotes() : "Yok");
-                addInfoRow(table, "Durum", ticket.getStatus() != null ? getStatusTurkish(ticket.getStatus()) : "N/A");
-                addInfoRow(table, "Tarih",
-                                ticket.getCreatedAt() != null ? ticket.getCreatedAt().format(DATE_FORMAT) : "N/A");
-                addInfoRow(table, "Planlanan Tarih",
-                                ticket.getScheduledDate() != null ? ticket.getScheduledDate().format(DATE_FORMAT)
-                                                : "Belirlenmedi");
-
-                document.add(table);
-        }
-
-        private void addInfoRow(PdfPTable table, String label, String value) {
-                PdfPCell labelCell = new PdfPCell(new Phrase(label + ":", SECTION_FONT));
-                labelCell.setBorder(Rectangle.NO_BORDER);
-                labelCell.setPadding(5);
-
-                PdfPCell valueCell = new PdfPCell(new Phrase(value != null ? value : "N/A", NORMAL_FONT));
-                valueCell.setBorder(Rectangle.NO_BORDER);
-                valueCell.setPadding(5);
-
-                table.addCell(labelCell);
-                table.addCell(valueCell);
-        }
-
-        private void addPaymentTable(Document document, ServiceTicket ticket) throws DocumentException {
-                Paragraph sectionTitle = new Paragraph("Ücret Bilgileri", SECTION_FONT);
-                document.add(sectionTitle);
-                document.add(new Paragraph(" "));
-
-                PdfPTable table = new PdfPTable(2);
-                table.setWidthPercentage(100);
-                table.setWidths(new float[] { 3f, 1f });
-
-                // Header Row
-                Color headerColor = new Color(52, 152, 219); // Blue
-                addTableHeader(table, "Açıklama", headerColor);
-                addTableHeader(table, "Tutar", headerColor);
-
-                // Service fee row
-                BigDecimal amount = ticket.getCollectedAmount() != null ? ticket.getCollectedAmount() : BigDecimal.ZERO;
-                addSimpleRow(table, "Servis Ücreti", String.format("%.2f ₺", amount));
-
-                // Total Row
-                PdfPCell totalLabelCell = new PdfPCell(new Phrase("TOPLAM", SECTION_FONT));
-                totalLabelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                totalLabelCell.setBackgroundColor(new Color(240, 240, 240));
-                totalLabelCell.setPadding(8);
-
-                PdfPCell totalValueCell = new PdfPCell(new Phrase(String.format("%.2f ₺", amount), SECTION_FONT));
-                totalValueCell.setBackgroundColor(new Color(240, 240, 240));
-                totalValueCell.setPadding(8);
-
-                table.addCell(totalLabelCell);
-                table.addCell(totalValueCell);
-
-                document.add(table);
-        }
-
-        private void addTableHeader(PdfPTable table, String text, Color bgColor) {
                 PdfPCell cell = new PdfPCell(
-                                new Phrase(text, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Color.WHITE)));
-                cell.setBackgroundColor(bgColor);
-                cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                                new Paragraph(ticket.getNotes() != null && !ticket.getNotes().isEmpty()
+                                                ? ticket.getNotes()
+                                                : "-", NORMAL_FONT));
                 cell.setPadding(8);
+                cell.setBorderColor(Color.LIGHT_GRAY);
+                cell.setMinimumHeight(50f);
+                cell.setBackgroundColor(new Color(250, 250, 250));
+                table.addCell(cell);
+                document.add(table);
+        }
+
+        private void addFinancialSection(Document document, ServiceTicket ticket) throws DocumentException {
+                PdfPTable table = new PdfPTable(2);
+                table.setWidthPercentage(100);
+                table.setSpacingBefore(10);
+                table.setWidths(new float[] { 4f, 1f }); // Description, Amount
+
+                // Header
+                addCellToTable(table, "YAPILAN İŞLEM / KULLANILAN PARÇA", true, Element.ALIGN_LEFT);
+                addCellToTable(table, "TUTAR", true, Element.ALIGN_RIGHT);
+
+                BigDecimal subTotal = BigDecimal.ZERO;
+
+                // 1. List Used Parts
+                List<ServiceUsedPart> usedParts = serviceUsedPartRepository.findByServiceTicketId(ticket.getId());
+                for (ServiceUsedPart part : usedParts) {
+                        String partName = part.getInventory() != null ? part.getInventory().getPartName()
+                                        : "Yedek Parça";
+                        BigDecimal price = part.getSellingPriceSnapshot()
+                                        .multiply(new BigDecimal(part.getQuantityUsed()));
+                        subTotal = subTotal.add(price);
+
+                        String desc = String.format("%s (x%d)", partName, part.getQuantityUsed());
+                        addCellToTable(table, desc, false, Element.ALIGN_LEFT);
+                        addCellToTable(table, String.format("%.2f ₺", price), false, Element.ALIGN_RIGHT);
+                }
+
+                // 2. Service Fee (Labor)
+                BigDecimal serviceFee = ticket.getCollectedAmount() != null ? ticket.getCollectedAmount()
+                                : BigDecimal.ZERO;
+                subTotal = subTotal.add(serviceFee);
+
+                addCellToTable(table, "İşçilik / Servis Hizmet Bedeli", false, Element.ALIGN_LEFT);
+                addCellToTable(table, String.format("%.2f ₺", serviceFee), false, Element.ALIGN_RIGHT);
+
+                // Fill empty rows if list is short
+                int rowsFilled = usedParts.size() + 1;
+                for (int i = rowsFilled; i < 5; i++) {
+                        addCellToTable(table, " ", false, Element.ALIGN_LEFT);
+                        addCellToTable(table, " ", false, Element.ALIGN_RIGHT);
+                }
+
+                document.add(table);
+
+                // Totals
+                PdfPTable totalsTable = new PdfPTable(2);
+                totalsTable.setWidthPercentage(100);
+                totalsTable.setWidths(new float[] { 4f, 1f });
+
+                // Calculate VAT
+                BigDecimal vatRate = new BigDecimal("0.20");
+                BigDecimal vatAmount = subTotal.multiply(vatRate);
+                BigDecimal grandTotal = subTotal.add(vatAmount);
+
+                addTotalRow(totalsTable, "Ara Toplam:", String.format("%.2f ₺", subTotal));
+                addTotalRow(totalsTable, "KDV (%20):", String.format("%.2f ₺", vatAmount));
+                addTotalRow(totalsTable, "GENEL TOPLAM:", String.format("%.2f ₺", grandTotal));
+
+                document.add(totalsTable);
+        }
+
+        private void addCellToTable(PdfPTable table, String text, boolean isHeader, int alignment) {
+                PdfPCell cell = new PdfPCell(new Phrase(text, isHeader ? SMALL_BOLD_FONT : SMALL_FONT));
+                cell.setHorizontalAlignment(alignment);
+                cell.setPadding(5);
+                cell.setBorderColor(Color.LIGHT_GRAY);
+                if (isHeader) {
+                        cell.setBackgroundColor(new Color(240, 240, 240));
+                }
                 table.addCell(cell);
         }
 
-        private void addSimpleRow(PdfPTable table, String label, String value) {
-                table.addCell(createCell(label, Element.ALIGN_LEFT));
-                table.addCell(createCell(value, Element.ALIGN_RIGHT));
+        private void addTotalRow(PdfPTable table, String label, String value) {
+                PdfPCell c1 = new PdfPCell(new Phrase(label, SMALL_BOLD_FONT));
+                c1.setBorder(Rectangle.NO_BORDER);
+                c1.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                c1.setPadding(2);
+
+                PdfPCell c2 = new PdfPCell(new Phrase(value, SMALL_FONT));
+                c2.setBorder(Rectangle.BOX);
+                c2.setBorderColor(Color.LIGHT_GRAY);
+                c2.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                c2.setPadding(2);
+
+                table.addCell(c1);
+                table.addCell(c2);
         }
 
-        private PdfPCell createCell(String text, int alignment) {
-                PdfPCell cell = new PdfPCell(new Phrase(text, NORMAL_FONT));
-                cell.setHorizontalAlignment(alignment);
-                cell.setPadding(5);
-                return cell;
+        private void addSignatureSection(Document document, User technician, Customer customer)
+                        throws DocumentException {
+                PdfPTable table = new PdfPTable(2);
+                table.setWidthPercentage(100);
+                table.setSpacingBefore(40);
+                table.setWidths(new float[] { 1f, 1f });
+
+                document.add(table);
         }
 
-        private void addFooter(Document document) throws DocumentException {
-                document.add(new Paragraph(" "));
-                document.add(new Paragraph(" "));
+        private void addFooterSection(Document document) throws DocumentException {
+                Paragraph footer = new Paragraph();
+                footer.setSpacingBefore(25);
+                footer.setAlignment(Element.ALIGN_LEFT);
 
-                Paragraph signatureLabel = new Paragraph("Müşteri İmzası: _____________________", NORMAL_FONT);
-                document.add(signatureLabel);
+                footer.add(new Chunk("GARANTİ VE BİLGİLENDİRME\n\n", SMALL_BOLD_FONT));
 
-                document.add(new Paragraph(" "));
+                Font bulletFont = new Font(turkishBaseFont, 7, Font.NORMAL, Color.DARK_GRAY);
 
-                // Warranty terms - each sentence as a bullet point
-                com.lowagie.text.List warrantyList = new com.lowagie.text.List(com.lowagie.text.List.UNORDERED);
-                warrantyList.setListSymbol("•");
-                warrantyList.setIndentationLeft(20f);
+                footer.add(new Chunk(
+                                "• Değişen yedek parça 6 (altı) ay, işçilik 1 (bir) yıl garantilidir. Değiştirilen arızalı parça servis tarafından iade alınır.\n",
+                                bulletFont));
+                footer.add(new Chunk("• Garantinin geçerli olabilmesi için bu belgenin ibrazı şarttır.\n", bulletFont));
+                footer.add(new Chunk("• 45 gün içinde alınmayan ürünlerden servisimiz sorumlu değildir.\n",
+                                bulletFont));
+                footer.add(new Chunk(
+                                "• Mamülün yanlış kullanıldığı veya servisimiz dışında kimseler tarafından müdahale edilmesi halinde garanti geçerli değildir. Yapılan işlem müşterinin isteği ve onayı ile yapılmıştır.\n",
+                                bulletFont));
+                footer.add(new Chunk("• Bu belge fatura, fiş vs. yerine geçmez.", bulletFont));
 
-                warrantyList.add(new ListItem(
-                                "Değişen yedek parça 6 (altı) ay, işçilik 1 (bir) yıl garantilidir. Değiştirilen arızalı parça servis tarafından iade alınır.",
-                                SMALL_FONT));
-                warrantyList.add(new ListItem("Garantinin geçerli olabilmesi için bu belgenin ibrazı şarttır.",
-                                SMALL_FONT));
-                warrantyList.add(new ListItem("45 gün içinde alınmayan ürünlerden servisimiz sorumlu değildir.",
-                                SMALL_FONT));
-                warrantyList.add(new ListItem(
-                                "Mamülün yanlış kullanıldığı veya servisimiz dışında kimseler tarafından müdahale edilmesi halinde garanti geçerli değildir. Yapılan işlem müşterinin isteği ve onayı ile yapılmıştır.",
-                                SMALL_FONT));
-                warrantyList.add(new ListItem("Bu belge fatura, fiş vs. yerine geçmez.", SMALL_FONT));
-
-                document.add(warrantyList);
+                document.add(footer);
         }
+
+        /**
+         * Generate Proposal Form PDF (Stub)
+         */
+        public byte[] generateProposalForm(Long proposalId) {
+                try {
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        Document document = new Document();
+                        PdfWriter.getInstance(document, baos);
+                        document.open();
+                        document.add(new Paragraph("Proposal Form - Not Implemented Yet"));
+                        document.close();
+                        return baos.toByteArray();
+                } catch (Exception e) {
+                        throw new RuntimeException(e);
+                }
+        }
+
         // ========== MONTHLY FINANCIAL REPORTS ==========
 
         public List<com.pusula.backend.dto.MonthlySummaryDTO> getMonthlyArchives(Long companyId) {
@@ -573,12 +652,12 @@ public class ReportService {
         }
 
         private String getStatusTurkish(ServiceTicket.TicketStatus status) {
-                Map<ServiceTicket.TicketStatus, String> statusNames = Map.of(
-                                ServiceTicket.TicketStatus.PENDING, "Beklemede",
-                                ServiceTicket.TicketStatus.ASSIGNED, "Atandı",
-                                ServiceTicket.TicketStatus.IN_PROGRESS, "Devam Ediyor",
-                                ServiceTicket.TicketStatus.COMPLETED, "Tamamlandı",
-                                ServiceTicket.TicketStatus.CANCELLED, "İptal Edildi");
-                return statusNames.getOrDefault(status, status.toString());
+                Map<String, String> statusNames = Map.of(
+                                "PENDING", "Beklemede",
+                                "ASSIGNED", "Atandı",
+                                "IN_PROGRESS", "Devam Ediyor",
+                                "COMPLETED", "Tamamlandı",
+                                "CANCELLED", "İptal Edildi");
+                return statusNames.getOrDefault(status.name(), status.toString());
         }
 }

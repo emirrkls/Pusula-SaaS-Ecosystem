@@ -29,17 +29,21 @@ public class User extends BaseEntity implements UserDetails {
     @Column(name = "full_name")
     private String fullName;
 
+    @Column(name = "signature_path")
+    private String signaturePath;
+
     public User() {
     }
 
     public User(Long id, Long companyId, String username, String passwordHash, String role, String fullName,
-            LocalDateTime createdAt) {
+            String signaturePath, LocalDateTime createdAt) {
         this.setId(id);
         this.setCompanyId(companyId);
         this.username = username;
         this.passwordHash = passwordHash;
         this.role = role;
         this.fullName = fullName;
+        this.signaturePath = signaturePath;
         this.setCreatedAt(createdAt);
     }
 
@@ -73,6 +77,14 @@ public class User extends BaseEntity implements UserDetails {
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
+    }
+
+    public String getSignaturePath() {
+        return signaturePath;
+    }
+
+    public void setSignaturePath(String signaturePath) {
+        this.signaturePath = signaturePath;
     }
 
     @Override
@@ -118,6 +130,7 @@ public class User extends BaseEntity implements UserDetails {
         private String passwordHash;
         private String role;
         private String fullName;
+        private String signaturePath;
         private LocalDateTime createdAt;
 
         UserBuilder() {
@@ -153,13 +166,18 @@ public class User extends BaseEntity implements UserDetails {
             return this;
         }
 
+        public UserBuilder signaturePath(String signaturePath) {
+            this.signaturePath = signaturePath;
+            return this;
+        }
+
         public UserBuilder createdAt(LocalDateTime createdAt) {
             this.createdAt = createdAt;
             return this;
         }
 
         public User build() {
-            return new User(id, companyId, username, passwordHash, role, fullName, createdAt);
+            return new User(id, companyId, username, passwordHash, role, fullName, signaturePath, createdAt);
         }
     }
 }

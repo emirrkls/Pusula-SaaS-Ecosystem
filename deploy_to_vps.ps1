@@ -1,8 +1,8 @@
 # Deploy to VPS Script
 $VPS_IP = "168.231.104.133"
-$VPS_USER = Read-Host "Enter VPS Username"
-$JAR_PATH = "backend\target\pusula-backend-0.0.1-SNAPSHOT.jar"
-$REMOTE_PATH = "/home/$VPS_USER/pusula/"
+$VPS_USER = "root"
+$JAR_PATH = "backend\target\backend-0.0.1-SNAPSHOT.jar"
+$REMOTE_PATH = "/root/pusula/"
 
 # Check if JAR exists
 if (-not (Test-Path $JAR_PATH)) {
