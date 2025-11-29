@@ -439,8 +439,10 @@ public class ServiceTicketController {
     @FXML
     private void handleCreateTicket() {
         try {
+            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
+                    new java.util.Locale("tr", "TR"), new UTF8Control());
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
-                    getClass().getResource("/view/ticket_dialog.fxml"));
+                    getClass().getResource("/view/ticket_dialog.fxml"), bundle);
             javafx.scene.Parent root = loader.load();
 
             TicketDialogController controller = loader.getController();

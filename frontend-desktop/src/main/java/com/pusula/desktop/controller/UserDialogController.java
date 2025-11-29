@@ -1,12 +1,25 @@
 package com.pusula.desktop.controller;
 
+import com.pusula.desktop.api.UserApi;
 import com.pusula.desktop.dto.UserDTO;
+import com.pusula.desktop.network.RetrofitClient;
+import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.UTF8Control;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
@@ -22,10 +35,15 @@ public class UserDialogController {
     private Label lblPassword;
     @FXML
     private ComboBox<String> cmbRole;
+    @FXML
+    private Button btnSelectSignature;
+    @FXML
+    private Label lblSignatureFilename;
 
     private UserDTO result;
     private boolean isEditMode = false;
     private ResourceBundle bundle;
+    private File selectedSignatureFile;
 
     @FXML
     public void initialize() {
@@ -136,5 +154,65 @@ public class UserDialogController {
 
     public UserDTO getResult() {
         return result;
+    }
+
+    public File getSelectedSignatureFile() {
+        return selectedSignatureFile;
+    }
+
+    @FXML
+    private void handleSelectSignature() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("İmza Dosyası Seç");
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Resim Dosyaları", "*.png", "*.jpg", "*.jpeg"));
+
+        selectedSignatureFile = fileChooser.showOpenDialog(txtUsername.getScene().getWindow());
+
+        if (selectedSignatureFile != null) {
+            lblSignatureFilename.setText(selectedSignatureFile.getName());
+        }
+    }
+
+    private void uploadSignature(Long userId) {
+        if (selectedSignatureFile == null) {
+            return; // No file selected, skip upload
+        }
+
+        RequestBody requestFile = RequestBody.create(selectedSignatureFile, MediaType.parse("image/*"));
+        MultipartBody.Part body = MultipartBody.Part.createFormData("file", selectedSignatureFile.getName(),
+                requestFile);
+
+        UserApi userApi = RetrofitClient.getClient().create(UserApi.class);
+        userApi.uploadSignature(userId, body).enqueue(new Callback<UserDTO>() {
+            @Override
+            public void onResponse(Call<UserDTO> call, Response<UserDTO> response) {
+                Platform.runLater(() -> {
+                    if (response.isSuccessful()) {
+                        AlertHelper.showAlert(Alert.AlertType.INFORMATION, txtUsername.getScene().getWindow(),
+                                "Başarılı", "İmza başarıyla yüklendi!");
+                    } else {
+                        String errorMsg = response.message();
+                        try {
+                            if (response.errorBody() != null) {
+                                errorMsg += " " + response.errorBody().string();
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        AlertHelper.showAlert(Alert.AlertType.WARNING, txtUsername.getScene().getWindow(),
+                                "Hata", "İmza yüklenemedi: " + errorMsg);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<UserDTO> call, Throwable t) {
+                Platform.runLater(() -> {
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, txtUsername.getScene().getWindow(),
+                            "Hata", "Ağ hatası: " + t.getMessage());
+                });
+            }
+        });
     }
 }

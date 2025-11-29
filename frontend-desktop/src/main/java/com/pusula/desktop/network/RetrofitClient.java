@@ -11,7 +11,7 @@ import java.io.IOException;
 
 public class RetrofitClient {
         private static Retrofit retrofit = null;
-        private static final String BASE_URL = "http://127.0.0.1:8080/";
+        private static final String BASE_URL = "http://168.231.104.133:8080/";
 
         public static Retrofit getClient() {
                 if (retrofit == null) {

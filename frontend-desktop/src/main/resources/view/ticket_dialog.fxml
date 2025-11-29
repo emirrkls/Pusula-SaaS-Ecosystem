@@ -1,58 +1,54 @@
-<?xml version="1.0" encoding="UTF-8"?>
+\u003c?xml version="1.0" encoding="UTF-8"?\u003e
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.control.DatePicker?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TextArea?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
+\u003c?import javafx.geometry.Insets?\u003e
+\u003c?import javafx.scene.control.*?\u003e
+\u003c?import javafx.scene.layout.*?\u003e
+\u003c?import javafx.scene.text.Font?\u003e
 
-<VBox spacing="15.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.TicketDialogController">
-   <padding>
-      <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-   </padding>
-   <children>
-      <Label text="New Service Ticket">
-         <font>
-            <Font name="System Bold" size="18.0" />
-         </font>
-      </Label>
-      <VBox spacing="5.0">
-         <children>
-            <Label text="Customer" />
-            <ComboBox fx:id="customerComboBox" maxWidth="1.7976931348623157E308" promptText="Select Customer" />
-         </children>
-      </VBox>
-      <VBox spacing="5.0">
-         <children>
-            <Label text="Description" />
-            <TextField fx:id="descriptionField" promptText="Brief description of the issue" />
-         </children>
-      </VBox>
-      <VBox spacing="5.0">
-         <children>
-            <Label text="Scheduled Date" />
-            <DatePicker fx:id="datePicker" maxWidth="1.7976931348623157E308" />
-         </children>
-      </VBox>
-      <VBox spacing="5.0" VBox.vgrow="ALWAYS">
-         <children>
-            <Label text="Notes" />
-            <TextArea fx:id="notesArea" prefHeight="100.0" promptText="Additional details..." wrapText="true" />
-         </children>
-      </VBox>
-      <HBox alignment="CENTER_RIGHT" spacing="10.0">
-         <children>
-            <Button mnemonicParsing="false" onAction="#handleCancel" text="Cancel" />
-            <Button defaultButton="true" mnemonicParsing="false" onAction="#handleSave" style="-fx-background-color: #2ecc71; -fx-text-fill: white;" text="Create Ticket" />
-         </children>
-         <VBox.margin>
-            <Insets top="10.0" />
-         </VBox.margin>
-      </HBox>
-   </children>
-</VBox>
+\u003cVBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.pusula.desktop.controller.TicketDialogController"
+      spacing="15"\u003e
+   \u003cpadding\u003e
+      \u003cInsets bottom="20.0" left="20.0" right="20.0" top="20.0" /\u003e
+   \u003c/padding\u003e
+   \u003cchildren\u003e
+      \u003cLabel text="%ticket.create.title"\u003e
+         \u003cfont\u003e
+            \u003cFont name="System Bold" size="18.0" /\u003e
+         \u003c/font\u003e
+      \u003c/Label\u003e
+      \u003cVBox spacing="5.0"\u003e
+         \u003cchildren\u003e
+            \u003cLabel text="%ticket.create.customer" /\u003e
+            \u003cComboBox fx:id="customerComboBox" maxWidth="1.7976931348623157E308" promptText="%ticket.create.customer" /\u003e
+         \u003c/children\u003e
+      \u003c/VBox\u003e
+      \u003cVBox spacing="5.0"\u003e
+         \u003cchildren\u003e
+            \u003cLabel text="%ticket.create.description" /\u003e
+            \u003cTextField fx:id="descriptionField" promptText="%ticket.create.description" /\u003e
+         \u003c/children\u003e
+      \u003c/VBox\u003e
+      \u003cVBox spacing="5.0"\u003e
+         \u003cchildren\u003e
+            \u003cLabel text="%ticket.create.date" /\u003e
+            \u003cDatePicker fx:id="datePicker" maxWidth="1.7976931348623157E308" /\u003e
+         \u003c/children\u003e
+      \u003c/VBox\u003e
+      \u003cVBox spacing="5.0" VBox.vgrow="ALWAYS"\u003e
+         \u003cchildren\u003e
+            \u003cLabel text="%ticket.create.notes" /\u003e
+            \u003cTextArea fx:id="notesArea" prefHeight="100.0" promptText="%ticket.create.notes" wrapText="true" VBox.vgrow="ALWAYS" /\u003e
+         \u003c/children\u003e
+      \u003c/VBox\u003e
+      \u003cHBox alignment="CENTER_RIGHT" spacing="10.0"\u003e
+         \u003cchildren\u003e
+            \u003cButton mnemonicParsing="false" onAction="#handleCancel" text="%button.cancel" /\u003e
+            \u003cButton defaultButton="true" mnemonicParsing="false" onAction="#handleSave" style="-fx-background-color: #2ecc71; -fx-text-fill: white;" text="%button.save" /\u003e
+         \u003c/children\u003e
+         \u003cVBox.margin\u003e
+            \u003cInsets top="10.0" /\u003e
+         \u003c/VBox.margin\u003e
+      \u003c/HBox\u003e
+   \u003c/children\u003e
+\u003c/VBox\u003e

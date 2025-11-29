@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.pusula.desktop.controller.ActivityLogController"
+      spacing="20" style="-fx-background-color: #f5f5f5;">
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+
+    <!-- Header -->
+    <HBox alignment="CENTER_LEFT" spacing="15">
+        <Label text="%activity_log.title" styleClass="header-label">
+            <font>
+                <Font name="System Bold" size="24"/>
+            </font>
+        </Label>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label fx:id="totalCountLabel" text="Toplam: 0">
+            <font>
+                <Font size="14"/>
+            </font>
+        </Label>
+        <Button text="%common.refresh" onAction="#loadAuditLogs" styleClass="btn-primary"/>
+    </HBox>
+
+    <!-- Filters -->
+    <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-background-color: white; -fx-padding: 15; -fx-border-radius: 5; -fx-background-radius: 5;">
+        <Label text="%activity_log.filter.from"/>
+        <DatePicker fx:id="startDatePicker" promptText="%activity_log.filter.from" prefWidth="150"/>
+        
+        <Label text="%activity_log.filter.to"/>
+        <DatePicker fx:id="endDatePicker" promptText="%activity_log.filter.to" prefWidth="150"/>
+        
+        <Label text="%activity_log.action"/>
+        <ComboBox fx:id="actionTypeCombo" promptText="%activity_log.filter.all" prefWidth="150"/>
+        
+        <Button text="%activity_log.filter.apply" onAction="#applyFilters" styleClass="btn-primary"/>
+        <Button text="%activity_log.filter.reset" onAction="#resetFilters"/>
+    </HBox>
+
+    <!-- Table -->
+    <TableView fx:id="auditLogTable" VBox.vgrow="ALWAYS" style="-fx-background-color: white;">
+        <columns>
+            <TableColumn fx:id="timestampColumn" text="%activity_log.timestamp" prefWidth="150"/>
+            <TableColumn fx:id="userColumn" text="%activity_log.user" prefWidth="120"/>
+            <TableColumn fx:id="actionColumn" text="%activity_log.action" prefWidth="100"/>
+            <TableColumn fx:id="entityColumn" text="%activity_log.entity" prefWidth="100"/>
+            <TableColumn fx:id="oldValueColumn" text="%activity_log.old_value" prefWidth="150"/>
+            <TableColumn fx:id="newValueColumn" text="%activity_log.new_value" prefWidth="150"/>
+            <TableColumn fx:id="descriptionColumn" text="%activity_log.description" prefWidth="250"/>
+        </columns>
+        <placeholder>
+            <Label text="%activity_log.no_data"/>
+        </placeholder>
+    </TableView>
+
+    <!-- Pagination -->
+    <HBox alignment="CENTER" spacing="10">
+        <Button text="◀" onAction="#previousPage" fx:id="btnPrevious"/>
+        <Label fx:id="pageLabel" text="Sayfa 1 / 1"/>
+        <Button text="▶" onAction="#nextPage" fx:id="btnNext"/>
+    </HBox>
+</VBox>
