@@ -25,8 +25,38 @@ public class PusulaDesktopApp extends Application {
 
         Scene scene = new Scene(fxmlLoader.load(), 800, 600);
         scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+
+        // Set application icon
+        try {
+            stage.getIcons().add(new javafx.scene.image.Image(
+                    getClass().getResourceAsStream("/app.png")));
+        } catch (Exception e) {
+            System.err.println("Could not load application icon: " + e.getMessage());
+        }
+
         stage.setTitle(bundle.getString("app.title"));
         stage.setScene(scene);
+
+        // Restore window state from preferences
+        java.util.prefs.Preferences prefs = java.util.prefs.Preferences.userNodeForPackage(PusulaDesktopApp.class);
+        double x = prefs.getDouble("windowX", 100);
+        double y = prefs.getDouble("windowY", 100);
+        double width = prefs.getDouble("windowWidth", 800);
+        double height = prefs.getDouble("windowHeight", 600);
+
+        stage.setX(x);
+        stage.setY(y);
+        stage.setWidth(width);
+        stage.setHeight(height);
+
+        // Save window state on close
+        stage.setOnCloseRequest(event -> {
+            prefs.putDouble("windowX", stage.getX());
+            prefs.putDouble("windowY", stage.getY());
+            prefs.putDouble("windowWidth", stage.getWidth());
+            prefs.putDouble("windowHeight", stage.getHeight());
+        });
+
         stage.show();
     }
 

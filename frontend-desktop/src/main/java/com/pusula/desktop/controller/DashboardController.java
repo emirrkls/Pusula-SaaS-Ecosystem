@@ -428,31 +428,16 @@ public class DashboardController {
             public void onResponse(retrofit2.Call<java.util.List<ServiceTicketDTO>> call,
                     retrofit2.Response<java.util.List<ServiceTicketDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    System.out.println("=== DASHBOARD DEBUG ===");
-                    System.out.println("Total tickets from API: " + response.body().size());
-                    System.out.println("Today's date (client): " + java.time.LocalDate.now());
-
                     long activeCount = response.body().stream()
                             .filter(t -> !Arrays.asList("COMPLETED", "CANCELLED").contains(t.getStatus()))
                             .count();
                     Platform.runLater(() -> activeTicketsLabel.setText(String.valueOf(activeCount)));
 
                     // Agenda (Today's tickets)
-                    response.body().forEach(t -> {
-                        System.out.println("Ticket ID=" + t.getId() +
-                                ", ScheduledDate=" + t.getScheduledDate() +
-                                ", Date only="
-                                + (t.getScheduledDate() != null ? t.getScheduledDate().toLocalDate() : "null") +
-                                ", Status=" + t.getStatus());
-                    });
-
                     java.util.List<ServiceTicketDTO> todayTickets = response.body().stream()
                             .filter(t -> t.getScheduledDate() != null &&
                                     t.getScheduledDate().toLocalDate().isEqual(java.time.LocalDate.now()))
                             .collect(java.util.stream.Collectors.toList());
-
-                    System.out.println("Filtered today's tickets: " + todayTickets.size());
-                    System.out.println("======================");
 
                     Platform.runLater(() -> agendaTable.setItems(FXCollections.observableArrayList(todayTickets)));
                 }
