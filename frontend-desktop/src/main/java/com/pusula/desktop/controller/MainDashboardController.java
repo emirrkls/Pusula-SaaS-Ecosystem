@@ -118,46 +118,6 @@ public class MainDashboardController {
             Parent view = loader.load();
 
             contentArea.getChildren().clear();
-            contentArea.getChildren().add(view);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    @FXML
-    public void showFinance() {
-        // Double authentication for Finance
-        if (SessionManager.isAdmin()) {
-            showPasswordVerificationDialog(() -> navigateToFinance());
-        }
-    }
-
-    @FXML
-    private void showSettings() {
-        // Double authentication for Settings
-        if (SessionManager.isAdmin()) {
-            showPasswordVerificationDialog(() -> navigateToSettings());
-        }
-    }
-
-    private void navigateToFinance() {
-        try {
-            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
-                    new java.util.Locale("tr", "TR"), new UTF8Control());
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/finance_view.fxml"), bundle);
-            Parent view = loader.load();
-
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(view);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void navigateToSettings() {
-        try {
-            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
-                    new java.util.Locale("tr", "TR"), new UTF8Control());
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/settings_view.fxml"), bundle);
             Parent view = loader.load();
 
