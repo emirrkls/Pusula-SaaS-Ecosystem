@@ -6,12 +6,15 @@ import com.pusula.desktop.dto.CustomerDTO;
 import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.UTF8Control;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import org.controlsfx.control.textfield.TextFields;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -19,6 +22,8 @@ import retrofit2.Response;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Locale;
+import java.util.ResourceBundle;
 
 public class TicketDialogController {
 
@@ -35,6 +40,8 @@ public class TicketDialogController {
     private TextArea notesArea;
 
     private Runnable onSaveSuccess;
+    private ObservableList<CustomerDTO> allCustomers;
+    private ResourceBundle bundle;
 
     public void setOnSaveSuccess(Runnable onSaveSuccess) {
         this.onSaveSuccess = onSaveSuccess;
@@ -42,20 +49,41 @@ public class TicketDialogController {
 
     @FXML
     public void initialize() {
+        bundle = ResourceBundle.getBundle("i18n.messages", Locale.forLanguageTag("tr-TR"), new UTF8Control());
+        allCustomers = FXCollections.observableArrayList();
         configureCustomerComboBox();
         loadCustomers();
     }
 
     private void configureCustomerComboBox() {
+        customerComboBox.setEditable(true);
         customerComboBox.setConverter(new StringConverter<CustomerDTO>() {
             @Override
             public String toString(CustomerDTO customer) {
-                return customer == null ? "" : customer.getName();
+                if (customer == null)
+                    return "";
+                return customer.getName() + " - " + customer.getPhone();
             }
 
             @Override
             public CustomerDTO fromString(String string) {
-                return null; // No need to convert from string to object for read-only combo
+                return null;
+            }
+        });
+
+        // Add listener for filtering
+        customerComboBox.getEditor().textProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue == null || newValue.isEmpty()) {
+                customerComboBox.setItems(allCustomers);
+            } else {
+                String search = newValue.toLowerCase();
+                ObservableList<CustomerDTO> filtered = allCustomers
+                        .filtered(customer -> customer.getName().toLowerCase().contains(search) ||
+                                customer.getPhone().toLowerCase().contains(search));
+                customerComboBox.setItems(filtered);
+                if (!customerComboBox.isShowing()) {
+                    customerComboBox.show();
+                }
             }
         });
     }
@@ -67,7 +95,8 @@ public class TicketDialogController {
             public void onResponse(Call<List<CustomerDTO>> call, Response<List<CustomerDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     Platform.runLater(() -> {
-                        customerComboBox.setItems(FXCollections.observableArrayList(response.body()));
+                        allCustomers.setAll(response.body());
+                        customerComboBox.setItems(allCustomers);
                     });
                 }
             }
