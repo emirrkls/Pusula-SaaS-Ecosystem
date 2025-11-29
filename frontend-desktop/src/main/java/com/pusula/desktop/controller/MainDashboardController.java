@@ -32,6 +32,9 @@ public class MainDashboardController {
     private Button btnFinance;
     @FXML
     private Button btnSettings;
+    @FXML
+    private Button btnActivityLog;
+
     private boolean isDark = false;
 
     @FXML
@@ -40,12 +43,20 @@ public class MainDashboardController {
             userLabel.setText("Welcome, " + SessionManager.getUsername());
         }
 
-        // Hide Finance and Settings for Technicians
+        // Hide Finance, Settings and Activity Log for Technicians
         if (SessionManager.isTechnician()) {
-            btnFinance.setVisible(false);
-            btnFinance.setManaged(false);
-            btnSettings.setVisible(false);
-            btnSettings.setManaged(false);
+            if (btnFinance != null) {
+                btnFinance.setVisible(false);
+                btnFinance.setManaged(false);
+            }
+            if (btnSettings != null) {
+                btnSettings.setVisible(false);
+                btnSettings.setManaged(false);
+            }
+            if (btnActivityLog != null) {
+                btnActivityLog.setVisible(false);
+                btnActivityLog.setManaged(false);
+            }
         }
 
         showDashboard();
@@ -118,6 +129,57 @@ public class MainDashboardController {
             Parent view = loader.load();
 
             contentArea.getChildren().clear();
+            contentArea.getChildren().add(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    public void showFinance() {
+        // Double authentication for Finance
+        if (SessionManager.isAdmin()) {
+            showPasswordVerificationDialog(() -> navigateToFinance());
+        }
+    }
+
+    @FXML
+    private void showSettings() {
+        // Double authentication for Settings
+        if (SessionManager.isAdmin()) {
+            showPasswordVerificationDialog(() -> navigateToSettings());
+        }
+    }
+
+    @FXML
+    private void showActivityLog() {
+        // Double authentication for Activity Log (Admin only)
+        if (SessionManager.isAdmin()) {
+            showPasswordVerificationDialog(() -> navigateToActivityLog());
+        } else {
+            AlertHelper.showAlert(Alert.AlertType.WARNING, contentArea.getScene().getWindow(),
+                    "Erişim Reddedildi", "Bu işlem için yönetici yetkisi gereklidir.");
+        }
+    }
+
+    private void navigateToFinance() {
+        try {
+            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
+                    new java.util.Locale("tr", "TR"), new UTF8Control());
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/finance_view.fxml"), bundle);
+            Parent view = loader.load();
+
+            contentArea.getChildren().clear();
+            contentArea.getChildren().add(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void navigateToSettings() {
+        try {
+            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
+                    new java.util.Locale("tr", "TR"), new UTF8Control());
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/settings_view.fxml"), bundle);
             Parent view = loader.load();
 
@@ -125,6 +187,22 @@ public class MainDashboardController {
             contentArea.getChildren().add(view);
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private void navigateToActivityLog() {
+        try {
+            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
+                    new java.util.Locale("tr", "TR"), new UTF8Control());
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/activity_log.fxml"), bundle);
+            Parent view = loader.load();
+
+            contentArea.getChildren().clear();
+            contentArea.getChildren().add(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            AlertHelper.showAlert(Alert.AlertType.ERROR, contentArea.getScene().getWindow(),
+                    "Hata", "Aktivite geçmişi yüklenemedi: " + e.getMessage());
         }
     }
 
