@@ -75,6 +75,11 @@ public class TicketDetailsController {
     private VBox timelineContainer;
 
     @FXML
+    private Button btnChangeStatus;
+
+    private Long currentUserId;
+
+    @FXML
     public void initialize() {
         // Load resource bundle for localization
         resourceBundle = java.util.ResourceBundle.getBundle("i18n.messages",
@@ -84,6 +89,38 @@ public class TicketDetailsController {
         colPrice.setCellValueFactory(new PropertyValueFactory<>("sellingPriceSnapshot"));
         partsTable.setItems(usedPartsList);
         loadTechnicians();
+
+        // Only fetch all users if Admin, to avoid 403 Forbidden for Technicians
+        if (com.pusula.desktop.util.SessionManager.isAdmin()) {
+            fetchCurrentUser();
+        }
+    }
+
+    private void fetchCurrentUser() {
+        String username = com.pusula.desktop.util.SessionManager.getUsername();
+        if (username == null)
+            return;
+
+        UserApi api = RetrofitClient.getClient().create(UserApi.class);
+        api.getAllUsers().enqueue(new Callback<List<UserDTO>>() {
+            @Override
+            public void onResponse(Call<List<UserDTO>> call, Response<List<UserDTO>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    for (UserDTO user : response.body()) {
+                        if (user.getUsername().equals(username)) {
+                            currentUserId = user.getId();
+                            Platform.runLater(() -> updateUI()); // Refresh UI with user ID
+                            break;
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<UserDTO>> call, Throwable t) {
+                // Log error
+            }
+        });
     }
 
     public void setTicket(ServiceTicketDTO ticket) {
@@ -105,15 +142,25 @@ public class TicketDetailsController {
                     Response<List<com.pusula.desktop.dto.AuditLogDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     Platform.runLater(() -> displayTimeline(response.body()));
+                } else if (response.code() == 403) {
+                    // Technicians may not have access to audit logs, gracefully hide timeline
+                    Platform.runLater(() -> {
+                        if (timelineContainer != null) {
+                            Label noAccessLabel = new Label("Geçmiş görüntüleme yetkiniz bulunmamaktadır.");
+                            noAccessLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #95a5a6;");
+                            timelineContainer.getChildren().add(noAccessLabel);
+                        }
+                    });
                 }
             }
 
             @Override
             public void onFailure(Call<List<com.pusula.desktop.dto.AuditLogDTO>> call, Throwable t) {
+                // Silently fail for timeline - don't block ticket details from opening
                 Platform.runLater(() -> {
-                    Label errorLabel = new Label("Geçmiş yüklenemedi: " + t.getMessage());
-                    errorLabel.setStyle("-fx-text-fill: red;");
                     if (timelineContainer != null) {
+                        Label errorLabel = new Label("Geçmiş yüklenemedi.");
+                        errorLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #95a5a6;");
                         timelineContainer.getChildren().add(errorLabel);
                     }
                 });
@@ -262,6 +309,20 @@ public class TicketDetailsController {
             comboTechnician.setDisable(true);
         }
 
+        // Status Change Button Logic
+        boolean canChangeStatus = false;
+        if (com.pusula.desktop.util.SessionManager.isAdmin()) {
+            canChangeStatus = true;
+        } else if (com.pusula.desktop.util.SessionManager.isTechnician()) {
+            // Check if assigned to current user
+            if (currentUserId != null && currentTicket.getAssignedTechnicianId() != null
+                    && currentUserId.equals(currentTicket.getAssignedTechnicianId())) {
+                canChangeStatus = true;
+            }
+        }
+        btnChangeStatus.setVisible(canChangeStatus);
+        btnChangeStatus.setManaged(canChangeStatus);
+
         // Show parent link if this is a follow-up ticket
         if (currentTicket.getParentTicketId() != null) {
             lblParentLink.setText("Bu servis #" + currentTicket.getParentTicketId() + " nolu fişin devamıdır");
@@ -272,6 +333,72 @@ public class TicketDetailsController {
             lblParentLink.setVisible(false);
             lblParentLink.setManaged(false);
         }
+    }
+
+    @FXML
+    private void handleChangeStatus() {
+        if (currentTicket == null)
+            return;
+
+        // Create a map for display text -> backend status
+        java.util.Map<String, String> statusMap = new java.util.LinkedHashMap<>();
+        statusMap.put(getStatusTranslation("PENDING"), "PENDING");
+        statusMap.put(getStatusTranslation("IN_PROGRESS"), "IN_PROGRESS");
+        statusMap.put(getStatusTranslation("ASSIGNED"), "ASSIGNED");
+        statusMap.put(getStatusTranslation("COMPLETED"), "COMPLETED");
+        statusMap.put(getStatusTranslation("CANCELLED"), "CANCELLED");
+
+        List<String> choices = new java.util.ArrayList<>(statusMap.keySet());
+        String currentStatusDisplay = getStatusTranslation(currentTicket.getStatus());
+
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(currentStatusDisplay, choices);
+        dialog.setTitle(resourceBundle.getString("ticket.status.dialog.title"));
+        dialog.setHeaderText(resourceBundle.getString("ticket.status.dialog.header"));
+        dialog.setContentText(resourceBundle.getString("ticket.status.dialog.content"));
+
+        dialog.showAndWait().ifPresent(newStatusDisplay -> {
+            String newStatusCode = statusMap.get(newStatusDisplay);
+            if (newStatusCode != null && !newStatusCode.equals(currentTicket.getStatus())) {
+                currentTicket.setStatus(newStatusCode);
+                ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
+                api.updateTicket(currentTicket.getId(), currentTicket).enqueue(new Callback<ServiceTicketDTO>() {
+                    @Override
+                    public void onResponse(Call<ServiceTicketDTO> call, Response<ServiceTicketDTO> response) {
+                        if (response.isSuccessful()) {
+                            Platform.runLater(() -> {
+                                currentTicket = response.body();
+                                updateUI();
+                                AlertHelper.showAlert(Alert.AlertType.INFORMATION, lblStatus.getScene().getWindow(),
+                                        resourceBundle.getString("dialog.title.success"),
+                                        resourceBundle.getString("msg.update.success"));
+                            });
+                        } else {
+                            // Handle permission errors (403, 500) by showing error and closing window
+                            Platform.runLater(() -> {
+                                String errorMsg = "Durum güncellenemedi.";
+                                if (response.code() == 403 || response.code() == 500) {
+                                    errorMsg = "Bu servisi güncelleme yetkiniz bulunmamaktadır. Sadece size atanmış servisleri güncelleyebilirsiniz.";
+                                }
+                                AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                                        resourceBundle.getString("dialog.title.error"), errorMsg);
+                                // Close the ticket details window and return to service list
+                                lblStatus.getScene().getWindow().hide();
+                            });
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<ServiceTicketDTO> call, Throwable t) {
+                        Platform.runLater(() -> {
+                            AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                                    resourceBundle.getString("dialog.title.error"),
+                                    "Bağlantı hatası: " + t.getMessage());
+                            lblStatus.getScene().getWindow().hide();
+                        });
+                    }
+                });
+            }
+        });
     }
 
     private String getStatusTranslation(String status) {
@@ -302,6 +429,19 @@ public class TicketDetailsController {
                     Platform.runLater(() -> {
                         ObservableList<UserDTO> techs = FXCollections.observableArrayList(response.body());
                         comboTechnician.setItems(techs);
+
+                        // Try to find current user ID from this list if not already set (e.g. for
+                        // Technicians)
+                        String currentUsername = com.pusula.desktop.util.SessionManager.getUsername();
+                        if (currentUserId == null && currentUsername != null) {
+                            for (UserDTO u : techs) {
+                                if (u.getUsername().equals(currentUsername)) {
+                                    currentUserId = u.getId();
+                                    updateUI(); // Refresh UI to enable buttons
+                                    break;
+                                }
+                            }
+                        }
 
                         if (currentTicket != null && currentTicket.getAssignedTechnicianId() != null) {
                             for (UserDTO u : techs) {

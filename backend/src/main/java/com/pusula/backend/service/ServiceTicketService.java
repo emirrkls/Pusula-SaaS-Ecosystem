@@ -29,17 +29,20 @@ public class ServiceTicketService {
     private final UserRepository userRepository;
     private final InventoryRepository inventoryRepository;
     private final ServiceUsedPartRepository serviceUsedPartRepository;
+    private final AuditLogService auditLogService;
 
     public ServiceTicketService(ServiceTicketRepository repository,
             CustomerRepository customerRepository,
             UserRepository userRepository,
             InventoryRepository inventoryRepository,
-            ServiceUsedPartRepository serviceUsedPartRepository) {
+            ServiceUsedPartRepository serviceUsedPartRepository,
+            AuditLogService auditLogService) {
         this.repository = repository;
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
         this.inventoryRepository = inventoryRepository;
         this.serviceUsedPartRepository = serviceUsedPartRepository;
+        this.auditLogService = auditLogService;
     }
 
     private User getCurrentUser() {
@@ -70,6 +73,14 @@ public class ServiceTicketService {
         }
 
         ServiceTicket saved = repository.save(ticket);
+
+        // Log ticket creation
+        auditLogService.log(
+                "CREATE",
+                "TICKET",
+                saved.getId(),
+                "Yeni servis fişi oluşturuldu: " + saved.getDescription());
+
         return mapToDTO(saved);
     }
 
@@ -79,10 +90,44 @@ public class ServiceTicketService {
                 .filter(t -> t.getCompanyId().equals(user.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
 
-        if (dto.getStatus() != null)
+        // RBAC: If user is TECHNICIAN, they can only update if assigned to them
+        if ("TECHNICIAN".equals(user.getRole())) {
+            if (ticket.getAssignedTechnicianId() == null || !ticket.getAssignedTechnicianId().equals(user.getId())) {
+                throw new RuntimeException("Access Denied: You can only update tickets assigned to you.");
+            }
+            // Prevent Technician from re-assigning the ticket
+            if (dto.getAssignedTechnicianId() != null
+                    && !dto.getAssignedTechnicianId().equals(ticket.getAssignedTechnicianId())) {
+                throw new RuntimeException("Access Denied: Technicians cannot re-assign tickets.");
+            }
+        }
+
+        // Track old values for audit logging
+        String oldStatus = ticket.getStatus() != null ? ticket.getStatus().toString() : null;
+        Long oldTechnicianId = ticket.getAssignedTechnicianId();
+
+        // Apply updates
+        if (dto.getStatus() != null && !dto.getStatus().equals(ticket.getStatus())) {
+            String newStatus = dto.getStatus().toString();
+            auditLogService.log(
+                    "UPDATE",
+                    "TICKET",
+                    ticket.getId(),
+                    "Durum değişti",
+                    oldStatus,
+                    newStatus);
             ticket.setStatus(dto.getStatus());
-        if (dto.getAssignedTechnicianId() != null)
+        }
+
+        if (dto.getAssignedTechnicianId() != null && !dto.getAssignedTechnicianId().equals(oldTechnicianId)) {
+            auditLogService.log(
+                    "UPDATE",
+                    "TICKET",
+                    ticket.getId(),
+                    "Teknisyen atandı: ID " + dto.getAssignedTechnicianId());
             ticket.setAssignedTechnicianId(dto.getAssignedTechnicianId());
+        }
+
         if (dto.getScheduledDate() != null)
             ticket.setScheduledDate(dto.getScheduledDate());
         if (dto.getNotes() != null)
@@ -132,7 +177,16 @@ public class ServiceTicketService {
         ticket.setAssignedTechnicianId(technician.getId());
         ticket.setStatus(ServiceTicket.TicketStatus.ASSIGNED);
 
-        return mapToDTO(repository.save(ticket));
+        ServiceTicket saved = repository.save(ticket);
+
+        // Log technician assignment
+        auditLogService.log(
+                "UPDATE",
+                "TICKET",
+                saved.getId(),
+                "Teknisyen atandı: " + technician.getFullName());
+
+        return mapToDTO(saved);
     }
 
     @Transactional

@@ -98,6 +98,19 @@
                                     <Label text="%settings.company_address" GridPane.columnIndex="0" GridPane.rowIndex="3" />
                                     <TextArea fx:id="txtCompanyAddress" prefRowCount="3" 
                                               GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                                              
+                                    <!-- Logo Upload -->
+                                    <Label text="%settings.company_logo" GridPane.columnIndex="0" GridPane.rowIndex="4" />
+                                    <HBox spacing="10.0" alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="4">
+                                       <children>
+                                          <VBox style="-fx-border-color: #bdc3c7; -fx-border-style: dashed; -fx-border-width: 1; -fx-background-color: #f9f9f9;" 
+                                                minWidth="150" minHeight="60" alignment="CENTER">
+                                              <javafx.scene.image.ImageView fx:id="imgCompanyLogo" fitHeight="50.0" fitWidth="140.0" pickOnBounds="true" preserveRatio="true" />
+                                          </VBox>
+                                          <Button text="%settings.upload_logo" onAction="#handleUploadLogo"
+                                                  style="-fx-background-color: #3498db; -fx-text-fill: white;" />
+                                       </children>
+                                    </HBox>
                                 </GridPane>
                                 
                                 <HBox spacing="10.0">

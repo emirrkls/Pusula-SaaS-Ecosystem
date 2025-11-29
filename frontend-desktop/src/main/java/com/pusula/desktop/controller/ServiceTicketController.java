@@ -455,7 +455,10 @@ public class ServiceTicketController {
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
-            AlertHelper.showAlert(Alert.AlertType.ERROR, activeTicketsTable.getScene().getWindow(),
+            javafx.stage.Window window = activeTicketsTable.getScene() != null
+                    ? activeTicketsTable.getScene().getWindow()
+                    : null;
+            AlertHelper.showAlert(Alert.AlertType.ERROR, window,
                     "Error", "Could not open dialog: " + e.getMessage());
         }
     }
@@ -472,7 +475,10 @@ public class ServiceTicketController {
                     });
                 } else {
                     Platform.runLater(() -> {
-                        AlertHelper.showAlert(Alert.AlertType.ERROR, activeTicketsTable.getScene().getWindow(),
+                        javafx.stage.Window window = activeTicketsTable.getScene() != null
+                                ? activeTicketsTable.getScene().getWindow()
+                                : null;
+                        AlertHelper.showAlert(Alert.AlertType.ERROR, window,
                                 "Error", "Failed to load tickets: " + response.code());
                     });
                 }
@@ -481,7 +487,10 @@ public class ServiceTicketController {
             @Override
             public void onFailure(Call<List<ServiceTicketDTO>> call, Throwable t) {
                 Platform.runLater(() -> {
-                    AlertHelper.showAlert(Alert.AlertType.ERROR, activeTicketsTable.getScene().getWindow(),
+                    javafx.stage.Window window = activeTicketsTable.getScene() != null
+                            ? activeTicketsTable.getScene().getWindow()
+                            : null;
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, window,
                             "Network Error", "Could not connect to server: " + t.getMessage());
                 });
             }

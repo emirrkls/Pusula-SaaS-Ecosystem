@@ -11,7 +11,7 @@ import java.io.IOException;
 
 public class RetrofitClient {
         private static Retrofit retrofit = null;
-        private static final String BASE_URL = "http://168.231.104.133:8080/";
+        public static final String BASE_URL = "http://168.231.104.133:8080/";
 
         public static Retrofit getClient() {
                 if (retrofit == null) {
@@ -56,14 +56,19 @@ public class RetrofitClient {
                         Response response = chain.proceed(chain.request());
 
                         if (response.code() == 403) {
-                                Platform.runLater(() -> {
-                                        Alert alert = new Alert(Alert.AlertType.ERROR);
-                                        alert.setTitle("Erişim Reddedildi");
-                                        alert.setHeaderText("Yetki Hatası");
-                                        alert.setContentText(
-                                                        "Erişim Reddedildi: Bu işlem için yetkiniz bulunmamaktadır.");
-                                        alert.showAndWait();
-                                });
+                                // Don't show alert for audit-logs endpoint (handled gracefully in UI)
+                                String url = response.request().url().toString();
+                                if (!url.contains("/audit-logs/")) {
+                                        Platform.runLater(() -> {
+                                                Alert alert = new Alert(Alert.AlertType.ERROR);
+                                                alert.setTitle("Erişim Reddedildi");
+                                                alert.setHeaderText("Yetki Hatası");
+                                                alert.setContentText(
+                                                                "Erişim Reddedildi: Bu işlem için yetkiniz bulunmamaktadır.\nURL: "
+                                                                                + url);
+                                                alert.showAndWait();
+                                        });
+                                }
                         }
 
                         return response;

@@ -511,6 +511,9 @@ public class SettingsController {
 
     // ============ COMPANY PROFILE TAB ============
 
+    @FXML
+    private javafx.scene.image.ImageView imgCompanyLogo;
+
     private void loadCompanyProfile() {
         companyApi.getMyCompany().enqueue(new Callback<com.pusula.desktop.entity.Company>() {
             @Override
@@ -523,6 +526,22 @@ public class SettingsController {
                         txtCompanyPhone.setText(company.getPhone() != null ? company.getPhone() : "");
                         txtCompanyEmail.setText(company.getEmail() != null ? company.getEmail() : "");
                         txtCompanyAddress.setText(company.getAddress() != null ? company.getAddress() : "");
+
+                        if (company.getLogoUrl() != null && !company.getLogoUrl().isEmpty()) {
+                            // Assuming logoUrl is a relative path or full URL.
+                            // If relative, prepend BASE_URL.
+                            // For now, let's try loading it directly if it's a full URL,
+                            // or construct it if we know the pattern.
+                            // Usually: BASE_URL + logoUrl
+                            String imageUrl = RetrofitClient.BASE_URL.replace("/api", "") + company.getLogoUrl();
+                            if (company.getLogoUrl().startsWith("http")) {
+                                imageUrl = company.getLogoUrl();
+                            }
+                            // Fix double slashes if any (simple check)
+                            // imageUrl = imageUrl.replace("com//", "com/");
+
+                            imgCompanyLogo.setImage(new javafx.scene.image.Image(imageUrl, true)); // background loading
+                        }
                     });
                 }
             }
@@ -564,6 +583,54 @@ public class SettingsController {
                 Platform.runLater(() -> {
                     AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
                             "Şirket bilgileri güncellenemedi: " + t.getMessage());
+                });
+            }
+        });
+    }
+
+    @FXML
+    private void handleUploadLogo() {
+        javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+        fileChooser.setTitle("Logo Seç");
+        fileChooser.getExtensionFilters().addAll(
+                new javafx.stage.FileChooser.ExtensionFilter("Resim Dosyaları", "*.png", "*.jpg", "*.jpeg"));
+
+        java.io.File selectedFile = fileChooser.showOpenDialog(txtCompanyName.getScene().getWindow());
+        if (selectedFile != null) {
+            uploadLogoFile(selectedFile);
+        }
+    }
+
+    private void uploadLogoFile(java.io.File file) {
+        // Prepare file part
+        okhttp3.RequestBody requestFile = okhttp3.RequestBody.create(
+                okhttp3.MediaType.parse("image/*"), file);
+        okhttp3.MultipartBody.Part body = okhttp3.MultipartBody.Part.createFormData("file", file.getName(),
+                requestFile);
+
+        companyApi.uploadLogo(body).enqueue(new Callback<com.pusula.desktop.entity.Company>() {
+            @Override
+            public void onResponse(Call<com.pusula.desktop.entity.Company> call,
+                    Response<com.pusula.desktop.entity.Company> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Platform.runLater(() -> {
+                        AlertHelper.showAlert(Alert.AlertType.INFORMATION, null, "Başarılı",
+                                "Logo başarıyla yüklendi!");
+                        loadCompanyProfile(); // Refresh to show new logo
+                    });
+                } else {
+                    Platform.runLater(() -> {
+                        AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
+                                "Logo yüklenemedi: " + response.code());
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<com.pusula.desktop.entity.Company> call, Throwable t) {
+                Platform.runLater(() -> {
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
+                            "Logo yüklenirken hata oluştu: " + t.getMessage());
                 });
             }
         });

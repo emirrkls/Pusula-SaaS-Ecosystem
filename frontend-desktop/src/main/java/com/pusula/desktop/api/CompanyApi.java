@@ -13,4 +13,8 @@ public interface CompanyApi {
 
     @PUT("api/companies/me")
     Call<Company> updateMyCompany(@Body Company company);
+
+    @retrofit2.http.Multipart
+    @retrofit2.http.POST("api/companies/me/logo")
+    Call<Company> uploadLogo(@retrofit2.http.Part okhttp3.MultipartBody.Part file);
 }

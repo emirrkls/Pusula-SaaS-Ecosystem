@@ -67,12 +67,27 @@ public class TicketDialogController {
 
             @Override
             public CustomerDTO fromString(String string) {
-                return null;
+                if (string == null || string.isEmpty())
+                    return null;
+                return allCustomers.stream()
+                        .filter(c -> (c.getName() + " - " + c.getPhone()).equals(string))
+                        .findFirst()
+                        .orElse(null);
             }
         });
 
         // Add listener for filtering
         customerComboBox.getEditor().textProperty().addListener((obs, oldValue, newValue) -> {
+            // If the text matches the current selection, don't filter (it's just the
+            // selection updating the text)
+            if (customerComboBox.getSelectionModel().getSelectedItem() != null) {
+                String selectedString = customerComboBox.getConverter()
+                        .toString(customerComboBox.getSelectionModel().getSelectedItem());
+                if (selectedString.equalsIgnoreCase(newValue)) {
+                    return;
+                }
+            }
+
             if (newValue == null || newValue.isEmpty()) {
                 customerComboBox.setItems(allCustomers);
             } else {
