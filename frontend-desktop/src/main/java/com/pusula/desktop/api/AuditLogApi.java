@@ -23,6 +23,6 @@ public interface AuditLogApi {
     Call<Long> getLogCount();
 
     // For Timeline in Ticket Details
-    @GET("/api/audit-logs/ticket/{ticketId}")
+    @GET("api/audit-logs/ticket/{ticketId}")
     Call<List<AuditLogDTO>> getTicketTimeline(@Path("ticketId") Long ticketId);
 }

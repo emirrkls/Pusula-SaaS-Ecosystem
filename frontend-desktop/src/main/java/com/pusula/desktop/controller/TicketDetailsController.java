@@ -15,6 +15,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -70,6 +72,9 @@ public class TicketDetailsController {
     private final ObservableList<ServiceUsedPartDTO> usedPartsList = FXCollections.observableArrayList();
 
     @FXML
+    private VBox timelineContainer;
+
+    @FXML
     public void initialize() {
         // Load resource bundle for localization
         resourceBundle = java.util.ResourceBundle.getBundle("i18n.messages",
@@ -85,6 +90,142 @@ public class TicketDetailsController {
         this.currentTicket = ticket;
         updateUI();
         loadUsedParts();
+        loadTicketHistory();
+    }
+
+    private void loadTicketHistory() {
+        if (currentTicket == null)
+            return;
+
+        com.pusula.desktop.api.AuditLogApi api = RetrofitClient.getClient()
+                .create(com.pusula.desktop.api.AuditLogApi.class);
+        api.getTicketTimeline(currentTicket.getId()).enqueue(new Callback<List<com.pusula.desktop.dto.AuditLogDTO>>() {
+            @Override
+            public void onResponse(Call<List<com.pusula.desktop.dto.AuditLogDTO>> call,
+                    Response<List<com.pusula.desktop.dto.AuditLogDTO>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Platform.runLater(() -> displayTimeline(response.body()));
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<com.pusula.desktop.dto.AuditLogDTO>> call, Throwable t) {
+                Platform.runLater(() -> {
+                    Label errorLabel = new Label("Geçmiş yüklenemedi: " + t.getMessage());
+                    errorLabel.setStyle("-fx-text-fill: red;");
+                    if (timelineContainer != null) {
+                        timelineContainer.getChildren().add(errorLabel);
+                    }
+                });
+            }
+        });
+    }
+
+    private void displayTimeline(List<com.pusula.desktop.dto.AuditLogDTO> logs) {
+        if (timelineContainer == null)
+            return;
+        timelineContainer.getChildren().clear();
+
+        if (logs.isEmpty()) {
+            Label emptyLabel = new Label(resourceBundle.getString("timeline.no_events"));
+            emptyLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #7f8c8d;");
+            timelineContainer.getChildren().add(emptyLabel);
+            return;
+        }
+
+        for (com.pusula.desktop.dto.AuditLogDTO log : logs) {
+            timelineContainer.getChildren().add(createTimelineEntry(log));
+        }
+    }
+
+    private javafx.scene.Node createTimelineEntry(com.pusula.desktop.dto.AuditLogDTO log) {
+        VBox entry = new VBox(5);
+        entry.setStyle(
+                "-fx-background-color: white; -fx-padding: 15; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-background-radius: 5;");
+
+        // Header: timestamp and user
+        HBox header = new HBox(10);
+        header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        Label timeLabel = new Label(formatTimestamp(log.getTimestamp()));
+        timeLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+
+        Label userLabel = new Label("👤 " + (log.getUserName() != null ? log.getUserName() : "Sistem"));
+        userLabel.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 12px;");
+
+        header.getChildren().addAll(timeLabel, userLabel);
+
+        // Description
+        Label descLabel = new Label(translateAction(log.getActionType()) + ": " + log.getDescription());
+        descLabel.setWrapText(true);
+        descLabel.setStyle("-fx-font-size: 13px;");
+
+        entry.getChildren().addAll(header, descLabel);
+
+        // Old/New values if present
+        if (log.getOldValue() != null || log.getNewValue() != null) {
+            HBox values = new HBox(20);
+            values.setStyle("-fx-padding: 10 0 0 0;");
+
+            if (log.getOldValue() != null && !log.getOldValue().isEmpty()) {
+                VBox oldBox = new VBox(3);
+                Label oldLabel = new Label("Öncesi:");
+                oldLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #95a5a6;");
+                Label oldValueLabel = new Label(log.getOldValue());
+                oldValueLabel.setWrapText(true);
+                oldValueLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #e74c3c;");
+                oldBox.getChildren().addAll(oldLabel, oldValueLabel);
+                values.getChildren().add(oldBox);
+            }
+
+            if (log.getNewValue() != null && !log.getNewValue().isEmpty()) {
+                VBox newBox = new VBox(3);
+                Label newLabel = new Label("Sonrası:");
+                newLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #95a5a6;");
+                Label newValueLabel = new Label(log.getNewValue());
+                newValueLabel.setWrapText(true);
+                newValueLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #27ae60;");
+                newBox.getChildren().addAll(newLabel, newValueLabel);
+                values.getChildren().add(newBox);
+            }
+
+            if (!values.getChildren().isEmpty()) {
+                entry.getChildren().add(values);
+            }
+        }
+
+        return entry;
+    }
+
+    private String formatTimestamp(java.time.LocalDateTime timestamp) {
+        if (timestamp == null)
+            return "";
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm",
+                new java.util.Locale("tr"));
+        return timestamp.format(formatter);
+    }
+
+    private String translateAction(String action) {
+        if (action == null)
+            return "";
+        switch (action) {
+            case "CREATE":
+                return "Oluşturuldu";
+            case "UPDATE":
+                return "Güncellendi";
+            case "DELETE":
+                return "Silindi";
+            case "ASSIGN":
+                return "Atandı";
+            case "COMPLETE":
+                return "Tamamlandı";
+            case "CANCEL":
+                return "İptal Edildi";
+            case "ADD_PART":
+                return "Parça Eklendi";
+            default:
+                return action;
+        }
     }
 
     private void updateUI() {
