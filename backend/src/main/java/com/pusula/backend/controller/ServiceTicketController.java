@@ -55,8 +55,13 @@ public class ServiceTicketController {
 
     @PatchMapping("/{id}/complete")
     public ResponseEntity<ServiceTicketDTO> completeService(@PathVariable Long id,
-            @RequestParam java.math.BigDecimal amount) {
-        return ResponseEntity.ok(service.completeService(id, amount));
+            @RequestBody java.util.Map<String, Object> request) {
+        java.math.BigDecimal amount = new java.math.BigDecimal(request.get("collectedAmount").toString());
+        com.pusula.backend.entity.PaymentMethod paymentMethod = request.containsKey("paymentMethod")
+                ? com.pusula.backend.entity.PaymentMethod.valueOf(request.get("paymentMethod").toString())
+                : com.pusula.backend.entity.PaymentMethod.CASH;
+
+        return ResponseEntity.ok(service.completeService(id, amount, paymentMethod));
     }
 
     @PatchMapping("/{id}/cancel")

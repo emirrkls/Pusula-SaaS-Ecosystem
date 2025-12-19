@@ -24,7 +24,12 @@
       <VBox spacing="5.0">
          <children>
             <Label text="%ticket.create.customer" />
-            <ComboBox fx:id="customerComboBox" maxWidth="1.7976931348623157E308" promptText="%ticket.create.customer" />
+            <HBox spacing="5.0">
+               <children>
+                  <ComboBox fx:id="customerComboBox" maxWidth="1.7976931348623157E308" promptText="%ticket.create.customer" HBox.hgrow="ALWAYS" />
+                  <Button mnemonicParsing="false" onAction="#handleAddCustomer" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" text="+" prefWidth="35.0" />
+               </children>
+            </HBox>
          </children>
       </VBox>
       <VBox spacing="5.0">

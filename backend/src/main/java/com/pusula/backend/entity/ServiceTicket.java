@@ -39,6 +39,10 @@ public class ServiceTicket extends BaseEntity {
     @Column(name = "is_warranty_call")
     private Boolean isWarrantyCall;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method")
+    private PaymentMethod paymentMethod = PaymentMethod.CASH; // Default to cash
+
     public ServiceTicket() {
     }
 
@@ -131,6 +135,14 @@ public class ServiceTicket extends BaseEntity {
 
     public void setWarrantyCall(Boolean warrantyCall) {
         isWarrantyCall = warrantyCall;
+    }
+
+    public PaymentMethod getPaymentMethod() {
+        return paymentMethod != null ? paymentMethod : PaymentMethod.CASH;
+    }
+
+    public void setPaymentMethod(PaymentMethod paymentMethod) {
+        this.paymentMethod = paymentMethod;
     }
 
     public enum TicketStatus {

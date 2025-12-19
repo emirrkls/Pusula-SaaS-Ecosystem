@@ -3,7 +3,9 @@ package com.pusula.desktop.controller;
 import com.pusula.desktop.api.ServiceTicketApi;
 import com.pusula.desktop.api.ReportApi;
 import com.pusula.desktop.api.UserApi;
+import com.pusula.desktop.api.CustomerApi;
 import com.pusula.desktop.dto.ServiceTicketDTO;
+import com.pusula.desktop.dto.CustomerDTO;
 import com.pusula.desktop.dto.ServiceUsedPartDTO;
 import com.pusula.desktop.dto.UserDTO;
 import com.pusula.desktop.network.RetrofitClient;
@@ -66,6 +68,13 @@ public class TicketDetailsController {
     private Button btnCreateRecall;
     @FXML
     private Button btnPrintPdf;
+    @FXML
+    private Label lblCustomerName;
+    @FXML
+    private Label lblCustomerPhone;
+    @FXML
+    private Label lblCustomerAddress;
+
     private java.util.ResourceBundle resourceBundle;
 
     private ServiceTicketDTO currentTicket;
@@ -84,9 +93,24 @@ public class TicketDetailsController {
         // Load resource bundle for localization
         resourceBundle = java.util.ResourceBundle.getBundle("i18n.messages",
                 Locale.of("tr", "TR"), new UTF8Control());
-        colPartName.setCellValueFactory(new PropertyValueFactory<>("partName"));
-        colQuantity.setCellValueFactory(new PropertyValueFactory<>("quantityUsed"));
-        colPrice.setCellValueFactory(new PropertyValueFactory<>("sellingPriceSnapshot"));
+
+        // Use explicit cell value factories with debug
+        colPartName.setCellValueFactory(cellData -> {
+            String name = cellData.getValue().getPartName();
+            System.out.println("CellValue partName: " + name);
+            return new javafx.beans.property.SimpleStringProperty(name != null ? name : "-");
+        });
+        colQuantity.setCellValueFactory(cellData -> {
+            Integer qty = cellData.getValue().getQuantityUsed();
+            System.out.println("CellValue quantity: " + qty);
+            return new javafx.beans.property.SimpleObjectProperty<>(qty);
+        });
+        colPrice.setCellValueFactory(cellData -> {
+            java.math.BigDecimal price = cellData.getValue().getSellingPriceSnapshot();
+            System.out.println("CellValue price: " + price);
+            return new javafx.beans.property.SimpleObjectProperty<>(price);
+        });
+
         partsTable.setItems(usedPartsList);
         loadTechnicians();
 
@@ -128,6 +152,7 @@ public class TicketDetailsController {
         updateUI();
         loadUsedParts();
         loadTicketHistory();
+        loadCustomerInfo();
     }
 
     private void loadTicketHistory() {
@@ -466,22 +491,59 @@ public class TicketDetailsController {
     private void loadUsedParts() {
         if (currentTicket == null)
             return;
+        System.out.println("Loading used parts for ticket ID: " + currentTicket.getId());
         ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
         api.getUsedParts(currentTicket.getId()).enqueue(new Callback<List<ServiceUsedPartDTO>>() {
             @Override
             public void onResponse(Call<List<ServiceUsedPartDTO>> call, Response<List<ServiceUsedPartDTO>> response) {
+                System.out.println("getUsedParts response code: " + response.code());
                 if (response.isSuccessful() && response.body() != null) {
+                    System.out.println("Used parts count: " + response.body().size());
                     Platform.runLater(() -> {
                         usedPartsList.clear();
                         usedPartsList.addAll(response.body());
+                        System.out.println("usedPartsList size after add: " + usedPartsList.size());
                     });
+                } else {
+                    System.out.println("getUsedParts unsuccessful or body is null");
                 }
             }
 
             @Override
             public void onFailure(Call<List<ServiceUsedPartDTO>> call, Throwable t) {
+                System.err.println("getUsedParts failed: " + t.getMessage());
                 Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
                         "Error", "Failed to load parts"));
+            }
+        });
+    }
+
+    private void loadCustomerInfo() {
+        if (currentTicket == null || currentTicket.getCustomerId() == null)
+            return;
+
+        CustomerApi customerApi = RetrofitClient.getClient().create(CustomerApi.class);
+        customerApi.getCustomerById(currentTicket.getCustomerId()).enqueue(new Callback<CustomerDTO>() {
+            @Override
+            public void onResponse(Call<CustomerDTO> call, Response<CustomerDTO> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    CustomerDTO customer = response.body();
+                    Platform.runLater(() -> {
+                        lblCustomerName.setText(customer.getName() != null ? customer.getName() : "-");
+                        lblCustomerPhone.setText(customer.getPhone() != null ? customer.getPhone() : "-");
+                        lblCustomerAddress.setText(customer.getAddress() != null ? customer.getAddress() : "-");
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<CustomerDTO> call, Throwable t) {
+                // Silently fail - customer info is optional
+                Platform.runLater(() -> {
+                    lblCustomerName.setText("-");
+                    lblCustomerPhone.setText("-");
+                    lblCustomerAddress.setText("-");
+                });
             }
         });
     }
@@ -781,17 +843,69 @@ public class TicketDetailsController {
         if (currentTicket == null)
             return;
 
-        TextInputDialog dialog = new TextInputDialog();
+        // Create custom dialog with GridPane
+        Dialog<java.util.Map<String, Object>> dialog = new Dialog<>();
         dialog.setTitle(resourceBundle.getString("dialog.complete.title"));
         dialog.setHeaderText(resourceBundle.getString("dialog.complete.header"));
-        dialog.setContentText(resourceBundle.getString("dialog.complete.amount"));
+
+        // Set buttons
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        // Create form
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new javafx.geometry.Insets(20, 150, 10, 10));
+
+        javafx.scene.control.TextField amountField = new javafx.scene.control.TextField();
+        amountField.setPromptText("0.00");
+
+        javafx.scene.control.ComboBox<String> paymentCombo = new javafx.scene.control.ComboBox<>();
+        paymentCombo.getItems().addAll(
+                resourceBundle.getString("payment.cash"), // Nakit
+                resourceBundle.getString("payment.credit_card"), // Kredi Kartı
+                resourceBundle.getString("payment.current_account") // Cari Hesap (Veresiye)
+        );
+        paymentCombo.setValue(resourceBundle.getString("payment.cash")); // Default to cash
+
+        grid.add(new Label(resourceBundle.getString("dialog.complete.amount") + ":"), 0, 0);
+        grid.add(amountField, 1, 0);
+        grid.add(new Label(resourceBundle.getString("payment.method") + ":"), 0, 1);
+        grid.add(paymentCombo, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+
+        // Convert result
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == ButtonType.OK) {
+                java.util.Map<String, Object> result = new java.util.HashMap<>();
+                result.put("amount", amountField.getText());
+                result.put("paymentMethod", paymentCombo.getValue());
+                return result;
+            }
+            return null;
+        });
 
         dialog.showAndWait().ifPresent(result -> {
             try {
-                BigDecimal amount = new BigDecimal(result.trim());
+                BigDecimal amount = new BigDecimal(result.get("amount").toString().trim());
+                String paymentMethodDisplay = result.get("paymentMethod").toString();
+
+                // Map display text to backend enum value
+                String paymentMethod = "CASH"; // Default
+                if (paymentMethodDisplay.equals(resourceBundle.getString("payment.credit_card"))) {
+                    paymentMethod = "CREDIT_CARD";
+                } else if (paymentMethodDisplay.equals(resourceBundle.getString("payment.current_account"))) {
+                    paymentMethod = "CURRENT_ACCOUNT";
+                }
+
+                // Create request body as Map
+                java.util.Map<String, Object> requestBody = new java.util.HashMap<>();
+                requestBody.put("collectedAmount", amount);
+                requestBody.put("paymentMethod", paymentMethod);
 
                 ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
-                api.completeService(currentTicket.getId(), amount).enqueue(new Callback<ServiceTicketDTO>() {
+                api.completeService(currentTicket.getId(), requestBody).enqueue(new Callback<ServiceTicketDTO>() {
                     @Override
                     public void onResponse(Call<ServiceTicketDTO> call, Response<ServiceTicketDTO> response) {
                         if (response.isSuccessful() && response.body() != null) {
@@ -801,6 +915,11 @@ public class TicketDetailsController {
                                 AlertHelper.showAlert(Alert.AlertType.INFORMATION, lblStatus.getScene().getWindow(),
                                         resourceBundle.getString("dialog.title.success"),
                                         resourceBundle.getString("dialog.complete.success"));
+                            });
+                        } else {
+                            Platform.runLater(() -> {
+                                AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                                        "Hata", "Servis tamamlanamadı: " + response.code());
                             });
                         }
                     }

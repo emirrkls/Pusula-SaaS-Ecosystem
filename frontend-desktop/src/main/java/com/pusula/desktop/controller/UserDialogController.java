@@ -50,7 +50,7 @@ public class UserDialogController {
         bundle = ResourceBundle.getBundle("i18n.messages", Locale.forLanguageTag("tr-TR"), new UTF8Control());
 
         // Populate role dropdown
-        cmbRole.setItems(FXCollections.observableArrayList("ADMIN", "TECHNICIAN"));
+        cmbRole.setItems(FXCollections.observableArrayList("COMPANY_ADMIN", "TECHNICIAN"));
         cmbRole.getSelectionModel().selectFirst();
     }
 
@@ -184,9 +184,9 @@ public class UserDialogController {
                 requestFile);
 
         UserApi userApi = RetrofitClient.getClient().create(UserApi.class);
-        userApi.uploadSignature(userId, body).enqueue(new Callback<UserDTO>() {
+        userApi.uploadSignature(userId, body).enqueue(new Callback<okhttp3.ResponseBody>() {
             @Override
-            public void onResponse(Call<UserDTO> call, Response<UserDTO> response) {
+            public void onResponse(Call<okhttp3.ResponseBody> call, Response<okhttp3.ResponseBody> response) {
                 Platform.runLater(() -> {
                     if (response.isSuccessful()) {
                         AlertHelper.showAlert(Alert.AlertType.INFORMATION, txtUsername.getScene().getWindow(),
@@ -207,7 +207,7 @@ public class UserDialogController {
             }
 
             @Override
-            public void onFailure(Call<UserDTO> call, Throwable t) {
+            public void onFailure(Call<okhttp3.ResponseBody> call, Throwable t) {
                 Platform.runLater(() -> {
                     AlertHelper.showAlert(Alert.AlertType.ERROR, txtUsername.getScene().getWindow(),
                             "Hata", "Ağ hatası: " + t.getMessage());

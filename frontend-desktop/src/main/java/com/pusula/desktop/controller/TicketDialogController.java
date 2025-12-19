@@ -14,7 +14,6 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
-import org.controlsfx.control.textfield.TextFields;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -127,6 +126,47 @@ public class TicketDialogController {
     @FXML
     private void handleCancel() {
         closeDialog();
+    }
+
+    @FXML
+    private void handleAddCustomer() {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                    getClass().getResource("/view/customer_dialog.fxml"),
+                    ResourceBundle.getBundle("i18n.messages", Locale.forLanguageTag("tr-TR"), new UTF8Control()));
+            javafx.scene.Parent root = loader.load();
+            CustomerDialogController dialogController = loader.getController();
+            dialogController.setOnSaveSuccess((savedCustomer) -> {
+                // Refresh customers and auto-select the new one
+                loadCustomers();
+                Platform.runLater(() -> {
+                    // Wait a bit for the data to load then select the new customer
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(500);
+                            Platform.runLater(() -> {
+                                allCustomers.stream()
+                                        .filter(c -> c.getId().equals(savedCustomer.getId()))
+                                        .findFirst()
+                                        .ifPresent(c -> customerComboBox.setValue(c));
+                            });
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }).start();
+                });
+            });
+            javafx.stage.Stage dialogStage = new javafx.stage.Stage();
+            dialogStage.setTitle(bundle.getString("customer.dialog.title"));
+            dialogStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+            dialogStage.initOwner(customerComboBox.getScene().getWindow());
+            dialogStage.setScene(new javafx.scene.Scene(root));
+            dialogStage.showAndWait();
+        } catch (Exception e) {
+            e.printStackTrace();
+            AlertHelper.showAlert(Alert.AlertType.ERROR, customerComboBox.getScene().getWindow(),
+                    "Error", "Could not open customer dialog: " + e.getMessage());
+        }
     }
 
     @FXML

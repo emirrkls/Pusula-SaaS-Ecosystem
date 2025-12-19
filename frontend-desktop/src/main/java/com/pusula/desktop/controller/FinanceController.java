@@ -5,6 +5,7 @@ import java.io.File;
 import java.nio.file.Files;
 
 import com.pusula.desktop.api.FinanceApi;
+import com.pusula.desktop.api.CurrentAccountApi;
 import com.pusula.desktop.dto.*;
 import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.UTF8Control;
@@ -18,6 +19,7 @@ import javafx.scene.chart.LineChart;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
+import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import retrofit2.Call;
@@ -39,9 +41,13 @@ public class FinanceController {
     @FXML
     private Label currentDateLabel;
     @FXML
-    private javafx.scene.layout.VBox paymentAlertBox; // Alert container
+    private javafx.scene.layout.VBox paymentAlertBox; // Yellow alert container (upcoming)
     @FXML
-    private Label alertMessageLabel; // Alert message text
+    private Label alertMessageLabel; // Yellow alert message text
+    @FXML
+    private javafx.scene.layout.VBox overduePaymentBox; // Red alert container (overdue)
+    @FXML
+    private Label overdueMessageLabel; // Red alert message text
     @FXML
     private TableView<DailySummaryDTO.ExpenseItemDTO> todayExpensesTable;
     @FXML
@@ -87,6 +93,29 @@ public class FinanceController {
     @FXML
     private PieChart expensePieChart;
 
+    // Current Accounts Tab
+    @FXML
+    private TableView<CurrentAccountDTO> currentAccountsTable;
+    @FXML
+    private TableColumn<CurrentAccountDTO, String> colAccountCustomer;
+    @FXML
+    private TableColumn<CurrentAccountDTO, String> colAccountBalance;
+    @FXML
+    private TableColumn<CurrentAccountDTO, String> colAccountLastUpdated;
+    @FXML
+    private TableColumn<CurrentAccountDTO, Void> colAccountActions;
+
+    // Inventory Value Card
+    @FXML
+    private Label inventoryValueLabel;
+
+    // Business Assets Tab Labels
+    @FXML
+    private Label assetInventoryValueLabel;
+
+    @FXML
+    private Label assetNetCashLabel;
+
     private FinanceApi financeApi;
     private ResourceBundle bundle;
     private LocalDate currentDate;
@@ -108,6 +137,10 @@ public class FinanceController {
         loadCategoryPieChart();
         setupReportsTable();
         loadMonthlyReports();
+        setupCurrentAccountsTable();
+        loadCurrentAccounts();
+        loadInventoryValue();
+        loadBusinessAssets();
     }
 
     private void setupDateDisplay() {
@@ -224,22 +257,70 @@ public class FinanceController {
     }
 
     private void checkUpcomingPayments() {
-        financeApi.getUpcomingFixedExpenses(1L, 3).enqueue(new Callback<List<FixedExpenseDefinitionDTO>>() {
+        // Check for both upcoming and overdue payments
+        financeApi.getFixedExpenses(1L).enqueue(new Callback<List<FixedExpenseDefinitionDTO>>() {
             @Override
             public void onResponse(Call<List<FixedExpenseDefinitionDTO>> call,
                     Response<List<FixedExpenseDefinitionDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    List<FixedExpenseDefinitionDTO> upcoming = response.body();
+                    List<FixedExpenseDefinitionDTO> allExpenses = response.body();
+                    int currentDay = LocalDate.now().getDayOfMonth();
+
+                    // Filter overdue (unpaid AND due day has passed)
+                    List<FixedExpenseDefinitionDTO> overdue = allExpenses.stream()
+                            .filter(e -> !e.isPaidThisMonth() && e.getDayOfMonth() != null
+                                    && e.getDayOfMonth() < currentDay)
+                            .collect(Collectors.toList());
+
+                    // Filter upcoming (unpaid AND due within 3 days)
+                    List<FixedExpenseDefinitionDTO> upcoming = allExpenses.stream()
+                            .filter(e -> !e.isPaidThisMonth() && e.getDayOfMonth() != null)
+                            .filter(e -> e.getDayOfMonth() >= currentDay && e.getDayOfMonth() <= currentDay + 3)
+                            .collect(Collectors.toList());
+
+                    // Debug logging
+                    System.out.println("=== Overdue/Upcoming Check ===");
+                    System.out.println("Current day: " + currentDay);
+                    System.out.println("Total expenses: " + allExpenses.size());
+                    System.out.println("Overdue count: " + overdue.size());
+                    System.out.println("Upcoming count: " + upcoming.size());
+                    for (FixedExpenseDefinitionDTO e : allExpenses) {
+                        System.out.println("  - " + e.getName() + " | Day: " + e.getDayOfMonth() + " | Paid: "
+                                + e.isPaidThisMonth());
+                    }
+
                     Platform.runLater(() -> {
-                        if (upcoming == null || upcoming.isEmpty()) {
+                        // Handle OVERDUE (RED alert)
+                        if (overdue.isEmpty()) {
+                            overduePaymentBox.setVisible(false);
+                            overduePaymentBox.setManaged(false);
+                        } else {
+                            overduePaymentBox.setVisible(true);
+                            overduePaymentBox.setManaged(true);
+                            StringBuilder sb = new StringBuilder();
+                            for (FixedExpenseDefinitionDTO exp : overdue) {
+                                int daysLate = currentDay - exp.getDayOfMonth();
+                                sb.append(exp.getName()).append(" (").append(daysLate).append(" gün gecikti), ");
+                            }
+                            String overdueNames = sb.length() > 2 ? sb.substring(0, sb.length() - 2) : sb.toString();
+                            overdueMessageLabel.setText("🚨 Geciken ödemeler: " + overdueNames);
+                        }
+
+                        // Handle UPCOMING (YELLOW alert) - also show if there are any overdue items
+                        if (upcoming.isEmpty() && overdue.isEmpty()) {
                             paymentAlertBox.setVisible(false);
                             paymentAlertBox.setManaged(false);
-                        } else {
+                        } else if (!upcoming.isEmpty()) {
                             paymentAlertBox.setVisible(true);
                             paymentAlertBox.setManaged(true);
                             String message = String.format("Dikkat: %d adet sabit giderin ödeme günü yaklaşıyor!",
                                     upcoming.size());
                             alertMessageLabel.setText(message);
+                        } else {
+                            // If only overdue items, show yellow alert as a reminder too
+                            paymentAlertBox.setVisible(true);
+                            paymentAlertBox.setManaged(true);
+                            alertMessageLabel.setText("⚠️ Ödenmemiş giderler mevcut - Sabit Gider Öde'ye tıklayın.");
                         }
                     });
                 }
@@ -247,7 +328,7 @@ public class FinanceController {
 
             @Override
             public void onFailure(Call<List<FixedExpenseDefinitionDTO>> call, Throwable t) {
-                System.err.println("Failed to load upcoming expenses: " + t.getMessage());
+                System.err.println("Failed to load fixed expenses: " + t.getMessage());
             }
         });
     }
@@ -601,6 +682,249 @@ public class FinanceController {
                 Platform.runLater(() -> {
                     AlertHelper.showAlert(Alert.AlertType.ERROR, null,
                             "Hata", "PDF indirilemedi: " + t.getMessage());
+                });
+            }
+        });
+    }
+
+    // ========== CURRENT ACCOUNTS TAB ==========
+
+    private void setupCurrentAccountsTable() {
+        colAccountCustomer.setCellValueFactory(
+                cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getCustomerName()));
+
+        colAccountBalance.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
+                formatCurrency(cellData.getValue().getBalance())));
+
+        colAccountLastUpdated.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
+                cellData.getValue().getLastUpdated() != null
+                        ? cellData.getValue().getLastUpdated().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"))
+                        : "-"));
+
+        // Actions column with Edit Balance button
+        colAccountActions.setCellFactory(param -> new TableCell<>() {
+            private final Button btnEdit = new Button("Düzenle");
+
+            {
+                btnEdit.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand;");
+                btnEdit.setOnAction(event -> {
+                    CurrentAccountDTO account = getTableView().getItems().get(getIndex());
+                    handleEditBalance(account);
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : btnEdit);
+            }
+        });
+    }
+
+    private void loadCurrentAccounts() {
+        System.out.println("=== loadCurrentAccounts() called ===");
+        CurrentAccountApi api = RetrofitClient.getClient().create(CurrentAccountApi.class);
+        System.out.println("Calling API: " + RetrofitClient.BASE_URL + "api/current-accounts");
+        api.getAll(1L).enqueue(new Callback<List<CurrentAccountDTO>>() {
+            @Override
+            public void onResponse(Call<List<CurrentAccountDTO>> call, Response<List<CurrentAccountDTO>> response) {
+                System.out.println("Response received: " + response.code());
+                if (response.isSuccessful() && response.body() != null) {
+                    System.out.println("Success! Found " + response.body().size() + " accounts");
+                    Platform.runLater(() -> {
+                        currentAccountsTable.setItems(FXCollections.observableArrayList(response.body()));
+                    });
+                } else {
+                    System.err.println("API call failed: " + response.code() + " - " + response.message());
+                    Platform.runLater(() -> {
+                        AlertHelper.showAlert(Alert.AlertType.ERROR, null,
+                                "Hata", "Cari hesaplar yüklenemedi: " + response.code());
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<CurrentAccountDTO>> call, Throwable t) {
+                System.err.println("Failed to load current accounts: " + t.getMessage());
+                t.printStackTrace();
+                Platform.runLater(() -> {
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, null,
+                            "Bağlantı Hatası", "Cari hesaplar yüklenemedi: " + t.getMessage());
+                });
+            }
+        });
+    }
+
+    private void handleEditBalance(CurrentAccountDTO account) {
+        // Create payment dialog with amount and discount fields
+        Dialog<Map<String, Object>> dialog = new Dialog<>();
+        dialog.setTitle("Cari Hesap Ödemesi");
+        dialog.setHeaderText(account.getCustomerName() + " - Borç: " +
+                String.format("%.2f TL", account.getBalance()));
+
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new javafx.geometry.Insets(20, 150, 10, 10));
+
+        javafx.scene.control.TextField paymentField = new javafx.scene.control.TextField();
+        paymentField.setPromptText("0.00");
+
+        javafx.scene.control.TextField discountField = new javafx.scene.control.TextField();
+        discountField.setPromptText("0.00");
+        discountField.setText("0");
+
+        grid.add(new Label("Ödeme Tutarı:"), 0, 0);
+        grid.add(paymentField, 1, 0);
+        grid.add(new Label("İndirim:"), 0, 1);
+        grid.add(discountField, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == ButtonType.OK) {
+                Map<String, Object> result = new java.util.HashMap<>();
+                result.put("payment", paymentField.getText());
+                result.put("discount", discountField.getText());
+                return result;
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(result -> {
+            try {
+                BigDecimal payment = new BigDecimal(result.get("payment").toString().trim());
+                BigDecimal discount = new BigDecimal(result.get("discount").toString().trim());
+
+                Map<String, Object> requestBody = new java.util.HashMap<>();
+                requestBody.put("paymentAmount", payment);
+                requestBody.put("discount", discount);
+
+                CurrentAccountApi api = RetrofitClient.getClient().create(CurrentAccountApi.class);
+                api.payDebt(account.getId(), requestBody).enqueue(new Callback<CurrentAccountDTO>() {
+                    @Override
+                    public void onResponse(Call<CurrentAccountDTO> call, Response<CurrentAccountDTO> response) {
+                        if (response.isSuccessful()) {
+                            Platform.runLater(() -> {
+                                loadCurrentAccounts(); // Refresh table
+                                AlertHelper.showAlert(Alert.AlertType.INFORMATION, null,
+                                        "Başarılı", "Ödeme kaydedildi.");
+                            });
+                        } else {
+                            Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR, null,
+                                    "Hata", "Ödeme kaydedilemedi: " + response.code()));
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<CurrentAccountDTO> call, Throwable t) {
+                        Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR, null,
+                                "Hata", t.getMessage()));
+                    }
+                });
+            } catch (Exception e) {
+                AlertHelper.showAlert(Alert.AlertType.ERROR, null,
+                        "Hata", "Geçersiz tutar: " + e.getMessage());
+            }
+        });
+    }
+
+    // ========== INVENTORY VALUE CARD ==========
+
+    private void loadInventoryValue() {
+        financeApi.getInventoryValue(1L).enqueue(new Callback<Map<String, BigDecimal>>() {
+            @Override
+            public void onResponse(Call<Map<String, BigDecimal>> call, Response<Map<String, BigDecimal>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    // Extract totalValue from the response map
+                    BigDecimal totalValue = response.body().getOrDefault("totalValue", BigDecimal.ZERO);
+
+                    Platform.runLater(() -> {
+                        if (inventoryValueLabel != null) {
+                            inventoryValueLabel.setText(formatCurrency(totalValue));
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, BigDecimal>> call, Throwable t) {
+                System.err.println("Failed to load inventory value: " + t.getMessage());
+                Platform.runLater(() -> {
+                    if (inventoryValueLabel != null) {
+                        inventoryValueLabel.setText("₺0.00");
+                    }
+                });
+            }
+        });
+    }
+
+    // ========== BUSINESS ASSETS TAB ==========
+
+    private void loadBusinessAssets() {
+        // Load inventory value for assets tab
+        financeApi.getInventoryValue(1L).enqueue(new Callback<Map<String, BigDecimal>>() {
+            @Override
+            public void onResponse(Call<Map<String, BigDecimal>> call, Response<Map<String, BigDecimal>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    BigDecimal totalValue = response.body().getOrDefault("totalValue", BigDecimal.ZERO);
+                    Platform.runLater(() -> {
+                        if (assetInventoryValueLabel != null) {
+                            assetInventoryValueLabel.setText(formatCurrency(totalValue));
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, BigDecimal>> call, Throwable t) {
+                System.err.println("Failed to load asset inventory value: " + t.getMessage());
+                Platform.runLater(() -> {
+                    if (assetInventoryValueLabel != null) {
+                        assetInventoryValueLabel.setText("₺0.00");
+                    }
+                });
+            }
+        });
+
+        // Load net cash value for assets tab (CUMULATIVE, not just today)
+        financeApi.getCumulativeSummary(1L).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Object totalCashObj = response.body().get("totalCash");
+                    BigDecimal totalCash = totalCashObj != null
+                            ? new BigDecimal(totalCashObj.toString())
+                            : BigDecimal.ZERO;
+                    Platform.runLater(() -> {
+                        if (assetNetCashLabel != null) {
+                            assetNetCashLabel.setText(formatCurrency(totalCash));
+                            // Color code: green for positive, red for negative
+                            // Preserve the 32px font size from FXML
+                            if (totalCash.compareTo(BigDecimal.ZERO) > 0) {
+                                assetNetCashLabel.setStyle(
+                                        "-fx-text-fill: #27ae60; -fx-font-weight: bold; -fx-font-size: 32px;");
+                            } else if (totalCash.compareTo(BigDecimal.ZERO) < 0) {
+                                assetNetCashLabel.setStyle(
+                                        "-fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-font-size: 32px;");
+                            } else {
+                                assetNetCashLabel
+                                        .setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 32px;");
+                            }
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                System.err.println("Failed to load cumulative net cash: " + t.getMessage());
+                Platform.runLater(() -> {
+                    if (assetNetCashLabel != null) {
+                        assetNetCashLabel.setText("₺0.00");
+                    }
                 });
             }
         });

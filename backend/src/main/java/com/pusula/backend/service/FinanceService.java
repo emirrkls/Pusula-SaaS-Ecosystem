@@ -38,6 +38,7 @@ public class FinanceService {
     private final DailyClosingRepository dailyClosingRepository;
     private final CustomerRepository customerRepository;
     private final FixedExpenseDefinitionRepository fixedExpenseDefinitionRepository;
+    private final AuditLogService auditLogService;
 
     @Data
     @Builder
@@ -105,8 +106,57 @@ public class FinanceService {
                 .build();
     }
 
+    /**
+     * Get CUMULATIVE (all-time) financial summary for Boss View cards
+     * This dynamically calculates totalCash from ALL completed tickets minus ALL
+     * expenses
+     */
+    @Data
+    @Builder
+    public static class CumulativeSummary {
+        private BigDecimal totalCash; // All-time income - expenses
+        private BigDecimal totalInventoryValue; // Will be calculated separately
+    }
+
+    public CumulativeSummary getCumulativeSummary(Long companyId) {
+        // Calculate ALL-TIME Income from COMPLETED tickets
+        // EXCLUDE CURRENT_ACCOUNT payments (not liquid cash - creates debt instead)
+        List<ServiceTicket> allTickets = ticketRepository.findByCompanyId(companyId);
+
+        BigDecimal totalIncome = allTickets.stream()
+                .filter(t -> "COMPLETED".equals(t.getStatus()))
+                .filter(t -> t.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT) // Exclude
+                                                                                                              // credit
+                .map(ServiceTicket::getCollectedAmount)
+                .filter(amount -> amount != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Calculate ALL-TIME PAID Expenses
+        // These are expenses that actually left the cash register
+        List<Expense> allExpenses = expenseRepository.findByCompanyId(companyId);
+
+        BigDecimal totalExpenses = allExpenses.stream()
+                .map(Expense::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Calculate netCash = Liquid Income - Paid Expenses
+        // This should show negative if more money went out than came in
+        BigDecimal netCash = totalIncome.subtract(totalExpenses);
+
+        return CumulativeSummary.builder()
+                .totalCash(netCash)
+                .totalInventoryValue(BigDecimal.ZERO) // Will be set by controller
+                .build();
+    }
+
     public Expense addExpense(Expense expense) {
-        return expenseRepository.save(expense);
+        Expense saved = expenseRepository.save(expense);
+
+        // Log expense creation
+        auditLogService.log("CREATE", "EXPENSE", saved.getId(),
+                "Gider eklendi: " + saved.getDescription() + " (" + saved.getAmount() + " ₺)");
+
+        return saved;
     }
 
     public List<Expense> getRecentExpenses(Long companyId) {
@@ -127,6 +177,12 @@ public class FinanceService {
     }
 
     public void deleteExpense(Long id) {
+        // Log before deletion
+        Expense expense = expenseRepository.findById(id).orElse(null);
+        if (expense != null) {
+            auditLogService.log("DELETE", "EXPENSE", id,
+                    "Gider silindi: " + expense.getDescription() + " (" + expense.getAmount() + " ₺)");
+        }
         expenseRepository.deleteById(id);
     }
 
@@ -154,13 +210,11 @@ public class FinanceService {
                 .filter(amount -> amount != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Build income details with customer names (FIXED: proper customer name
-        // retrieval)
+        // Build income details with customer names
         List<DailySummaryDTO.IncomeItemDTO> incomeDetails = new ArrayList<>();
         for (ServiceTicket ticket : completedTicketsToday) {
             String customerName = "Unknown";
 
-            // Fetch customer name properly using map() instead of broken ifPresent()
             if (ticket.getCustomerId() != null) {
                 customerName = customerRepository.findById(ticket.getCustomerId())
                         .map(customer -> customer.getName())
@@ -174,15 +228,36 @@ public class FinanceService {
                     .build());
         }
 
-        // Calculate Expenses for this date
-        List<Expense> expenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, date, date);
+        // Get all expenses for this date
+        List<Expense> allExpenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, date, date);
 
-        BigDecimal totalExpense = expenses.stream()
+        // Separate DEVICE_SALE (income) from regular expenses
+        List<Expense> deviceSales = allExpenses.stream()
+                .filter(e -> ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
+                .collect(Collectors.toList());
+
+        List<Expense> regularExpenses = allExpenses.stream()
+                .filter(e -> !ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
+                .collect(Collectors.toList());
+
+        // Add DEVICE_SALE as income (convert negative to positive)
+        for (Expense sale : deviceSales) {
+            BigDecimal saleAmount = sale.getAmount().negate(); // Stored as negative, show as positive
+            totalIncome = totalIncome.add(saleAmount);
+            incomeDetails.add(DailySummaryDTO.IncomeItemDTO.builder()
+                    .ticketId(null) // No ticket ID for sales
+                    .customerName("Satış: " + sale.getDescription().replace("Satış: ", ""))
+                    .amount(saleAmount)
+                    .build());
+        }
+
+        // Calculate Expenses (excluding DEVICE_SALE)
+        BigDecimal totalExpense = regularExpenses.stream()
                 .map(Expense::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Build expense details
-        List<DailySummaryDTO.ExpenseItemDTO> expenseDetails = expenses.stream()
+        // Build expense details (excluding DEVICE_SALE)
+        List<DailySummaryDTO.ExpenseItemDTO> expenseDetails = regularExpenses.stream()
                 .map(expense -> DailySummaryDTO.ExpenseItemDTO.builder()
                         .id(expense.getId())
                         .category(expense.getCategory().name())
@@ -231,7 +306,14 @@ public class FinanceService {
                 .closedByUserId(userId)
                 .build();
 
-        return dailyClosingRepository.save(closing);
+        DailyClosing saved = dailyClosingRepository.save(closing);
+
+        // Log day closing
+        auditLogService.log("CREATE", "DAY_CLOSING", saved.getId(),
+                "Gün kapatıldı: " + date + " | Gelir: " + summary.getTotalIncome() + " ₺ | Gider: "
+                        + summary.getTotalExpense() + " ₺ | Net: " + summary.getNetCash() + " ₺");
+
+        return saved;
     }
 
     /**
@@ -265,11 +347,27 @@ public class FinanceService {
         List<Expense> monthExpenses = expenseRepository.findByCompanyIdAndDateBetween(
                 companyId, startOfMonth, endOfMonth);
 
+        // Debug logging
+        System.out.println("=== Backend: getFixedExpensesWithStatus ===");
+        System.out.println("Month range: " + startOfMonth + " to " + endOfMonth);
+        System.out.println("Total monthly expenses found: " + monthExpenses.size());
+        for (Expense exp : monthExpenses) {
+            System.out.println("  Expense: " + exp.getDescription() + " | Category: " + exp.getCategory() + " | Date: "
+                    + exp.getDate());
+        }
+
         // Convert to DTOs with payment status
         return definitions.stream().map(def -> {
-            // Check if this fixed expense was paid this month (by matching description)
+            // Check if this fixed expense was paid this month
+            // Match by description containing the fixed expense name (case-insensitive)
             boolean isPaid = monthExpenses.stream()
-                    .anyMatch(expense -> expense.getDescription().startsWith(def.getName()));
+                    .anyMatch(expense -> {
+                        String expDesc = expense.getDescription() != null ? expense.getDescription().toLowerCase() : "";
+                        String defName = def.getName() != null ? def.getName().toLowerCase() : "";
+                        return expDesc.contains(defName) || expDesc.startsWith(defName);
+                    });
+
+            System.out.println("  Fixed: " + def.getName() + " -> isPaid: " + isPaid);
 
             return FixedExpenseDefinitionDTO.builder()
                     .id(def.getId())
@@ -279,7 +377,7 @@ public class FinanceService {
                     .category(def.getCategory().name())
                     .dayOfMonth(def.getDayOfMonth())
                     .description(def.getDescription())
-                    .isPaidThisMonth(isPaid)
+                    .paidThisMonth(isPaid)
                     .build();
         }).collect(Collectors.toList());
     }
@@ -331,7 +429,13 @@ public class FinanceService {
                 .category(definition.getCategory())
                 .build();
 
-        return expenseRepository.save(expense);
+        Expense saved = expenseRepository.save(expense);
+
+        // Log fixed expense payment
+        auditLogService.log("CREATE", "EXPENSE", saved.getId(),
+                "Sabit gider ödendi: " + definition.getName() + " (" + definition.getDefaultAmount() + " ₺)");
+
+        return saved;
     }
 
     /**
@@ -481,7 +585,7 @@ public class FinanceService {
                         .category(def.getCategory().name())
                         .dayOfMonth(def.getDayOfMonth())
                         .description(def.getDescription())
-                        .isPaidThisMonth(false) // Already filtered out paid ones
+                        .paidThisMonth(false) // Already filtered out paid ones
                         .build())
                 .collect(Collectors.toList());
     }

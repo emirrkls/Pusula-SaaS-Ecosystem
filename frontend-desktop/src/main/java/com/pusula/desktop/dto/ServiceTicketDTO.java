@@ -16,6 +16,7 @@ public class ServiceTicketDTO {
     private LocalDateTime createdAt;
     private Long parentTicketId;
     private boolean isWarrantyCall;
+    private String customerName; // Display field for table
 
     // Getters and Setters
     public Long getId() {
@@ -112,5 +113,13 @@ public class ServiceTicketDTO {
 
     public void setWarrantyCall(boolean warrantyCall) {
         isWarrantyCall = warrantyCall;
+    }
+
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
     }
 }

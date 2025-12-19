@@ -1,5 +1,6 @@
 package com.pusula.desktop.dto;
 
+import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,5 +20,7 @@ public class FixedExpenseDefinitionDTO {
     private String category;
     private Integer dayOfMonth;
     private String description;
-    private boolean isPaidThisMonth; // Double payment prevention
+    @SerializedName("isPaidThisMonth")
+    private boolean paidThisMonth; // Maps to backend's isPaidThisMonth, getter: isPaidThisMonth()
+    private String frequency; // "MONTHLY" or "WEEKLY" from backend Enum
 }

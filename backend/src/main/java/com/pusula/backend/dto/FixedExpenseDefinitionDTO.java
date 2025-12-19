@@ -1,5 +1,6 @@
 package com.pusula.backend.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,5 +20,6 @@ public class FixedExpenseDefinitionDTO {
     private String category;
     private Integer dayOfMonth;
     private String description;
-    private boolean isPaidThisMonth; // Double payment prevention
+    @JsonProperty("isPaidThisMonth")
+    private boolean paidThisMonth; // Serialized as "isPaidThisMonth" in JSON
 }

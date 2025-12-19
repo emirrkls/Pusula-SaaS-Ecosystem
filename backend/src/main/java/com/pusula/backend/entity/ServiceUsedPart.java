@@ -26,6 +26,10 @@ public class ServiceUsedPart extends BaseEntity {
     @Column(name = "selling_price_snapshot")
     private BigDecimal sellingPriceSnapshot;
 
+    // NULL = from main inventory, set = from specific vehicle's stock
+    @Column(name = "source_vehicle_id")
+    private Long sourceVehicleId;
+
     public ServiceUsedPart() {
     }
 
@@ -75,6 +79,14 @@ public class ServiceUsedPart extends BaseEntity {
         this.sellingPriceSnapshot = sellingPriceSnapshot;
     }
 
+    public Long getSourceVehicleId() {
+        return sourceVehicleId;
+    }
+
+    public void setSourceVehicleId(Long sourceVehicleId) {
+        this.sourceVehicleId = sourceVehicleId;
+    }
+
     public static class ServiceUsedPartBuilder {
         private Long id;
         private Long companyId;
@@ -82,6 +94,7 @@ public class ServiceUsedPart extends BaseEntity {
         private Inventory inventory;
         private Integer quantityUsed;
         private BigDecimal sellingPriceSnapshot;
+        private Long sourceVehicleId;
 
         ServiceUsedPartBuilder() {
         }
@@ -116,8 +129,16 @@ public class ServiceUsedPart extends BaseEntity {
             return this;
         }
 
+        public ServiceUsedPartBuilder sourceVehicleId(Long sourceVehicleId) {
+            this.sourceVehicleId = sourceVehicleId;
+            return this;
+        }
+
         public ServiceUsedPart build() {
-            return new ServiceUsedPart(id, companyId, serviceTicket, inventory, quantityUsed, sellingPriceSnapshot);
+            ServiceUsedPart part = new ServiceUsedPart(id, companyId, serviceTicket, inventory, quantityUsed,
+                    sellingPriceSnapshot);
+            part.setSourceVehicleId(sourceVehicleId);
+            return part;
         }
     }
 }

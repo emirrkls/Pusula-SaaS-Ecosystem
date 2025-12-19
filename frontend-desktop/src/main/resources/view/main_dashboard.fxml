@@ -53,6 +53,22 @@
                   <Font size="14.0" />
                </font>
             </Button>
+            <Button fx:id="btnCommercial" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showCommercialDevices" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="%menu.commercial">
+               <padding>
+                  <Insets bottom="10.0" left="20.0" top="10.0" />
+               </padding>
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </Button>
+            <Button fx:id="btnProposals" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showProposals" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="Teklifler">
+               <padding>
+                  <Insets bottom="10.0" left="20.0" top="10.0" />
+               </padding>
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </Button>
             <Button fx:id="btnFinance" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showFinance" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-alignment: CENTER_LEFT;" text="%menu.finance">
                <padding>
                   <Insets bottom="10.0" left="20.0" top="10.0" />

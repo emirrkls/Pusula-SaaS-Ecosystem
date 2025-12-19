@@ -132,7 +132,7 @@ public class CustomerController {
             javafx.scene.Parent root = loader.load();
 
             CustomerDialogController controller = loader.getController();
-            controller.setOnSaveSuccess(this::loadCustomers);
+            controller.setOnSaveSuccess(savedCustomer -> loadCustomers());
 
             javafx.stage.Stage stage = new javafx.stage.Stage();
             stage.setTitle("Add New Customer");

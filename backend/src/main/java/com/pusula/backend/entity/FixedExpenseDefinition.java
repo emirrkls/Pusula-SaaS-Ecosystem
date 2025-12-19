@@ -34,8 +34,17 @@ public class FixedExpenseDefinition {
     private ExpenseCategory category;
 
     @Column(name = "day_of_month")
-    private Integer dayOfMonth; // e.g., 1 = pay on 1st of each month, nullable = pay anytime
+    private Integer dayOfMonth; // Day of month for payment (1-31)
 
     @Column(name = "description")
     private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "frequency", nullable = false)
+    @Builder.Default
+    private ExpenseFrequency frequency = ExpenseFrequency.MONTHLY;
+
+    @Column(name = "is_paid")
+    @Builder.Default
+    private Boolean isPaid = false;
 }

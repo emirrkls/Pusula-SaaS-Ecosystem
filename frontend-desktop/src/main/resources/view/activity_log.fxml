@@ -36,8 +36,11 @@
         <Label text="%activity_log.filter.to"/>
         <DatePicker fx:id="endDatePicker" promptText="%activity_log.filter.to" prefWidth="150"/>
         
+        <Label text="Kullanıcı"/>
+        <ComboBox fx:id="userCombo" promptText="Tümü" prefWidth="150"/>
+        
         <Label text="%activity_log.action"/>
-        <ComboBox fx:id="actionTypeCombo" promptText="%activity_log.filter.all" prefWidth="150"/>
+        <ComboBox fx:id="actionTypeCombo" promptText="%activity_log.filter.all" prefWidth="120"/>
         
         <Button text="%activity_log.filter.apply" onAction="#applyFilters" styleClass="btn-primary"/>
         <Button text="%activity_log.filter.reset" onAction="#resetFilters"/>
@@ -50,9 +53,8 @@
             <TableColumn fx:id="userColumn" text="%activity_log.user" prefWidth="120"/>
             <TableColumn fx:id="actionColumn" text="%activity_log.action" prefWidth="100"/>
             <TableColumn fx:id="entityColumn" text="%activity_log.entity" prefWidth="100"/>
-            <TableColumn fx:id="oldValueColumn" text="%activity_log.old_value" prefWidth="150"/>
-            <TableColumn fx:id="newValueColumn" text="%activity_log.new_value" prefWidth="150"/>
-            <TableColumn fx:id="descriptionColumn" text="%activity_log.description" prefWidth="250"/>
+            <TableColumn fx:id="descriptionColumn" text="%activity_log.description" prefWidth="300"/>
+            <TableColumn fx:id="actionsColumn" text="İşlemler" prefWidth="80"/>
         </columns>
         <placeholder>
             <Label text="%activity_log.no_data"/>

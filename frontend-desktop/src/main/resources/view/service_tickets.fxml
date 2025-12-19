@@ -43,10 +43,11 @@
                <content>
                   <TableView fx:id="activeTicketsTable" VBox.vgrow="ALWAYS">
                     <columns>
-                      <TableColumn fx:id="colActiveId" prefWidth="75.0" text="ID" />
-                      <TableColumn fx:id="colActiveDescription" prefWidth="200.0" text="%table.issue" />
+                      <TableColumn fx:id="colActiveId" prefWidth="60.0" text="ID" />
+                      <TableColumn fx:id="colActiveCustomer" prefWidth="150.0" text="%ticket.customer_name" />
+                      <TableColumn fx:id="colActiveDescription" prefWidth="180.0" text="%table.issue" />
                         <TableColumn fx:id="colActiveStatus" prefWidth="100.0" text="%dashboard.table.status" />
-                        <TableColumn fx:id="colActiveDate" prefWidth="150.0" text="%table.date" />
+                        <TableColumn fx:id="colActiveDate" prefWidth="120.0" text="%table.date" />
                     </columns>
                      <columnResizePolicy>
                         <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
@@ -58,10 +59,11 @@
                <content>
                   <TableView fx:id="historyTicketsTable" VBox.vgrow="ALWAYS">
                     <columns>
-                      <TableColumn fx:id="colHistoryId" prefWidth="75.0" text="ID" />
-                      <TableColumn fx:id="colHistoryDescription" prefWidth="200.0" text="%table.issue" />
+                      <TableColumn fx:id="colHistoryId" prefWidth="60.0" text="ID" />
+                      <TableColumn fx:id="colHistoryCustomer" prefWidth="150.0" text="%ticket.customer_name" />
+                      <TableColumn fx:id="colHistoryDescription" prefWidth="180.0" text="%table.issue" />
                         <TableColumn fx:id="colHistoryStatus" prefWidth="100.0" text="%dashboard.table.status" />
-                        <TableColumn fx:id="colHistoryDate" prefWidth="150.0" text="%table.date" />
+                        <TableColumn fx:id="colHistoryDate" prefWidth="120.0" text="%table.date" />
                     </columns>
                      <columnResizePolicy>
                         <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />

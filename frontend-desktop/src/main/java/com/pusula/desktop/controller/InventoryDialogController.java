@@ -38,6 +38,12 @@ public class InventoryDialogController {
     @FXML
     private TextField sellPriceField;
 
+    @FXML
+    private TextField brandField;
+
+    @FXML
+    private TextField categoryField;
+
     private InventoryDTO currentItem;
     private Runnable onSaveSuccess;
 
@@ -53,6 +59,10 @@ public class InventoryDialogController {
             criticalLevelField.setText(String.valueOf(item.getCriticalLevel()));
             buyPriceField.setText(item.getBuyPrice().toString());
             sellPriceField.setText(item.getSellPrice().toString());
+            if (item.getBrand() != null)
+                brandField.setText(item.getBrand());
+            if (item.getCategory() != null)
+                categoryField.setText(item.getCategory());
         } else {
             titleLabel.setText(bundle.getString("inventory.form.title.add"));
         }
@@ -88,6 +98,8 @@ public class InventoryDialogController {
             itemToSave.setCriticalLevel(criticalLevelStr.isEmpty() ? 0 : Integer.parseInt(criticalLevelStr));
             itemToSave.setBuyPrice(new BigDecimal(buyPriceStr));
             itemToSave.setSellPrice(sellPriceStr.isEmpty() ? BigDecimal.ZERO : new BigDecimal(sellPriceStr));
+            itemToSave.setBrand(brandField.getText().isEmpty() ? null : brandField.getText());
+            itemToSave.setCategory(categoryField.getText().isEmpty() ? null : categoryField.getText());
 
             InventoryApi api = RetrofitClient.getClient().create(InventoryApi.class);
             Callback<InventoryDTO> callback = new Callback<>() {

@@ -1,6 +1,7 @@
 package com.pusula.desktop.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public class InventoryDTO {
     private Long id;
@@ -9,6 +10,13 @@ public class InventoryDTO {
     private BigDecimal buyPrice;
     private BigDecimal sellPrice;
     private Integer criticalLevel;
+    private String brand;
+    private String category;
+
+    // Stock distribution fields
+    private Integer warehouseQuantity;
+    private Integer inVehicleQuantity;
+    private List<VehicleStockInfo> vehicleDistribution;
 
     // Getters and Setters
     public Long getId() {
@@ -57,5 +65,45 @@ public class InventoryDTO {
 
     public void setCriticalLevel(Integer criticalLevel) {
         this.criticalLevel = criticalLevel;
+    }
+
+    public String getBrand() {
+        return brand;
+    }
+
+    public void setBrand(String brand) {
+        this.brand = brand;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public Integer getWarehouseQuantity() {
+        return warehouseQuantity;
+    }
+
+    public void setWarehouseQuantity(Integer warehouseQuantity) {
+        this.warehouseQuantity = warehouseQuantity;
+    }
+
+    public Integer getInVehicleQuantity() {
+        return inVehicleQuantity;
+    }
+
+    public void setInVehicleQuantity(Integer inVehicleQuantity) {
+        this.inVehicleQuantity = inVehicleQuantity;
+    }
+
+    public List<VehicleStockInfo> getVehicleDistribution() {
+        return vehicleDistribution;
+    }
+
+    public void setVehicleDistribution(List<VehicleStockInfo> vehicleDistribution) {
+        this.vehicleDistribution = vehicleDistribution;
     }
 }

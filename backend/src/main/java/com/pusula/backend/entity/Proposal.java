@@ -18,6 +18,9 @@ public class Proposal extends BaseEntity {
     @Column(name = "customer_id", nullable = false)
     private Long customerId;
 
+    @Column(name = "prepared_by_id")
+    private Long preparedById;
+
     @OneToMany(mappedBy = "proposal", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProposalItem> items = new ArrayList<>();
 
@@ -31,22 +34,19 @@ public class Proposal extends BaseEntity {
     @Column(name = "valid_until")
     private LocalDate validUntil;
 
+    @Column(columnDefinition = "TEXT")
+    private String note;
+
+    @Column(name = "tax_rate")
+    private BigDecimal taxRate;
+
+    @Column
+    private BigDecimal discount;
+
+    @Column
+    private String title;
+
     public Proposal() {
-    }
-
-    public Proposal(Long id, Long companyId, Long customerId, List<ProposalItem> items, BigDecimal totalPrice,
-            ProposalStatus status, LocalDate validUntil) {
-        this.setId(id);
-        this.setCompanyId(companyId);
-        this.customerId = customerId;
-        this.items = items;
-        this.totalPrice = totalPrice;
-        this.status = status;
-        this.validUntil = validUntil;
-    }
-
-    public static ProposalBuilder builder() {
-        return new ProposalBuilder();
     }
 
     public Long getCustomerId() {
@@ -55,6 +55,14 @@ public class Proposal extends BaseEntity {
 
     public void setCustomerId(Long customerId) {
         this.customerId = customerId;
+    }
+
+    public Long getPreparedById() {
+        return preparedById;
+    }
+
+    public void setPreparedById(Long preparedById) {
+        this.preparedById = preparedById;
     }
 
     public List<ProposalItem> getItems() {
@@ -89,59 +97,39 @@ public class Proposal extends BaseEntity {
         this.validUntil = validUntil;
     }
 
-    public enum ProposalStatus {
-        DRAFT, SENT, APPROVED, REJECTED
+    public String getNote() {
+        return note;
     }
 
-    public static class ProposalBuilder {
-        private Long id;
-        private Long companyId;
-        private Long customerId;
-        private List<ProposalItem> items;
-        private BigDecimal totalPrice;
-        private ProposalStatus status;
-        private LocalDate validUntil;
+    public void setNote(String note) {
+        this.note = note;
+    }
 
-        ProposalBuilder() {
-        }
+    public BigDecimal getTaxRate() {
+        return taxRate;
+    }
 
-        public ProposalBuilder id(Long id) {
-            this.id = id;
-            return this;
-        }
+    public void setTaxRate(BigDecimal taxRate) {
+        this.taxRate = taxRate;
+    }
 
-        public ProposalBuilder companyId(Long companyId) {
-            this.companyId = companyId;
-            return this;
-        }
+    public BigDecimal getDiscount() {
+        return discount;
+    }
 
-        public ProposalBuilder customerId(Long customerId) {
-            this.customerId = customerId;
-            return this;
-        }
+    public void setDiscount(BigDecimal discount) {
+        this.discount = discount;
+    }
 
-        public ProposalBuilder items(List<ProposalItem> items) {
-            this.items = items;
-            return this;
-        }
+    public String getTitle() {
+        return title;
+    }
 
-        public ProposalBuilder totalPrice(BigDecimal totalPrice) {
-            this.totalPrice = totalPrice;
-            return this;
-        }
+    public void setTitle(String title) {
+        this.title = title;
+    }
 
-        public ProposalBuilder status(ProposalStatus status) {
-            this.status = status;
-            return this;
-        }
-
-        public ProposalBuilder validUntil(LocalDate validUntil) {
-            this.validUntil = validUntil;
-            return this;
-        }
-
-        public Proposal build() {
-            return new Proposal(id, companyId, customerId, items, totalPrice, status, validUntil);
-        }
+    public enum ProposalStatus {
+        DRAFT, SENT, APPROVED, REJECTED
     }
 }

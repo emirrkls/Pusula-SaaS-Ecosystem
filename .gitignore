@@ -1,18 +1,58 @@
-# Maven
+# Maven Build Artifacts
 target/
+**/target/
 !.mvn/wrapper/maven-wrapper.jar
 
-# IDE
-.vscode/
+# Compiled Java Classes
+*.class
+
+# IDE - IntelliJ
 .idea/
 *.iml
+out/
+
+# IDE - VS Code
+.vscode/
+
+# IDE - Eclipse
+.project
+.classpath
+.settings/
 
 # Logs
 *.log
+logs/
 
-# OS
+# OS Generated Files
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Secrets
+# Environment / Secrets
 .env
+*.env.local
+
+# Temp Files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Package Files
+*.jar
+*.war
+*.ear
+!.mvn/wrapper/*.jar
+
+# JVM Crash Logs
+hs_err_pid*
+replay_pid*
+
+# Node.js
+node_modules/
+**/node_modules/
+.next/
+dist/
+build/
+*.tsbuildinfo

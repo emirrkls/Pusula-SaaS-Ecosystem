@@ -83,14 +83,15 @@ public class DashboardController {
     @FXML
     private void handleCriticalStockClick() {
         if (mainController != null) {
-            mainController.showInventory();
+            mainController.showInventory(true);
         }
     }
 
     @FXML
     private void handlePendingProposalsClick() {
-        // TODO: Navigate to Proposals view when implemented.
-        System.out.println("Navigate to Proposals clicked");
+        if (mainController != null) {
+            mainController.showProposals();
+        }
     }
 
     private void setupTable() {
@@ -395,12 +396,25 @@ public class DashboardController {
     private void populateChart(Map<String, Map<String, Integer>> data) {
         performanceChart.getData().clear();
 
-        // Get last 7 days
-        List<String> last7Days = new ArrayList<>();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        // Get the CategoryAxis and clear its categories
+        javafx.scene.chart.CategoryAxis xAxis = (javafx.scene.chart.CategoryAxis) performanceChart.getXAxis();
+        xAxis.setAutoRanging(false);
+        xAxis.getCategories().clear();
+
+        // Get last 7 days - use yyyy-MM-dd for API matching, dd/MM for display
+        List<LocalDate> last7Days = new ArrayList<>();
+        List<String> displayDates = new ArrayList<>();
+        DateTimeFormatter apiFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        DateTimeFormatter displayFormatter = DateTimeFormatter.ofPattern("dd/MM");
+
         for (int i = 6; i >= 0; i--) {
-            last7Days.add(LocalDate.now().minusDays(i).format(formatter));
+            LocalDate date = LocalDate.now().minusDays(i);
+            last7Days.add(date);
+            displayDates.add(date.format(displayFormatter));
         }
+
+        // Set explicit categories for the X-axis
+        xAxis.setCategories(FXCollections.observableArrayList(displayDates));
 
         // Create a series for each technician
         for (Map.Entry<String, Map<String, Integer>> entry : data.entrySet()) {
@@ -411,9 +425,12 @@ public class DashboardController {
             series.setName(techName);
 
             // Add data points for each day
-            for (String date : last7Days) {
-                int count = dailyCounts.getOrDefault(date, 0);
-                series.getData().add(new XYChart.Data<>(date, count));
+            for (int i = 0; i < last7Days.size(); i++) {
+                LocalDate date = last7Days.get(i);
+                String apiDate = date.format(apiFormatter);
+                String displayDate = displayDates.get(i);
+                int count = dailyCounts.getOrDefault(apiDate, 0);
+                series.getData().add(new XYChart.Data<>(displayDate, count));
             }
 
             performanceChart.getData().add(series);
@@ -478,10 +495,11 @@ public class DashboardController {
             public void onResponse(retrofit2.Call<java.util.List<com.pusula.desktop.dto.ProposalDTO>> call,
                     retrofit2.Response<java.util.List<com.pusula.desktop.dto.ProposalDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    long pendingCount = response.body().stream()
-                            .filter(p -> "PENDING".equalsIgnoreCase(p.getStatus()))
+                    // Count DRAFT proposals (pending to be sent)
+                    long draftCount = response.body().stream()
+                            .filter(p -> "DRAFT".equalsIgnoreCase(p.getStatus()))
                             .count();
-                    Platform.runLater(() -> pendingProposalsLabel.setText(String.valueOf(pendingCount)));
+                    Platform.runLater(() -> pendingProposalsLabel.setText(String.valueOf(draftCount)));
                 } else {
                     Platform.runLater(() -> pendingProposalsLabel.setText("0"));
                 }

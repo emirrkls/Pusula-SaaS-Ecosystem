@@ -52,6 +52,7 @@ public class ReportService {
         }
 
         private final ServiceUsedPartRepository serviceUsedPartRepository;
+        private final ProposalRepository proposalRepository;
 
         public ReportService(ServiceTicketRepository ticketRepository,
                         CustomerRepository customerRepository,
@@ -59,7 +60,8 @@ public class ReportService {
                         DailyClosingRepository dailyClosingRepository,
                         ExpenseRepository expenseRepository,
                         UserRepository userRepository,
-                        ServiceUsedPartRepository serviceUsedPartRepository) {
+                        ServiceUsedPartRepository serviceUsedPartRepository,
+                        ProposalRepository proposalRepository) {
                 this.ticketRepository = ticketRepository;
                 this.customerRepository = customerRepository;
                 this.companyRepository = companyRepository;
@@ -67,6 +69,7 @@ public class ReportService {
                 this.expenseRepository = expenseRepository;
                 this.userRepository = userRepository;
                 this.serviceUsedPartRepository = serviceUsedPartRepository;
+                this.proposalRepository = proposalRepository;
         }
 
         /**
@@ -351,7 +354,7 @@ public class ReportService {
                 PdfPCell techCell = new PdfPCell();
                 techCell.setBorder(Rectangle.NO_BORDER);
                 techCell.setHorizontalAlignment(Element.ALIGN_LEFT);
-                techCell.setMinimumHeight(70f);
+                techCell.setMinimumHeight(80f);
 
                 // Try to load signature image
                 boolean signatureLoaded = false;
@@ -371,19 +374,22 @@ public class ReportService {
                         }
                 }
 
-                // Fallback: name + line if no signature image
-                if (!signatureLoaded) {
-                        String techName = technician != null && technician.getFullName() != null
-                                        ? technician.getFullName()
-                                        : "";
-                        Paragraph techNameP = new Paragraph(techName, NORMAL_FONT);
-                        techCell.addElement(techNameP);
+                // Add technician name (always shown)
+                String techName = technician != null && technician.getFullName() != null
+                                ? technician.getFullName()
+                                : "";
 
-                        // Add signature line
+                // If no signature image, add a line for handwritten signature
+                if (!signatureLoaded) {
                         Paragraph techLine = new Paragraph("_______________________", NORMAL_FONT);
                         techLine.setSpacingBefore(3);
                         techCell.addElement(techLine);
                 }
+
+                // Add technician name below signature
+                Paragraph techNameP = new Paragraph(techName, NORMAL_FONT);
+                techNameP.setSpacingBefore(5);
+                techCell.addElement(techNameP);
 
                 Paragraph techSigP = new Paragraph("Teknisyen İmzası", SMALL_FONT);
                 techSigP.setSpacingBefore(2);
@@ -440,20 +446,345 @@ public class ReportService {
         }
 
         /**
-         * Generate Proposal Form PDF (Stub)
+         * Generate Proposal PDF with items table and signature
          */
         public byte[] generateProposalForm(Long proposalId) {
                 try {
+                        Proposal proposal = proposalRepository.findById(proposalId)
+                                        .orElseThrow(() -> new RuntimeException("Teklif bulunamadı: " + proposalId));
+
+                        Customer customer = customerRepository.findById(proposal.getCustomerId())
+                                        .orElseThrow(() -> new RuntimeException("Müşteri bulunamadı"));
+
+                        Company company = companyRepository.findById(proposal.getCompanyId())
+                                        .orElseThrow(() -> new RuntimeException("Şirket bulunamadı"));
+
+                        User preparedBy = null;
+                        if (proposal.getPreparedById() != null) {
+                                preparedBy = userRepository.findById(proposal.getPreparedById()).orElse(null);
+                        }
+
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                        Document document = new Document();
+                        Document document = new Document(PageSize.A4, 50, 50, 50, 50);
                         PdfWriter.getInstance(document, baos);
                         document.open();
-                        document.add(new Paragraph("Proposal Form - Not Implemented Yet"));
+
+                        // Header
+                        addProposalHeader(document, company, proposal);
+
+                        // Customer Info
+                        addProposalCustomerSection(document, customer, company);
+
+                        // Items Table
+                        addProposalItemsTable(document, proposal);
+
+                        // Totals
+                        addProposalTotals(document, proposal);
+
+                        // Notes
+                        if (proposal.getNote() != null && !proposal.getNote().isEmpty()) {
+                                document.add(new Paragraph("\n"));
+                                Paragraph noteLabel = new Paragraph("Notlar:", SECTION_FONT);
+                                document.add(noteLabel);
+                                Paragraph noteText = new Paragraph(proposal.getNote(), NORMAL_FONT);
+                                document.add(noteText);
+                        }
+
+                        // Validity
+                        if (proposal.getValidUntil() != null) {
+                                document.add(new Paragraph("\n"));
+                                Paragraph validity = new Paragraph("Bu teklif " +
+                                                proposal.getValidUntil().format(DATE_FORMAT)
+                                                + " tarihine kadar geçerlidir.", SMALL_FONT);
+                                document.add(validity);
+                        }
+
+                        // Signature Section
+                        addProposalSignatureSection(document, preparedBy, customer);
+
                         document.close();
                         return baos.toByteArray();
+
                 } catch (Exception e) {
-                        throw new RuntimeException(e);
+                        throw new RuntimeException("PDF oluşturma hatası: " + e.getMessage(), e);
                 }
+        }
+
+        private void addProposalHeader(Document document, Company company, Proposal proposal) throws DocumentException {
+                PdfPTable headerTable = new PdfPTable(2);
+                headerTable.setWidthPercentage(100);
+                headerTable.setWidths(new float[] { 1f, 1f });
+
+                // Left: Logo
+                PdfPCell logoCell = new PdfPCell();
+                logoCell.setBorder(Rectangle.NO_BORDER);
+                logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+
+                if (company.getLogoPath() != null && !company.getLogoPath().isEmpty()) {
+                        try {
+                                java.nio.file.Path path = java.nio.file.Paths.get("uploads", company.getLogoPath());
+                                if (java.nio.file.Files.exists(path)) {
+                                        Image logo = Image.getInstance(path.toAbsolutePath().toString());
+                                        logo.scaleToFit(120, 60);
+                                        logoCell.addElement(logo);
+                                }
+                        } catch (Exception e) {
+                                // Ignore if logo fails
+                        }
+                }
+                headerTable.addCell(logoCell);
+
+                // Right: Proposal No and Date
+                PdfPCell infoCell = new PdfPCell();
+                infoCell.setBorder(Rectangle.NO_BORDER);
+                infoCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                Paragraph idP = new Paragraph("No: T-" + proposal.getId(), NORMAL_FONT);
+                idP.setAlignment(Element.ALIGN_RIGHT);
+                infoCell.addElement(idP);
+                Paragraph dateP = new Paragraph("Tarih: " + java.time.LocalDate.now().format(DATE_FORMAT), NORMAL_FONT);
+                dateP.setAlignment(Element.ALIGN_RIGHT);
+                infoCell.addElement(dateP);
+                headerTable.addCell(infoCell);
+
+                document.add(headerTable);
+                document.add(new Paragraph("\n"));
+
+                // Centered Title
+                String titleText = proposal.getTitle() != null && !proposal.getTitle().isEmpty()
+                                ? proposal.getTitle()
+                                : "TEKLİF";
+                Paragraph title = new Paragraph(titleText, HEADER_FONT);
+                title.setAlignment(Element.ALIGN_CENTER);
+                document.add(title);
+                document.add(new Paragraph("\n"));
+        }
+
+        private void addProposalCustomerSection(Document document, Customer customer, Company company)
+                        throws DocumentException {
+                PdfPTable table = new PdfPTable(2);
+                table.setWidthPercentage(100);
+                table.setSpacingBefore(10);
+                table.setWidths(new float[] { 1f, 1f });
+
+                // Left: Company Info
+                PdfPCell companyCell = new PdfPCell();
+                companyCell.setBorder(Rectangle.NO_BORDER);
+                companyCell.addElement(new Paragraph("Firma Bilgileri:", SECTION_FONT));
+                companyCell.addElement(new Paragraph(company.getName(), NORMAL_FONT));
+                if (company.getAddress() != null) {
+                        companyCell.addElement(new Paragraph(company.getAddress(), SMALL_FONT));
+                }
+                if (company.getPhone() != null) {
+                        companyCell.addElement(new Paragraph("Tel: " + company.getPhone(), SMALL_FONT));
+                }
+                if (company.getEmail() != null) {
+                        companyCell.addElement(new Paragraph(company.getEmail(), SMALL_FONT));
+                }
+                table.addCell(companyCell);
+
+                // Right: Customer Info
+                PdfPCell customerCell = new PdfPCell();
+                customerCell.setBorder(Rectangle.NO_BORDER);
+                customerCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                Paragraph custLabel = new Paragraph("Müşteri Bilgileri:", SECTION_FONT);
+                custLabel.setAlignment(Element.ALIGN_RIGHT);
+                customerCell.addElement(custLabel);
+                Paragraph custName = new Paragraph(customer.getName(), NORMAL_FONT);
+                custName.setAlignment(Element.ALIGN_RIGHT);
+                customerCell.addElement(custName);
+                if (customer.getAddress() != null) {
+                        Paragraph custAddr = new Paragraph(customer.getAddress(), SMALL_FONT);
+                        custAddr.setAlignment(Element.ALIGN_RIGHT);
+                        customerCell.addElement(custAddr);
+                }
+                if (customer.getPhone() != null) {
+                        Paragraph custPhone = new Paragraph("Tel: " + customer.getPhone(), SMALL_FONT);
+                        custPhone.setAlignment(Element.ALIGN_RIGHT);
+                        customerCell.addElement(custPhone);
+                }
+                table.addCell(customerCell);
+
+                document.add(table);
+                document.add(new Paragraph("\n"));
+        }
+
+        private void addProposalItemsTable(Document document, Proposal proposal) throws DocumentException {
+                Paragraph label = new Paragraph("Teklif Kalemleri:", SECTION_FONT);
+                document.add(label);
+
+                PdfPTable table = new PdfPTable(4);
+                table.setWidthPercentage(100);
+                table.setSpacingBefore(5);
+                table.setWidths(new float[] { 3f, 1f, 1.5f, 1.5f });
+
+                // Header
+                String[] headers = { "Açıklama", "Adet", "Birim Fiyat", "Tutar" };
+                for (String h : headers) {
+                        PdfPCell headerCell = new PdfPCell(new Phrase(h, SMALL_BOLD_FONT));
+                        headerCell.setBackgroundColor(new Color(2, 10, 85));
+                        headerCell.setPadding(8);
+                        headerCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                        headerCell.setPhrase(new Phrase(h, new Font(turkishBaseFont, 9, Font.BOLD, Color.WHITE)));
+                        table.addCell(headerCell);
+                }
+
+                // Items
+                boolean alternate = false;
+                for (ProposalItem item : proposal.getItems()) {
+                        Color bgColor = alternate ? new Color(248, 249, 250) : Color.WHITE;
+                        alternate = !alternate;
+
+                        PdfPCell descCell = new PdfPCell(new Phrase(item.getDescription(), NORMAL_FONT));
+                        descCell.setBackgroundColor(bgColor);
+                        descCell.setPadding(6);
+                        table.addCell(descCell);
+
+                        PdfPCell qtyCell = new PdfPCell(new Phrase(String.valueOf(item.getQuantity()), NORMAL_FONT));
+                        qtyCell.setBackgroundColor(bgColor);
+                        qtyCell.setPadding(6);
+                        qtyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                        table.addCell(qtyCell);
+
+                        PdfPCell priceCell = new PdfPCell(new Phrase(formatCurrency(item.getUnitPrice()), NORMAL_FONT));
+                        priceCell.setBackgroundColor(bgColor);
+                        priceCell.setPadding(6);
+                        priceCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                        table.addCell(priceCell);
+
+                        PdfPCell totalCell = new PdfPCell(
+                                        new Phrase(formatCurrency(item.getTotalPrice()), NORMAL_FONT));
+                        totalCell.setBackgroundColor(bgColor);
+                        totalCell.setPadding(6);
+                        totalCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                        table.addCell(totalCell);
+                }
+
+                document.add(table);
+        }
+
+        private void addProposalTotals(Document document, Proposal proposal) throws DocumentException {
+                PdfPTable table = new PdfPTable(2);
+                table.setWidthPercentage(50);
+                table.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                table.setSpacingBefore(10);
+                table.setWidths(new float[] { 1f, 1f });
+
+                java.math.BigDecimal subtotal = proposal.getItems().stream()
+                                .map(ProposalItem::getTotalPrice)
+                                .filter(p -> p != null)
+                                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+                java.math.BigDecimal taxRate = proposal.getTaxRate() != null ? proposal.getTaxRate()
+                                : new java.math.BigDecimal("20");
+                java.math.BigDecimal discount = proposal.getDiscount() != null ? proposal.getDiscount()
+                                : java.math.BigDecimal.ZERO;
+                java.math.BigDecimal taxAmount = subtotal.multiply(taxRate).divide(new java.math.BigDecimal("100"), 2,
+                                java.math.RoundingMode.HALF_UP);
+                java.math.BigDecimal total = subtotal.add(taxAmount).subtract(discount);
+
+                addProposalTotalRow(table, "Ara Toplam:", formatCurrency(subtotal));
+                addProposalTotalRow(table, "KDV (%" + taxRate.intValue() + "):", formatCurrency(taxAmount));
+                if (discount.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        addProposalTotalRow(table, "İndirim:", "-" + formatCurrency(discount));
+                }
+
+                // Total row with bold
+                PdfPCell labelCell = new PdfPCell(new Phrase("TOPLAM:", SECTION_FONT));
+                labelCell.setBorder(Rectangle.TOP);
+                labelCell.setPadding(5);
+                table.addCell(labelCell);
+
+                PdfPCell valueCell = new PdfPCell(new Phrase(formatCurrency(total), SECTION_FONT));
+                valueCell.setBorder(Rectangle.TOP);
+                valueCell.setPadding(5);
+                valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                table.addCell(valueCell);
+
+                document.add(table);
+        }
+
+        private void addProposalTotalRow(PdfPTable table, String label, String value) {
+                PdfPCell labelCell = new PdfPCell(new Phrase(label, NORMAL_FONT));
+                labelCell.setBorder(Rectangle.NO_BORDER);
+                labelCell.setPadding(3);
+                table.addCell(labelCell);
+
+                PdfPCell valueCell = new PdfPCell(new Phrase(value, NORMAL_FONT));
+                valueCell.setBorder(Rectangle.NO_BORDER);
+                valueCell.setPadding(3);
+                valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                table.addCell(valueCell);
+        }
+
+        private void addProposalSignatureSection(Document document, User preparedBy, Customer customer)
+                        throws DocumentException {
+                PdfPTable table = new PdfPTable(2);
+                table.setWidthPercentage(100);
+                table.setSpacingBefore(40);
+                table.setWidths(new float[] { 1f, 1f });
+
+                // Prepared By Signature
+                PdfPCell prepCell = new PdfPCell();
+                prepCell.setBorder(Rectangle.NO_BORDER);
+                prepCell.setMinimumHeight(80f);
+
+                boolean signatureLoaded = false;
+                if (preparedBy != null && preparedBy.getSignaturePath() != null
+                                && !preparedBy.getSignaturePath().isEmpty()) {
+                        try {
+                                java.nio.file.Path path = java.nio.file.Paths.get("uploads",
+                                                preparedBy.getSignaturePath());
+                                if (java.nio.file.Files.exists(path)) {
+                                        Image signatureImg = Image.getInstance(path.toAbsolutePath().toString());
+                                        signatureImg.scaleToFit(150, 50);
+                                        prepCell.addElement(signatureImg);
+                                        signatureLoaded = true;
+                                }
+                        } catch (Exception e) {
+                        }
+                }
+
+                if (!signatureLoaded) {
+                        prepCell.addElement(new Paragraph("_______________________", NORMAL_FONT));
+                }
+
+                String prepName = preparedBy != null && preparedBy.getFullName() != null ? preparedBy.getFullName()
+                                : "";
+                Paragraph prepNameP = new Paragraph(prepName, NORMAL_FONT);
+                prepNameP.setSpacingBefore(5);
+                prepCell.addElement(prepNameP);
+                prepCell.addElement(new Paragraph("Hazırlayan", SMALL_FONT));
+                table.addCell(prepCell);
+
+                // Customer Approval
+                PdfPCell custCell = new PdfPCell();
+                custCell.setBorder(Rectangle.NO_BORDER);
+                custCell.setMinimumHeight(80f);
+                custCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+
+                String custName = customer != null && customer.getName() != null ? customer.getName() : "";
+                Paragraph custNameP = new Paragraph(custName, NORMAL_FONT);
+                custNameP.setAlignment(Element.ALIGN_RIGHT);
+                custCell.addElement(custNameP);
+
+                Paragraph custLine = new Paragraph("_______________________", NORMAL_FONT);
+                custLine.setAlignment(Element.ALIGN_RIGHT);
+                custLine.setSpacingBefore(3);
+                custCell.addElement(custLine);
+
+                Paragraph custLabel = new Paragraph("Müşteri Onayı", SMALL_FONT);
+                custLabel.setAlignment(Element.ALIGN_RIGHT);
+                custLabel.setSpacingBefore(2);
+                custCell.addElement(custLabel);
+                table.addCell(custCell);
+
+                document.add(table);
+        }
+
+        private String formatCurrency(java.math.BigDecimal amount) {
+                if (amount == null)
+                        return "0,00 ₺";
+                return String.format(Locale.forLanguageTag("tr-TR"), "%,.2f ₺", amount);
         }
 
         // ========== MONTHLY FINANCIAL REPORTS ==========

@@ -27,7 +27,7 @@ public interface ServiceTicketApi {
     Call<List<ServiceUsedPartDTO>> getUsedParts(@Path("id") Long id);
 
     @PATCH("api/tickets/{id}/complete")
-    Call<ServiceTicketDTO> completeService(@Path("id") Long id, @Query("amount") java.math.BigDecimal amount);
+    Call<ServiceTicketDTO> completeService(@Path("id") Long id, @Body java.util.Map<String, Object> request);
 
     @PATCH("api/tickets/{id}/cancel")
     Call<ServiceTicketDTO> cancelService(@Path("id") Long id);

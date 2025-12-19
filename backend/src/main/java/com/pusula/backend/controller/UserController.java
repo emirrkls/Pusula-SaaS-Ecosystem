@@ -58,10 +58,9 @@ public class UserController {
         User currentUser = getCurrentUser();
         List<User> users = userRepository.findByCompanyId(currentUser.getCompanyId());
 
-        // Filter for technicians - checking for both "TECHNICIAN" and "ADMIN" for now
-        // since sample data might be mixed
+        // Filter for technicians only
         List<User> technicians = users.stream()
-                .filter(u -> "TECHNICIAN".equalsIgnoreCase(u.getRole()) || "ADMIN".equalsIgnoreCase(u.getRole()))
+                .filter(u -> "TECHNICIAN".equalsIgnoreCase(u.getRole()))
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(mapToDTOs(technicians));

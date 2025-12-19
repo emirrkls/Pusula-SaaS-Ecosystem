@@ -56,6 +56,22 @@
             </VBox>
          </children>
       </HBox>
+      <HBox spacing="15.0">
+         <children>
+            <VBox spacing="5.0" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label text="%inventory.brand" />
+                  <TextField fx:id="brandField" promptText="e.g. Bosch, Samsung" />
+               </children>
+            </VBox>
+            <VBox spacing="5.0" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label text="%inventory.category" />
+                  <TextField fx:id="categoryField" promptText="e.g. Filtre, Motor" />
+               </children>
+            </VBox>
+         </children>
+      </HBox>
       <HBox alignment="CENTER_RIGHT" spacing="10.0">
          <children>
             <Button mnemonicParsing="false" onAction="#handleCancel" text="%btn.cancel" />

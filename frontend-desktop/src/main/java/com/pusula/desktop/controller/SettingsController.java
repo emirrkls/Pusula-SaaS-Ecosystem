@@ -3,8 +3,10 @@ package com.pusula.desktop.controller;
 import com.pusula.desktop.api.CompanyApi;
 import com.pusula.desktop.api.FinanceApi;
 import com.pusula.desktop.api.UserApi;
+import com.pusula.desktop.api.VehicleApi;
 import com.pusula.desktop.dto.FixedExpenseDefinitionDTO;
 import com.pusula.desktop.dto.UserDTO;
+import com.pusula.desktop.dto.VehicleDTO;
 import com.pusula.desktop.entity.Company;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
@@ -63,9 +65,22 @@ public class SettingsController {
     @FXML
     private TextArea txtCompanyAddress;
 
+    // Vehicles Tab
+    @FXML
+    private TableView<VehicleDTO> vehiclesTable;
+    @FXML
+    private TableColumn<VehicleDTO, Long> colVehicleId;
+    @FXML
+    private TableColumn<VehicleDTO, String> colLicensePlate;
+    @FXML
+    private TableColumn<VehicleDTO, String> colDriverName;
+    @FXML
+    private TableColumn<VehicleDTO, String> colVehicleStatus;
+
     private FinanceApi financeApi;
     private UserApi userApi;
     private CompanyApi companyApi;
+    private VehicleApi vehicleApi;
     private ResourceBundle bundle;
 
     @FXML
@@ -74,13 +89,16 @@ public class SettingsController {
         financeApi = RetrofitClient.getClient().create(FinanceApi.class);
         userApi = RetrofitClient.getClient().create(UserApi.class);
         companyApi = RetrofitClient.getClient().create(CompanyApi.class);
+        vehicleApi = RetrofitClient.getClient().create(VehicleApi.class);
 
         setupFixedExpensesTable();
         setupUsersTable();
+        setupVehiclesTable();
 
         loadFixedExpenses();
         loadUsers();
         loadCompanyProfile();
+        loadVehicles();
     }
 
     // ============ FIXED EXPENSES TAB (existing) ============
@@ -106,6 +124,32 @@ public class SettingsController {
 
         colDescription.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
                 cellData.getValue().getDescription() != null ? cellData.getValue().getDescription() : ""));
+
+        // Row factory to highlight overdue unpaid expenses in red
+        fixedExpensesTable.setRowFactory(tv -> new javafx.scene.control.TableRow<FixedExpenseDefinitionDTO>() {
+            @Override
+            protected void updateItem(FixedExpenseDefinitionDTO item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setStyle("");
+                } else {
+                    int currentDay = java.time.LocalDate.now().getDayOfMonth();
+                    Integer dueDay = item.getDayOfMonth();
+                    boolean isOverdue = !item.isPaidThisMonth() && dueDay != null && dueDay < currentDay;
+
+                    if (isOverdue) {
+                        // Red background for overdue unpaid expenses
+                        setStyle("-fx-background-color: #ffcccc;");
+                    } else if (item.isPaidThisMonth()) {
+                        // Light green for paid expenses
+                        setStyle("-fx-background-color: #ccffcc;");
+                    } else {
+                        // Default style
+                        setStyle("");
+                    }
+                }
+            }
+        });
     }
 
     private void loadFixedExpenses() {
@@ -364,7 +408,8 @@ public class SettingsController {
 
             UserDTO result = dialogController.getResult();
             if (result != null) {
-                updateUser(result);
+                java.io.File signatureFile = dialogController.getSelectedSignatureFile();
+                updateUser(result, signatureFile);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -438,11 +483,15 @@ public class SettingsController {
         });
     }
 
-    private void updateUser(UserDTO user) {
+    private void updateUser(UserDTO user, java.io.File signatureFile) {
         userApi.updateUser(user.getId(), user).enqueue(new Callback<UserDTO>() {
             @Override
             public void onResponse(Call<UserDTO> call, Response<UserDTO> response) {
                 if (response.isSuccessful()) {
+                    // Upload signature if file was selected
+                    if (signatureFile != null) {
+                        uploadSignature(user.getId(), signatureFile);
+                    }
                     Platform.runLater(() -> {
                         AlertHelper.showAlert(Alert.AlertType.INFORMATION, null, "Başarılı",
                                 "Kullanıcı başarıyla güncellendi!");
@@ -457,6 +506,29 @@ public class SettingsController {
                     AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
                             "Kullanıcı güncellenemedi: " + t.getMessage());
                 });
+            }
+        });
+    }
+
+    private void uploadSignature(Long userId, java.io.File signatureFile) {
+        okhttp3.RequestBody requestFile = okhttp3.RequestBody.create(
+                signatureFile, okhttp3.MediaType.parse("image/*"));
+        okhttp3.MultipartBody.Part body = okhttp3.MultipartBody.Part.createFormData(
+                "file", signatureFile.getName(), requestFile);
+
+        userApi.uploadSignature(userId, body).enqueue(new Callback<okhttp3.ResponseBody>() {
+            @Override
+            public void onResponse(Call<okhttp3.ResponseBody> call, Response<okhttp3.ResponseBody> response) {
+                if (response.isSuccessful()) {
+                    System.out.println("Signature uploaded successfully for user " + userId);
+                } else {
+                    System.err.println("Signature upload failed: " + response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<okhttp3.ResponseBody> call, Throwable t) {
+                System.err.println("Signature upload error: " + t.getMessage());
             }
         });
     }
@@ -504,6 +576,140 @@ public class SettingsController {
                 Platform.runLater(() -> {
                     AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
                             "Şifre sıfırlanamadı: " + t.getMessage());
+                });
+            }
+        });
+    }
+
+    // ============ VEHICLES TAB ============
+
+    private void setupVehiclesTable() {
+        colVehicleId.setCellValueFactory(
+                cellData -> new javafx.beans.property.SimpleLongProperty(cellData.getValue().getId()).asObject());
+        colLicensePlate.setCellValueFactory(
+                cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getLicensePlate()));
+        colDriverName.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
+                cellData.getValue().getDriverName() != null ? cellData.getValue().getDriverName() : ""));
+        colVehicleStatus.setCellValueFactory(cellData -> {
+            String status = (cellData.getValue().getIsActive() != null && cellData.getValue().getIsActive())
+                    ? bundle.getString("vehicle.active")
+                    : bundle.getString("status.inactive");
+            return new javafx.beans.property.SimpleStringProperty(status);
+        });
+    }
+
+    private void loadVehicles() {
+        vehicleApi.getAll(1L).enqueue(new Callback<List<VehicleDTO>>() {
+            @Override
+            public void onResponse(Call<List<VehicleDTO>> call, Response<List<VehicleDTO>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Platform.runLater(() -> {
+                        vehiclesTable.setItems(FXCollections.observableArrayList(response.body()));
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<VehicleDTO>> call, Throwable t) {
+                Platform.runLater(() -> {
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
+                            "Araçlar yüklenemedi: " + t.getMessage());
+                });
+            }
+        });
+    }
+
+    @FXML
+    private void handleAddVehicle() {
+        try {
+            FXMLLoader loader = new FXMLLoader(
+                    getClass().getResource("/view/vehicle_dialog.fxml"), bundle);
+            javafx.scene.Parent root = loader.load();
+
+            VehicleDialogController dialogController = loader.getController();
+            dialogController.setOnSaveSuccess(this::loadVehicles);
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.setTitle(bundle.getString("vehicle.add"));
+            stage.setScene(new Scene(root));
+            stage.showAndWait();
+        } catch (Exception e) {
+            e.printStackTrace();
+            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
+                    "Dialog açılamadı: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleEditVehicle() {
+        VehicleDTO selected = vehiclesTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            AlertHelper.showAlert(Alert.AlertType.WARNING, null, "Uyarı",
+                    "Lütfen düzenlemek için bir araç seçin.");
+            return;
+        }
+
+        try {
+            FXMLLoader loader = new FXMLLoader(
+                    getClass().getResource("/view/vehicle_dialog.fxml"), bundle);
+            javafx.scene.Parent root = loader.load();
+
+            VehicleDialogController dialogController = loader.getController();
+            dialogController.setVehicle(selected);
+            dialogController.setOnSaveSuccess(this::loadVehicles);
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.setTitle(bundle.getString("vehicle.edit"));
+            stage.setScene(new Scene(root));
+            stage.showAndWait();
+        } catch (Exception e) {
+            e.printStackTrace();
+            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
+                    "Dialog açılamadı: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleDeleteVehicle() {
+        VehicleDTO selected = vehiclesTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            AlertHelper.showAlert(Alert.AlertType.WARNING, null, "Uyarı",
+                    "Lütfen silmek için bir araç seçin.");
+            return;
+        }
+
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Silme Onayı");
+        confirmation.setHeaderText(selected.getLicensePlate() + " plakalı aracı silmek istediğinize emin misiniz?");
+        confirmation.setContentText("Bu işlem geri alınamaz.");
+
+        confirmation.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                deleteVehicle(selected.getId());
+            }
+        });
+    }
+
+    private void deleteVehicle(Long id) {
+        vehicleApi.delete(id).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) {
+                    Platform.runLater(() -> {
+                        AlertHelper.showAlert(Alert.AlertType.INFORMATION, null, "Başarılı",
+                                "Araç başarıyla silindi!");
+                        loadVehicles();
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                Platform.runLater(() -> {
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
+                            "Araç silinemedi: " + t.getMessage());
                 });
             }
         });

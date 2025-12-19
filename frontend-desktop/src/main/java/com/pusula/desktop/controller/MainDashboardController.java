@@ -7,15 +7,19 @@ import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.UTF8Control;
 import com.pusula.desktop.util.SessionManager;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -36,6 +40,12 @@ public class MainDashboardController {
     private Button btnActivityLog;
 
     private boolean isDark = false;
+
+    // Screensaver fields
+    private static final int IDLE_TIMEOUT_SECONDS = 10; // 10 seconds for testing
+    private PauseTransition idleTimer;
+    private Parent screensaverView;
+    private ScreensaverController screensaverController;
 
     @FXML
     public void initialize() {
@@ -58,6 +68,9 @@ public class MainDashboardController {
                 btnActivityLog.setManaged(false);
             }
         }
+
+        // Setup screensaver idle detection
+        setupIdleTimer();
 
         showDashboard();
     }
@@ -107,16 +120,28 @@ public class MainDashboardController {
 
     @FXML
     public void showInventory() {
+        showInventory(false);
+    }
+
+    public void showInventory(boolean filterCritical) {
         try {
             java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
                     new java.util.Locale("tr", "TR"), new UTF8Control());
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/inventory.fxml"), bundle);
             Parent view = loader.load();
 
+            // Get controller and apply filter if requested
+            if (filterCritical) {
+                InventoryController controller = loader.getController();
+                controller.filterCriticalStocks();
+            }
+
             contentArea.getChildren().clear();
             contentArea.getChildren().add(view);
         } catch (Exception e) {
             e.printStackTrace();
+            AlertHelper.showAlert(Alert.AlertType.ERROR, contentArea.getScene().getWindow(),
+                    "Hata", "Envanter yüklenemedi: " + e.getMessage());
         }
     }
 
@@ -136,10 +161,39 @@ public class MainDashboardController {
     }
 
     @FXML
+    public void showCommercialDevices() {
+        try {
+            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
+                    new java.util.Locale("tr", "TR"), new UTF8Control());
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/commercial_device_view.fxml"), bundle);
+            Parent view = loader.load();
+
+            contentArea.getChildren().clear();
+            contentArea.getChildren().add(view);
+        } catch (Exception e) {
+            e.printStackTrace();
+            AlertHelper.showAlert(Alert.AlertType.ERROR, contentArea.getScene().getWindow(),
+                    "Hata", "Cihaz satış yüklenemedi: " + e.getMessage());
+        }
+    }
+
+    @FXML
     public void showFinance() {
         // Double authentication for Finance
         if (SessionManager.isAdmin()) {
             showPasswordVerificationDialog(() -> navigateToFinance());
+        }
+    }
+
+    @FXML
+    public void showProposals() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/proposal_view.fxml"));
+            loader.setResources(java.util.ResourceBundle.getBundle("i18n.messages_tr"));
+            Parent content = loader.load();
+            contentArea.getChildren().setAll(content);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -187,6 +241,8 @@ public class MainDashboardController {
             contentArea.getChildren().add(view);
         } catch (Exception e) {
             e.printStackTrace();
+            AlertHelper.showAlert(Alert.AlertType.ERROR, contentArea.getScene().getWindow(),
+                    "Hata", "Ayarlar yüklenemedi: " + e.getMessage());
         }
     }
 
@@ -271,6 +327,12 @@ public class MainDashboardController {
 
     @FXML
     private void handleLogout() {
+        // Stop idle timer before logout
+        if (idleTimer != null) {
+            idleTimer.stop();
+        }
+        hideScreensaver();
+
         SessionManager.clearSession();
         try {
             java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
@@ -283,5 +345,65 @@ public class MainDashboardController {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    // =================== SCREENSAVER METHODS ===================
+
+    private void setupIdleTimer() {
+        idleTimer = new PauseTransition(Duration.seconds(IDLE_TIMEOUT_SECONDS));
+        idleTimer.setOnFinished(e -> showScreensaver());
+
+        // Reset timer on any user activity
+        contentArea.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                newScene.addEventFilter(MouseEvent.ANY, event -> resetIdleTimer());
+                newScene.addEventFilter(KeyEvent.ANY, event -> {
+                    resetIdleTimer();
+                    // Hide screensaver on any key press
+                    if (screensaverView != null && contentArea.getChildren().contains(screensaverView)) {
+                        hideScreensaver();
+                    }
+                });
+            }
+        });
+
+        idleTimer.play();
+    }
+
+    private void resetIdleTimer() {
+        if (idleTimer != null) {
+            idleTimer.playFromStart();
+        }
+    }
+
+    private void showScreensaver() {
+        try {
+            if (screensaverView == null) {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/screensaver_view.fxml"));
+                screensaverView = loader.load();
+                screensaverController = loader.getController();
+
+                // Hide screensaver on click
+                screensaverView.setOnMouseClicked(e -> hideScreensaver());
+            }
+
+            // Add screensaver overlay
+            if (!contentArea.getChildren().contains(screensaverView)) {
+                contentArea.getChildren().add(screensaverView);
+                screensaverController.start();
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to load screensaver: " + e.getMessage());
+        }
+    }
+
+    private void hideScreensaver() {
+        if (screensaverView != null && contentArea.getChildren().contains(screensaverView)) {
+            if (screensaverController != null) {
+                screensaverController.stop();
+            }
+            contentArea.getChildren().remove(screensaverView);
+        }
+        resetIdleTimer();
     }
 }

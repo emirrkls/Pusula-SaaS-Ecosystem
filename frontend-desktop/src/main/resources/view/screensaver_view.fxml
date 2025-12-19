@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.effect.DropShadow?>
+<?import javafx.scene.effect.GaussianBlur?>
+<?import javafx.scene.effect.Glow?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.Circle?>
+
+<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="com.pusula.desktop.controller.ScreensaverController"
+           fx:id="rootPane" style="-fx-background-color: rgba(10, 22, 40, 0.90);">
+    
+    <!-- Vignette Effect for depth -->
+    <Region style="-fx-background-color: radial-gradient(center 50% 50%, radius 70%, transparent 0%, rgba(0,0,0,0.6) 100%);" 
+            mouseTransparent="true"/>
+    
+    <!-- Particle Layer (behind logo) -->
+    <Pane fx:id="particlePane" mouseTransparent="true"/>
+    
+    <!-- Rotating Logo container for centering -->
+    <StackPane>
+        <!-- Outer Glow Ring (Stationary) -->
+        <Circle radius="210" fill="transparent" stroke="#00bfff" strokeWidth="3" opacity="0.1" strokeType="OUTSIDE">
+             <effect>
+                <GaussianBlur radius="30"/>
+             </effect>
+        </Circle>
+        
+        <!-- Rotating Logo -->
+        <ImageView fx:id="logoImage" fitWidth="350" fitHeight="350" preserveRatio="true">
+            <image>
+                <Image url="@../transparentLogo.png"/>
+            </image>
+            <effect>
+                <DropShadow color="#00bfff" radius="60" spread="0.2">
+                    <input>
+                        <Glow level="0.7"/>
+                    </input>
+                </DropShadow>
+            </effect>
+        </ImageView>
+    </StackPane>
+    
+    <!-- Text Container -->
+    <VBox alignment="CENTER" spacing="10" StackPane.alignment="BOTTOM_CENTER" translateY="-80">
+        <Label text="PUSULA SERVICE MANAGER" 
+               style="-fx-text-fill: white; -fx-font-family: 'Segoe UI Light'; -fx-font-size: 28px; -fx-letter-spacing: 6px; -fx-effect: dropshadow(gaussian, black, 10, 0, 0, 0);"/>
+               
+        <Label text="Sistem Koruması Devrede" 
+               style="-fx-text-fill: #00bfff; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-opacity: 0.8;"/>
+    </VBox>
+    
+    <!-- Hint text -->
+    <Label text="Devam etmek için ekrana dokunun veya bir tuşa basın" 
+           style="-fx-text-fill: rgba(255,255,255,0.3); -fx-font-size: 11px;"
+           StackPane.alignment="BOTTOM_CENTER" translateY="-20"/>
+</StackPane>

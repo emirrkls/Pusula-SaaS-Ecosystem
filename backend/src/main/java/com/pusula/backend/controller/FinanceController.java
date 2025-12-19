@@ -7,15 +7,20 @@ import com.pusula.backend.dto.DailySummaryDTO;
 import com.pusula.backend.entity.DailyClosing;
 import com.pusula.backend.entity.Expense;
 import com.pusula.backend.entity.FixedExpenseDefinition;
+import com.pusula.backend.entity.Inventory;
+import com.pusula.backend.repository.InventoryRepository;
 import com.pusula.backend.service.FinanceService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/finance")
@@ -31,6 +36,28 @@ public class FinanceController {
             @RequestParam(defaultValue = "1") Long companyId,
             @RequestParam(defaultValue = "MONTHLY") String period) {
         return ResponseEntity.ok(financeService.getSummary(companyId, period));
+    }
+
+    /**
+     * Get CUMULATIVE (all-time) financial summary for Boss View
+     * Returns totalCash (all income - all expenses) + inventory value
+     */
+    @GetMapping("/cumulative")
+    public ResponseEntity<FinanceService.CumulativeSummary> getCumulativeSummary(
+            @RequestParam(defaultValue = "1") Long companyId) {
+        FinanceService.CumulativeSummary summary = financeService.getCumulativeSummary(companyId);
+
+        // Calculate inventory value (sum of all inventory items: quantity * buyPrice)
+        BigDecimal inventoryValue = inventoryRepository.findByCompanyId(companyId).stream()
+                .map(item -> {
+                    BigDecimal quantity = BigDecimal.valueOf(item.getQuantity());
+                    BigDecimal buyPrice = item.getBuyPrice() != null ? item.getBuyPrice() : BigDecimal.ZERO;
+                    return quantity.multiply(buyPrice);
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        summary.setTotalInventoryValue(inventoryValue);
+        return ResponseEntity.ok(summary);
     }
 
     @PostMapping("/expenses")
@@ -142,5 +169,19 @@ public class FinanceController {
             @RequestParam Long companyId,
             @RequestParam(defaultValue = "3") int daysThreshold) {
         return ResponseEntity.ok(financeService.getUpcomingFixedExpenses(companyId, daysThreshold));
+    }
+
+    @Autowired
+    private InventoryRepository inventoryRepository;
+
+    @GetMapping("/inventory-value")
+    public ResponseEntity<Map<String, BigDecimal>> getInventoryValue(
+            @RequestParam(defaultValue = "1") Long companyId) {
+        List<Inventory> items = inventoryRepository.findByCompanyId(companyId);
+        BigDecimal totalValue = items.stream()
+                .filter(item -> item.getBuyPrice() != null && item.getQuantity() != null)
+                .map(item -> item.getBuyPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return ResponseEntity.ok(Map.of("totalValue", totalValue));
     }
 }

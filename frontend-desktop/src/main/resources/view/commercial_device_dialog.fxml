@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.pusula.desktop.controller.CommercialDeviceDialogController"
+      spacing="15.0" prefWidth="400.0" style="-fx-background-color: white;">
+    <padding>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+    </padding>
+
+    <GridPane hgap="10.0" vgap="10.0">
+        <columnConstraints>
+            <ColumnConstraints minWidth="100.0" />
+            <ColumnConstraints hgrow="ALWAYS" />
+        </columnConstraints>
+
+        <Label text="%commercial.brand" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+        <TextField fx:id="txtBrand" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+
+        <Label text="%commercial.model" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+        <TextField fx:id="txtModel" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+
+        <Label text="%commercial.device_type" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+        <ComboBox fx:id="cmbDeviceType" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+
+        <Label text="%commercial.btu" GridPane.columnIndex="0" GridPane.rowIndex="3" />
+        <TextField fx:id="txtBtu" promptText="(opsiyonel)" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+
+        <Label text="%commercial.gas" GridPane.columnIndex="0" GridPane.rowIndex="4" />
+        <ComboBox fx:id="cmbGasType" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+
+        <Label text="%commercial.quantity" GridPane.columnIndex="0" GridPane.rowIndex="5" />
+        <TextField fx:id="txtQuantity" text="0" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+
+        <Label text="%commercial.buying_price" GridPane.columnIndex="0" GridPane.rowIndex="6" />
+        <TextField fx:id="txtBuyingPrice" promptText="₺" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+
+        <Label text="%commercial.selling_price" GridPane.columnIndex="0" GridPane.rowIndex="7" />
+        <TextField fx:id="txtSellingPrice" promptText="₺" GridPane.columnIndex="1" GridPane.rowIndex="7" />
+    </GridPane>
+
+    <HBox alignment="CENTER_RIGHT" spacing="10.0">
+        <Button onAction="#handleCancel" text="İptal" />
+        <Button onAction="#handleSave" style="-fx-background-color: #27ae60; -fx-text-fill: white;" text="Kaydet" />
+    </HBox>
+</VBox>

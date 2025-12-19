@@ -1,5 +1,8 @@
 package com.pusula.backend.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.pusula.backend.entity.AuditLog;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.AuditLogRepository;
@@ -21,9 +24,64 @@ import java.util.List;
 public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
+    private final ObjectMapper objectMapper;
 
     public AuditLogService(AuditLogRepository auditLogRepository) {
         this.auditLogRepository = auditLogRepository;
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.registerModule(new JavaTimeModule());
+        this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        this.objectMapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+    }
+
+    /**
+     * Log an action with Object serialization for before/after comparison
+     */
+    @Async
+    @Transactional
+    public void logChange(String actionType, String entityType, Long entityId,
+            String description, Object oldObj, Object newObj) {
+        String oldJson = toJson(oldObj);
+        String newJson = toJson(newObj);
+        log(actionType, entityType, entityId, description, oldJson, newJson);
+    }
+
+    /**
+     * Log authentication event (login success/failure) - doesn't require
+     * authenticated user
+     */
+    @Async
+    @Transactional
+    public void logAuth(Long companyId, Long userId, String userName, String actionType,
+            String description, String ipAddress) {
+        try {
+            AuditLog log = new AuditLog(
+                    companyId,
+                    userId != null ? userId : 0L,
+                    userName != null ? userName : "Unknown",
+                    actionType,
+                    "AUTH",
+                    null,
+                    description);
+            log.setIpAddress(ipAddress);
+            auditLogRepository.save(log);
+        } catch (Exception e) {
+            System.err.println("Failed to create auth audit log: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Convert object to JSON string
+     */
+    private String toJson(Object obj) {
+        if (obj == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (Exception e) {
+            return obj.toString();
+        }
     }
 
     /**

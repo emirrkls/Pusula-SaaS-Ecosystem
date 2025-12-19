@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml" 
+      fx:controller="com.pusula.desktop.controller.CommercialDeviceSalesDialogController"
+      spacing="15.0" prefWidth="450" style="-fx-padding: 20;">
+
+    <Label text="%commercial.sale.title" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+    
+    <Separator/>
+
+    <!-- Device Info (Read-only) -->
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="%commercial.sale.device" style="-fx-font-weight: bold;" prefWidth="120"/>
+        <Label fx:id="deviceInfoLabel" text="Device Info Here" style="-fx-text-fill: #444;"/>
+    </HBox>
+
+    <!-- Customer Selection -->
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="%commercial.sale.customer" style="-fx-font-weight: bold;" prefWidth="120"/>
+        <ComboBox fx:id="customerComboBox" prefWidth="230" promptText="%commercial.sale.select_customer"/>
+        <Button fx:id="addCustomerBtn" text="+" style="-fx-font-weight: bold;" onAction="#handleAddCustomer"/>
+    </HBox>
+
+    <!-- Selling Price -->
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="%commercial.sale.price" style="-fx-font-weight: bold;" prefWidth="120"/>
+        <TextField fx:id="sellingPriceField" prefWidth="200" promptText="0.00"/>
+        <Label text="₺"/>
+    </HBox>
+
+    <!-- Payment Method -->
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="%commercial.sale.payment_method" style="-fx-font-weight: bold;" prefWidth="120"/>
+        <ComboBox fx:id="paymentMethodComboBox" prefWidth="200" promptText="%commercial.sale.select_payment"/>
+    </HBox>
+
+    <!-- Sale Date -->
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="%commercial.sale.date" style="-fx-font-weight: bold;" prefWidth="120"/>
+        <DatePicker fx:id="saleDatePicker" prefWidth="200"/>
+    </HBox>
+
+    <Separator/>
+
+    <!-- Action Buttons -->
+    <HBox spacing="15" alignment="CENTER_RIGHT">
+        <Button text="%button.cancel" onAction="#handleCancel" style="-fx-background-color: #95a5a6; -fx-text-fill: white;"/>
+        <Button text="%commercial.sale.complete" onAction="#handleSale" 
+                style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;"/>
+    </HBox>
+</VBox>

@@ -30,9 +30,9 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/api/public/**", "/h2-console/**", "/uploads/**").permitAll()
-                        .requestMatchers("/api/finance/**").hasAnyRole("ADMIN", "COMPANY_ADMIN", "SUPER_ADMIN")
-                        .requestMatchers("/api/settings/**").hasAnyRole("ADMIN", "COMPANY_ADMIN", "SUPER_ADMIN")
-                        .requestMatchers("/api/tickets/*/assign").hasAnyRole("ADMIN", "COMPANY_ADMIN", "SUPER_ADMIN")
+                        .requestMatchers("/api/finance/**").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
+                        .requestMatchers("/api/settings/**").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
+                        .requestMatchers("/api/tickets/*/assign").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
                         .anyRequest().authenticated())
                 .headers(headers -> headers.frameOptions(frame -> frame.disable())) // Allow H2 Console in iframe
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

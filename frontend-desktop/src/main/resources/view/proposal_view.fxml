@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml" 
+      fx:controller="com.pusula.desktop.controller.ProposalViewController"
+      spacing="15.0" style="-fx-padding: 20;">
+
+    <!-- Header -->
+    <HBox alignment="CENTER_LEFT" spacing="15">
+        <Label text="Teklifler" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="refreshBtn" text="Yenile" onAction="#handleRefresh"
+                style="-fx-background-color: #3498db; -fx-text-fill: white;"/>
+        <Button fx:id="newProposalBtn" text="+ Yeni Teklif" onAction="#handleNewProposal"
+                style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;"/>
+    </HBox>
+
+    <!-- Filter Row -->
+    <HBox spacing="15" alignment="CENTER_LEFT">
+        <Label text="Durum:"/>
+        <ComboBox fx:id="statusFilter" prefWidth="150" onAction="#handleFilterChange"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <TextField fx:id="searchField" promptText="Ara..." prefWidth="250"/>
+    </HBox>
+
+    <Separator/>
+
+    <!-- Proposals Table -->
+    <TableView fx:id="proposalsTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colId" text="No" prefWidth="60"/>
+            <TableColumn fx:id="colCustomer" text="Müşteri" prefWidth="180"/>
+            <TableColumn fx:id="colPreparedBy" text="Hazırlayan" prefWidth="150"/>
+            <TableColumn fx:id="colTotal" text="Tutar" prefWidth="120"/>
+            <TableColumn fx:id="colStatus" text="Durum" prefWidth="100"/>
+            <TableColumn fx:id="colValidUntil" text="Geçerlilik" prefWidth="120"/>
+            <TableColumn fx:id="colActions" text="İşlemler" prefWidth="200"/>
+        </columns>
+        <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+        </columnResizePolicy>
+    </TableView>
+</VBox>

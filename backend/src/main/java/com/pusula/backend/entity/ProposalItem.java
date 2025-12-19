@@ -22,6 +22,9 @@ public class ProposalItem extends BaseEntity {
     @Column(nullable = false)
     private Integer quantity;
 
+    @Column(name = "unit_cost")
+    private BigDecimal unitCost;
+
     @Column(name = "unit_price", nullable = false)
     private BigDecimal unitPrice;
 
@@ -29,21 +32,6 @@ public class ProposalItem extends BaseEntity {
     private BigDecimal totalPrice;
 
     public ProposalItem() {
-    }
-
-    public ProposalItem(Long id, Long companyId, Proposal proposal, String description, Integer quantity,
-            BigDecimal unitPrice, BigDecimal totalPrice) {
-        this.setId(id);
-        this.setCompanyId(companyId);
-        this.proposal = proposal;
-        this.description = description;
-        this.quantity = quantity;
-        this.unitPrice = unitPrice;
-        this.totalPrice = totalPrice;
-    }
-
-    public static ProposalItemBuilder builder() {
-        return new ProposalItemBuilder();
     }
 
     public Proposal getProposal() {
@@ -70,6 +58,14 @@ public class ProposalItem extends BaseEntity {
         this.quantity = quantity;
     }
 
+    public BigDecimal getUnitCost() {
+        return unitCost;
+    }
+
+    public void setUnitCost(BigDecimal unitCost) {
+        this.unitCost = unitCost;
+    }
+
     public BigDecimal getUnitPrice() {
         return unitPrice;
     }
@@ -84,57 +80,5 @@ public class ProposalItem extends BaseEntity {
 
     public void setTotalPrice(BigDecimal totalPrice) {
         this.totalPrice = totalPrice;
-    }
-
-    public static class ProposalItemBuilder {
-        private Long id;
-        private Long companyId;
-        private Proposal proposal;
-        private String description;
-        private Integer quantity;
-        private BigDecimal unitPrice;
-        private BigDecimal totalPrice;
-
-        ProposalItemBuilder() {
-        }
-
-        public ProposalItemBuilder id(Long id) {
-            this.id = id;
-            return this;
-        }
-
-        public ProposalItemBuilder companyId(Long companyId) {
-            this.companyId = companyId;
-            return this;
-        }
-
-        public ProposalItemBuilder proposal(Proposal proposal) {
-            this.proposal = proposal;
-            return this;
-        }
-
-        public ProposalItemBuilder description(String description) {
-            this.description = description;
-            return this;
-        }
-
-        public ProposalItemBuilder quantity(Integer quantity) {
-            this.quantity = quantity;
-            return this;
-        }
-
-        public ProposalItemBuilder unitPrice(BigDecimal unitPrice) {
-            this.unitPrice = unitPrice;
-            return this;
-        }
-
-        public ProposalItemBuilder totalPrice(BigDecimal totalPrice) {
-            this.totalPrice = totalPrice;
-            return this;
-        }
-
-        public ProposalItem build() {
-            return new ProposalItem(id, companyId, proposal, description, quantity, unitPrice, totalPrice);
-        }
     }
 }

@@ -27,6 +27,6 @@ public interface UserApi {
     Call<Void> resetPassword(@Path("id") Long id, @Body Map<String, String> payload);
 
     @Multipart
-    @POST("api/users/{id}/signature")
-    Call<UserDTO> uploadSignature(@Path("id") Long id, @Part okhttp3.MultipartBody.Part file);
+    @POST("api/users/{id}/upload-signature")
+    Call<okhttp3.ResponseBody> uploadSignature(@Path("id") Long id, @Part okhttp3.MultipartBody.Part file);
 }

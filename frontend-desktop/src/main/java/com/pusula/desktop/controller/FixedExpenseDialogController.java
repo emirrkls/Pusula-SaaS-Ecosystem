@@ -23,6 +23,8 @@ public class FixedExpenseDialogController {
     private Spinner<Integer> daySpinner;
     @FXML
     private TextField descriptionField;
+    @FXML
+    private ComboBox<String> frequencyCombo;
 
     private ResourceBundle bundle;
     private FixedExpenseDefinitionDTO fixedExpense;
@@ -30,7 +32,10 @@ public class FixedExpenseDialogController {
 
     @FXML
     public void initialize() {
-        bundle = ResourceBundle.getBundle("i18n.messages", Locale.forLanguageTag("tr-TR"), new UTF8Control());
+        // Load resource bundle with UTF-8 support for Turkish characters
+        bundle = ResourceBundle.getBundle("i18n.messages",
+                Locale.forLanguageTag("tr-TR"),
+                new UTF8Control());
 
         // Setup category combobox with enum values
         categoryComboBox.setItems(FXCollections.observableArrayList(
@@ -64,6 +69,14 @@ public class FixedExpenseDialogController {
         });
 
         categoryComboBox.getSelectionModel().selectFirst();
+
+        // Setup frequency combobox with localized options
+        if (frequencyCombo != null) {
+            frequencyCombo.setItems(FXCollections.observableArrayList(
+                    bundle.getString("expense.frequency.monthly"),
+                    bundle.getString("expense.frequency.weekly")));
+            frequencyCombo.setValue(bundle.getString("expense.frequency.monthly")); // Default to Monthly
+        }
     }
 
     public void setFixedExpense(FixedExpenseDefinitionDTO expense) {
@@ -114,6 +127,19 @@ public class FixedExpenseDialogController {
             fixedExpense.setCategory(categoryComboBox.getValue());
             fixedExpense.setDayOfMonth(daySpinner.getValue());
             fixedExpense.setDescription(descriptionField.getText().trim());
+
+            // Map frequency selection to MONTHLY/WEEKLY
+            if (frequencyCombo != null && frequencyCombo.getValue() != null) {
+                String selectedFreq = frequencyCombo.getValue();
+                if (selectedFreq.equals(bundle.getString("expense.frequency.weekly"))) {
+                    fixedExpense.setFrequency("WEEKLY");
+                } else {
+                    fixedExpense.setFrequency("MONTHLY");
+                }
+            } else {
+                // Default to MONTHLY if combobox doesn't exist
+                fixedExpense.setFrequency("MONTHLY");
+            }
 
             if (onSaveCallback != null) {
                 onSaveCallback.run();

@@ -59,7 +59,7 @@
                   </Label>
                   <LineChart fx:id="performanceChart" VBox.vgrow="ALWAYS">
                      <xAxis>
-                        <CategoryAxis label="Tarih" side="BOTTOM" />
+                        <CategoryAxis fx:id="xAxis" label="Tarih" side="BOTTOM" tickLabelRotation="-45" gapStartAndEnd="true"/>
                      </xAxis>
                      <yAxis>
                         <NumberAxis label="Tamamlanan İşler" side="LEFT" />

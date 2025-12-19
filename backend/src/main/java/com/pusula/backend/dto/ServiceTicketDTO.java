@@ -1,5 +1,6 @@
 package com.pusula.backend.dto;
 
+import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket.TicketStatus;
 
 import java.math.BigDecimal;
@@ -17,13 +18,16 @@ public class ServiceTicketDTO {
     private LocalDateTime createdAt;
     private Long parentTicketId;
     private boolean isWarrantyCall;
+    private String customerName; // Customer full name for frontend display
+    private PaymentMethod paymentMethod;
 
     public ServiceTicketDTO() {
     }
 
     public ServiceTicketDTO(Long id, Long customerId, Long assignedTechnicianId, TicketStatus status,
             LocalDateTime scheduledDate, String description, String notes, BigDecimal collectedAmount,
-            LocalDateTime createdAt, Long parentTicketId, boolean isWarrantyCall) {
+            LocalDateTime createdAt, Long parentTicketId, boolean isWarrantyCall, String customerName,
+            PaymentMethod paymentMethod) {
         this.id = id;
         this.customerId = customerId;
         this.assignedTechnicianId = assignedTechnicianId;
@@ -35,6 +39,8 @@ public class ServiceTicketDTO {
         this.createdAt = createdAt;
         this.parentTicketId = parentTicketId;
         this.isWarrantyCall = isWarrantyCall;
+        this.customerName = customerName;
+        this.paymentMethod = paymentMethod;
     }
 
     public static ServiceTicketDTOBuilder builder() {
@@ -129,6 +135,22 @@ public class ServiceTicketDTO {
         isWarrantyCall = warrantyCall;
     }
 
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
+    }
+
+    public PaymentMethod getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(PaymentMethod paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
     public static class ServiceTicketDTOBuilder {
         private Long id;
         private Long customerId;
@@ -141,6 +163,8 @@ public class ServiceTicketDTO {
         private LocalDateTime createdAt;
         private Long parentTicketId;
         private boolean isWarrantyCall;
+        private String customerName;
+        private PaymentMethod paymentMethod;
 
         ServiceTicketDTOBuilder() {
         }
@@ -200,9 +224,19 @@ public class ServiceTicketDTO {
             return this;
         }
 
+        public ServiceTicketDTOBuilder customerName(String customerName) {
+            this.customerName = customerName;
+            return this;
+        }
+
+        public ServiceTicketDTOBuilder paymentMethod(PaymentMethod paymentMethod) {
+            this.paymentMethod = paymentMethod;
+            return this;
+        }
+
         public ServiceTicketDTO build() {
             return new ServiceTicketDTO(id, customerId, assignedTechnicianId, status, scheduledDate, description, notes,
-                    collectedAmount, createdAt, parentTicketId, isWarrantyCall);
+                    collectedAmount, createdAt, parentTicketId, isWarrantyCall, customerName, paymentMethod);
         }
     }
 }

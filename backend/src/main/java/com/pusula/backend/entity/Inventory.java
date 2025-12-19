@@ -27,6 +27,12 @@ public class Inventory extends BaseEntity {
     @Column(name = "critical_level")
     private Integer criticalLevel;
 
+    @Column(name = "brand")
+    private String brand;
+
+    @Column(name = "category")
+    private String category;
+
     public Inventory() {
     }
 
@@ -83,6 +89,22 @@ public class Inventory extends BaseEntity {
 
     public void setCriticalLevel(Integer criticalLevel) {
         this.criticalLevel = criticalLevel;
+    }
+
+    public String getBrand() {
+        return brand;
+    }
+
+    public void setBrand(String brand) {
+        this.brand = brand;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 
     public static class InventoryBuilder {

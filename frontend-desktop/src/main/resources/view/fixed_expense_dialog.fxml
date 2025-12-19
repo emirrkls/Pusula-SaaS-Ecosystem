@@ -39,8 +39,11 @@
                 <Spinner fx:id="daySpinner" GridPane.columnIndex="1" GridPane.rowIndex="3" 
                          editable="true" maxWidth="Infinity" />
 
-                <Label text="%table.description" GridPane.columnIndex="0" GridPane.rowIndex="4" />
-                <TextField fx:id="descriptionField" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                <Label text="%expense.frequency" GridPane.columnIndex="0" GridPane.rowIndex="4" />
+                <ComboBox fx:id="frequencyCombo" GridPane.columnIndex="1" GridPane.rowIndex="4" maxWidth="Infinity" />
+
+                <Label text="%table.description" GridPane.columnIndex="0" GridPane.rowIndex="5" />
+                <TextField fx:id="descriptionField" GridPane.columnIndex="1" GridPane.rowIndex="5" />
             </children>
         </GridPane>
 

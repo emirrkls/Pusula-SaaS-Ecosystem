@@ -93,7 +93,7 @@ public class PayFixedExpenseDialogController {
             String status = isPaid ? bundle.getString("finance.pay_fixed_expense_dialog.paid") : "";
             return new SimpleStringProperty(status);
         });
-        // Row factory for highlighting
+        // Row factory for highlighting (Green=Paid, Red=Overdue, Yellow=Upcoming)
         expensesTable.setRowFactory(tv -> new TableRow<FixedExpenseRow>() {
             @Override
             protected void updateItem(FixedExpenseRow item, boolean empty) {
@@ -102,12 +102,16 @@ public class PayFixedExpenseDialogController {
                     setStyle("");
                 } else {
                     if (item.getDto().isPaidThisMonth()) {
-                        // Gray out paid expenses
-                        setStyle("-fx-background-color: #ecf0f1; -fx-opacity: 0.7;");
+                        // GREEN for paid expenses
+                        setStyle("-fx-background-color: #daffda;");
+                    } else if (item.getDaysUntilDue() < 0) {
+                        // RED for overdue (past due date, not paid)
+                        setStyle("-fx-background-color: #ffcccc;");
                     } else if (item.getDaysUntilDue() >= 0 && item.getDaysUntilDue() <= 3) {
-                        // Highlight upcoming (within 3 days)
+                        // YELLOW for upcoming (within 3 days)
                         setStyle("-fx-background-color: #fff3cd;");
                     } else {
+                        // Default style
                         setStyle("");
                     }
                 }
@@ -121,6 +125,13 @@ public class PayFixedExpenseDialogController {
             public void onResponse(Call<List<FixedExpenseDefinitionDTO>> call,
                     Response<List<FixedExpenseDefinitionDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
+                    // Debug: Print isPaidThisMonth values
+                    System.out.println("=== Fixed Expenses API Response ===");
+                    for (FixedExpenseDefinitionDTO dto : response.body()) {
+                        System.out.println("  " + dto.getName() + " | isPaidThisMonth: " + dto.isPaidThisMonth()
+                                + " | dayOfMonth: " + dto.getDayOfMonth());
+                    }
+
                     Platform.runLater(() -> {
                         List<FixedExpenseRow> rows = response.body().stream()
                                 .map(dto -> new FixedExpenseRow(dto, calculateDaysUntilDue(dto.getDayOfMonth())))
@@ -151,11 +162,9 @@ public class PayFixedExpenseDialogController {
         if (dayOfMonth == null)
             return 999; // No due date
         LocalDate today = LocalDate.now();
-        LocalDate dueDate = LocalDate.of(today.getYear(), today.getMonth(), dayOfMonth);
-        if (dueDate.isBefore(today)) {
-            dueDate = dueDate.plusMonths(1);
-        }
-        return (int) java.time.temporal.ChronoUnit.DAYS.between(today, dueDate);
+        int currentDay = today.getDayOfMonth();
+        // Return negative if overdue, positive if upcoming
+        return dayOfMonth - currentDay;
     }
 
     @FXML

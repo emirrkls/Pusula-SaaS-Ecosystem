@@ -124,6 +124,47 @@
                     </content>
                 </Tab>
                 
+                <!-- Vehicles Tab -->
+                <Tab text="%settings.vehicles">
+                    <content>
+                        <VBox spacing="15.0">
+                            <padding>
+                                <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                            </padding>
+                            <children>
+                                <Label text="%settings.vehicles">
+                                    <font>
+                                        <Font name="System Bold" size="16.0" />
+                                    </font>
+                                </Label>
+                                
+                                <HBox spacing="10.0" alignment="CENTER_LEFT">
+                                    <children>
+                                        <Button text="%vehicle.add" onAction="#handleAddVehicle"
+                                                style="-fx-background-color: #27ae60; -fx-text-fill: white;" />
+                                        <Button text="%vehicle.edit" onAction="#handleEditVehicle"
+                                                style="-fx-background-color: #3498db; -fx-text-fill: white;" />
+                                        <Button text="%button.delete" onAction="#handleDeleteVehicle"
+                                                style="-fx-background-color: #e74c3c; -fx-text-fill: white;" />
+                                    </children>
+                                </HBox>
+                                
+                                <TableView fx:id="vehiclesTable" VBox.vgrow="ALWAYS">
+                                    <columns>
+                                        <TableColumn fx:id="colVehicleId" prefWidth="60.0" text="ID" />
+                                        <TableColumn fx:id="colLicensePlate" prefWidth="150.0" text="%vehicle.license_plate" />
+                                        <TableColumn fx:id="colDriverName" prefWidth="200.0" text="%vehicle.driver_name" />
+                                        <TableColumn fx:id="colVehicleStatus" prefWidth="100.0" text="%dashboard.table.status" />
+                                    </columns>
+                                    <columnResizePolicy>
+                                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                                    </columnResizePolicy>
+                                </TableView>
+                            </children>
+                        </VBox>
+                    </content>
+                </Tab>
+                
                 <!-- Finance Settings Tab -->
                 <Tab text="%settings.finance">
                     <content>

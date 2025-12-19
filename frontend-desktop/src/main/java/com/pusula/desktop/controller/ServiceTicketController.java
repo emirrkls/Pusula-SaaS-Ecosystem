@@ -36,6 +36,8 @@ public class ServiceTicketController {
     @FXML
     private TableColumn<ServiceTicketDTO, Long> colActiveId;
     @FXML
+    private TableColumn<ServiceTicketDTO, String> colActiveCustomer;
+    @FXML
     private TableColumn<ServiceTicketDTO, String> colActiveDescription;
     @FXML
     private TableColumn<ServiceTicketDTO, String> colActiveStatus;
@@ -46,6 +48,8 @@ public class ServiceTicketController {
     private TableView<ServiceTicketDTO> historyTicketsTable;
     @FXML
     private TableColumn<ServiceTicketDTO, Long> colHistoryId;
+    @FXML
+    private TableColumn<ServiceTicketDTO, String> colHistoryCustomer;
     @FXML
     private TableColumn<ServiceTicketDTO, String> colHistoryDescription;
     @FXML
@@ -65,12 +69,14 @@ public class ServiceTicketController {
     public void initialize() {
         // Setup Active Table
         colActiveId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        colActiveCustomer.setCellValueFactory(new PropertyValueFactory<>("customerName"));
         colActiveDescription.setCellValueFactory(new PropertyValueFactory<>("description"));
         colActiveStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
         colActiveDate.setCellValueFactory(new PropertyValueFactory<>("scheduledDate"));
 
         // Setup History Table
         colHistoryId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        colHistoryCustomer.setCellValueFactory(new PropertyValueFactory<>("customerName"));
         colHistoryDescription.setCellValueFactory(new PropertyValueFactory<>("description"));
         colHistoryStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
         colHistoryDate.setCellValueFactory(new PropertyValueFactory<>("scheduledDate"));

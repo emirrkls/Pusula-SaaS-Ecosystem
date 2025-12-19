@@ -8,5 +8,6 @@ public enum ExpenseCategory {
     FOOD,
     TAX,
     MATERIAL,
-    OTHER
+    OTHER,
+    DEVICE_SALE // Income from device sales (stored as negative amount)
 }

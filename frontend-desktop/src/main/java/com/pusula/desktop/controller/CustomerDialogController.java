@@ -13,6 +13,8 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+import java.util.function.Consumer;
+
 public class CustomerDialogController {
 
     @FXML
@@ -27,9 +29,9 @@ public class CustomerDialogController {
     @FXML
     private TextField coordinatesField;
 
-    private Runnable onSaveSuccess;
+    private Consumer<CustomerDTO> onSaveSuccess;
 
-    public void setOnSaveSuccess(Runnable onSaveSuccess) {
+    public void setOnSaveSuccess(Consumer<CustomerDTO> onSaveSuccess) {
         this.onSaveSuccess = onSaveSuccess;
     }
 
@@ -61,10 +63,11 @@ public class CustomerDialogController {
         api.createCustomer(newCustomer).enqueue(new Callback<CustomerDTO>() {
             @Override
             public void onResponse(Call<CustomerDTO> call, Response<CustomerDTO> response) {
-                if (response.isSuccessful()) {
+                if (response.isSuccessful() && response.body() != null) {
+                    CustomerDTO savedCustomer = response.body();
                     Platform.runLater(() -> {
                         if (onSaveSuccess != null) {
-                            onSaveSuccess.run();
+                            onSaveSuccess.accept(savedCustomer);
                         }
                         closeDialog();
                     });

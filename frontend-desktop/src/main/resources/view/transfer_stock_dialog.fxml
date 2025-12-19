@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<VBox prefWidth="550.0" prefHeight="680.0" spacing="15.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.pusula.desktop.controller.TransferStockDialogController">
+   <padding>
+      <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+   </padding>
+   <children>
+      <Label text="Stok Transfer" style="-fx-font-weight: bold;">
+         <font>
+            <Font size="18.0" />
+         </font>
+      </Label>
+      
+      <Separator />
+      
+      <!-- Transfer Direction -->
+      <VBox spacing="6.0">
+         <Label text="Transfer Yönü:" style="-fx-font-weight: bold;" />
+         <HBox spacing="15.0">
+            <RadioButton fx:id="radioToVehicle" text="Depo → Araca" selected="true">
+               <toggleGroup>
+                  <ToggleGroup fx:id="transferDirection" />
+               </toggleGroup>
+            </RadioButton>
+            <RadioButton fx:id="radioToWarehouse" text="Araçtan → Depoya" toggleGroup="$transferDirection" />
+         </HBox>
+      </VBox>
+      
+      <!-- Vehicle Selection -->
+      <VBox spacing="6.0">
+         <Label text="Araç Seçin:" style="-fx-font-weight: bold;" />
+         <ComboBox fx:id="vehicleComboBox" prefWidth="500.0" promptText="Araç seçiniz..." />
+      </VBox>
+      
+      <!-- Vehicle Current Stock Preview -->
+      <VBox spacing="8.0" style="-fx-background-color: #f8f9fa; -fx-padding: 12; -fx-background-radius: 5;">
+         <Label fx:id="vehicleStockPreviewLabel" text="Araç Mevcut Stoku:" style="-fx-font-weight: bold; -fx-font-size: 13px;" />
+         <ListView fx:id="vehicleStockListView" prefHeight="180.0" minHeight="180.0" prefWidth="500.0" style="-fx-font-size: 13px; -fx-fixed-cell-size: 28;" />
+      </VBox>
+      
+      <Separator />
+      
+      <!-- Inventory Item Selection -->
+      <VBox spacing="6.0">
+         <Label text="Parça Seçin (arama yapabilirsiniz):" style="-fx-font-weight: bold;" />
+         <ComboBox fx:id="inventoryComboBox" prefWidth="500.0" promptText="Parça adı yazın veya seçin..." />
+      </VBox>
+      
+      <!-- Current Stock Info -->
+      <HBox spacing="30.0" alignment="CENTER_LEFT" style="-fx-background-color: #ecf0f1; -fx-padding: 10; -fx-background-radius: 5;">
+         <VBox spacing="3.0">
+            <Label text="Mevcut Depo Stoku:" style="-fx-font-size: 11px;" />
+            <Label fx:id="warehouseStockLabel" text="0" style="-fx-font-weight: bold; -fx-font-size: 16px; -fx-text-fill: #2980b9;" />
+         </VBox>
+         <VBox spacing="3.0">
+            <Label text="Mevcut Araç Stoku:" style="-fx-font-size: 11px;" />
+            <Label fx:id="vehicleStockLabel" text="0" style="-fx-font-weight: bold; -fx-font-size: 16px; -fx-text-fill: #27ae60;" />
+         </VBox>
+      </HBox>
+      
+      <!-- Quantity -->
+      <HBox spacing="15.0" alignment="CENTER_LEFT">
+         <Label text="Transfer Miktarı:" style="-fx-font-weight: bold;" />
+         <Spinner fx:id="quantitySpinner" prefWidth="120.0" editable="true" />
+      </HBox>
+      
+      <Separator />
+      
+      <!-- Buttons -->
+      <HBox alignment="CENTER_RIGHT" spacing="10.0">
+         <Button text="İptal" onAction="#handleCancel" prefWidth="100.0" />
+         <Button fx:id="transferButton" text="Transfer Et" onAction="#handleTransfer" 
+                 style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;" 
+                 prefWidth="120.0" />
+      </HBox>
+   </children>
+</VBox>

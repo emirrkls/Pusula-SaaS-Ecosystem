@@ -11,7 +11,9 @@ import com.pusula.desktop.dto.FixedExpenseDefinitionDTO;
 import retrofit2.Call;
 import retrofit2.http.*;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
  * FinanceApi - Retrofit interface for Finance endpoints
@@ -22,6 +24,9 @@ public interface FinanceApi {
         Call<FinancialSummaryDTO> getSummary(
                         @Query("companyId") Long companyId,
                         @Query("period") String period);
+
+        @GET("/api/finance/cumulative")
+        Call<Map<String, Object>> getCumulativeSummary(@Query("companyId") Long companyId);
 
         @POST("/api/finance/expenses")
         Call<ExpenseDTO> addExpense(@Body ExpenseDTO expense);
@@ -88,4 +93,7 @@ public interface FinanceApi {
         Call<okhttp3.ResponseBody> downloadMonthlyPDF(
                         @Query("month") String month,
                         @Query("companyId") Long companyId);
+
+        @GET("/api/finance/inventory-value")
+        Call<Map<String, BigDecimal>> getInventoryValue(@Query("companyId") Long companyId);
 }
