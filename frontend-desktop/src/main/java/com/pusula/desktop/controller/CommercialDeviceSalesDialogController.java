@@ -5,6 +5,7 @@ import com.pusula.desktop.api.CustomerApi;
 import com.pusula.desktop.dto.*;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.CurrencyTextField;
 import com.pusula.desktop.util.UTF8Control;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -34,7 +35,7 @@ public class CommercialDeviceSalesDialogController {
     @FXML
     private ComboBox<CustomerDTO> customerComboBox;
     @FXML
-    private TextField sellingPriceField;
+    private CurrencyTextField sellingPriceField;
     @FXML
     private ComboBox<String> paymentMethodComboBox;
     @FXML
@@ -129,7 +130,7 @@ public class CommercialDeviceSalesDialogController {
                 device.getBrand(), device.getModel(),
                 device.getBtu() != null ? device.getBtu() : "-"));
         if (device.getSellingPrice() != null) {
-            sellingPriceField.setText(device.getSellingPrice().toPlainString());
+            sellingPriceField.setRawValue(device.getSellingPrice());
         }
     }
 
@@ -211,7 +212,7 @@ public class CommercialDeviceSalesDialogController {
 
         BigDecimal price;
         try {
-            price = new BigDecimal(sellingPriceField.getText().replace(",", "."));
+            price = sellingPriceField.getRawValue();
         } catch (NumberFormatException e) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, null, "Uyarı",
                     "Geçersiz satış fiyatı.");

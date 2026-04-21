@@ -12,6 +12,7 @@ import com.pusula.desktop.dto.UserDTO;
 import com.pusula.desktop.api.ServiceTicketExpenseApi;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.CurrencyTextField;
 import com.pusula.desktop.util.WhatsAppHelper;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -647,7 +648,7 @@ public class TicketDetailsController {
         descField.setPromptText("Açıklama (örn: Kompresör, Motor)");
         TextField supplierField = new TextField();
         supplierField.setPromptText("Tedarikçi (İsteğe bağlı)");
-        TextField amountField = new TextField();
+        com.pusula.desktop.util.CurrencyTextField amountField = new com.pusula.desktop.util.CurrencyTextField();
         amountField.setPromptText("Tutar (₺)");
         TextArea notesField = new TextArea();
         notesField.setPromptText("Notlar (İsteğe bağlı)");
@@ -671,7 +672,7 @@ public class TicketDetailsController {
         dialog.setResultConverter(button -> {
             if (button == ButtonType.OK) {
                 try {
-                    BigDecimal amount = new BigDecimal(amountField.getText().replace(",", "."));
+                    BigDecimal amount = amountField.getRawValue();
                     return ServiceTicketExpenseDTO.builder()
                             .serviceTicketId(currentTicket.getId())
                             .description(descField.getText())
@@ -1058,8 +1059,8 @@ public class TicketDetailsController {
         grid.setVgap(10);
         grid.setPadding(new javafx.geometry.Insets(20, 150, 10, 10));
 
-        javafx.scene.control.TextField amountField = new javafx.scene.control.TextField();
-        amountField.setPromptText("0.00");
+        com.pusula.desktop.util.CurrencyTextField amountField = new com.pusula.desktop.util.CurrencyTextField();
+        amountField.setPromptText("0,00");
 
         javafx.scene.control.ComboBox<String> paymentCombo = new javafx.scene.control.ComboBox<>();
         paymentCombo.getItems().addAll(
@@ -1089,7 +1090,7 @@ public class TicketDetailsController {
 
         dialog.showAndWait().ifPresent(result -> {
             try {
-                BigDecimal amount = new BigDecimal(result.get("amount").toString().trim());
+                BigDecimal amount = CurrencyTextField.parseTurkishCurrency(result.get("amount").toString().trim());
                 String paymentMethodDisplay = result.get("paymentMethod").toString();
 
                 // Map display text to backend enum value

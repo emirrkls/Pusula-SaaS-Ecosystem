@@ -3,6 +3,7 @@ package com.pusula.desktop.controller;
 import com.pusula.desktop.api.CompanyDebtApi;
 import com.pusula.desktop.dto.CompanyDebtDTO;
 import com.pusula.desktop.network.RetrofitClient;
+import com.pusula.desktop.util.CurrencyTextField;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -19,7 +20,7 @@ public class CompanyDebtDialogController {
     @FXML
     private TextField creditorField;
     @FXML
-    private TextField amountField;
+    private CurrencyTextField amountField;
     @FXML
     private TextField descriptionField;
     @FXML
@@ -52,17 +53,15 @@ public class CompanyDebtDialogController {
             return;
         }
 
-        BigDecimal amount;
-        try {
-            amount = new BigDecimal(amountField.getText().replace(",", ".").trim());
-            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                showError("Tutar sıfırdan büyük olmalıdır!");
-                return;
-            }
-        } catch (NumberFormatException e) {
-            showError("Geçersiz tutar formatı!");
+        if (amountField.isEmpty()) {
+            showError("Tutar alanı boş bırakılamaz!");
             return;
         }
+        if (!amountField.isValidAmount()) {
+            showError("Tutar sıfırdan büyük olmalıdır!");
+            return;
+        }
+        BigDecimal amount = amountField.getRawValue();
 
         CompanyDebtDTO dto = CompanyDebtDTO.builder()
                 .companyId(1L)

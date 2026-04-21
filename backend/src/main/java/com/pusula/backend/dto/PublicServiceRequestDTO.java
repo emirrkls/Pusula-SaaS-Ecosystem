@@ -22,7 +22,7 @@ public class PublicServiceRequestDTO {
 
     @NotBlank(message = "Telefon numarası boş bırakılamaz")
     @Pattern(
-        regexp = "^(\\+90|0)?[0-9]{10}$",
+        regexp = "^[\\+]?[\\d\\s\\-\\(\\)]{10,17}$",
         message = "Geçerli bir Türkiye telefon numarası giriniz"
     )
     private String customerPhone;

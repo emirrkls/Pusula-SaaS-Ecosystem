@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import com.pusula.desktop.util.CurrencyTextField?>
 
 <VBox xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.pusula.desktop.controller.ProposalEditorController"
@@ -68,8 +69,8 @@
         <ComboBox fx:id="sourceTypeComboBox" promptText="Kaynak" prefWidth="100"/>
         <ComboBox fx:id="sourceItemComboBox" promptText="Cihaz/Açıklama" prefWidth="220" editable="true"/>
         <TextField fx:id="itemQtyField" promptText="Adet" prefWidth="60"/>
-        <TextField fx:id="itemCostField" promptText="Maliyet" prefWidth="80"/>
-        <TextField fx:id="itemPriceField" promptText="Fiyat" prefWidth="80"/>
+        <CurrencyTextField fx:id="itemCostField" promptText="Maliyet" prefWidth="80"/>
+        <CurrencyTextField fx:id="itemPriceField" promptText="Fiyat" prefWidth="80"/>
         <Button text="+ Ekle" onAction="#handleAddItem" 
                 style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;"/>
     </HBox>
@@ -87,12 +88,12 @@
             </HBox>
             <HBox spacing="10" alignment="CENTER_RIGHT">
                 <Label text="KDV %:"/>
-                <TextField fx:id="taxRateField" text="20" prefWidth="50"/>
+                <CurrencyTextField fx:id="taxRateField" text="20" prefWidth="50"/>
                 <Label fx:id="taxAmountLabel" text="0,00 ₺"/>
             </HBox>
             <HBox spacing="10" alignment="CENTER_RIGHT">
                 <Label text="İndirim:"/>
-                <TextField fx:id="discountField" text="0" prefWidth="80"/>
+                <CurrencyTextField fx:id="discountField" text="0" prefWidth="80"/>
             </HBox>
             <HBox spacing="10" alignment="CENTER_RIGHT">
                 <Label text="TOPLAM:" style="-fx-font-weight: bold; -fx-font-size: 16px;"/>

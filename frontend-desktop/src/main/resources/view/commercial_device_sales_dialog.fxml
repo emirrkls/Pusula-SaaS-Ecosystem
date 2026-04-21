@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import com.pusula.desktop.util.CurrencyTextField?>
 
 <VBox xmlns:fx="http://javafx.com/fxml" 
       fx:controller="com.pusula.desktop.controller.CommercialDeviceSalesDialogController"
@@ -28,7 +29,7 @@
     <!-- Selling Price -->
     <HBox spacing="10" alignment="CENTER_LEFT">
         <Label text="%commercial.sale.price" style="-fx-font-weight: bold;" prefWidth="120"/>
-        <TextField fx:id="sellingPriceField" prefWidth="200" promptText="0.00"/>
+        <CurrencyTextField fx:id="sellingPriceField" prefWidth="200" promptText="0,00"/>
         <Label text="₺"/>
     </HBox>
 

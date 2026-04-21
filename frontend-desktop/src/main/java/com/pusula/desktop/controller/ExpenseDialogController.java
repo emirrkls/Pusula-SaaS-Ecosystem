@@ -4,6 +4,7 @@ import com.pusula.desktop.api.FinanceApi;
 import com.pusula.desktop.dto.ExpenseDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.CurrencyTextField;
 import com.pusula.desktop.util.UTF8Control;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -25,7 +26,7 @@ public class ExpenseDialogController {
     @FXML
     private ComboBox<String> comboCategory;
     @FXML
-    private TextField txtAmount;
+    private CurrencyTextField txtAmount;
     @FXML
     private DatePicker datePicker;
     @FXML
@@ -84,7 +85,7 @@ public class ExpenseDialogController {
 
     // Pre-fill form
     comboCategory.setValue(expense.getCategory());
-    txtAmount.setText(expense.getAmount().toString());
+    txtAmount.setRawValue(expense.getAmount());
     txtDescription.setText(expense.getDescription());
     datePicker.setValue(LocalDate.parse(expense.getDate()));
 }
@@ -97,7 +98,7 @@ private void handleSave() {
     ExpenseDTO expense = expenseToEdit != null ? expenseToEdit : new ExpenseDTO();
     expense.setCompanyId(1L);
     expense.setCategory(comboCategory.getValue());
-    expense.setAmount(new BigDecimal(txtAmount.getText()));
+    expense.setAmount(txtAmount.getRawValue());
     expense.setDescription(txtDescription.getText());
     expense.setDate(datePicker.getValue().toString());
 
@@ -149,14 +150,12 @@ private void handleSave() {
                     "Uyarı", "Lütfen kategori seçin.");
             return false;
         }
-        if (txtAmount.getText().isEmpty()) {
+        if (txtAmount.isEmpty()) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, txtAmount.getScene().getWindow(),
                     "Uyarı", "Lütfen tutar girin.");
             return false;
         }
-        try {
-            new BigDecimal(txtAmount.getText());
-        } catch (NumberFormatException e) {
+        if (!txtAmount.isValidAmount()) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, txtAmount.getScene().getWindow(),
                     "Uyarı", "Geçersiz tutar formatı.");
             return false;

@@ -8,6 +8,7 @@ import com.pusula.desktop.api.FinanceApi;
 import com.pusula.desktop.api.CurrentAccountApi;
 import com.pusula.desktop.dto.*;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.CurrencyTextField;
 import com.pusula.desktop.util.UTF8Control;
 import com.pusula.desktop.network.RetrofitClient;
 import javafx.application.Platform;
@@ -788,11 +789,11 @@ public class FinanceController {
         grid.setVgap(10);
         grid.setPadding(new javafx.geometry.Insets(20, 150, 10, 10));
 
-        javafx.scene.control.TextField paymentField = new javafx.scene.control.TextField();
-        paymentField.setPromptText("0.00");
+        CurrencyTextField paymentField = new CurrencyTextField();
+        paymentField.setPromptText("0,00");
 
-        javafx.scene.control.TextField discountField = new javafx.scene.control.TextField();
-        discountField.setPromptText("0.00");
+        CurrencyTextField discountField = new CurrencyTextField();
+        discountField.setPromptText("0,00");
         discountField.setText("0");
 
         grid.add(new Label("Ödeme Tutarı:"), 0, 0);
@@ -814,8 +815,8 @@ public class FinanceController {
 
         dialog.showAndWait().ifPresent(result -> {
             try {
-                BigDecimal payment = new BigDecimal(result.get("payment").toString().trim());
-                BigDecimal discount = new BigDecimal(result.get("discount").toString().trim());
+                BigDecimal payment = paymentField.getRawValue();
+                BigDecimal discount = discountField.getRawValue();
 
                 Map<String, Object> requestBody = new java.util.HashMap<>();
                 requestBody.put("paymentAmount", payment);

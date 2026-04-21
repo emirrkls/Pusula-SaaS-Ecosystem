@@ -8,6 +8,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
+<?import com.pusula.desktop.util.CurrencyTextField?>
 
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.InventoryDialogController">
    <padding>
@@ -46,13 +47,13 @@
             <VBox spacing="5.0" HBox.hgrow="ALWAYS">
                <children>
                   <Label text="%inventory.form.buyprice" />
-                  <TextField fx:id="buyPriceField" promptText="0.00" />
+                  <CurrencyTextField fx:id="buyPriceField" promptText="0,00" />
                </children>
             </VBox>
             <VBox spacing="5.0" HBox.hgrow="ALWAYS">
                <children>
                   <Label text="%inventory.form.sellprice" />
-                  <TextField fx:id="sellPriceField" promptText="0.00" />
+                  <CurrencyTextField fx:id="sellPriceField" promptText="0,00" />
                </children>
             </VBox>
          </children>

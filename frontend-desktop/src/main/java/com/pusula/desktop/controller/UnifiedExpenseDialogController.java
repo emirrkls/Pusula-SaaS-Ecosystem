@@ -5,6 +5,7 @@ import com.pusula.desktop.dto.ExpenseDTO;
 import com.pusula.desktop.dto.FixedExpenseDefinitionDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.CurrencyTextField;
 import com.pusula.desktop.util.UTF8Control;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -39,7 +40,7 @@ public class UnifiedExpenseDialogController {
     @FXML
     private ComboBox<String> comboCategory;
     @FXML
-    private TextField txtAmount;
+    private CurrencyTextField txtAmount;
     @FXML
     private DatePicker datePicker;
     @FXML
@@ -129,7 +130,7 @@ public class UnifiedExpenseDialogController {
         ExpenseDTO expense = expenseToEdit != null ? expenseToEdit : new ExpenseDTO();
         expense.setCompanyId(1L);
         expense.setCategory(comboCategory.getValue());
-        expense.setAmount(new BigDecimal(txtAmount.getText()));
+        expense.setAmount(txtAmount.getRawValue());
         expense.setDescription(txtDescription.getText());
         expense.setDate(datePicker.getValue().toString());
 
@@ -174,14 +175,12 @@ public class UnifiedExpenseDialogController {
                     "Warning", bundle.getString("unified_expense.validation.select_category"));
             return false;
         }
-        if (txtAmount.getText().isEmpty()) {
+        if (txtAmount.isEmpty()) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, txtAmount.getScene().getWindow(),
                     "Warning", bundle.getString("unified_expense.validation.enter_amount"));
             return false;
         }
-        try {
-            new BigDecimal(txtAmount.getText());
-        } catch (NumberFormatException e) {
+        if (!txtAmount.isValidAmount()) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, txtAmount.getScene().getWindow(),
                     "Warning", bundle.getString("unified_expense.validation.invalid_amount"));
             return false;
@@ -261,7 +260,7 @@ public class UnifiedExpenseDialogController {
 
         // Editable Pay Amount
         colFixedPayAmount.setCellFactory(column -> new TableCell<FixedExpenseRow, String>() {
-            private final TextField textField = new TextField();
+            private final CurrencyTextField textField = new CurrencyTextField();
             {
                 textField.setStyle("-fx-padding: 2; -fx-font-size: 12px;");
                 textField.textProperty().addListener((obs, oldVal, newVal) -> {
@@ -392,8 +391,8 @@ public class UnifiedExpenseDialogController {
             BigDecimal customAmount = null;
             if (row.getPayAmount() != null && !row.getPayAmount().trim().isEmpty()) {
                 try {
-                    String amountStr = row.getPayAmount().replace(",", ".").trim();
-                    customAmount = new BigDecimal(amountStr);
+                    String amountStr = row.getPayAmount();
+                    customAmount = CurrencyTextField.parseTurkishCurrency(amountStr);
                 } catch (NumberFormatException e) {
                     AlertHelper.showAlert(Alert.AlertType.WARNING, null,
                             bundle.getString("unified_expense.error.invalid_amount"),
@@ -460,7 +459,7 @@ public class UnifiedExpenseDialogController {
         this.isEditMode = true;
 
         comboCategory.setValue(expense.getCategory());
-        txtAmount.setText(expense.getAmount().toString());
+        txtAmount.setRawValue(expense.getAmount());
         txtDescription.setText(expense.getDescription());
         datePicker.setValue(LocalDate.parse(expense.getDate()));
 

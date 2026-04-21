@@ -4,6 +4,7 @@ import com.pusula.desktop.api.CommercialDeviceApi;
 import com.pusula.desktop.dto.CommercialDeviceDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.CurrencyTextField;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -30,9 +31,9 @@ public class CommercialDeviceDialogController {
     @FXML
     private TextField txtQuantity;
     @FXML
-    private TextField txtBuyingPrice;
+    private CurrencyTextField txtBuyingPrice;
     @FXML
-    private TextField txtSellingPrice;
+    private CurrencyTextField txtSellingPrice;
 
     private CommercialDeviceApi api;
     private CommercialDeviceDTO device;
@@ -63,10 +64,10 @@ public class CommercialDeviceDialogController {
             cmbGasType.setValue(device.getGasType());
             txtQuantity.setText(device.getQuantity() != null ? device.getQuantity().toString() : "0");
             if (device.getBuyingPrice() != null) {
-                txtBuyingPrice.setText(device.getBuyingPrice().toString());
+                txtBuyingPrice.setRawValue(device.getBuyingPrice());
             }
             if (device.getSellingPrice() != null) {
-                txtSellingPrice.setText(device.getSellingPrice().toString());
+                txtSellingPrice.setRawValue(device.getSellingPrice());
             }
         }
     }
@@ -100,14 +101,14 @@ public class CommercialDeviceDialogController {
             dto.setQuantity(0);
         }
         try {
-            dto.setBuyingPrice(new BigDecimal(txtBuyingPrice.getText().trim()));
+            dto.setBuyingPrice(txtBuyingPrice.getRawValue());
         } catch (NumberFormatException e) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, null, "Uyarı",
                     "Geçerli bir alış fiyatı girin.");
             return;
         }
         try {
-            dto.setSellingPrice(new BigDecimal(txtSellingPrice.getText().trim()));
+            dto.setSellingPrice(txtSellingPrice.getRawValue());
         } catch (NumberFormatException e) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, null, "Uyarı",
                     "Geçerli bir satış fiyatı girin.");
@@ -164,12 +165,12 @@ public class CommercialDeviceDialogController {
                     "Model boş olamaz.");
             return false;
         }
-        if (txtBuyingPrice.getText().trim().isEmpty()) {
+        if (txtBuyingPrice.isEmpty()) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, null, "Uyarı",
                     "Alış fiyatı boş olamaz.");
             return false;
         }
-        if (txtSellingPrice.getText().trim().isEmpty()) {
+        if (txtSellingPrice.isEmpty()) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, null, "Uyarı",
                     "Satış fiyatı boş olamaz.");
             return false;

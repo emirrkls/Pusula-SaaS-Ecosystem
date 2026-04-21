@@ -4,6 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
+<?import com.pusula.desktop.util.CurrencyTextField?>
 
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.pusula.desktop.controller.UnifiedExpenseDialogController"
@@ -41,7 +42,7 @@
                                 <VBox spacing="6" HBox.hgrow="ALWAYS">
                                     <Label text="%unified_expense.daily.amount"
                                            style="-fx-font-weight: bold; -fx-font-size: 13px;" />
-                                    <TextField fx:id="txtAmount" promptText="0.00"
+                                    <CurrencyTextField fx:id="txtAmount" promptText="0,00"
                                                style="-fx-min-height: 38; -fx-font-size: 14px;" />
                                 </VBox>
                                 <VBox spacing="6" HBox.hgrow="ALWAYS">

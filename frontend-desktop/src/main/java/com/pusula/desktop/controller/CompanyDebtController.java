@@ -3,6 +3,7 @@ package com.pusula.desktop.controller;
 import com.pusula.desktop.api.CompanyDebtApi;
 import com.pusula.desktop.dto.CompanyDebtDTO;
 import com.pusula.desktop.network.RetrofitClient;
+import com.pusula.desktop.util.CurrencyTextField;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -273,7 +274,7 @@ public class CompanyDebtController {
 
         dialog.showAndWait().ifPresent(input -> {
             try {
-                BigDecimal amount = new BigDecimal(input.replace(",", "."));
+                BigDecimal amount = CurrencyTextField.parseTurkishCurrency(input);
                 if (amount.compareTo(BigDecimal.ZERO) <= 0) {
                     showError("Tutar sıfırdan büyük olmalıdır!");
                     return;
@@ -317,8 +318,8 @@ public class CompanyDebtController {
         grid.setVgap(10);
         grid.setPadding(new Insets(20, 50, 10, 10));
 
-        TextField amountField = new TextField();
-        amountField.setPromptText("0.00");
+        CurrencyTextField amountField = new CurrencyTextField();
+        amountField.setPromptText("0,00");
         TextField notesField = new TextField();
         notesField.setPromptText("Örn: X malzemesi alındı");
 
@@ -338,8 +339,7 @@ public class CompanyDebtController {
 
         dialog.showAndWait().ifPresent(result -> {
             try {
-                String amtStr = result.get("amount").replace(",", ".");
-                BigDecimal amount = new BigDecimal(amtStr);
+                BigDecimal amount = amountField.getRawValue();
                 if (amount.compareTo(BigDecimal.ZERO) <= 0) {
                     showError("Tutar sıfırdan büyük olmalıdır!");
                     return;

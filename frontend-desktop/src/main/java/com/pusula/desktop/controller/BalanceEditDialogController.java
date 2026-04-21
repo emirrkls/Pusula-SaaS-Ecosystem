@@ -1,6 +1,7 @@
 package com.pusula.desktop.controller;
 
 import com.pusula.desktop.dto.CurrentAccountDTO;
+import com.pusula.desktop.util.CurrencyTextField;
 import com.pusula.desktop.util.UTF8Control;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -21,7 +22,7 @@ public class BalanceEditDialogController {
     @FXML
     private ComboBox<String> operationCombo;
     @FXML
-    private TextField amountField;
+    private CurrencyTextField amountField;
     @FXML
     private TextArea noteField;
     @FXML
@@ -72,7 +73,7 @@ public class BalanceEditDialogController {
                 return;
             }
 
-            BigDecimal amount = new BigDecimal(amountText);
+            BigDecimal amount = amountField.getRawValue();
             BigDecimal newBalance;
             String operation = operationCombo.getValue();
 
@@ -113,7 +114,7 @@ public class BalanceEditDialogController {
                 return;
             }
 
-            BigDecimal amount = new BigDecimal(amountText);
+            BigDecimal amount = amountField.getRawValue();
             String operation = operationCombo.getValue();
             BigDecimal newBalance;
 

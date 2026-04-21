@@ -4,6 +4,7 @@ import com.pusula.desktop.api.InventoryApi;
 import com.pusula.desktop.dto.InventoryDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.CurrencyTextField;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
@@ -36,10 +37,10 @@ public class InventoryDialogController {
     private TextField criticalLevelField;
 
     @FXML
-    private TextField buyPriceField;
+    private CurrencyTextField buyPriceField;
 
     @FXML
-    private TextField sellPriceField;
+    private CurrencyTextField sellPriceField;
 
     @FXML
     private TextField brandField;
@@ -72,8 +73,8 @@ public class InventoryDialogController {
             partNameField.setText(item.getPartName());
             quantityField.setText(String.valueOf(item.getQuantity()));
             criticalLevelField.setText(String.valueOf(item.getCriticalLevel()));
-            buyPriceField.setText(item.getBuyPrice().toString());
-            sellPriceField.setText(item.getSellPrice().toString());
+            buyPriceField.setRawValue(item.getBuyPrice());
+            sellPriceField.setRawValue(item.getSellPrice());
             if (item.getBrand() != null)
                 brandField.setText(item.getBrand());
             if (item.getCategory() != null)
@@ -130,10 +131,8 @@ public class InventoryDialogController {
         String partName = partNameField.getText();
         String quantityStr = quantityField.getText();
         String criticalLevelStr = criticalLevelField.getText();
-        String buyPriceStr = buyPriceField.getText();
-        String sellPriceStr = sellPriceField.getText();
 
-        if (partName.isEmpty() || quantityStr.isEmpty() || buyPriceStr.isEmpty()) {
+        if (partName.isEmpty() || quantityStr.isEmpty() || buyPriceField.isEmpty()) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, partNameField.getScene().getWindow(),
                     "Validation Error", "Part Name, Quantity, and Buy Price are required.");
             return;
@@ -144,8 +143,8 @@ public class InventoryDialogController {
             itemToSave.setPartName(partName);
             itemToSave.setQuantity(Integer.parseInt(quantityStr));
             itemToSave.setCriticalLevel(criticalLevelStr.isEmpty() ? 0 : Integer.parseInt(criticalLevelStr));
-            itemToSave.setBuyPrice(new BigDecimal(buyPriceStr));
-            itemToSave.setSellPrice(sellPriceStr.isEmpty() ? BigDecimal.ZERO : new BigDecimal(sellPriceStr));
+            itemToSave.setBuyPrice(buyPriceField.getRawValue());
+            itemToSave.setSellPrice(sellPriceField.isEmpty() ? BigDecimal.ZERO : sellPriceField.getRawValue());
             itemToSave.setBrand(brandField.getText().isEmpty() ? null : brandField.getText());
             itemToSave.setCategory(categoryField.getText().isEmpty() ? null : categoryField.getText());
 

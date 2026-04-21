@@ -4,6 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
+<?import com.pusula.desktop.util.CurrencyTextField?>
 
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.pusula.desktop.controller.CompanyDebtDialogController"
@@ -30,7 +31,7 @@
         <TextField fx:id="creditorField" promptText="Tedarikçi adı" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
 
         <Label text="Tutar (₺) *" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-        <TextField fx:id="amountField" promptText="0.00" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+        <CurrencyTextField fx:id="amountField" promptText="0,00" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
 
         <Label text="Açıklama" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
         <TextField fx:id="descriptionField" promptText="Ne için borçlanıldı?" GridPane.columnIndex="1" GridPane.rowIndex="2"/>

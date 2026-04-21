@@ -23,7 +23,7 @@ const i18n = {
     labelAddress: 'Adres',
     labelNote: 'Notunuz (Opsiyonel)',
     placeholderName: 'Adınız Soyadınız',
-    placeholderPhone: '0555 555 55 55',
+    placeholderPhone: '0 (555) 555 55 55',
     placeholderAddress: 'Açık adresiniz...',
     placeholderNote: 'Arıza hakkında kısa bilgi...',
     deviceOptions: {
@@ -41,12 +41,90 @@ const i18n = {
     errorRateLimit: 'Çok fazla istek gönderdiniz. Lütfen bir dakika sonra tekrar deneyin.',
     errorValidation: 'Lütfen formdaki hataları düzeltin.',
     errorNetwork: 'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.',
+    errorPhoneInvalid: 'Lütfen geçerli bir telefon numarası giriniz (10 haneli).',
     mapLabel: 'Çamlık Mah. Ege Cad. No76/B, Didim/AYDIN',
 };
 
 // ===== API Yapılandırması =====
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 const COMPANY_ID = import.meta.env.VITE_COMPANY_ID || '1';
+
+// ===== Telefon Numarası Yardımcı Fonksiyonları =====
+
+/**
+ * Kullanıcının girdiği ham telefon string'inden saf rakamları çıkarır
+ * ve 10 haneli standart formata normalize eder.
+ * 
+ * Örnekler:
+ *   '0 (553) 863 85 66' → '5538638566'
+ *   '+90 553 863 85 66' → '5538638566'
+ *   '05538638566'        → '5538638566'
+ *   '553 863 85 66'      → '5538638566'
+ * 
+ * @param {string} raw - Kullanıcının girdiği ham numara
+ * @returns {string|null} 10 haneli saf numara veya geçersizse null
+ */
+function normalizePhone(raw) {
+    // 1. Rakam olmayan her şeyi temizle (boşluk, tire, parantez, + vb.)
+    const digitsOnly = raw.replace(/\D/g, '');
+
+    let normalized = digitsOnly;
+
+    // 2. Başında '90' varsa ve toplam 12 hane ise → ülke kodu kırp
+    if (normalized.startsWith('90') && normalized.length === 12) {
+        normalized = normalized.substring(2);
+    }
+
+    // 3. Başında '0' varsa ve toplam 11 hane ise → baştaki 0'ı kırp
+    if (normalized.startsWith('0') && normalized.length === 11) {
+        normalized = normalized.substring(1);
+    }
+
+    // 4. Tam 10 hane değilse geçersiz
+    if (normalized.length !== 10) {
+        return null;
+    }
+
+    return normalized;
+}
+
+/**
+ * Telefon numarasını kullanıcı dostu formatta gösterir.
+ * Kullanıcı yazarken anlık maskeleme sağlar.
+ * 
+ * Rakam sayısına göre kademeli format:
+ *   1-1  hane  → '0'
+ *   2-4  hane  → '0 (5XX'
+ *   5-7  hane  → '0 (553) XXX'
+ *   8-9  hane  → '0 (553) 863 XX'
+ *   10-11 hane → '0 (553) 863 85 66'
+ * 
+ * @param {string} raw - Kullanıcının girdiği ham string
+ * @returns {string} Formatlanmış görüntüleme string'i
+ */
+function formatPhoneDisplay(raw) {
+    // Sadece rakamları al
+    let digits = raw.replace(/\D/g, '');
+
+    // Başındaki ülke kodunu (90) temizle — kullanıcı +90 yazmış olabilir
+    if (digits.startsWith('90') && digits.length > 11) {
+        digits = digits.substring(2);
+    }
+
+    // Maksimum 11 hane (0 + 10 hane) ile sınırla
+    if (digits.length > 11) {
+        digits = digits.substring(0, 11);
+    }
+
+    // Kademeli maskeleme: 0 (5XX) XXX XX XX
+    const len = digits.length;
+    if (len === 0) return '';
+    if (len <= 1) return digits; // '0'
+    if (len <= 4) return `${digits[0]} (${digits.substring(1)}`; // '0 (55'
+    if (len <= 7) return `${digits[0]} (${digits.substring(1, 4)}) ${digits.substring(4)}`; // '0 (553) 863'
+    if (len <= 9) return `${digits[0]} (${digits.substring(1, 4)}) ${digits.substring(4, 7)} ${digits.substring(7)}`; // '0 (553) 863 85'
+    return `${digits[0]} (${digits.substring(1, 4)}) ${digits.substring(4, 7)} ${digits.substring(7, 9)} ${digits.substring(9, 11)}`; // '0 (553) 863 85 66'
+}
 
 /**
  * Servis talebini backend API'sine gönderir.
@@ -163,7 +241,14 @@ const Contact = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData({ ...formData, [name]: value });
+
+        if (name === 'phone') {
+            // Telefon alanı — anlık maskeleme uygula
+            // Kullanıcı ne yazarsa yazsın, güzel formatlanmış hali gösterilir
+            setFormData({ ...formData, phone: formatPhoneDisplay(value) });
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
 
         // Kullanıcı düzeltme yaparken ilgili alan hatasını temizle
         if (fieldErrors[name]) {
@@ -186,8 +271,32 @@ const Contact = () => {
         setFieldErrors({});
         setToast(null);
 
+        // --- Telefon Numarası Ön Temizleme ---
+        // Kullanıcının girdiği formatı (boşluk, tire, parantez) temizleyip
+        // saf 10 haneli numaraya dönüştür
+        const cleanedPhone = normalizePhone(formData.phone);
+
+        if (!cleanedPhone) {
+            // Geçersiz numara — kullanıcıya bildir ve işlemi durdur
+            setFieldErrors({ phone: i18n.errorPhoneInvalid });
+            setToast({
+                type: 'error',
+                title: i18n.errorTitle,
+                message: i18n.errorPhoneInvalid,
+            });
+            setIsSubmitting(false);
+            setTimeout(() => setToast(null), 6000);
+            return;
+        }
+
+        // Temizlenmiş telefon numarasıyla form verisini hazırla
+        const submissionData = {
+            ...formData,
+            phone: cleanedPhone, // '5538638566' formatında backend'e gider
+        };
+
         try {
-            await submitServiceRequest(formData);
+            await submitServiceRequest(submissionData);
 
             // ✅ Başarılı — formu sıfırla ve başarı mesajı göster
             setToast({
@@ -385,7 +494,9 @@ const Contact = () => {
                                     </label>
                                     <input
                                         id="contact-phone"
-                                        type="tel"
+                                        type="text"
+                                        inputMode="tel"
+                                        autoComplete="tel"
                                         name="phone"
                                         required
                                         value={formData.phone}

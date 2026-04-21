@@ -1,6 +1,7 @@
 package com.pusula.desktop.controller;
 
 import com.pusula.desktop.dto.FixedExpenseDefinitionDTO;
+import com.pusula.desktop.util.CurrencyTextField;
 import com.pusula.desktop.util.UTF8Control;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -17,7 +18,7 @@ public class FixedExpenseDialogController {
     @FXML
     private TextField nameField;
     @FXML
-    private TextField amountField;
+    private CurrencyTextField amountField;
     @FXML
     private ComboBox<String> categoryComboBox;
     @FXML
@@ -119,7 +120,7 @@ public class FixedExpenseDialogController {
         if (expense != null) {
             // Edit mode - populate fields
             nameField.setText(expense.getName());
-            amountField.setText(expense.getDefaultAmount().toString());
+            amountField.setRawValue(expense.getDefaultAmount());
             categoryComboBox.setValue(expense.getCategory());
             if (expense.getDayOfMonth() != null) {
                 daySpinner.getValueFactory().setValue(expense.getDayOfMonth());
@@ -196,11 +197,11 @@ public class FixedExpenseDialogController {
         }
 
         try {
-            BigDecimal amount = new BigDecimal(amountField.getText().trim());
-            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            if (!amountField.isValidAmount()) {
                 showError("Tutar sıfırdan büyük olmalıdır!");
                 return;
             }
+            BigDecimal amount = amountField.getRawValue();
 
             // Build DTO
             if (fixedExpense == null) {

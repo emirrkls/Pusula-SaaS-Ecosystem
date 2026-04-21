@@ -3,6 +3,7 @@ package com.pusula.desktop.controller;
 import com.pusula.desktop.api.*;
 import com.pusula.desktop.dto.*;
 import com.pusula.desktop.network.RetrofitClient;
+import com.pusula.desktop.util.CurrencyTextField;
 import com.pusula.desktop.util.SessionManager;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -60,18 +61,18 @@ public class ProposalEditorController {
     @FXML
     private TextField itemQtyField;
     @FXML
-    private TextField itemCostField;
+    private CurrencyTextField itemCostField;
     @FXML
-    private TextField itemPriceField;
+    private CurrencyTextField itemPriceField;
 
     @FXML
     private Label subtotalLabel;
     @FXML
-    private TextField taxRateField;
+    private CurrencyTextField taxRateField;
     @FXML
     private Label taxAmountLabel;
     @FXML
-    private TextField discountField;
+    private CurrencyTextField discountField;
     @FXML
     private Label totalLabel;
 
@@ -338,8 +339,8 @@ public class ProposalEditorController {
                 CommercialDeviceDTO device = (CommercialDeviceDTO) selected;
                 description = device.getBrand() + " " + device.getModel();
                 unitCost = device.getBuyingPrice() != null ? device.getBuyingPrice() : BigDecimal.ZERO;
-                unitPrice = !itemPriceField.getText().isEmpty()
-                        ? new BigDecimal(itemPriceField.getText().replace(",", "."))
+                unitPrice = !itemPriceField.isEmpty()
+                        ? itemPriceField.getRawValue()
                         : (device.getSellingPrice() != null ? device.getSellingPrice() : BigDecimal.ZERO);
             } else {
                 // Manual service entry
@@ -348,10 +349,10 @@ public class ProposalEditorController {
                     showError("Lütfen açıklama girin.");
                     return;
                 }
-                if (!itemCostField.getText().isEmpty()) {
-                    unitCost = new BigDecimal(itemCostField.getText().replace(",", "."));
+                if (!itemCostField.isEmpty()) {
+                    unitCost = itemCostField.getRawValue();
                 }
-                unitPrice = new BigDecimal(itemPriceField.getText().replace(",", "."));
+                unitPrice = itemPriceField.getRawValue();
             }
 
             ProposalItemDTO item = new ProposalItemDTO();
@@ -386,13 +387,13 @@ public class ProposalEditorController {
 
         BigDecimal taxRate = new BigDecimal("20");
         try {
-            taxRate = new BigDecimal(taxRateField.getText().replace(",", "."));
+            taxRate = taxRateField.getRawValue();
         } catch (Exception ignored) {
         }
 
         BigDecimal discount = BigDecimal.ZERO;
         try {
-            discount = new BigDecimal(discountField.getText().replace(",", "."));
+            discount = discountField.getRawValue();
         } catch (Exception ignored) {
         }
 
@@ -427,8 +428,8 @@ public class ProposalEditorController {
             statusComboBox.setValue(proposal.getStatus());
             validUntilPicker.setValue(proposal.getValidUntil());
             noteArea.setText(proposal.getNote());
-            taxRateField.setText(proposal.getTaxRate() != null ? proposal.getTaxRate().toString() : "20");
-            discountField.setText(proposal.getDiscount() != null ? proposal.getDiscount().toString() : "0");
+            taxRateField.setRawValue(proposal.getTaxRate() != null ? proposal.getTaxRate() : new BigDecimal("20"));
+            discountField.setRawValue(proposal.getDiscount() != null ? proposal.getDiscount() : BigDecimal.ZERO);
 
             if (proposal.getItems() != null) {
                 items.addAll(proposal.getItems());
@@ -513,8 +514,8 @@ public class ProposalEditorController {
         dto.setTitle(titleField.getText());
 
         try {
-            dto.setTaxRate(new BigDecimal(taxRateField.getText().replace(",", ".")));
-            dto.setDiscount(new BigDecimal(discountField.getText().replace(",", ".")));
+            dto.setTaxRate(taxRateField.getRawValue());
+            dto.setDiscount(discountField.getRawValue());
         } catch (Exception e) {
             dto.setTaxRate(new BigDecimal("20"));
             dto.setDiscount(BigDecimal.ZERO);

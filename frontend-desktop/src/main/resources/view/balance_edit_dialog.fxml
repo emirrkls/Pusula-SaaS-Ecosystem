@@ -4,6 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
+<?import com.pusula.desktop.util.CurrencyTextField?>
 
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.pusula.desktop.controller.BalanceEditDialogController"
@@ -32,7 +33,7 @@
     <!-- Amount Input -->
     <VBox spacing="8">
         <Label text="%currentaccount.balance.amount" />
-        <TextField fx:id="amountField" promptText="0.00" />
+        <CurrencyTextField fx:id="amountField" promptText="0,00" />
     </VBox>
 
     <!-- Note/Description -->
