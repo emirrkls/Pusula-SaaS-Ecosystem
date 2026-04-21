@@ -23,4 +23,9 @@ public class FixedExpenseDefinitionDTO {
     @SerializedName("isPaidThisMonth")
     private boolean paidThisMonth; // Maps to backend's isPaidThisMonth, getter: isPaidThisMonth()
     private String frequency; // "MONTHLY" or "WEEKLY" from backend Enum
+
+    // Parent-child expense linking
+    private Long linkedExpenseId; // ID of the linked expense (e.g., weekly linked to monthly)
+    private String linkedExpenseName; // Name of linked expense for display
+    private BigDecimal linkedPaymentsThisMonth; // Total payments from linked expense this month
 }

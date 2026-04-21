@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.pusula.desktop.controller.UnifiedExpenseDialogController"
+      spacing="0" prefWidth="920" prefHeight="580"
+      stylesheets="@../css/styles.css">
+
+    <!-- Header -->
+    <HBox alignment="CENTER_LEFT" spacing="10"
+          style="-fx-background-color: linear-gradient(to right, #2c3e50, #3498db); -fx-padding: 18 24;">
+        <children>
+            <Label text="%unified_expense.title"
+                   style="-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold;" />
+        </children>
+    </HBox>
+
+    <!-- TabPane for switching modes -->
+    <TabPane fx:id="modeTabPane" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS"
+             style="-fx-tab-min-height: 40; -fx-tab-max-height: 40;">
+        <tabs>
+            <!-- TAB 1: Daily Expense -->
+            <Tab text="%unified_expense.tab.daily">
+                <VBox spacing="18" style="-fx-padding: 24;">
+                    <children>
+                        <!-- Category -->
+                        <VBox spacing="6">
+                            <Label text="%unified_expense.daily.category"
+                                   style="-fx-font-weight: bold; -fx-font-size: 13px;" />
+                            <ComboBox fx:id="comboCategory" maxWidth="Infinity"
+                                      style="-fx-min-height: 38; -fx-font-size: 13px;" />
+                        </VBox>
+
+                        <!-- Amount and Date side by side -->
+                        <HBox spacing="16">
+                            <children>
+                                <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                    <Label text="%unified_expense.daily.amount"
+                                           style="-fx-font-weight: bold; -fx-font-size: 13px;" />
+                                    <TextField fx:id="txtAmount" promptText="0.00"
+                                               style="-fx-min-height: 38; -fx-font-size: 14px;" />
+                                </VBox>
+                                <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                    <Label text="%unified_expense.daily.date"
+                                           style="-fx-font-weight: bold; -fx-font-size: 13px;" />
+                                    <DatePicker fx:id="datePicker" maxWidth="Infinity"
+                                                style="-fx-min-height: 38; -fx-font-size: 13px;" />
+                                </VBox>
+                            </children>
+                        </HBox>
+
+                        <!-- Description -->
+                        <VBox spacing="6" VBox.vgrow="ALWAYS">
+                            <Label text="%unified_expense.daily.description"
+                                   style="-fx-font-weight: bold; -fx-font-size: 13px;" />
+                            <TextArea fx:id="txtDescription" promptText="%unified_expense.daily.description_prompt"
+                                      prefRowCount="4" VBox.vgrow="ALWAYS"
+                                      style="-fx-font-size: 13px;" />
+                        </VBox>
+
+                        <!-- Buttons -->
+                        <HBox spacing="12" alignment="CENTER_RIGHT" style="-fx-padding: 8 0 0 0;">
+                            <children>
+                                <Button onAction="#handleDailyCancel" text="%unified_expense.daily.cancel"
+                                        style="-fx-min-width: 100; -fx-min-height: 38; -fx-font-size: 13px;
+                                               -fx-background-color: #ecf0f1; -fx-text-fill: #2c3e50;
+                                               -fx-background-radius: 6; -fx-cursor: hand;" />
+                                <Button onAction="#handleDailySave" text="%unified_expense.daily.save"
+                                        style="-fx-min-width: 120; -fx-min-height: 38; -fx-font-size: 13px;
+                                               -fx-background-color: #27ae60; -fx-text-fill: white;
+                                               -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand;" />
+                            </children>
+                        </HBox>
+                    </children>
+                </VBox>
+            </Tab>
+
+            <!-- TAB 2: Fixed Expense Payment -->
+            <Tab text="%unified_expense.tab.fixed">
+                <VBox spacing="12" style="-fx-padding: 16;">
+                    <children>
+                        <!-- Info and Date row -->
+                        <HBox spacing="12" alignment="CENTER_LEFT">
+                            <children>
+                                <Label text="%unified_expense.fixed.select_info"
+                                       style="-fx-font-size: 13px; -fx-text-fill: #7f8c8d;" />
+                                <Region HBox.hgrow="ALWAYS" />
+                                <Label text="%unified_expense.fixed.payment_date"
+                                       style="-fx-font-weight: bold; -fx-font-size: 13px;" />
+                                <DatePicker fx:id="dtFixedPaymentDate" prefWidth="150"
+                                            style="-fx-font-size: 12px;" />
+                            </children>
+                        </HBox>
+
+                        <!-- Fixed Expenses Table -->
+                        <TableView fx:id="fixedExpensesTable" VBox.vgrow="ALWAYS">
+                            <columns>
+                                <TableColumn fx:id="colFixedSelect" text="" prefWidth="50.0" />
+                                <TableColumn fx:id="colFixedName" text="%finance.pay_fixed_expense_dialog.name" prefWidth="160.0" />
+                                <TableColumn fx:id="colFixedCategory" text="%fixed_expense.category" prefWidth="100.0" />
+                                <TableColumn fx:id="colFixedFrequency" text="Sıklık" prefWidth="80.0" />
+                                <TableColumn fx:id="colFixedAmount" text="Varsayılan" prefWidth="90.0" />
+                                <TableColumn fx:id="colFixedPayAmount" text="Ödeme Tutarı" prefWidth="100.0" />
+                                <TableColumn fx:id="colFixedLinkedInfo" text="Bağlı Ödeme" prefWidth="180.0" />
+                                <TableColumn fx:id="colFixedDayOfMonth" text="%fixed_expense.day_of_month" prefWidth="60.0" />
+                                <TableColumn fx:id="colFixedDaysUntil" text="%finance.pay_fixed_expense_dialog.days_until" prefWidth="80.0" />
+                                <TableColumn fx:id="colFixedStatus" text="%finance.pay_fixed_expense_dialog.status" prefWidth="80.0" />
+                            </columns>
+                            <columnResizePolicy>
+                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                            </columnResizePolicy>
+                        </TableView>
+
+                        <!-- Buttons -->
+                        <HBox spacing="12" alignment="CENTER_RIGHT">
+                            <children>
+                                <Button onAction="#handleFixedCancel" text="%unified_expense.fixed.cancel"
+                                        style="-fx-min-width: 100; -fx-min-height: 38; -fx-font-size: 13px;
+                                               -fx-background-color: #ecf0f1; -fx-text-fill: #2c3e50;
+                                               -fx-background-radius: 6; -fx-cursor: hand;" />
+                                <Button onAction="#handleFixedPay" text="%unified_expense.fixed.pay_selected"
+                                        style="-fx-min-width: 150; -fx-min-height: 38; -fx-font-size: 13px;
+                                               -fx-background-color: #27ae60; -fx-text-fill: white;
+                                               -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand;" />
+                            </children>
+                        </HBox>
+                    </children>
+                </VBox>
+            </Tab>
+        </tabs>
+    </TabPane>
+</VBox>

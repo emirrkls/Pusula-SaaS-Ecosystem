@@ -89,9 +89,15 @@ public class ProposalService {
         Proposal proposal = proposalRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Teklif bulunamadı"));
 
+        // Track if we need to create a service ticket (status changing to APPROVED)
+        Proposal.ProposalStatus oldStatus = proposal.getStatus();
+        Proposal.ProposalStatus newStatus = Proposal.ProposalStatus.valueOf(dto.getStatus());
+        boolean shouldCreateTicket = (newStatus == Proposal.ProposalStatus.APPROVED)
+                && (oldStatus != Proposal.ProposalStatus.APPROVED);
+
         proposal.setCustomerId(dto.getCustomerId());
         proposal.setPreparedById(dto.getPreparedById());
-        proposal.setStatus(Proposal.ProposalStatus.valueOf(dto.getStatus()));
+        proposal.setStatus(newStatus);
         proposal.setValidUntil(dto.getValidUntil());
         proposal.setNote(dto.getNote());
         proposal.setTitle(dto.getTitle());
@@ -117,27 +123,23 @@ public class ProposalService {
         }
 
         recalculateTotal(proposal);
-        return mapToDTO(proposalRepository.save(proposal));
+        Proposal saved = proposalRepository.save(proposal);
+
+        // Auto-create service ticket when status changes to APPROVED (same as "işe
+        // dönüştür")
+        if (shouldCreateTicket) {
+            createServiceTicketFromProposal(saved);
+        }
+
+        return mapToDTO(saved);
     }
 
-    @Transactional
-    public void delete(Long id) {
-        proposalRepository.deleteById(id);
-    }
-
-    @Transactional
-    public ProposalDTO convertToJob(Long id) {
-        Proposal proposal = proposalRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Teklif bulunamadı"));
-
-        // Update status to APPROVED
-        proposal.setStatus(Proposal.ProposalStatus.APPROVED);
-        proposalRepository.save(proposal);
-
-        // Create service ticket
-        Customer customer = customerRepository.findById(proposal.getCustomerId())
-                .orElseThrow(() -> new RuntimeException("Müşteri bulunamadı"));
-
+    /**
+     * Creates a service ticket from an approved proposal.
+     * Shared logic between convertToJob() and update() when status changes to
+     * APPROVED.
+     */
+    private void createServiceTicketFromProposal(Proposal proposal) {
         // Build description from items
         StringBuilder description = new StringBuilder("Teklif #" + proposal.getId() + "\n");
         for (ProposalItem item : proposal.getItems()) {
@@ -154,6 +156,24 @@ public class ProposalService {
         ticket.setCollectedAmount(BigDecimal.ZERO);
 
         serviceTicketRepository.save(ticket);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        proposalRepository.deleteById(id);
+    }
+
+    @Transactional
+    public ProposalDTO convertToJob(Long id) {
+        Proposal proposal = proposalRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Teklif bulunamadı"));
+
+        // Update status to APPROVED
+        proposal.setStatus(Proposal.ProposalStatus.APPROVED);
+        proposalRepository.save(proposal);
+
+        // Create service ticket using shared helper
+        createServiceTicketFromProposal(proposal);
 
         return mapToDTO(proposal);
     }

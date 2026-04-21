@@ -127,11 +127,28 @@ public class SettingsController {
 
         // Row factory to highlight overdue unpaid expenses in red
         fixedExpensesTable.setRowFactory(tv -> new javafx.scene.control.TableRow<FixedExpenseDefinitionDTO>() {
+            {
+                // Add listener for selection changes
+                selectedProperty().addListener((obs, wasSelected, isNowSelected) -> {
+                    updateRowStyle(getItem(), isNowSelected);
+                });
+            }
+
             @Override
             protected void updateItem(FixedExpenseDefinitionDTO item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) {
+                updateRowStyle(item, isSelected());
+            }
+
+            private void updateRowStyle(FixedExpenseDefinitionDTO item, boolean selected) {
+                if (item == null) {
                     setStyle("");
+                    return;
+                }
+
+                if (selected) {
+                    // Force dark blue background with white text when selected
+                    setStyle("-fx-background-color: #334155; -fx-text-fill: white;");
                 } else {
                     int currentDay = java.time.LocalDate.now().getDayOfMonth();
                     Integer dueDay = item.getDayOfMonth();
@@ -183,6 +200,8 @@ public class SettingsController {
             javafx.scene.Parent root = loader.load();
 
             FixedExpenseDialogController dialogController = loader.getController();
+            // Pass available expenses for linking
+            dialogController.setAvailableExpenses(fixedExpensesTable.getItems());
             dialogController.setOnSave(() -> {
                 FixedExpenseDefinitionDTO result = dialogController.getResult();
                 if (result != null) {
@@ -191,6 +210,7 @@ public class SettingsController {
             });
 
             Stage stage = new Stage();
+            com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("settings.add_fixed_expense"));
             stage.setScene(new Scene(root));
@@ -217,6 +237,8 @@ public class SettingsController {
             javafx.scene.Parent root = loader.load();
 
             FixedExpenseDialogController dialogController = loader.getController();
+            // Pass available expenses for linking
+            dialogController.setAvailableExpenses(fixedExpensesTable.getItems());
             dialogController.setFixedExpense(selected);
             dialogController.setOnSave(() -> {
                 FixedExpenseDefinitionDTO result = dialogController.getResult();
@@ -226,6 +248,7 @@ public class SettingsController {
             });
 
             Stage stage = new Stage();
+            com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("settings.edit_fixed_expense"));
             stage.setScene(new Scene(root));
@@ -368,6 +391,7 @@ public class SettingsController {
             UserDialogController dialogController = loader.getController();
 
             Stage stage = new Stage();
+            com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("settings.add_user"));
             stage.setScene(new Scene(root));
@@ -401,6 +425,7 @@ public class SettingsController {
             dialogController.setUser(selected);
 
             Stage stage = new Stage();
+            com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("settings.edit_user"));
             stage.setScene(new Scene(root));
@@ -534,26 +559,84 @@ public class SettingsController {
     }
 
     private void deleteUser(Long userId) {
-        userApi.deleteUser(userId).enqueue(new Callback<Void>() {
+        deleteUserWithReassign(userId, null);
+    }
+
+    private void deleteUserWithReassign(Long userId, Long reassignTo) {
+        userApi.deleteUser(userId, reassignTo).enqueue(new Callback<okhttp3.ResponseBody>() {
             @Override
-            public void onResponse(Call<Void> call, Response<Void> response) {
+            public void onResponse(Call<okhttp3.ResponseBody> call, Response<okhttp3.ResponseBody> response) {
                 if (response.isSuccessful()) {
                     Platform.runLater(() -> {
                         AlertHelper.showAlert(Alert.AlertType.INFORMATION, null, "Başarılı",
                                 "Kullanıcı başarıyla silindi!");
                         loadUsers();
                     });
+                } else if (response.code() == 409) {
+                    // Active tickets exist, parse response and ask for reassignment
+                    try {
+                        String errorBody = response.errorBody().string();
+                        // Manual extremely simple JSON parsing
+                        Long ticketCount = 0L;
+                        if (errorBody.contains("\"count\":")) {
+                            String countStr = errorBody.split("\"count\":")[1].split("}")[0].trim();
+                            ticketCount = Long.parseLong(countStr);
+                        }
+                        
+                        Long currentTicketCount = ticketCount;
+                        Platform.runLater(() -> showReassignDialog(userId, currentTicketCount));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    Platform.runLater(() -> {
+                        AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
+                                "Kullanıcı silinemedi. Sunucu Hatası: " + response.code());
+                    });
                 }
             }
 
             @Override
-            public void onFailure(Call<Void> call, Throwable t) {
+            public void onFailure(Call<okhttp3.ResponseBody> call, Throwable t) {
                 Platform.runLater(() -> {
                     AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
                             "Kullanıcı silinemedi: " + t.getMessage());
                 });
             }
         });
+    }
+
+    private void showReassignDialog(Long userToDeleteId, Long ticketCount) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/reassign_tickets_dialog.fxml"), bundle);
+            javafx.scene.Parent root = loader.load();
+
+            ReassignTicketsDialogController dialogController = loader.getController();
+
+            // Filter out the user being deleted
+            List<UserDTO> availableTechs = usersTable.getItems().stream()
+                    .filter(u -> !u.getId().equals(userToDeleteId) && ("TECHNICIAN".equals(u.getRole()) || "COMPANY_ADMIN".equals(u.getRole())))
+                    .toList();
+
+            dialogController.setup(ticketCount, availableTechs);
+
+            Stage stage = new Stage();
+            com.pusula.desktop.util.StageHelper.setIcon(stage);
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.setTitle(bundle.getString("reassign.title"));
+            stage.setScene(new Scene(root));
+            stage.showAndWait();
+
+            Long newTechId = dialogController.getSelectedTechnicianId();
+            if (newTechId != null) {
+                // User chose someone, proceed with delete + reassign
+                deleteUserWithReassign(userToDeleteId, newTechId);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
+                    "Devir ekranı açılamadı: " + e.getMessage());
+        }
     }
 
     private void resetPassword(Long userId, String newPassword) {
@@ -630,6 +713,7 @@ public class SettingsController {
             dialogController.setOnSaveSuccess(this::loadVehicles);
 
             Stage stage = new Stage();
+            com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("vehicle.add"));
             stage.setScene(new Scene(root));
@@ -660,6 +744,7 @@ public class SettingsController {
             dialogController.setOnSaveSuccess(this::loadVehicles);
 
             Stage stage = new Stage();
+            com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("vehicle.edit"));
             stage.setScene(new Scene(root));

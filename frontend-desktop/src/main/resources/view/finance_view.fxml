@@ -54,43 +54,33 @@
 
                      <Separator />
 
-                     <!-- Payment Alert Box (Conditional - shown only when expenses due within 3 days) -->
-                     <VBox fx:id="paymentAlertBox" spacing="8.0" 
-                           style="-fx-background-color: #fff3cd; -fx-border-color: #ffc107; -fx-border-width: 1; -fx-padding: 12; -fx-border-radius: 5; -fx-background-radius: 5;"
-                          visible="false" managed="false">
+                     <!-- Overdue Alert (compact red bar) -->
+                     <HBox fx:id="overduePaymentBox" alignment="CENTER_LEFT" spacing="8.0"
+                           style="-fx-background-color: #fee2e2; -fx-border-color: #ef4444; -fx-border-width: 0 0 0 4; -fx-padding: 8 12; -fx-background-radius: 4; -fx-border-radius: 4;"
+                           visible="false" managed="false">
                         <children>
-                           <HBox alignment="CENTER_LEFT" spacing="10.0">
-                              <children>
-                                 <Label text="⚠️" style="-fx-font-size: 18px;"/>
-                                 <Label fx:id="alertMessageLabel" 
-                                        text="Dikkat: X adet sabit giderin ödeme günü yaklaşıyor!" 
-                                        style="-fx-font-weight: bold; -fx-text-fill: #856404;"
-                                        wrapText="true" HBox.hgrow="ALWAYS"/>
-                                 <Button text="Öde" onAction="#handlePayFixedExpense"
-                                         style="-fx-background-color: #ffc107; -fx-text-fill: #856404; -fx-font-weight: bold;"/>
-                              </children>
-                           </HBox>
+                           <Label text="🚨" style="-fx-font-size: 14px;"/>
+                           <Label fx:id="overdueMessageLabel"
+                                  style="-fx-font-weight: bold; -fx-text-fill: #991b1b; -fx-font-size: 12px;"
+                                  wrapText="true" HBox.hgrow="ALWAYS"/>
+                           <Button text="Öde" onAction="#handleAddExpenseUnified"
+                                   style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-padding: 4 12; -fx-background-radius: 4; -fx-cursor: hand;"/>
                         </children>
-                     </VBox>
+                     </HBox>
 
-                     <!-- Overdue Payment Alert Box (RED - shown when expenses are past due) -->
-                     <VBox fx:id="overduePaymentBox" spacing="8.0" 
-                           style="-fx-background-color: #f8d7da; -fx-border-color: #dc3545; -fx-border-width: 2; -fx-padding: 12; -fx-border-radius: 5; -fx-background-radius: 5;"
-                          visible="false" managed="false">
+                     <!-- Upcoming Alert (compact yellow bar) -->
+                     <HBox fx:id="paymentAlertBox" alignment="CENTER_LEFT" spacing="8.0"
+                           style="-fx-background-color: #fef3c7; -fx-border-color: #f59e0b; -fx-border-width: 0 0 0 4; -fx-padding: 8 12; -fx-background-radius: 4; -fx-border-radius: 4;"
+                           visible="false" managed="false">
                         <children>
-                           <HBox alignment="CENTER_LEFT" spacing="10.0">
-                              <children>
-                                 <Label text="🚨" style="-fx-font-size: 18px;"/>
-                                 <Label fx:id="overdueMessageLabel" 
-                                        text="Dikkat: X adet sabit gider ödemesi gecikti!" 
-                                        style="-fx-font-weight: bold; -fx-text-fill: #721c24;"
-                                        wrapText="true" HBox.hgrow="ALWAYS"/>
-                                 <Button text="Hemen Öde" onAction="#handlePayFixedExpense"
-                                         style="-fx-background-color: #dc3545; -fx-text-fill: white; -fx-font-weight: bold;"/>
-                              </children>
-                           </HBox>
+                           <Label text="⚠️" style="-fx-font-size: 14px;"/>
+                           <Label fx:id="alertMessageLabel"
+                                  style="-fx-font-weight: bold; -fx-text-fill: #92400e; -fx-font-size: 12px;"
+                                  wrapText="true" HBox.hgrow="ALWAYS"/>
+                           <Button text="Öde" onAction="#handleAddExpenseUnified"
+                                   style="-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-padding: 4 12; -fx-background-radius: 4; -fx-cursor: hand;"/>
                         </children>
-                     </VBox>
+                     </HBox>
 
                      <!-- Split Table: Expenses & Incomes -->
                      <SplitPane dividerPositions="0.5" VBox.vgrow="ALWAYS">
@@ -106,12 +96,9 @@
                                           </font>
                                        </Label>
                                        <Region HBox.hgrow="ALWAYS" />
-                                       <Button mnemonicParsing="false" onAction="#handlePayFixedExpense" 
-                                               style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 11px;" 
-                                               text="%finance.pay_fixed_expense" />
-                                       <Button mnemonicParsing="false" onAction="#handleAddExpense" 
-                                               style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 11px;" 
-                                               text="%finance.daily_expense" />
+                                       <Button mnemonicParsing="false" onAction="#handleAddExpenseUnified"
+                                               style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; -fx-padding: 6 16; -fx-background-radius: 6; -fx-cursor: hand;"
+                                               text="%unified_expense.btn.add_expense" />
                                     </children>
                                  </HBox>
                                  <TableView fx:id="todayExpensesTable" VBox.vgrow="ALWAYS">
@@ -282,6 +269,7 @@
                         <TableView fx:id="reportsTable" VBox.vgrow="ALWAYS">
                          <columns>
                             <TableColumn fx:id="colReportPeriod" text="%reports.period" prefWidth="150.0" />
+                            <TableColumn fx:id="colReportCarryOver" text="Devir" prefWidth="120.0" />
                             <TableColumn fx:id="colReportIncome" text="%reports.total_income" prefWidth="120.0" />
                             <TableColumn fx:id="colReportExpense" text="%reports.total_expense" prefWidth="120.0" />
                             <TableColumn fx:id="colReportProfit" text="%reports.net_profit" prefWidth="120.0" />
@@ -325,7 +313,12 @@
                </VBox>
             </Tab>
             
-            <!-- TAB 5: İŞLETME MÜLKİYETİ (BUSINESS ASSETS) -->
+            <!-- TAB 5: BORÇLARIMIZ (OUR DEBTS) -->
+            <Tab text="Borçlarımız">
+               <fx:include source="company_debts.fxml"/>
+            </Tab>
+            
+            <!-- TAB 6: İŞLETME MÜLKİYETİ (BUSINESS ASSETS) -->
             <Tab text="%finance.tab.assets">
                <VBox alignment="CENTER" spacing="50.0" styleClass="finance-panel">
                   <padding>

@@ -28,26 +28,38 @@ public class ReportService {
 
         private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-        private static BaseFont turkishBaseFont;
+        // Modern color palette (matches frontend app design)
+        private static final Color BRAND_COLOR = new Color(2, 10, 85); // Dark blue
+        private static final Color TABLE_HEADER_BG = new Color(51, 65, 85); // Slate-700
+        private static final Color TABLE_HEADER_TEXT = Color.WHITE;
+        private static final Color BORDER_COLOR = new Color(203, 213, 225); // Slate-300
+        private static final Color TEXT_MUTED = new Color(100, 116, 139); // Slate-500
+        private static final Color ACCENT_GREEN = new Color(22, 163, 74); // Green-600
+        private static final Color ACCENT_RED = new Color(185, 28, 28); // Red-700
+
+        private static BaseFont interBaseFont;
         private static Font HEADER_FONT;
         private static Font SECTION_FONT;
         private static Font NORMAL_FONT;
         private static Font SMALL_FONT;
         private static Font SMALL_BOLD_FONT;
+        private static Font TABLE_HEADER_FONT;
+        private static Font TOTAL_FONT;
 
         static {
                 try {
-                        turkishBaseFont = BaseFont.createFont("/fonts/FreeSans.ttf", BaseFont.IDENTITY_H,
+                        // Load Inter font with Turkish character support (modern, premium look)
+                        interBaseFont = BaseFont.createFont("/fonts/Inter.ttf", BaseFont.IDENTITY_H,
                                         BaseFont.EMBEDDED);
-                        // Brand color: #020a55 (RGB: 2, 10, 85)
-                        Color brandColor = new Color(2, 10, 85);
-                        HEADER_FONT = new Font(turkishBaseFont, 18, Font.BOLD, brandColor);
-                        SECTION_FONT = new Font(turkishBaseFont, 12, Font.BOLD, brandColor);
-                        NORMAL_FONT = new Font(turkishBaseFont, 10, Font.NORMAL, Color.BLACK);
-                        SMALL_FONT = new Font(turkishBaseFont, 8, Font.NORMAL, Color.GRAY);
-                        SMALL_BOLD_FONT = new Font(turkishBaseFont, 8, Font.BOLD, Color.BLACK);
+                        HEADER_FONT = new Font(interBaseFont, 18, Font.BOLD, BRAND_COLOR);
+                        SECTION_FONT = new Font(interBaseFont, 12, Font.BOLD, BRAND_COLOR);
+                        NORMAL_FONT = new Font(interBaseFont, 10, Font.NORMAL, Color.BLACK);
+                        SMALL_FONT = new Font(interBaseFont, 8, Font.NORMAL, TEXT_MUTED);
+                        SMALL_BOLD_FONT = new Font(interBaseFont, 8, Font.BOLD, Color.BLACK);
+                        TABLE_HEADER_FONT = new Font(interBaseFont, 10, Font.BOLD, TABLE_HEADER_TEXT);
+                        TOTAL_FONT = new Font(interBaseFont, 11, Font.BOLD, ACCENT_GREEN);
                 } catch (Exception e) {
-                        throw new RuntimeException("Failed to load Turkish font", e);
+                        throw new RuntimeException("Failed to load Inter font", e);
                 }
         }
 
@@ -429,7 +441,7 @@ public class ReportService {
 
                 footer.add(new Chunk("GARANTİ VE BİLGİLENDİRME\n\n", SMALL_BOLD_FONT));
 
-                Font bulletFont = new Font(turkishBaseFont, 7, Font.NORMAL, Color.DARK_GRAY);
+                Font bulletFont = new Font(interBaseFont, 7, Font.NORMAL, Color.DARK_GRAY);
 
                 footer.add(new Chunk(
                                 "• Değişen yedek parça 6 (altı) ay, işçilik 1 (bir) yıl garantilidir. Değiştirilen arızalı parça servis tarafından iade alınır.\n",
@@ -624,7 +636,7 @@ public class ReportService {
                         headerCell.setBackgroundColor(new Color(2, 10, 85));
                         headerCell.setPadding(8);
                         headerCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                        headerCell.setPhrase(new Phrase(h, new Font(turkishBaseFont, 9, Font.BOLD, Color.WHITE)));
+                        headerCell.setPhrase(new Phrase(h, new Font(interBaseFont, 9, Font.BOLD, Color.WHITE)));
                         table.addCell(headerCell);
                 }
 
@@ -790,28 +802,65 @@ public class ReportService {
         // ========== MONTHLY FINANCIAL REPORTS ==========
 
         public List<com.pusula.backend.dto.MonthlySummaryDTO> getMonthlyArchives(Long companyId) {
-                List<DailyClosing> closings = dailyClosingRepository.findAll().stream()
-                                .filter(dc -> dc.getCompanyId().equals(companyId))
+                // Query tickets and expenses directly instead of DailyClosing
+                // This ensures all data is included even if days weren't closed
+                List<ServiceTicket> allTickets = ticketRepository.findAll().stream()
+                                .filter(st -> st.getCompanyId().equals(companyId))
+                                .filter(st -> st.getStatus() != null
+                                                && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
+                                .filter(st -> st.getUpdatedAt() != null)
+                                // Exclude CURRENT_ACCOUNT payments (not liquid cash)
+                                .filter(st -> st.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT)
                                 .collect(java.util.stream.Collectors.toList());
 
-                Map<java.time.YearMonth, List<DailyClosing>> monthlyGroups = closings.stream()
-                                .collect(java.util.stream.Collectors
-                                                .groupingBy(dc -> java.time.YearMonth.from(dc.getDate())));
+                List<Expense> allExpenses = expenseRepository.findByCompanyId(companyId);
 
-                List<com.pusula.backend.dto.MonthlySummaryDTO> summaries = new ArrayList<>();
+                // Group tickets by month (using updatedAt)
+                Map<java.time.YearMonth, List<ServiceTicket>> ticketsByMonth = allTickets.stream()
+                                .collect(java.util.stream.Collectors.groupingBy(
+                                                st -> java.time.YearMonth.from(st.getUpdatedAt())));
+
+                // Group expenses by month
+                Map<java.time.YearMonth, List<Expense>> expensesByMonth = allExpenses.stream()
+                                .collect(java.util.stream.Collectors.groupingBy(
+                                                e -> java.time.YearMonth.from(e.getDate())));
+
+                // Collect all months that have any data
+                java.util.Set<java.time.YearMonth> allMonths = new java.util.TreeSet<>();
+                allMonths.addAll(ticketsByMonth.keySet());
+                allMonths.addAll(expensesByMonth.keySet());
+
                 DateTimeFormatter turkishFormat = DateTimeFormatter.ofPattern("MMMM yyyy", new Locale("tr", "TR"));
 
-                for (Map.Entry<java.time.YearMonth, List<DailyClosing>> entry : monthlyGroups.entrySet()) {
-                        java.time.YearMonth month = entry.getKey();
-                        List<DailyClosing> monthClosings = entry.getValue();
+                List<com.pusula.backend.dto.MonthlySummaryDTO> summaries = new ArrayList<>();
 
-                        BigDecimal totalIncome = monthClosings.stream()
-                                        .map(DailyClosing::getTotalIncome)
+                for (java.time.YearMonth month : allMonths) {
+                        // Calculate income from completed tickets
+                        BigDecimal ticketIncome = ticketsByMonth.getOrDefault(month, java.util.Collections.emptyList())
+                                        .stream()
+                                        .map(ServiceTicket::getCollectedAmount)
+                                        .filter(amount -> amount != null)
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                        BigDecimal totalExpense = monthClosings.stream()
-                                        .map(DailyClosing::getTotalExpense)
+                        // Get all expenses for this month
+                        List<Expense> monthExpenses = expensesByMonth.getOrDefault(month,
+                                        java.util.Collections.emptyList());
+
+                        // Separate DEVICE_SALE (income) from regular expenses
+                        BigDecimal deviceSaleIncome = monthExpenses.stream()
+                                        .filter(e -> com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE
+                                                        .equals(e.getCategory()))
+                                        .map(e -> e.getAmount().negate()) // Stored as negative, convert to positive
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        BigDecimal regularExpenses = monthExpenses.stream()
+                                        .filter(e -> !com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE
+                                                        .equals(e.getCategory()))
+                                        .map(Expense::getAmount)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        BigDecimal totalIncome = ticketIncome.add(deviceSaleIncome);
+                        BigDecimal totalExpense = regularExpenses;
 
                         summaries.add(com.pusula.backend.dto.MonthlySummaryDTO.builder()
                                         .period(month.toString())
@@ -819,9 +868,21 @@ public class ReportService {
                                         .totalIncome(totalIncome)
                                         .totalExpense(totalExpense)
                                         .netProfit(totalIncome.subtract(totalExpense))
+                                        .carryOver(BigDecimal.ZERO) // Will be calculated below
                                         .build());
                 }
 
+                // Sort chronologically (oldest first) to calculate carryOver
+                summaries.sort(Comparator.comparing(com.pusula.backend.dto.MonthlySummaryDTO::getPeriod));
+
+                // Calculate cumulative carryOver
+                BigDecimal cumulativeCarryOver = BigDecimal.ZERO;
+                for (com.pusula.backend.dto.MonthlySummaryDTO summary : summaries) {
+                        summary.setCarryOver(cumulativeCarryOver);
+                        cumulativeCarryOver = cumulativeCarryOver.add(summary.getNetProfit());
+                }
+
+                // Reverse to show newest first
                 summaries.sort(Comparator.comparing(com.pusula.backend.dto.MonthlySummaryDTO::getPeriod).reversed());
                 return summaries;
         }
@@ -847,22 +908,50 @@ public class ReportService {
                 java.time.LocalDate startDate = period.atDay(1);
                 java.time.LocalDate endDate = period.atEndOfMonth();
 
-                List<DailyClosing> closings = dailyClosingRepository.findAll().stream()
-                                .filter(dc -> dc.getCompanyId().equals(companyId))
-                                .filter(dc -> !dc.getDate().isBefore(startDate) && !dc.getDate().isAfter(endDate))
+                // Use direct ticket/expense queries instead of DailyClosing
+                List<ServiceTicket> completedTickets = ticketRepository.findAll().stream()
+                                .filter(st -> st.getCompanyId().equals(companyId))
+                                .filter(st -> st.getStatus() != null
+                                                && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
+                                .filter(st -> st.getUpdatedAt() != null &&
+                                                !st.getUpdatedAt().toLocalDate().isBefore(startDate) &&
+                                                !st.getUpdatedAt().toLocalDate().isAfter(endDate))
+                                // Exclude CURRENT_ACCOUNT payments (not liquid cash)
+                                .filter(st -> st.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT)
                                 .collect(java.util.stream.Collectors.toList());
 
-                BigDecimal totalIncome = closings.stream().map(DailyClosing::getTotalIncome).reduce(BigDecimal.ZERO,
-                                BigDecimal::add);
-                BigDecimal totalExpense = closings.stream().map(DailyClosing::getTotalExpense).reduce(BigDecimal.ZERO,
-                                BigDecimal::add);
+                List<Expense> expenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate);
+
+                // Calculate income from tickets
+                BigDecimal ticketIncome = completedTickets.stream()
+                                .map(ServiceTicket::getCollectedAmount)
+                                .filter(amount -> amount != null)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                // Separate DEVICE_SALE income from regular expenses
+                BigDecimal deviceSaleIncome = expenses.stream()
+                                .filter(e -> com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
+                                .map(e -> e.getAmount().negate())
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal regularExpenses = expenses.stream()
+                                .filter(e -> !com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
+                                .map(Expense::getAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal totalIncome = ticketIncome.add(deviceSaleIncome);
+                BigDecimal totalExpense = regularExpenses;
                 BigDecimal netProfit = totalIncome.subtract(totalExpense);
+
+                // Calculate carryOver from all previous months
+                BigDecimal carryOver = calculateCarryOver(period, companyId);
 
                 PdfPTable summaryTable = new PdfPTable(2);
                 summaryTable.setWidthPercentage(100);
                 summaryTable.setSpacingBefore(10);
                 summaryTable.setSpacingAfter(20);
 
+                addFinancialRow(summaryTable, "Önceki Aydan Devir:", String.format("%.2f ₺", carryOver));
                 addFinancialRow(summaryTable, "Toplam Gelir:", String.format("%.2f ₺", totalIncome));
                 addFinancialRow(summaryTable, "Toplam Gider:", String.format("%.2f ₺", totalExpense));
                 addFinancialRow(summaryTable, "Net Kâr:", String.format("%.2f ₺", netProfit));
@@ -873,7 +962,7 @@ public class ReportService {
                 ledgerTitle.setSpacingBefore(20);
                 document.add(ledgerTitle);
 
-                List<ServiceTicket> completedTickets = ticketRepository.findAll().stream()
+                List<ServiceTicket> ledgerTickets = ticketRepository.findAll().stream()
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
@@ -882,12 +971,12 @@ public class ReportService {
                                                 !st.getUpdatedAt().toLocalDate().isAfter(endDate))
                                 .collect(java.util.stream.Collectors.toList());
 
-                List<Expense> expenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate);
+                List<Expense> ledgerExpenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate);
 
-                Map<java.time.LocalDate, List<ServiceTicket>> ticketsByDate = completedTickets.stream()
+                Map<java.time.LocalDate, List<ServiceTicket>> ticketsByDate = ledgerTickets.stream()
                                 .collect(java.util.stream.Collectors.groupingBy(st -> st.getUpdatedAt().toLocalDate()));
 
-                Map<java.time.LocalDate, List<Expense>> expensesByDate = expenses.stream()
+                Map<java.time.LocalDate, List<Expense>> expensesByDate = ledgerExpenses.stream()
                                 .collect(java.util.stream.Collectors.groupingBy(Expense::getDate));
 
                 java.util.Set<java.time.LocalDate> activeDates = new java.util.TreeSet<>();
@@ -925,7 +1014,7 @@ public class ReportService {
 
                                 String line = String.format("   Gelir: %s - %s → %s ₺", customerName, serviceDesc,
                                                 currencyFormat.format(amount));
-                                Font greenFont = new Font(turkishBaseFont, 10, Font.NORMAL, new Color(0, 128, 0));
+                                Font greenFont = new Font(interBaseFont, 10, Font.NORMAL, new Color(0, 128, 0));
                                 Paragraph incomeLine = new Paragraph(line, greenFont);
                                 incomeLine.setIndentationLeft(10);
                                 document.add(incomeLine);
@@ -940,7 +1029,7 @@ public class ReportService {
                                 String line = String.format("   Gider: %s - %s → %s ₺", categoryName,
                                                 expense.getDescription(),
                                                 currencyFormat.format(expense.getAmount()));
-                                Font redFont = new Font(turkishBaseFont, 10, Font.NORMAL, new Color(192, 0, 0));
+                                Font redFont = new Font(interBaseFont, 10, Font.NORMAL, new Color(192, 0, 0));
                                 Paragraph expenseLine = new Paragraph(line, redFont);
                                 expenseLine.setIndentationLeft(10);
                                 document.add(expenseLine);
@@ -1002,7 +1091,7 @@ public class ReportService {
                 Color totalColor = netProfit.compareTo(BigDecimal.ZERO) >= 0 ? new Color(0, 128, 0)
                                 : new Color(192, 0, 0);
 
-                Font totalFont = new Font(turkishBaseFont, 16, Font.BOLD, totalColor);
+                Font totalFont = new Font(interBaseFont, 16, Font.BOLD, totalColor);
                 Paragraph totalPara = new Paragraph(totalText, totalFont);
                 totalPara.setAlignment(Element.ALIGN_RIGHT);
                 totalPara.setSpacingBefore(10);
@@ -1033,6 +1122,45 @@ public class ReportService {
 
                 table.addCell(labelCell);
                 table.addCell(valueCell);
+        }
+
+        /**
+         * Calculate cumulative net profit from all months before the given period
+         */
+        private BigDecimal calculateCarryOver(java.time.YearMonth targetPeriod, Long companyId) {
+                // Get all completed tickets BEFORE the target period
+                List<ServiceTicket> prevTickets = ticketRepository.findAll().stream()
+                                .filter(st -> st.getCompanyId().equals(companyId))
+                                .filter(st -> st.getStatus() != null
+                                                && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
+                                .filter(st -> st.getUpdatedAt() != null)
+                                .filter(st -> java.time.YearMonth.from(st.getUpdatedAt()).isBefore(targetPeriod))
+                                .filter(st -> st.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT)
+                                .collect(java.util.stream.Collectors.toList());
+
+                BigDecimal prevTicketIncome = prevTickets.stream()
+                                .map(ServiceTicket::getCollectedAmount)
+                                .filter(a -> a != null)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                // Get all expenses BEFORE the target period
+                java.time.LocalDate cutoffDate = targetPeriod.atDay(1);
+                List<Expense> prevExpenses = expenseRepository.findByCompanyId(companyId).stream()
+                                .filter(e -> e.getDate().isBefore(cutoffDate))
+                                .collect(java.util.stream.Collectors.toList());
+
+                BigDecimal prevDeviceSaleIncome = prevExpenses.stream()
+                                .filter(e -> com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
+                                .map(e -> e.getAmount().negate())
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal prevRegularExpenses = prevExpenses.stream()
+                                .filter(e -> !com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
+                                .map(Expense::getAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal prevTotalIncome = prevTicketIncome.add(prevDeviceSaleIncome);
+                return prevTotalIncome.subtract(prevRegularExpenses);
         }
 
         private String getCategoryNameTurkish(String category) {

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.pusula.desktop.controller.ReassignTicketsDialogController"
+      spacing="15" stylesheets="@../css/styles.css"
+      style="-fx-padding: 20; -fx-background-color: white; -fx-min-width: 400;">
+
+    <Label text="%reassign.title" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+    
+    <Label fx:id="lblMessage" wrapText="true" style="-fx-font-size: 13px; -fx-text-fill: #e74c3c;"
+           text="%reassign.message" />
+
+    <VBox spacing="5" VBox.vgrow="ALWAYS">
+        <Label text="%reassign.select_tech" style="-fx-font-weight: bold;" />
+        <ComboBox fx:id="comboTechnicians" maxWidth="Infinity" style="-fx-min-height: 35;" />
+    </VBox>
+
+    <HBox spacing="10" alignment="CENTER_RIGHT" style="-fx-padding: 10 0 0 0;">
+        <Button text="%reassign.btn.cancel" onAction="#handleCancel"
+                style="-fx-background-color: #ecf0f1; -fx-text-fill: #2c3e50; -fx-min-width: 80; -fx-cursor: hand;" />
+        <Button text="%reassign.btn.reassign" onAction="#handleReassign"
+                style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" />
+    </HBox>
+</VBox>

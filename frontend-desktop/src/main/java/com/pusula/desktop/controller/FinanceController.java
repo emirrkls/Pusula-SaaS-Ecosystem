@@ -41,13 +41,13 @@ public class FinanceController {
     @FXML
     private Label currentDateLabel;
     @FXML
-    private javafx.scene.layout.VBox paymentAlertBox; // Yellow alert container (upcoming)
+    private javafx.scene.layout.HBox paymentAlertBox;
     @FXML
-    private Label alertMessageLabel; // Yellow alert message text
+    private Label alertMessageLabel;
     @FXML
-    private javafx.scene.layout.VBox overduePaymentBox; // Red alert container (overdue)
+    private javafx.scene.layout.HBox overduePaymentBox;
     @FXML
-    private Label overdueMessageLabel; // Red alert message text
+    private Label overdueMessageLabel;
     @FXML
     private TableView<DailySummaryDTO.ExpenseItemDTO> todayExpensesTable;
     @FXML
@@ -76,6 +76,8 @@ public class FinanceController {
     private TableColumn<MonthlySummaryDTO, String> colReportIncome;
     @FXML
     private TableColumn<MonthlySummaryDTO, String> colReportExpense;
+    @FXML
+    private TableColumn<MonthlySummaryDTO, String> colReportCarryOver;
     @FXML
     private TableColumn<MonthlySummaryDTO, String> colReportProfit;
     @FXML
@@ -410,56 +412,42 @@ public class FinanceController {
     }
 
     @FXML
-    private void handleAddExpense() {
+    private void handleAddExpenseUnified() {
+        openUnifiedExpenseDialog(false);
+    }
+
+    private void openUnifiedExpenseDialog(boolean switchToFixedTab) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/expense_dialog.fxml"), bundle);
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/unified_expense_dialog.fxml"), bundle);
             javafx.scene.Parent root = loader.load();
 
-            ExpenseDialogController controller = loader.getController();
+            UnifiedExpenseDialogController controller = loader.getController();
             controller.setOnSaveSuccess(() -> {
                 loadDailySummary(currentDate);
                 loadCategoryPieChart();
                 load30DayTrends();
+                checkUpcomingPayments();
             });
 
+            if (switchToFixedTab) {
+                controller.switchToFixedTab();
+            }
+
             Stage stage = new Stage();
+            com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
-            stage.setTitle(bundle.getString("finance.add_expense"));
+            stage.setTitle(bundle.getString("unified_expense.title"));
             stage.setScene(new Scene(root));
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
-            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata", "Gider ekle penceresi açılamadı!");
-        }
-    }
-
-    @FXML
-    private void handlePayFixedExpense() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/pay_fixed_expense_dialog.fxml"), bundle);
-            javafx.scene.Parent root = loader.load();
-
-            PayFixedExpenseDialogController controller = loader.getController();
-            controller.setOnSuccess(() -> {
-                loadDailySummary(currentDate);
-                loadCategoryPieChart();
-                load30DayTrends();
-            });
-
-            Stage stage = new Stage();
-            stage.initModality(Modality.APPLICATION_MODAL);
-            stage.setTitle(bundle.getString("finance.pay_fixed_expense_dialog.title"));
-            stage.setScene(new Scene(root));
-            stage.showAndWait();
-        } catch (Exception e) {
-            e.printStackTrace();
-            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata", "Sabit gider ödeme penceresi açılamadı!");
+            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Error",
+                    "Could not open expense dialog: " + e.getMessage());
         }
     }
 
     private void handleEditExpense(DailySummaryDTO.ExpenseItemDTO expenseItem) {
         try {
-            // Convert ExpenseItemDTO to ExpenseDTO
             ExpenseDTO expense = new ExpenseDTO();
             expense.setId(expenseItem.getId());
             expense.setCategory(expenseItem.getCategory());
@@ -467,11 +455,11 @@ public class FinanceController {
             expense.setAmount(expenseItem.getAmount());
             expense.setDate(currentDate.toString());
 
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/expense_dialog.fxml"), bundle);
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/unified_expense_dialog.fxml"), bundle);
             javafx.scene.Parent root = loader.load();
 
-            ExpenseDialogController controller = loader.getController();
-            controller.setExpenseToEdit(expense); // Set edit mode
+            UnifiedExpenseDialogController controller = loader.getController();
+            controller.setExpenseToEdit(expense);
             controller.setOnSaveSuccess(() -> {
                 loadDailySummary(currentDate);
                 loadCategoryPieChart();
@@ -479,13 +467,15 @@ public class FinanceController {
             });
 
             Stage stage = new Stage();
+            com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
-            stage.setTitle("Gider Düzenle");
+            stage.setTitle(bundle.getString("unified_expense.title"));
             stage.setScene(new Scene(root));
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
-            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata", "Gider düzenleme penceresi açılamadı!");
+            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Error",
+                    "Could not open expense dialog: " + e.getMessage());
         }
     }
 
@@ -587,6 +577,35 @@ public class FinanceController {
     private void setupReportsTable() {
         colReportPeriod.setCellValueFactory(
                 cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getDisplayPeriod()));
+
+        // CarryOver column with color coding
+        colReportCarryOver.setCellValueFactory(cellData -> {
+            java.math.BigDecimal carryOver = cellData.getValue().getCarryOver();
+            String text = carryOver != null ? formatCurrency(carryOver) : "0.00 ₺";
+            return new javafx.beans.property.SimpleStringProperty(text);
+        });
+        colReportCarryOver.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    MonthlySummaryDTO dto = getTableRow().getItem();
+                    if (dto != null && dto.getCarryOver() != null) {
+                        if (dto.getCarryOver().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                            setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                        } else if (dto.getCarryOver().compareTo(java.math.BigDecimal.ZERO) < 0) {
+                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                        } else {
+                            setStyle("");
+                        }
+                    }
+                }
+            }
+        });
 
         colReportIncome.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
                 formatCurrency(cellData.getValue().getTotalIncome())));

@@ -4,6 +4,8 @@ import com.pusula.backend.entity.Company;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.CompanyRepository;
 import com.pusula.backend.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -20,6 +22,8 @@ import org.springframework.context.ApplicationContext;
 @EntityScan(basePackages = "com.pusula.backend.entity")
 @org.springframework.scheduling.annotation.EnableScheduling
 public class PusulaBackendApplication implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(PusulaBackendApplication.class);
 
     private final ApplicationContext applicationContext;
 
@@ -41,23 +45,18 @@ public class PusulaBackendApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        System.out.println("===========================================");
-        System.out.println("=== SPRING BOOT COMPONENT SCAN VERIFICATION ===");
-        System.out.println("===========================================");
-
         // Verify REST Controllers are registered
         String[] controllerBeans = applicationContext.getBeanNamesForAnnotation(RestController.class);
-        System.out.println("\n📋 Found " + controllerBeans.length + " @RestController beans:");
+        log.info("Found {} @RestController beans", controllerBeans.length);
         for (String beanName : controllerBeans) {
             Object bean = applicationContext.getBean(beanName);
-            System.out.println("   ✓ " + bean.getClass().getName());
+            log.debug("  ✓ {}", bean.getClass().getName());
         }
 
-        System.out.println("\n--- STARTUP DATA CHECK ---");
-        System.out.println("Number of users in DB: " + userRepository.count());
+        log.info("Users in DB: {}", userRepository.count());
 
         if (userRepository.count() == 0) {
-            System.out.println("No users found. Seeding default data...");
+            log.info("No users found. Seeding default data...");
 
             Company company = companyRepository.findAll().stream().findFirst().orElseGet(() -> {
                 Company newCompany = new Company();
@@ -74,19 +73,18 @@ public class PusulaBackendApplication implements CommandLineRunner {
             admin.setFullName("System Admin");
             userRepository.save(admin);
 
-            System.out.println("CREATED DEFAULT ADMIN USER: admin / password");
+            log.info("Created default admin user: admin / password");
         } else {
-            // Fix: Reset admin password to ensure it works
+            // Reset admin password to ensure it works in development
             userRepository.findByUsername("admin").ifPresent(admin -> {
                 String newHash = passwordEncoder.encode("password");
                 admin.setPasswordHash(newHash);
                 userRepository.save(admin);
-                System.out.println("!!! ADMIN PASSWORD RESET TO 'password' !!!");
+                log.debug("Admin password reset to default");
             });
         }
 
         userRepository.findAll()
-                .forEach(u -> System.out.println("User: " + u.getUsername() + " | Role: " + u.getRole()));
-        System.out.println("--------------------------");
+                .forEach(u -> log.debug("User: {} | Role: {}", u.getUsername(), u.getRole()));
     }
 }

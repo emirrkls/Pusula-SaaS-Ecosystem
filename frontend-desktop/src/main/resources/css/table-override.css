@@ -1,0 +1,59 @@
+/* ================================================
+   TABLE SELECTION OVERRIDE
+   This file MUST be loaded AFTER the AtlantaFX theme
+   to properly override the default selection colors.
+   ================================================ */
+
+/* Force dark blue background for ALL selected rows */
+.table-row-cell:selected {
+    -fx-background-color: #334155 !important;
+    -fx-background: #334155 !important;
+}
+
+.table-row-cell:odd:selected {
+    -fx-background-color: #334155 !important;
+    -fx-background: #334155 !important;
+}
+
+.table-view:focused .table-row-cell:selected {
+    -fx-background-color: #475569 !important;
+    -fx-background: #475569 !important;
+}
+
+.table-view:focused .table-row-cell:odd:selected {
+    -fx-background-color: #475569 !important;
+    -fx-background: #475569 !important;
+}
+
+/* Force WHITE text for all selected row content */
+.table-row-cell:selected .table-cell {
+    -fx-text-fill: #FFFFFF !important;
+}
+
+.table-row-cell:selected .text {
+    -fx-fill: #FFFFFF !important;
+}
+
+.table-row-cell:selected .label {
+    -fx-text-fill: #FFFFFF !important;
+}
+
+.table-row-cell:odd:selected .table-cell {
+    -fx-text-fill: #FFFFFF !important;
+}
+
+.table-row-cell:odd:selected .text {
+    -fx-fill: #FFFFFF !important;
+}
+
+.table-row-cell:odd:selected .label {
+    -fx-text-fill: #FFFFFF !important;
+}
+
+/* Focused table - white text */
+.table-view:focused .table-row-cell:selected .table-cell,
+.table-view:focused .table-row-cell:selected .text,
+.table-view:focused .table-row-cell:selected .label {
+    -fx-text-fill: #FFFFFF !important;
+    -fx-fill: #FFFFFF !important;
+}

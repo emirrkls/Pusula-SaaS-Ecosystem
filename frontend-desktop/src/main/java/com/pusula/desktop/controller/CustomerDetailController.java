@@ -7,7 +7,9 @@ import com.pusula.desktop.dto.CustomerDTO;
 import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.dto.UserDTO;
 import com.pusula.desktop.network.RetrofitClient;
+import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.WhatsAppHelper;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -206,6 +208,16 @@ public class CustomerDetailController {
     @FXML
     private void handleCancel() {
         closeDialog();
+    }
+
+    @FXML
+    private void handleWhatsAppClick() {
+        if (currentCustomer != null && phoneField.getText() != null && !phoneField.getText().trim().isEmpty()) {
+            WhatsAppHelper.openWhatsApp(phoneField.getText());
+        } else {
+            AlertHelper.showAlert(Alert.AlertType.WARNING, phoneField.getScene().getWindow(),
+                    "Uyarı", "Geçerli bir telefon numarası bulunamadı.");
+        }
     }
 
     private void closeDialog() {

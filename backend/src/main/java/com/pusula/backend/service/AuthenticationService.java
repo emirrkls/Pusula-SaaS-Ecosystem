@@ -2,8 +2,12 @@ package com.pusula.backend.service;
 
 import com.pusula.backend.dto.AuthRequest;
 import com.pusula.backend.dto.AuthResponse;
+import com.pusula.backend.dto.QuotaDTO;
 import com.pusula.backend.dto.RegisterRequest;
+import com.pusula.backend.entity.Company;
+import com.pusula.backend.entity.PlanType;
 import com.pusula.backend.entity.User;
+import com.pusula.backend.repository.CompanyRepository;
 import com.pusula.backend.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -11,31 +15,92 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class AuthenticationService {
 
         private final UserRepository userRepository;
+        private final CompanyRepository companyRepository;
         private final PasswordEncoder passwordEncoder;
         private final JwtService jwtService;
         private final AuthenticationManager authenticationManager;
         private final AuditLogService auditLogService;
 
         public AuthenticationService(UserRepository userRepository,
+                        CompanyRepository companyRepository,
                         PasswordEncoder passwordEncoder,
                         JwtService jwtService,
                         AuthenticationManager authenticationManager,
                         AuditLogService auditLogService) {
                 this.userRepository = userRepository;
+                this.companyRepository = companyRepository;
                 this.passwordEncoder = passwordEncoder;
                 this.jwtService = jwtService;
                 this.authenticationManager = authenticationManager;
                 this.auditLogService = auditLogService;
         }
 
+        /**
+         * Individual registration — creates a new Company + Admin user.
+         * Used by independent technicians who download from App Store.
+         * Auto-assigns CIRAK plan with 14-day trial.
+         */
+        public AuthResponse registerIndividual(RegisterRequest request) {
+                // 1. Generate unique org code
+                String orgCode = generateOrgCode();
+
+                // 2. Create company with free plan
+                Company company = new Company();
+                company.setName(request.getFullName() != null
+                                ? request.getFullName() + " Servisi"
+                                : "Yeni Servis");
+                company.setSubscriptionStatus("TRIAL");
+                company.setPlanType(PlanType.CIRAK);
+                company.setTrialEndsAt(LocalDateTime.now().plusDays(14));
+                company.setOrgCode(orgCode);
+                company.setEmail(request.getEmail());
+                company.setBillingEmail(request.getEmail());
+                companyRepository.save(company);
+
+                // 3. Create admin user
+                String username = request.getEmail() != null ? request.getEmail() : request.getUsername();
+                var user = User.builder()
+                                .companyId(company.getId())
+                                .username(username)
+                                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                                .fullName(request.getFullName())
+                                .role("COMPANY_ADMIN")
+                                .build();
+                userRepository.save(user);
+
+                var jwtToken = jwtService.generateToken(user);
+
+                // Log registration
+                auditLogService.logAuth(
+                                user.getCompanyId(),
+                                user.getId(),
+                                user.getFullName(),
+                                "USER_REGISTERED_INDIVIDUAL",
+                                "Bireysel kayıt: " + user.getUsername() + " (Org: " + orgCode + ")",
+                                getClientIpAddress());
+
+                return buildAuthResponse(jwtToken, user, company);
+        }
+
+        /**
+         * Corporate registration — adds a user to an existing company.
+         * Used by B2B enterprise clients org admin to add technicians.
+         */
         public AuthResponse register(RegisterRequest request) {
                 var user = User.builder()
                                 .companyId(request.getCompanyId())
@@ -56,23 +121,49 @@ public class AuthenticationService {
                                 "Yeni kullanıcı kaydı: " + user.getUsername(),
                                 getClientIpAddress());
 
-                return AuthResponse.builder()
-                                .token(jwtToken)
-                                .role(user.getRole())
-                                .build();
+                Company company = companyRepository.findById(user.getCompanyId()).orElse(null);
+                return buildAuthResponse(jwtToken, user, company);
         }
 
+        /**
+         * Authenticate — supports both individual (username/password) and
+         * corporate (orgCode + username/password) login flows.
+         */
         public AuthResponse authenticate(AuthRequest request) {
                 String ipAddress = getClientIpAddress();
 
                 try {
-                        authenticationManager.authenticate(
-                                        new UsernamePasswordAuthenticationToken(
-                                                        request.getUsername(),
-                                                        request.getPassword()));
+                        // Corporate flow: resolve company by org code first
+                        Company company = null;
+                        User user;
 
-                        var user = userRepository.findByUsername(request.getUsername())
-                                        .orElseThrow();
+                        if (request.getOrgCode() != null && !request.getOrgCode().isEmpty()) {
+                                // B2B Corporate login
+                                company = companyRepository.findByOrgCode(request.getOrgCode())
+                                                .orElseThrow(() -> new BadCredentialsException(
+                                                                "Kurum kodu bulunamadı: " + request.getOrgCode()));
+
+                                user = userRepository.findByUsernameAndCompanyId(
+                                                request.getUsername(), company.getId())
+                                                .orElseThrow(() -> new BadCredentialsException(
+                                                                "Kullanıcı bulunamadı"));
+
+                                // Validate password manually for company-scoped auth
+                                if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+                                        throw new BadCredentialsException("Hatalı şifre");
+                                }
+                        } else {
+                                // Individual login — use Spring Security authentication manager
+                                authenticationManager.authenticate(
+                                                new UsernamePasswordAuthenticationToken(
+                                                                request.getUsername(),
+                                                                request.getPassword()));
+
+                                user = userRepository.findByUsername(request.getUsername())
+                                                .orElseThrow();
+                                company = companyRepository.findById(user.getCompanyId()).orElse(null);
+                        }
+
                         var jwtToken = jwtService.generateToken(user);
 
                         // Log successful login
@@ -84,10 +175,8 @@ public class AuthenticationService {
                                         "Giriş başarılı: " + user.getUsername(),
                                         ipAddress);
 
-                        return AuthResponse.builder()
-                                        .token(jwtToken)
-                                        .role(user.getRole())
-                                        .build();
+                        return buildAuthResponse(jwtToken, user, company);
+
                 } catch (BadCredentialsException e) {
                         // Log failed login attempt
                         var userOpt = userRepository.findByUsername(request.getUsername());
@@ -103,6 +192,114 @@ public class AuthenticationService {
 
                         throw e;
                 }
+        }
+
+        /**
+         * Deletes the currently authenticated user's account.
+         * Used to comply with App Store account deletion guidelines.
+         */
+        public void deleteAccount() {
+                User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                
+                // Log deletion
+                auditLogService.logAuth(
+                        currentUser.getCompanyId(),
+                        currentUser.getId(),
+                        currentUser.getFullName(),
+                        "ACCOUNT_DELETED",
+                        "Kullanıcı hesabını sildi: " + currentUser.getUsername(),
+                        getClientIpAddress());
+                        
+                // Delete user (soft delete handled by @SQLDelete in User entity)
+                userRepository.delete(currentUser);
+        }
+
+        // ── Helper Methods ──────────────────────────────────────────────
+
+        private AuthResponse buildAuthResponse(String token, User user, Company company) {
+                Map<String, Boolean> features = getDefaultFeatures(
+                                company != null ? company.getPlanType() : PlanType.CIRAK);
+
+                Integer trialDays = null;
+                boolean isReadOnly = false;
+
+                if (company != null) {
+                        // Calculate trial days remaining
+                        if (company.getTrialEndsAt() != null) {
+                                long days = ChronoUnit.DAYS.between(LocalDateTime.now(), company.getTrialEndsAt());
+                                trialDays = days > 0 ? (int) days : 0;
+                                if (days <= 0 && "TRIAL".equals(company.getSubscriptionStatus())) {
+                                        isReadOnly = true;
+                                }
+                        }
+                        if ("SUSPENDED".equals(company.getSubscriptionStatus())) {
+                                isReadOnly = true;
+                        }
+                }
+
+                return AuthResponse.builder()
+                                .token(token)
+                                .role(user.getRole())
+                                .fullName(user.getFullName())
+                                .companyId(user.getCompanyId())
+                                .companyName(company != null ? company.getName() : null)
+                                .planType(company != null ? company.getPlanType().name() : "CIRAK")
+                                .features(features)
+                                .quota(QuotaDTO.unlimited()) // Will be populated by FeatureService in Sprint 2
+                                .readOnly(isReadOnly)
+                                .trialDaysRemaining(trialDays)
+                                .build();
+        }
+
+        /**
+         * Returns default feature flags based on plan tier.
+         * In Sprint 2, this will be replaced by FeatureService with DB lookup.
+         */
+        private Map<String, Boolean> getDefaultFeatures(PlanType planType) {
+                Map<String, Boolean> features = new HashMap<>();
+
+                // Common features (all plans)
+                features.put("SERVICE_TICKETS", true);
+                features.put("CUSTOMER_MANAGEMENT", true);
+                features.put("BASIC_INVENTORY", true);
+
+                switch (planType) {
+                        case PATRON:
+                                features.put("COMMERCIAL_DEVICES", true);
+                                features.put("COMPANY_DEBT_TRACKING", true);
+                                features.put("CUSTOM_BRANDING", true);
+                                // fall through to USTA
+                        case USTA:
+                                features.put("FINANCE_MODULE", true);
+                                features.put("PDF_EXPORT", true);
+                                features.put("PROPOSAL_MODULE", true);
+                                features.put("VEHICLE_TRACKING", true);
+                                features.put("AUDIT_LOGS", true);
+                                features.put("WHATSAPP_INTEGRATION", true);
+                                features.put("MULTI_TECHNICIAN", true);
+                                features.put("DAILY_CLOSING", true);
+                                break;
+                        case CIRAK:
+                        default:
+                                features.put("FINANCE_MODULE", false);
+                                features.put("PDF_EXPORT", false);
+                                features.put("PROPOSAL_MODULE", false);
+                                features.put("VEHICLE_TRACKING", false);
+                                features.put("AUDIT_LOGS", false);
+                                features.put("WHATSAPP_INTEGRATION", false);
+                                features.put("MULTI_TECHNICIAN", false);
+                                features.put("DAILY_CLOSING", false);
+                                features.put("COMMERCIAL_DEVICES", false);
+                                features.put("COMPANY_DEBT_TRACKING", false);
+                                features.put("CUSTOM_BRANDING", false);
+                                break;
+                }
+
+                return features;
+        }
+
+        private String generateOrgCode() {
+                return "PUS-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         }
 
         private String getClientIpAddress() {

@@ -369,12 +369,28 @@ public class ServiceTicketController {
 
     private TableRow<ServiceTicketDTO> createStyledRow() {
         TableRow<ServiceTicketDTO> row = new TableRow<ServiceTicketDTO>() {
+            {
+                // Add listener for selection changes
+                selectedProperty().addListener((obs, wasSelected, isNowSelected) -> {
+                    updateRowStyle(getItem(), isNowSelected);
+                });
+            }
+
             @Override
             protected void updateItem(ServiceTicketDTO ticket, boolean empty) {
                 super.updateItem(ticket, empty);
+                updateRowStyle(ticket, isSelected());
+            }
 
-                if (empty || ticket == null) {
+            private void updateRowStyle(ServiceTicketDTO ticket, boolean selected) {
+                if (ticket == null) {
                     setStyle("");
+                    return;
+                }
+
+                if (selected) {
+                    // Force dark blue background with white text when selected
+                    setStyle("-fx-background-color: #334155; -fx-text-fill: white;");
                 } else {
                     String status = ticket.getStatus();
                     switch (status) {

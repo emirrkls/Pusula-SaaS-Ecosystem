@@ -64,9 +64,9 @@ public class RetrofitClient {
                         Response response = chain.proceed(chain.request());
 
                         if (response.code() == 403) {
-                                // Don't show alert for audit-logs endpoint (handled gracefully in UI)
+                                // Don't show alert for audit-logs endpoint or public endpoints
                                 String url = response.request().url().toString();
-                                if (!url.contains("/audit-logs/")) {
+                                if (!url.contains("/audit-logs/") && !url.contains("/public/")) {
                                         Platform.runLater(() -> {
                                                 Alert alert = new Alert(Alert.AlertType.ERROR);
                                                 alert.setTitle("Erişim Reddedildi");

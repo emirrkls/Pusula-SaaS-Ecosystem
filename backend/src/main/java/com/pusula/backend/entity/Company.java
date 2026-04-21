@@ -5,6 +5,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "companies")
@@ -26,6 +27,32 @@ public class Company extends BaseEntity {
 
     @Column(name = "email")
     private String email;
+
+    // ── SaaS Fields ──────────────────────────────────────────────
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plan_type")
+    private PlanType planType = PlanType.CIRAK;
+
+    @Column(name = "org_code", unique = true, length = 20)
+    private String orgCode;
+
+    @Column(name = "trial_ends_at")
+    private LocalDateTime trialEndsAt;
+
+    @Column(name = "billing_email")
+    private String billingEmail;
+
+    @Column(name = "is_read_only")
+    private Boolean isReadOnly = false;
+
+    @Column(name = "subscription_expires_at")
+    private LocalDateTime subscriptionExpiresAt;
+
+    @Column(name = "iyzico_subscription_id", length = 100)
+    private String iyzicoSubscriptionId;
+
+    // ─────────────────────────────────────────────────────────────
 
     @Column(name = "logo_path")
     private String logoPath;
@@ -86,6 +113,62 @@ public class Company extends BaseEntity {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public PlanType getPlanType() {
+        return planType != null ? planType : PlanType.CIRAK;
+    }
+
+    public void setPlanType(PlanType planType) {
+        this.planType = planType;
+    }
+
+    public String getOrgCode() {
+        return orgCode;
+    }
+
+    public void setOrgCode(String orgCode) {
+        this.orgCode = orgCode;
+    }
+
+    public LocalDateTime getTrialEndsAt() {
+        return trialEndsAt;
+    }
+
+    public void setTrialEndsAt(LocalDateTime trialEndsAt) {
+        this.trialEndsAt = trialEndsAt;
+    }
+
+    public String getBillingEmail() {
+        return billingEmail;
+    }
+
+    public void setBillingEmail(String billingEmail) {
+        this.billingEmail = billingEmail;
+    }
+
+    public Boolean getIsReadOnly() {
+        return isReadOnly != null && isReadOnly;
+    }
+
+    public void setIsReadOnly(Boolean isReadOnly) {
+        this.isReadOnly = isReadOnly;
+    }
+
+    public LocalDateTime getSubscriptionExpiresAt() {
+        return subscriptionExpiresAt;
+    }
+
+    public void setSubscriptionExpiresAt(LocalDateTime subscriptionExpiresAt) {
+        this.subscriptionExpiresAt = subscriptionExpiresAt;
+    }
+
+    public String getIyzicoSubscriptionId() {
+        return iyzicoSubscriptionId;
+    }
+
+    public void setIyzicoSubscriptionId(String iyzicoSubscriptionId) {
+        this.iyzicoSubscriptionId = iyzicoSubscriptionId;
     }
 
     @com.fasterxml.jackson.annotation.JsonProperty("logoUrl")

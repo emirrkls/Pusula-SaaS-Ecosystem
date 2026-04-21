@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.pusula.desktop.controller.CompanyDebtController"
+      spacing="15" style="-fx-background-color: #f5f5f5;">
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+
+    <!-- Header -->
+    <HBox alignment="CENTER_LEFT" spacing="15">
+        <Label text="Borçlarımız" styleClass="header-label">
+            <font>
+                <Font name="System Bold" size="24"/>
+            </font>
+        </Label>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label fx:id="totalDebtLabel" text="Toplam Borç: 0 ₺" style="-fx-font-size: 16; -fx-text-fill: #e74c3c; -fx-font-weight: bold;"/>
+        <Button text="+ Borç Ekle" onAction="#handleAddDebt" 
+                style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;"/>
+        <Button text="Yenile" onAction="#loadDebts" styleClass="btn-secondary"/>
+    </HBox>
+
+    <!-- Filter -->
+    <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-background-color: white; -fx-padding: 10; -fx-background-radius: 5;">
+        <Label text="Filtre:"/>
+        <ComboBox fx:id="statusFilter" promptText="Tümü" prefWidth="150"/>
+        <Button text="Uygula" onAction="#applyFilter"/>
+    </HBox>
+
+    <!-- Table -->
+    <TableView fx:id="debtTable" VBox.vgrow="ALWAYS" style="-fx-background-color: white;">
+        <columns>
+            <TableColumn fx:id="colCreditor" text="Alacaklı" prefWidth="180" minWidth="150"/>
+            <TableColumn fx:id="colDescription" text="Açıklama" prefWidth="200" minWidth="150"/>
+            <TableColumn fx:id="colOriginal" text="Toplam Borç" prefWidth="120" minWidth="100"/>
+            <TableColumn fx:id="colRemaining" text="Kalan Borç" prefWidth="120" minWidth="100"/>
+            <TableColumn fx:id="colDebtDate" text="Borç Tarihi" prefWidth="100" minWidth="90"/>
+            <TableColumn fx:id="colDueDate" text="Vade Tarihi" prefWidth="100" minWidth="90"/>
+            <TableColumn fx:id="colStatus" text="Durum" prefWidth="100" minWidth="80"/>
+            <TableColumn fx:id="colActions" text="İşlemler" prefWidth="200" minWidth="180"/>
+        </columns>
+        <placeholder>
+            <Label text="Henüz borç kaydı bulunmuyor"/>
+        </placeholder>
+    </TableView>
+</VBox>

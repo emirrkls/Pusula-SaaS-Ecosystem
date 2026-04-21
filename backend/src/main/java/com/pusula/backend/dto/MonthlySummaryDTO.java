@@ -13,4 +13,5 @@ public class MonthlySummaryDTO {
     private BigDecimal totalIncome;
     private BigDecimal totalExpense;
     private BigDecimal netProfit;
+    private BigDecimal carryOver; // Önceki aydan devreden tutar
 }

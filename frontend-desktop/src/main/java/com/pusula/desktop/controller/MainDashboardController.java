@@ -6,6 +6,8 @@ import com.pusula.desktop.dto.AuthResponse;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.UTF8Control;
+import com.pusula.desktop.util.KeyboardShortcutHelper;
+import com.pusula.desktop.util.PreferencesHelper;
 import com.pusula.desktop.util.SessionManager;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -41,6 +43,15 @@ public class MainDashboardController {
 
     private boolean isDark = false;
 
+    // Load saved theme preference
+    {
+        isDark = PreferencesHelper.isDarkMode();
+        if (isDark) {
+            javafx.application.Application.setUserAgentStylesheet(
+                    new atlantafx.base.theme.PrimerDark().getUserAgentStylesheet());
+        }
+    }
+
     // Screensaver fields
     private static final int IDLE_TIMEOUT_SECONDS = 10; // 10 seconds for testing
     private PauseTransition idleTimer;
@@ -73,19 +84,111 @@ public class MainDashboardController {
         setupIdleTimer();
 
         showDashboard();
+
+        // Register global keyboard shortcuts after scene is ready
+        javafx.application.Platform.runLater(this::registerKeyboardShortcuts);
+    }
+
+    /**
+     * Registers global keyboard shortcuts for navigation.
+     * Ctrl+D: Dashboard, Ctrl+S: Service, Ctrl+I: Inventory, etc.
+     */
+    private void registerKeyboardShortcuts() {
+        Scene scene = contentArea.getScene();
+        if (scene == null)
+            return;
+
+        KeyboardShortcutHelper.registerGlobalShortcuts(scene, new KeyboardShortcutHelper.ShortcutHandler() {
+            @Override
+            public void onDashboard() {
+                showDashboard();
+            }
+
+            @Override
+            public void onServiceManagement() {
+                showServiceManagement();
+            }
+
+            @Override
+            public void onInventory() {
+                showInventory();
+            }
+
+            @Override
+            public void onFinance() {
+                if (!SessionManager.isTechnician()) {
+                    showFinance();
+                }
+            }
+
+            @Override
+            public void onCustomers() {
+                showCustomers();
+            }
+
+            @Override
+            public void onLogout() {
+                handleLogout();
+            }
+
+            @Override
+            public void onRefresh() {
+                showDashboard(); // Reload current view
+            }
+
+            @Override
+            public void onToggleFullscreen() {
+                javafx.stage.Stage stage = (javafx.stage.Stage) contentArea.getScene().getWindow();
+                stage.setFullScreen(!stage.isFullScreen());
+            }
+
+            @Override
+            public void onToggleTheme() {
+                toggleTheme();
+            }
+        });
     }
 
     @FXML
     private void toggleTheme() {
-        if (isDark) {
-            javafx.application.Application.setUserAgentStylesheet(
-                    new atlantafx.base.theme.PrimerLight().getUserAgentStylesheet());
-            isDark = false;
-        } else {
-            javafx.application.Application.setUserAgentStylesheet(
-                    new atlantafx.base.theme.PrimerDark().getUserAgentStylesheet());
-            isDark = true;
-        }
+        // Get the root scene node for animation
+        Scene scene = contentArea.getScene();
+        if (scene == null)
+            return;
+
+        Parent root = scene.getRoot();
+
+        // Phase 1: Fade Out (250ms)
+        javafx.animation.FadeTransition fadeOut = new javafx.animation.FadeTransition(
+                javafx.util.Duration.millis(250), root);
+        fadeOut.setFromValue(1.0);
+        fadeOut.setToValue(0.0);
+
+        fadeOut.setOnFinished(event -> {
+            // SWAP THEME while screen is black
+            if (isDark) {
+                javafx.application.Application.setUserAgentStylesheet(
+                        new atlantafx.base.theme.PrimerLight().getUserAgentStylesheet());
+                isDark = false;
+            } else {
+                javafx.application.Application.setUserAgentStylesheet(
+                        new atlantafx.base.theme.PrimerDark().getUserAgentStylesheet());
+                isDark = true;
+            }
+
+            // Save theme preference
+            PreferencesHelper.setDarkMode(isDark);
+
+            // Phase 2: Fade In (250ms)
+            javafx.animation.FadeTransition fadeIn = new javafx.animation.FadeTransition(
+                    javafx.util.Duration.millis(250), root);
+            fadeIn.setFromValue(0.0);
+            fadeIn.setToValue(1.0);
+            fadeIn.play();
+        });
+
+        // Start the transition sequence
+        fadeOut.play();
     }
 
     @FXML
@@ -351,9 +454,21 @@ public class MainDashboardController {
 
     private void setupIdleTimer() {
         idleTimer = new PauseTransition(Duration.seconds(IDLE_TIMEOUT_SECONDS));
-        idleTimer.setOnFinished(e -> showScreensaver());
+        idleTimer.setOnFinished(e -> {
+            // Only show screensaver if no other windows are currently focused
+            boolean hasActiveWindow = javafx.stage.Window.getWindows().stream()
+                    .filter(w -> w instanceof Stage)
+                    .anyMatch(w -> ((Stage) w).isFocused());
 
-        // Reset timer on any user activity
+            if (!hasActiveWindow || isMainWindowFocused()) {
+                showScreensaver();
+            } else {
+                // Another window is active, reset the timer
+                resetIdleTimer();
+            }
+        });
+
+        // Reset timer on any user activity in the main scene
         contentArea.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 newScene.addEventFilter(MouseEvent.ANY, event -> resetIdleTimer());
@@ -367,7 +482,47 @@ public class MainDashboardController {
             }
         });
 
+        // Track all window activity across the application
+        javafx.stage.Window.getWindows()
+                .addListener((javafx.collections.ListChangeListener<javafx.stage.Window>) change -> {
+                    while (change.next()) {
+                        if (change.wasAdded()) {
+                            for (javafx.stage.Window window : change.getAddedSubList()) {
+                                if (window instanceof Stage) {
+                                    registerWindowActivityListeners((Stage) window);
+                                }
+                            }
+                        }
+                    }
+                });
+
         idleTimer.play();
+    }
+
+    private boolean isMainWindowFocused() {
+        Scene scene = contentArea.getScene();
+        if (scene != null && scene.getWindow() instanceof Stage) {
+            return ((Stage) scene.getWindow()).isFocused();
+        }
+        return false;
+    }
+
+    private void registerWindowActivityListeners(Stage stage) {
+        // Reset idle timer when any child window gets activity
+        stage.addEventFilter(MouseEvent.ANY, event -> resetIdleTimer());
+        stage.addEventFilter(KeyEvent.ANY, event -> {
+            resetIdleTimer();
+            // Also hide screensaver if visible
+            if (screensaverView != null && contentArea.getChildren().contains(screensaverView)) {
+                Platform.runLater(this::hideScreensaver);
+            }
+        });
+        // Also reset when window gains focus
+        stage.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+            if (isFocused) {
+                resetIdleTimer();
+            }
+        });
     }
 
     private void resetIdleTimer() {

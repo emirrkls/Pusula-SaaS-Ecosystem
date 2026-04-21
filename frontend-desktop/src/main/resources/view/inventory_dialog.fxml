@@ -2,6 +2,7 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.HBox?>
@@ -72,6 +73,29 @@
             </VBox>
          </children>
       </HBox>
+      <HBox spacing="15.0">
+         <children>
+            <VBox spacing="5.0" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label text="Depoda" style="-fx-font-weight: bold;" />
+                  <TextField fx:id="warehouseQtyField" promptText="0" />
+               </children>
+            </VBox>
+            <VBox spacing="5.0" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label text="Araçlarda" style="-fx-font-weight: bold;" />
+                  <TextField fx:id="vehicleQtyField" promptText="0" editable="false" 
+                             style="-fx-background-color: #f0f0f0;" />
+               </children>
+            </VBox>
+         </children>
+      </HBox>
+      <VBox fx:id="vehicleDistributionBox" spacing="5.0" visible="false" managed="false">
+         <children>
+            <Label text="Araç Dağılımı:" style="-fx-font-weight: bold;" />
+            <Label fx:id="vehicleDistributionLabel" text="" style="-fx-text-fill: #666;" />
+         </children>
+      </VBox>
       <HBox alignment="CENTER_RIGHT" spacing="10.0">
          <children>
             <Button mnemonicParsing="false" onAction="#handleCancel" text="%btn.cancel" />

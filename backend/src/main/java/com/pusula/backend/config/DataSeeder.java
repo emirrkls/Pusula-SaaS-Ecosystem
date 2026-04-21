@@ -2,16 +2,19 @@ package com.pusula.backend.config;
 
 import com.pusula.backend.entity.*;
 import com.pusula.backend.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 // Disabled DataSeeder - using SQL seed data instead
 // @Component
 public class DataSeeder implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
 
     private final UserRepository userRepository;
     private final CustomerRepository customerRepository;
@@ -145,6 +148,6 @@ public class DataSeeder implements CommandLineRunner {
             serviceTicketRepository.save(t3);
         }
 
-        System.out.println("Sample data seeded successfully via DataSeeder!");
+        log.info("Sample data seeded successfully via DataSeeder");
     }
 }

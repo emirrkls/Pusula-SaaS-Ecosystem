@@ -31,7 +31,12 @@
             <VBox spacing="10.0" HBox.hgrow="ALWAYS">
                <children>
                   <Label text="%customer.phone" />
-                  <TextField fx:id="phoneField" />
+                  <HBox spacing="5" alignment="CENTER_LEFT">
+                      <children>
+                          <TextField fx:id="phoneField" HBox.hgrow="ALWAYS" />
+                          <Button mnemonicParsing="false" onAction="#handleWhatsAppClick" style="-fx-background-color: #25D366; -fx-text-fill: white; -fx-cursor: hand;" text="WP" />
+                      </children>
+                  </HBox>
                </children>
             </VBox>
          </children>

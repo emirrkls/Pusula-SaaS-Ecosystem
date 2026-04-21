@@ -6,7 +6,8 @@
 <VBox xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.pusula.desktop.controller.PayFixedExpenseDialogController"
-      spacing="15" prefWidth="900" prefHeight="550">
+      spacing="15" prefWidth="900" prefHeight="550"
+      stylesheets="@../css/styles.css">
     
     <padding>
         <Insets top="20" right="20" bottom="20" left="20"/>
@@ -27,12 +28,15 @@
     <TableView fx:id="expensesTable" VBox.vgrow="ALWAYS">
         <columns>
             <TableColumn fx:id="colSelect" text="" prefWidth="50.0" />
-            <TableColumn fx:id="colName" text="%finance.pay_fixed_expense_dialog.name" prefWidth="180.0" />
-            <TableColumn fx:id="colCategory" text="%fixed_expense.category" prefWidth="120.0" />
-            <TableColumn fx:id="colAmount" text="%fixed_expense.amount" prefWidth="100.0" />
-            <TableColumn fx:id="colDayOfMonth" text="%fixed_expense.day_of_month" prefWidth="80.0" />
-            <TableColumn fx:id="colDaysUntil" text="%finance.pay_fixed_expense_dialog.days_until" prefWidth="100.0" />
-            <TableColumn fx:id="colStatus" text="%finance.pay_fixed_expense_dialog.status" prefWidth="100.0" />
+            <TableColumn fx:id="colName" text="%finance.pay_fixed_expense_dialog.name" prefWidth="160.0" />
+            <TableColumn fx:id="colCategory" text="%fixed_expense.category" prefWidth="100.0" />
+            <TableColumn fx:id="colFrequency" text="Sıklık" prefWidth="80.0" />
+            <TableColumn fx:id="colAmount" text="Varsayılan" prefWidth="90.0" />
+            <TableColumn fx:id="colPayAmount" text="Ödeme Tutarı" prefWidth="100.0" />
+            <TableColumn fx:id="colLinkedInfo" text="Bağlı Ödeme" prefWidth="180.0" />
+            <TableColumn fx:id="colDayOfMonth" text="%fixed_expense.day_of_month" prefWidth="60.0" />
+            <TableColumn fx:id="colDaysUntil" text="%finance.pay_fixed_expense_dialog.days_until" prefWidth="80.0" />
+            <TableColumn fx:id="colStatus" text="%finance.pay_fixed_expense_dialog.status" prefWidth="80.0" />
         </columns>
         <columnResizePolicy>
             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />

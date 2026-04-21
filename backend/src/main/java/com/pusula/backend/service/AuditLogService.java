@@ -13,6 +13,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -22,6 +24,8 @@ import java.util.List;
 
 @Service
 public class AuditLogService {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuditLogService.class);
 
     private final AuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
@@ -66,7 +70,7 @@ public class AuditLogService {
             log.setIpAddress(ipAddress);
             auditLogRepository.save(log);
         } catch (Exception e) {
-            System.err.println("Failed to create auth audit log: " + e.getMessage());
+            logger.error("Failed to create auth audit log: {}", e.getMessage());
         }
     }
 
@@ -124,7 +128,7 @@ public class AuditLogService {
             auditLogRepository.save(log);
         } catch (Exception e) {
             // Log error but don't fail the main operation
-            System.err.println("Failed to create audit log: " + e.getMessage());
+            logger.error("Failed to create audit log: {}", e.getMessage());
         }
     }
 
@@ -160,6 +164,16 @@ public class AuditLogService {
             Pageable pageable) {
         return auditLogRepository.findByCompanyIdAndActionTypeAndDateRange(
                 companyId, actionType, startDate, endDate, pageable);
+    }
+
+    /**
+     * Get logs filtered by both user AND action type
+     */
+    public Page<AuditLog> getLogsByUserAndActionType(Long companyId, Long userId, String actionType,
+            LocalDateTime startDate, LocalDateTime endDate,
+            Pageable pageable) {
+        return auditLogRepository.findByCompanyIdAndUserIdAndActionTypeAndDateRange(
+                companyId, userId, actionType, startDate, endDate, pageable);
     }
 
     /**

@@ -1,11 +1,13 @@
 package com.pusula.backend.dto;
 
 public class RegisterRequest {
-    private Long companyId;
+    private Long companyId;      // Optional — null for individual signup
     private String username;
     private String password;
     private String fullName;
-    private String role; // SUPER_ADMIN, COMPANY_ADMIN, TECHNICIAN
+    private String role;         // SUPER_ADMIN, COMPANY_ADMIN, TECHNICIAN
+    private String email;        // Used for individual registration
+    private String authType;     // "INDIVIDUAL" | "CORPORATE"
 
     public RegisterRequest() {
     }
@@ -60,6 +62,22 @@ public class RegisterRequest {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getAuthType() {
+        return authType;
+    }
+
+    public void setAuthType(String authType) {
+        this.authType = authType;
     }
 
     public static class RegisterRequestBuilder {

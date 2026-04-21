@@ -7,14 +7,17 @@ import com.pusula.desktop.util.AlertHelper;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
@@ -44,6 +47,18 @@ public class InventoryDialogController {
     @FXML
     private TextField categoryField;
 
+    @FXML
+    private TextField warehouseQtyField;
+
+    @FXML
+    private TextField vehicleQtyField;
+
+    @FXML
+    private VBox vehicleDistributionBox;
+
+    @FXML
+    private Label vehicleDistributionLabel;
+
     private InventoryDTO currentItem;
     private Runnable onSaveSuccess;
 
@@ -63,8 +78,41 @@ public class InventoryDialogController {
                 brandField.setText(item.getBrand());
             if (item.getCategory() != null)
                 categoryField.setText(item.getCategory());
+
+            // Display stock distribution
+            int warehouseQty = item.getWarehouseQuantity() != null ? item.getWarehouseQuantity() : item.getQuantity();
+            int vehicleQty = item.getInVehicleQuantity() != null ? item.getInVehicleQuantity() : 0;
+
+            if (warehouseQtyField != null) {
+                warehouseQtyField.setText(String.valueOf(warehouseQty));
+            }
+            if (vehicleQtyField != null) {
+                vehicleQtyField.setText(String.valueOf(vehicleQty));
+            }
+
+            // Show vehicle distribution details if there are items in vehicles
+            if (vehicleQty > 0 && item.getVehicleDistribution() != null && !item.getVehicleDistribution().isEmpty()) {
+                if (vehicleDistributionBox != null) {
+                    vehicleDistributionBox.setVisible(true);
+                    vehicleDistributionBox.setManaged(true);
+                }
+                if (vehicleDistributionLabel != null) {
+                    StringBuilder sb = new StringBuilder();
+                    for (var vd : item.getVehicleDistribution()) {
+                        if (sb.length() > 0)
+                            sb.append(", ");
+                        sb.append(vd.getVehiclePlate()).append(": ").append(vd.getQuantity()).append(" adet");
+                    }
+                    vehicleDistributionLabel.setText(sb.toString());
+                }
+            }
         } else {
             titleLabel.setText(bundle.getString("inventory.form.title.add"));
+            // Default values for new item
+            if (warehouseQtyField != null)
+                warehouseQtyField.setText("0");
+            if (vehicleQtyField != null)
+                vehicleQtyField.setText("0");
         }
     }
 
@@ -100,6 +148,11 @@ public class InventoryDialogController {
             itemToSave.setSellPrice(sellPriceStr.isEmpty() ? BigDecimal.ZERO : new BigDecimal(sellPriceStr));
             itemToSave.setBrand(brandField.getText().isEmpty() ? null : brandField.getText());
             itemToSave.setCategory(categoryField.getText().isEmpty() ? null : categoryField.getText());
+
+            // Set warehouse quantity from the editable field
+            if (warehouseQtyField != null && !warehouseQtyField.getText().isEmpty()) {
+                itemToSave.setWarehouseQuantity(Integer.parseInt(warehouseQtyField.getText()));
+            }
 
             InventoryApi api = RetrofitClient.getClient().create(InventoryApi.class);
             Callback<InventoryDTO> callback = new Callback<>() {

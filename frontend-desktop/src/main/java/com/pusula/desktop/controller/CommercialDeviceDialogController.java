@@ -46,9 +46,9 @@ public class CommercialDeviceDialogController {
         cmbGasType.setItems(FXCollections.observableArrayList(
                 "R32", "R410A", "R22", "R134a", "R290", "Doğalgaz", "LPG", "Diğer"));
 
-        // Populate device types (hardcoded for now, could load from API)
+        // Device types - only Klima and Isı Pompası for now
         cmbDeviceType.setItems(FXCollections.observableArrayList(
-                "Klima", "Kombi", "Şofben", "Soba", "Diğer"));
+                "Klima", "Isı Pompası"));
     }
 
     public void setDevice(CommercialDeviceDTO device) {

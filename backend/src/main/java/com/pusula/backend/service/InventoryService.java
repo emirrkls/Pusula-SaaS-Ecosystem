@@ -121,7 +121,11 @@ public class InventoryService {
         repository.delete(inventory);
     }
 
-    private InventoryDTO mapToDTO(Inventory inventory) {
+    public InventoryDTO mapToFullDTO(Inventory inventory) {
+        return mapToDTO(inventory);
+    }
+
+    public InventoryDTO mapToDTO(Inventory inventory) {
         // Get vehicle stock distribution for this inventory item
         List<VehicleStock> vehicleStocks = vehicleStockRepository.findByInventoryId(inventory.getId());
 

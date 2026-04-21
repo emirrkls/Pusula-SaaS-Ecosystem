@@ -1,15 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Users, Target, Award } from 'lucide-react';
 
 const About = () => {
+    useEffect(() => {
+        document.title = 'Hakkımızda - Didim\'in Güvenilir İklimlendirme Firması | Pusula İklimlendirme';
+    }, []);
+
     return (
         <div className="pt-20 bg-white min-h-screen">
             {/* Hero */}
+            {/* ABOUT PAGE HERO BACKGROUND - Place image at: public/assets/img/about-hero-bg.jpg */}
             <div className="relative bg-brand-dark text-white py-24 overflow-hidden">
                 <div className="absolute inset-0 opacity-10">
                     <img
-                        src="https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069&auto=format&fit=crop"
+                        src="/assets/img/about-hero-bg.jpg" // TODO: Office/company photo for hero
                         alt="Office"
                         className="w-full h-full object-cover"
                     />
@@ -40,14 +45,15 @@ const About = () => {
                             Amacımız sadece arızaları gidermek değil, yaşam alanlarınızın konforunu artıracak kalıcı çözümler üretmektir. Teknolojiyi yakından takip ediyor, ekibimizi sürekli eğitiyoruz.
                         </p>
                     </div>
+                    {/* ABOUT US IMAGES - Place your images in: public/assets/img/ */}
                     <div className="grid grid-cols-2 gap-4">
                         <img
-                            src="https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?q=80&w=800&auto=format&fit=crop"
+                            src="/assets/img/about-us-1.jpg" // TODO: Technician or team photo
                             alt="Technician"
                             className="rounded-xl shadow-lg w-full h-64 object-cover mt-8"
                         />
                         <img
-                            src="https://images.unsplash.com/photo-1504384308090-c54be3852f33?q=80&w=800&auto=format&fit=crop"
+                            src="/assets/img/about-us-2.jpg" // TODO: Office or workspace photo
                             alt="Office"
                             className="rounded-xl shadow-lg w-full h-64 object-cover"
                         />
@@ -86,6 +92,7 @@ const About = () => {
                 </div>
 
                 {/* Team Section */}
+                {/* TEAM MEMBER PHOTOS - Place images at: public/assets/img/team-1.jpg, team-2.jpg, etc. */}
                 <div className="text-center">
                     <h2 className="text-3xl font-bold text-brand-dark mb-12">Uzman Kadromuz</h2>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -93,7 +100,7 @@ const About = () => {
                             <div key={item} className="group">
                                 <div className="relative overflow-hidden rounded-xl mb-4 aspect-square">
                                     <img
-                                        src={`https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&auto=format&fit=crop&random=${item}`}
+                                        src={`/assets/img/team-${item}.jpg`} // TODO: Team member photo #${item}
                                         alt="Team Member"
                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                     />

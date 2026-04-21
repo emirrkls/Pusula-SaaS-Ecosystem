@@ -20,6 +20,12 @@ public class ServiceTicketDTO {
     private boolean isWarrantyCall;
     private String customerName; // Customer full name for frontend display
     private PaymentMethod paymentMethod;
+    // Enriched fields for mobile technician view
+    private String customerPhone;
+    private String customerAddress;
+    private String customerCoordinates;
+    private java.math.BigDecimal customerBalance; // Outstanding cari balance
+    private String assignedTechnicianName;
 
     public ServiceTicketDTO() {
     }
@@ -150,6 +156,21 @@ public class ServiceTicketDTO {
     public void setPaymentMethod(PaymentMethod paymentMethod) {
         this.paymentMethod = paymentMethod;
     }
+
+    public String getCustomerPhone() { return customerPhone; }
+    public void setCustomerPhone(String customerPhone) { this.customerPhone = customerPhone; }
+
+    public String getCustomerAddress() { return customerAddress; }
+    public void setCustomerAddress(String customerAddress) { this.customerAddress = customerAddress; }
+
+    public String getCustomerCoordinates() { return customerCoordinates; }
+    public void setCustomerCoordinates(String customerCoordinates) { this.customerCoordinates = customerCoordinates; }
+
+    public java.math.BigDecimal getCustomerBalance() { return customerBalance; }
+    public void setCustomerBalance(java.math.BigDecimal customerBalance) { this.customerBalance = customerBalance; }
+
+    public String getAssignedTechnicianName() { return assignedTechnicianName; }
+    public void setAssignedTechnicianName(String assignedTechnicianName) { this.assignedTechnicianName = assignedTechnicianName; }
 
     public static class ServiceTicketDTOBuilder {
         private Long id;

@@ -47,4 +47,9 @@ public class FixedExpenseDefinition {
     @Column(name = "is_paid")
     @Builder.Default
     private Boolean isPaid = false;
+
+    // For linking weekly expenses to their monthly counterpart
+    // When paying monthly, deduct already-paid weekly amounts
+    @Column(name = "linked_expense_id")
+    private Long linkedExpenseId;
 }

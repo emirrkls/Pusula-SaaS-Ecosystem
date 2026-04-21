@@ -218,6 +218,13 @@ public class ProposalEditorController {
                 Platform.runLater(() -> {
                     if (response.isSuccessful() && response.body() != null) {
                         customerComboBox.setItems(FXCollections.observableArrayList(response.body()));
+                        // Pre-select customer if editing an existing proposal
+                        if (currentProposal != null && currentProposal.getCustomerId() != null) {
+                            customerComboBox.getItems().stream()
+                                    .filter(c -> c.getId().equals(currentProposal.getCustomerId()))
+                                    .findFirst()
+                                    .ifPresent(c -> customerComboBox.setValue(c));
+                        }
                     }
                 });
             }
@@ -234,12 +241,21 @@ public class ProposalEditorController {
                     if (response.isSuccessful() && response.body() != null) {
                         List<UserDTO> users = response.body();
                         preparedByComboBox.setItems(FXCollections.observableArrayList(users));
-                        // Select current user by username
-                        String currentUsername = SessionManager.getUsername();
-                        users.stream()
-                                .filter(u -> u.getUsername() != null && u.getUsername().equals(currentUsername))
-                                .findFirst()
-                                .ifPresent(u -> preparedByComboBox.setValue(u));
+
+                        // Pre-select prepared by user if editing an existing proposal
+                        if (currentProposal != null && currentProposal.getPreparedById() != null) {
+                            users.stream()
+                                    .filter(u -> u.getId().equals(currentProposal.getPreparedById()))
+                                    .findFirst()
+                                    .ifPresent(u -> preparedByComboBox.setValue(u));
+                        } else {
+                            // For new proposals, select current user
+                            String currentUsername = SessionManager.getUsername();
+                            users.stream()
+                                    .filter(u -> u.getUsername() != null && u.getUsername().equals(currentUsername))
+                                    .findFirst()
+                                    .ifPresent(u -> preparedByComboBox.setValue(u));
+                        }
                     }
                 });
             }
@@ -438,7 +454,43 @@ public class ProposalEditorController {
 
     @FXML
     private void handleAddCustomer() {
-        showInfo("Müşteri ekleme özelliği yakında eklenecek.");
+        try {
+            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle(
+                    "i18n.messages", java.util.Locale.forLanguageTag("tr-TR"),
+                    new com.pusula.desktop.util.UTF8Control());
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                    getClass().getResource("/view/customer_dialog.fxml"), bundle);
+            javafx.scene.Parent root = loader.load();
+            CustomerDialogController dialogController = loader.getController();
+            dialogController.setOnSaveSuccess((savedCustomer) -> {
+                // Refresh customers and auto-select the new one
+                loadData();
+                Platform.runLater(() -> {
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(500);
+                            Platform.runLater(() -> {
+                                customerComboBox.getItems().stream()
+                                        .filter(c -> c.getId().equals(savedCustomer.getId()))
+                                        .findFirst()
+                                        .ifPresent(c -> customerComboBox.setValue(c));
+                            });
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }).start();
+                });
+            });
+            javafx.stage.Stage dialogStage = new javafx.stage.Stage();
+            dialogStage.setTitle(bundle.getString("customer.dialog.title"));
+            dialogStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+            dialogStage.initOwner(customerComboBox.getScene().getWindow());
+            dialogStage.setScene(new javafx.scene.Scene(root));
+            dialogStage.showAndWait();
+        } catch (Exception e) {
+            e.printStackTrace();
+            showError("Müşteri ekleme ekranı açılamadı: " + e.getMessage());
+        }
     }
 
     @FXML

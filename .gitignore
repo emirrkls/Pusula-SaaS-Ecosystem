@@ -56,3 +56,9 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+
+# Custom project output and logs
+error.txt
+frontend-desktop/portable/
+frontend-desktop/installer/Output/
+.vercel/

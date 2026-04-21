@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Phone, Menu, X, Snowflake } from 'lucide-react';
+import { Phone, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Navbar = () => {
@@ -32,13 +32,12 @@ const Navbar = () => {
         >
             <div className="container mx-auto px-4 md:px-8 flex justify-between items-center">
                 {/* Logo */}
-                <Link to="/" className="flex items-center gap-2 group">
-                    <div className="bg-brand-cyan p-2 rounded-lg group-hover:rotate-12 transition-transform">
-                        <Snowflake className="text-white w-6 h-6" />
-                    </div>
-                    <span className="text-2xl font-bold text-white tracking-tight">
-                        Pusula<span className="text-brand-cyan">.</span>
-                    </span>
+                <Link to="/" className="flex items-center group">
+                    <img
+                        src="/assets/img/logo.svg"
+                        alt="Pusula İklimlendirme"
+                        className="h-16 w-auto group-hover:scale-105 transition-transform drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]"
+                    />
                 </Link>
 
                 {/* Desktop Nav */}

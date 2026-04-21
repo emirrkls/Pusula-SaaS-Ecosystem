@@ -8,12 +8,14 @@ import com.pusula.backend.entity.DailyClosing;
 import com.pusula.backend.entity.Expense;
 import com.pusula.backend.entity.FixedExpenseDefinition;
 import com.pusula.backend.entity.Inventory;
+import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.InventoryRepository;
 import com.pusula.backend.service.FinanceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 
@@ -25,29 +27,35 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/finance")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
 public class FinanceController {
 
     private final FinanceService financeService;
 
+    // ── SECURITY FIX: All endpoints now derive companyId from JWT ──
+
+    private User getCurrentUser() {
+        return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    }
+
+    private Long getCompanyId() {
+        return getCurrentUser().getCompanyId();
+    }
+
     @GetMapping("/summary")
     public ResponseEntity<FinanceService.FinancialSummary> getSummary(
-            @RequestParam(defaultValue = "1") Long companyId,
             @RequestParam(defaultValue = "MONTHLY") String period) {
-        return ResponseEntity.ok(financeService.getSummary(companyId, period));
+        return ResponseEntity.ok(financeService.getSummary(getCompanyId(), period));
     }
 
     /**
      * Get CUMULATIVE (all-time) financial summary for Boss View
-     * Returns totalCash (all income - all expenses) + inventory value
      */
     @GetMapping("/cumulative")
-    public ResponseEntity<FinanceService.CumulativeSummary> getCumulativeSummary(
-            @RequestParam(defaultValue = "1") Long companyId) {
+    public ResponseEntity<FinanceService.CumulativeSummary> getCumulativeSummary() {
+        Long companyId = getCompanyId();
         FinanceService.CumulativeSummary summary = financeService.getCumulativeSummary(companyId);
 
-        // Calculate inventory value (sum of all inventory items: quantity * buyPrice)
         BigDecimal inventoryValue = inventoryRepository.findByCompanyId(companyId).stream()
                 .map(item -> {
                     BigDecimal quantity = BigDecimal.valueOf(item.getQuantity());
@@ -62,16 +70,14 @@ public class FinanceController {
 
     @PostMapping("/expenses")
     public ResponseEntity<Expense> addExpense(@RequestBody Expense expense) {
-        // Ensure companyId is set (default to 1 for now if missing)
-        if (expense.getCompanyId() == null) {
-            expense.setCompanyId(1L);
-        }
+        // SECURITY: Always set companyId from JWT, never trust client
+        expense.setCompanyId(getCompanyId());
         return ResponseEntity.ok(financeService.addExpense(expense));
     }
 
     @GetMapping("/expenses")
-    public ResponseEntity<List<Expense>> getExpenses(@RequestParam(defaultValue = "1") Long companyId) {
-        return ResponseEntity.ok(financeService.getRecentExpenses(companyId));
+    public ResponseEntity<List<Expense>> getExpenses() {
+        return ResponseEntity.ok(financeService.getRecentExpenses(getCompanyId()));
     }
 
     @PutMapping("/expenses/{id}")
@@ -89,16 +95,15 @@ public class FinanceController {
 
     @GetMapping("/daily-summary")
     public ResponseEntity<DailySummaryDTO> getDailySummary(
-            @RequestParam(defaultValue = "1") Long companyId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         LocalDate targetDate = (date != null) ? date : LocalDate.now();
-        return ResponseEntity.ok(financeService.getDailySummary(companyId, targetDate));
+        return ResponseEntity.ok(financeService.getDailySummary(getCompanyId(), targetDate));
     }
 
     @PostMapping("/close-day")
     public ResponseEntity<DailyClosing> closeDay(@RequestBody CloseDayRequest request) {
         DailyClosing closing = financeService.closeDay(
-                request.getCompanyId(),
+                getCompanyId(),
                 request.getDate(),
                 request.getUserId());
         return ResponseEntity.ok(closing);
@@ -106,23 +111,20 @@ public class FinanceController {
 
     @GetMapping("/category-report")
     public ResponseEntity<CategoryReportDTO> getCategoryReport(
-            @RequestParam(defaultValue = "1") Long companyId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
-        // Default to current month if dates not provided
         LocalDate start = (startDate != null) ? startDate : LocalDate.now().withDayOfMonth(1);
         LocalDate end = (endDate != null) ? endDate : LocalDate.now();
 
-        return ResponseEntity.ok(financeService.getCategoryReport(companyId, start, end));
+        return ResponseEntity.ok(financeService.getCategoryReport(getCompanyId(), start, end));
     }
 
     // ============= FIXED EXPENSE CRUD ENDPOINTS =============
 
     @GetMapping("/fixed-expenses")
-    public ResponseEntity<List<FixedExpenseDefinitionDTO>> getFixedExpenses(
-            @RequestParam Long companyId) {
-        return ResponseEntity.ok(financeService.getFixedExpensesWithStatus(companyId));
+    public ResponseEntity<List<FixedExpenseDefinitionDTO>> getFixedExpenses() {
+        return ResponseEntity.ok(financeService.getFixedExpensesWithStatus(getCompanyId()));
     }
 
     @PostMapping("/fixed-expenses")
@@ -147,41 +149,67 @@ public class FinanceController {
     @PostMapping("/fixed-expenses/pay/{id}")
     public ResponseEntity<?> payFixedExpense(
             @PathVariable Long id,
-            @RequestParam(defaultValue = "1") Long companyId,
-            @RequestParam(required = false) String date) {
+            @RequestParam(required = false) String date,
+            @RequestParam(required = false) BigDecimal amount) {
         try {
             LocalDate paymentDate = (date != null) ? LocalDate.parse(date) : LocalDate.now();
-            return ResponseEntity.ok(financeService.payFixedExpense(id, companyId, paymentDate));
+            return ResponseEntity.ok(financeService.payFixedExpense(id, getCompanyId(), paymentDate, amount));
         } catch (IllegalStateException e) {
-            // Duplicate payment error
             return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
         }
     }
 
     @GetMapping("/daily-totals")
-    public ResponseEntity<List<FinanceService.DailyTotal>> get30DayTotals(
-            @RequestParam(defaultValue = "1") Long companyId) {
-        return ResponseEntity.ok(financeService.get30DayTotals(companyId));
+    public ResponseEntity<List<FinanceService.DailyTotal>> get30DayTotals() {
+        return ResponseEntity.ok(financeService.get30DayTotals(getCompanyId()));
     }
 
     @GetMapping("/upcoming-fixed-expenses")
     public ResponseEntity<List<FixedExpenseDefinitionDTO>> getUpcomingFixedExpenses(
-            @RequestParam Long companyId,
             @RequestParam(defaultValue = "3") int daysThreshold) {
-        return ResponseEntity.ok(financeService.getUpcomingFixedExpenses(companyId, daysThreshold));
+        return ResponseEntity.ok(financeService.getUpcomingFixedExpenses(getCompanyId(), daysThreshold));
     }
 
     @Autowired
     private InventoryRepository inventoryRepository;
 
     @GetMapping("/inventory-value")
-    public ResponseEntity<Map<String, BigDecimal>> getInventoryValue(
-            @RequestParam(defaultValue = "1") Long companyId) {
+    public ResponseEntity<Map<String, BigDecimal>> getInventoryValue() {
+        Long companyId = getCompanyId();
         List<Inventory> items = inventoryRepository.findByCompanyId(companyId);
         BigDecimal totalValue = items.stream()
                 .filter(item -> item.getBuyPrice() != null && item.getQuantity() != null)
                 .map(item -> item.getBuyPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         return ResponseEntity.ok(Map.of("totalValue", totalValue));
+    }
+
+    /**
+     * Close all unclosed days in a date range (for fixing historical data)
+     */
+    @PostMapping("/close-days-range")
+    public ResponseEntity<Map<String, Object>> closeDaysRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        Long companyId = getCompanyId();
+        int closedCount = 0;
+        int skippedCount = 0;
+        LocalDate current = startDate;
+
+        while (!current.isAfter(endDate)) {
+            try {
+                financeService.closeDay(companyId, current, null);
+                closedCount++;
+            } catch (IllegalStateException e) {
+                skippedCount++;
+            }
+            current = current.plusDays(1);
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Toplu gün kapanışı tamamlandı",
+                "closedDays", closedCount,
+                "skippedDays", skippedCount));
     }
 }

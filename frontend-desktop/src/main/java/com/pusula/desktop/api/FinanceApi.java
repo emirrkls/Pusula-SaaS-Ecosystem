@@ -74,7 +74,8 @@ public interface FinanceApi {
         Call<ExpenseDTO> payFixedExpense(
                         @Path("id") Long id,
                         @Query("companyId") Long companyId,
-                        @Query("date") String date);
+                        @Query("date") String date,
+                        @Query("amount") java.math.BigDecimal amount);
 
         @GET("/api/finance/daily-totals")
         Call<List<DailyTotalDTO>> get30DayTotals(@Query("companyId") Long companyId);

@@ -51,6 +51,20 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
                         @Param("endDate") LocalDateTime endDate,
                         Pageable pageable);
 
+        // Find logs by company, user, action type, and date range (combined filter)
+        @Query("SELECT a FROM AuditLog a WHERE a.companyId = :companyId " +
+                        "AND a.userId = :userId " +
+                        "AND a.actionType = :actionType " +
+                        "AND a.timestamp BETWEEN :startDate AND :endDate " +
+                        "ORDER BY a.timestamp DESC")
+        Page<AuditLog> findByCompanyIdAndUserIdAndActionTypeAndDateRange(
+                        @Param("companyId") Long companyId,
+                        @Param("userId") Long userId,
+                        @Param("actionType") String actionType,
+                        @Param("startDate") LocalDateTime startDate,
+                        @Param("endDate") LocalDateTime endDate,
+                        Pageable pageable);
+
         // Find logs by company, entity type, and entity ID
         List<AuditLog> findByCompanyIdAndEntityTypeAndEntityIdOrderByTimestampDesc(
                         Long companyId, String entityType, Long entityId);

@@ -8,11 +8,15 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox alignment="CENTER" spacing="20.0" xmlns:fx="http://javafx.com/fxml"
+<VBox fx:id="loginForm" alignment="CENTER" spacing="20.0" xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.pusula.desktop.controller.LoginController">
     <padding>
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
     </padding>
+
+    <!-- Update Alert Container -->
+    <VBox fx:id="alertContainer" spacing="10" visible="false" managed="false" styleClass="alert-banner">
+    </VBox>
 
     <Label text="%login.title">
         <font>
@@ -23,6 +27,6 @@
     <TextField fx:id="usernameField" promptText="%login.username" maxWidth="300"/>
     <PasswordField fx:id="passwordField" promptText="%login.password" maxWidth="300"/>
     
-    <Button text="%login.button" onAction="#handleLogin"/>
+    <Button fx:id="loginButton" text="%login.button" onAction="#handleLogin"/>
     <Label fx:id="messageLabel"/>
 </VBox>

@@ -155,20 +155,27 @@ public class CommercialDeviceService {
         String paymentMethod = request.getPaymentMethod();
         LocalDate saleDate = request.getSaleDate() != null ? request.getSaleDate() : LocalDate.now();
 
-        // 4. Record sale as income (negative expense = income, category = DEVICE_SALE)
-        String saleDescription = String.format("Satış: %s %s %s BTU - %s",
+        // 4. Calculate profit (sale price - buy price) for income recording
+        BigDecimal buyPrice = device.getBuyingPrice() != null ? device.getBuyingPrice() : BigDecimal.ZERO;
+        BigDecimal profit = salePrice.subtract(buyPrice);
+
+        String saleDescription = String.format("Satış: %s %s %s BTU - %s (Kâr: %.2f ₺)",
                 device.getBrand(), device.getModel(),
                 device.getBtu() != null ? device.getBtu() : "",
-                customer.getName());
+                customer.getName(), profit);
 
-        Expense saleIncome = Expense.builder()
-                .companyId(currentUser.getCompanyId())
-                .amount(salePrice.negate()) // Negative = income
-                .description(saleDescription)
-                .date(saleDate)
-                .category(ExpenseCategory.DEVICE_SALE)
-                .build();
-        expenseRepository.save(saleIncome);
+        // Record sale as income ONLY for CASH payments (money enters register immediately)
+        // For CREDIT_CARD and CURRENT_ACCOUNT, income will be recorded when cari is paid
+        if ("CASH".equalsIgnoreCase(paymentMethod)) {
+            Expense saleIncome = Expense.builder()
+                    .companyId(currentUser.getCompanyId())
+                    .amount(profit.negate()) // Negative = income, using PROFIT not full sale price
+                    .description(saleDescription)
+                    .date(saleDate)
+                    .category(ExpenseCategory.DEVICE_SALE)
+                    .build();
+            expenseRepository.save(saleIncome);
+        }
 
         // 5. Create service ticket for installation (PENDING, amount = 0)
         String ticketDescription = String.format("Montaj: %s %s %s BTU",
@@ -182,11 +189,26 @@ public class CommercialDeviceService {
         ticket.setScheduledDate(saleDate.atStartOfDay());
         ticket.setCollectedAmount(BigDecimal.ZERO); // Installation starts at 0
 
-        // Set payment method reference (for info only)
+        // Set payment method reference and handle cari account creation
         if ("CASH".equalsIgnoreCase(paymentMethod)) {
             ticket.setPaymentMethod(PaymentMethod.CASH);
         } else if ("CREDIT_CARD".equalsIgnoreCase(paymentMethod)) {
             ticket.setPaymentMethod(PaymentMethod.CREDIT_CARD);
+
+            // Auto-create cari account for credit card payments
+            CurrentAccount account = currentAccountRepository.findByCustomerId(customer.getId())
+                    .orElseGet(() -> {
+                        CurrentAccount newAccount = CurrentAccount.builder()
+                                .companyId(currentUser.getCompanyId())
+                                .customer(customer)
+                                .balance(BigDecimal.ZERO)
+                                .build();
+                        return currentAccountRepository.save(newAccount);
+                    });
+
+            // Add debt (positive balance = customer owes us)
+            account.setBalance(account.getBalance().add(salePrice));
+            currentAccountRepository.save(account);
         } else if ("CURRENT_ACCOUNT".equalsIgnoreCase(paymentMethod)) {
             ticket.setPaymentMethod(PaymentMethod.CURRENT_ACCOUNT);
 

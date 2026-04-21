@@ -7,9 +7,12 @@ import com.pusula.desktop.api.CustomerApi;
 import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.dto.CustomerDTO;
 import com.pusula.desktop.dto.ServiceUsedPartDTO;
+import com.pusula.desktop.dto.ServiceTicketExpenseDTO;
 import com.pusula.desktop.dto.UserDTO;
+import com.pusula.desktop.api.ServiceTicketExpenseApi;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.WhatsAppHelper;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -88,6 +91,22 @@ public class TicketDetailsController {
 
     private Long currentUserId;
 
+    // External Expenses UI
+    @FXML
+    private TableView<ServiceTicketExpenseDTO> expensesTable;
+    @FXML
+    private TableColumn<ServiceTicketExpenseDTO, String> colExpenseDescription;
+    @FXML
+    private TableColumn<ServiceTicketExpenseDTO, String> colExpenseSupplier;
+    @FXML
+    private TableColumn<ServiceTicketExpenseDTO, BigDecimal> colExpenseAmount;
+    @FXML
+    private TableColumn<ServiceTicketExpenseDTO, Void> colExpenseActions;
+    @FXML
+    private Button btnAddExpense;
+
+    private final ObservableList<ServiceTicketExpenseDTO> expensesList = FXCollections.observableArrayList();
+
     @FXML
     public void initialize() {
         // Load resource bundle for localization
@@ -112,6 +131,34 @@ public class TicketDetailsController {
         });
 
         partsTable.setItems(usedPartsList);
+
+        // Setup external expenses table
+        colExpenseDescription.setCellValueFactory(
+                cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getDescription()));
+        colExpenseSupplier.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
+                cellData.getValue().getSupplier() != null ? cellData.getValue().getSupplier() : "-"));
+        colExpenseAmount.setCellValueFactory(
+                cellData -> new javafx.beans.property.SimpleObjectProperty<>(cellData.getValue().getAmount()));
+        // Action column with delete button
+        colExpenseActions.setCellFactory(col -> new TableCell<>() {
+            private final Button deleteBtn = new Button("Sil");
+            {
+                deleteBtn.setStyle(
+                        "-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 10px; -fx-padding: 2 8;");
+                deleteBtn.setOnAction(e -> {
+                    ServiceTicketExpenseDTO expense = getTableView().getItems().get(getIndex());
+                    deleteExpense(expense);
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : deleteBtn);
+            }
+        });
+        expensesTable.setItems(expensesList);
+
         loadTechnicians();
 
         // Only fetch all users if Admin, to avoid 403 Forbidden for Technicians
@@ -153,6 +200,7 @@ public class TicketDetailsController {
         loadUsedParts();
         loadTicketHistory();
         loadCustomerInfo();
+        loadExpenses();
     }
 
     private void loadTicketHistory() {
@@ -543,6 +591,159 @@ public class TicketDetailsController {
                     lblCustomerName.setText("-");
                     lblCustomerPhone.setText("-");
                     lblCustomerAddress.setText("-");
+                });
+            }
+        });
+    }
+
+    @FXML
+    private void handleWhatsAppClick() {
+        if (lblCustomerPhone.getText() != null && !lblCustomerPhone.getText().trim().isEmpty() && !lblCustomerPhone.getText().equals("-")) {
+            WhatsAppHelper.openWhatsApp(lblCustomerPhone.getText());
+        } else {
+            AlertHelper.showAlert(Alert.AlertType.WARNING, lblStatus.getScene().getWindow(),
+                    "Uyarı", "Geçerli bir telefon numarası bulunamadı.");
+        }
+    }
+
+    // ===== External Expenses Methods =====
+
+    private void loadExpenses() {
+        if (currentTicket == null)
+            return;
+
+        ServiceTicketExpenseApi api = RetrofitClient.getClient().create(ServiceTicketExpenseApi.class);
+        api.getExpenses(currentTicket.getId()).enqueue(new Callback<List<ServiceTicketExpenseDTO>>() {
+            @Override
+            public void onResponse(Call<List<ServiceTicketExpenseDTO>> call,
+                    Response<List<ServiceTicketExpenseDTO>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Platform.runLater(() -> {
+                        expensesList.clear();
+                        expensesList.addAll(response.body());
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<ServiceTicketExpenseDTO>> call, Throwable t) {
+                // Silently fail - expenses are optional
+            }
+        });
+    }
+
+    @FXML
+    private void handleAddExpense() {
+        if (currentTicket == null)
+            return;
+
+        // Create a dialog for adding expense
+        Dialog<ServiceTicketExpenseDTO> dialog = new Dialog<>();
+        dialog.setTitle("Dış Gider Ekle");
+        dialog.setHeaderText("Servis için dış gider bilgilerini girin");
+
+        // Form fields
+        TextField descField = new TextField();
+        descField.setPromptText("Açıklama (örn: Kompresör, Motor)");
+        TextField supplierField = new TextField();
+        supplierField.setPromptText("Tedarikçi (İsteğe bağlı)");
+        TextField amountField = new TextField();
+        amountField.setPromptText("Tutar (₺)");
+        TextArea notesField = new TextArea();
+        notesField.setPromptText("Notlar (İsteğe bağlı)");
+        notesField.setPrefRowCount(2);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.add(new Label("Açıklama:"), 0, 0);
+        grid.add(descField, 1, 0);
+        grid.add(new Label("Tedarikçi:"), 0, 1);
+        grid.add(supplierField, 1, 1);
+        grid.add(new Label("Tutar (₺):"), 0, 2);
+        grid.add(amountField, 1, 2);
+        grid.add(new Label("Notlar:"), 0, 3);
+        grid.add(notesField, 1, 3);
+
+        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        dialog.setResultConverter(button -> {
+            if (button == ButtonType.OK) {
+                try {
+                    BigDecimal amount = new BigDecimal(amountField.getText().replace(",", "."));
+                    return ServiceTicketExpenseDTO.builder()
+                            .serviceTicketId(currentTicket.getId())
+                            .description(descField.getText())
+                            .supplier(supplierField.getText().isEmpty() ? null : supplierField.getText())
+                            .amount(amount)
+                            .notes(notesField.getText().isEmpty() ? null : notesField.getText())
+                            .build();
+                } catch (NumberFormatException e) {
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, dialog.getDialogPane().getScene().getWindow(),
+                            "Hata", "Geçersiz tutar formatı");
+                    return null;
+                }
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(expense -> {
+            if (expense != null && expense.getDescription() != null && !expense.getDescription().isEmpty()) {
+                saveExpense(expense);
+            }
+        });
+    }
+
+    private void saveExpense(ServiceTicketExpenseDTO expense) {
+        ServiceTicketExpenseApi api = RetrofitClient.getClient().create(ServiceTicketExpenseApi.class);
+        api.addExpense(currentTicket.getId(), expense).enqueue(new Callback<ServiceTicketExpenseDTO>() {
+            @Override
+            public void onResponse(Call<ServiceTicketExpenseDTO> call, Response<ServiceTicketExpenseDTO> response) {
+                if (response.isSuccessful()) {
+                    Platform.runLater(() -> {
+                        loadExpenses();
+                        AlertHelper.showAlert(Alert.AlertType.INFORMATION, lblStatus.getScene().getWindow(),
+                                "Başarılı", "Dış gider eklendi");
+                    });
+                } else {
+                    Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                            lblStatus.getScene().getWindow(), "Hata", "Gider eklenemedi: " + response.code()));
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ServiceTicketExpenseDTO> call, Throwable t) {
+                Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                        lblStatus.getScene().getWindow(), "Hata", "Bağlantı hatası: " + t.getMessage()));
+            }
+        });
+    }
+
+    private void deleteExpense(ServiceTicketExpenseDTO expense) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                "Bu dış gideri silmek istediğinizden emin misiniz?",
+                ButtonType.YES, ButtonType.NO);
+        confirm.setHeaderText("Gider Silme Onayı");
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.YES) {
+                ServiceTicketExpenseApi api = RetrofitClient.getClient().create(ServiceTicketExpenseApi.class);
+                api.deleteExpense(currentTicket.getId(), expense.getId()).enqueue(new Callback<Void>() {
+                    @Override
+                    public void onResponse(Call<Void> call, Response<Void> response) {
+                        if (response.isSuccessful()) {
+                            Platform.runLater(() -> loadExpenses());
+                        } else {
+                            Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                    lblStatus.getScene().getWindow(), "Hata", "Silinemedi: " + response.code()));
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<Void> call, Throwable t) {
+                        Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                lblStatus.getScene().getWindow(), "Hata", t.getMessage()));
+                    }
                 });
             }
         });

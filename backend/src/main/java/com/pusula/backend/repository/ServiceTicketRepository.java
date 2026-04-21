@@ -15,6 +15,15 @@ public interface ServiceTicketRepository extends JpaRepository<ServiceTicket, Lo
 
     List<ServiceTicket> findByAssignedTechnicianId(Long technicianId);
 
+    // Count active tickets for a specific technician (excluding COMPLETED and CANCELLED)
+    @Query("SELECT COUNT(t) FROM ServiceTicket t WHERE t.assignedTechnicianId = :techId AND t.status NOT IN ('COMPLETED', 'CANCELLED')")
+    Long countActiveTicketsForTechnician(@Param("techId") Long techId);
+
+    // Reassign active tickets from one technician to another
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE ServiceTicket t SET t.assignedTechnicianId = :newTechId WHERE t.assignedTechnicianId = :oldTechId AND t.status NOT IN ('COMPLETED', 'CANCELLED')")
+    void reassignActiveTickets(@Param("oldTechId") Long oldTechId, @Param("newTechId") Long newTechId);
+
     // Count active tickets (excluding COMPLETED and CANCELLED)
     @Query("SELECT COUNT(t) FROM ServiceTicket t WHERE t.companyId = :companyId AND t.status NOT IN ('COMPLETED', 'CANCELLED')")
     Long countActiveTickets(@Param("companyId") Long companyId);

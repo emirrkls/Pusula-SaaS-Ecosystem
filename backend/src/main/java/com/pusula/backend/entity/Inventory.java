@@ -33,6 +33,21 @@ public class Inventory extends BaseEntity {
     @Column(name = "category")
     private String category;
 
+    @Column(name = "barcode")
+    private String barcode;
+
+    /**
+     * Location where this item is stored: DEPO or VEHICLE
+     */
+    @Column(name = "location")
+    private String location = "DEPO";
+
+    /**
+     * If location is VEHICLE, this references which vehicle
+     */
+    @Column(name = "vehicle_id")
+    private Long vehicleId;
+
     public Inventory() {
     }
 
@@ -105,6 +120,30 @@ public class Inventory extends BaseEntity {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getBarcode() {
+        return barcode;
+    }
+
+    public void setBarcode(String barcode) {
+        this.barcode = barcode;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public Long getVehicleId() {
+        return vehicleId;
+    }
+
+    public void setVehicleId(Long vehicleId) {
+        this.vehicleId = vehicleId;
     }
 
     public static class InventoryBuilder {

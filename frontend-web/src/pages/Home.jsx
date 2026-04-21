@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, ShieldCheck, Clock, Wallet, ChevronRight } from 'lucide-react';
 
 const Home = () => {
+    useEffect(() => {
+        document.title = 'Pusula İklimlendirme - Didim Klima Servisi, Montaj ve Bakım | Aydın';
+    }, []);
     const features = [
         {
             icon: <Clock className="w-8 h-8 text-brand-cyan" />,
@@ -22,36 +25,55 @@ const Home = () => {
         }
     ];
 
+    /**
+     * SERVICE IMAGES - Place your images in: public/assets/img/
+     * Required files:
+     *   - service-1.jpg (Split Klima photo)
+     *   - service-2.jpg (VRF Systems photo)
+     *   - service-3.jpg (Kombi/Boiler photo)
+     *   - service-4.jpg (Montaj/Installation photo)
+     */
     const services = [
         {
             title: "Split Klima",
-            image: "https://images.unsplash.com/photo-1614634351680-31362e51927c?q=80&w=800&auto=format&fit=crop",
+            image: "/assets/img/service-1.jpg",
             desc: "Ev ve ofisleriniz için en verimli split klima çözümleri."
         },
         {
             title: "VRF Sistemleri",
-            image: "https://images.unsplash.com/photo-1581094288338-2314dddb7ece?q=80&w=800&auto=format&fit=crop",
+            image: "/assets/img/service-2.jpg",
             desc: "Büyük ölçekli binalar için merkezi iklimlendirme sistemleri."
         },
         {
-            title: "Kombi Bakımı",
-            image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
-            desc: "Kışa hazırlık ve periyodik kombi bakım hizmetleri."
+            title: "Isı Pompası",
+            image: "/assets/img/service-3.jpg",
+            desc: "Yenilenebilir enerji ile ekonomik ısıtma ve soğutma çözümleri."
         },
         {
             title: "Montaj & Keşif",
-            image: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=800&auto=format&fit=crop",
+            image: "/assets/img/service-4.jpg",
             desc: "Profesyonel ekiplerimizle ücretsiz keşif ve güvenli montaj."
+        },
+        {
+            title: "Güneş Enerjisi",
+            image: "/assets/img/service-5.jpg",
+            desc: "Fotovoltaik panel sistemleri ile temiz ve ücretsiz enerji."
+        },
+        {
+            title: "Soğuk Hava Deposu",
+            image: "/assets/img/service-6.jpg",
+            desc: "Ticari soğuk hava depoları için bakım, onarım ve montaj."
         }
     ];
 
     return (
         <div className="bg-gray-50">
             {/* Hero Section */}
+            {/* HERO BACKGROUND IMAGE - Place your image at: public/assets/img/hero-bg.jpg */}
             <section className="relative h-screen flex items-center justify-center overflow-hidden">
                 <div className="absolute inset-0 z-0">
                     <img
-                        src="https://images.unsplash.com/photo-1516937941348-c09645f3a26d?q=80&w=2070&auto=format&fit=crop"
+                        src="/assets/img/hero-bg.jpg" // TODO: Place your hero background image here
                         alt="Hero Background"
                         className="w-full h-full object-cover"
                     />
@@ -121,7 +143,7 @@ const Home = () => {
                         <h2 className="text-4xl font-bold text-brand-dark mt-2">Neler Yapıyoruz?</h2>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {services.map((service, index) => (
                             <motion.div
                                 key={index}
@@ -133,7 +155,7 @@ const Home = () => {
                                 <img
                                     src={service.image}
                                     alt={service.title}
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                    className="w-full h-[120%] object-cover object-top absolute top-0 left-0 group-hover:scale-110 transition-transform duration-500"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/90 via-brand-dark/20 to-transparent flex flex-col justify-end p-6">
                                     <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>

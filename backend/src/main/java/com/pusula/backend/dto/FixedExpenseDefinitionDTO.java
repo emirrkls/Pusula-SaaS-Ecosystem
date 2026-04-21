@@ -22,4 +22,10 @@ public class FixedExpenseDefinitionDTO {
     private String description;
     @JsonProperty("isPaidThisMonth")
     private boolean paidThisMonth; // Serialized as "isPaidThisMonth" in JSON
+    private String frequency; // MONTHLY or WEEKLY
+
+    // Parent-child expense linking
+    private Long linkedExpenseId; // ID of linked expense (weekly linked to monthly)
+    private String linkedExpenseName; // Name of linked expense for display
+    private BigDecimal linkedPaymentsThisMonth; // Total payments made by linked expense this month
 }

@@ -7,92 +7,102 @@
 <?import javafx.scene.chart.LineChart?>
 <?import javafx.scene.chart.CategoryAxis?>
 <?import javafx.scene.chart.NumberAxis?>
-<?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.text.Font?>
 
-<VBox spacing="20.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.DashboardController">
+<VBox spacing="20.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.DashboardController" style="-fx-background-color: #F3F4F6;">
    <padding>
-      <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+      <Insets bottom="20.0" left="24.0" right="24.0" top="20.0" />
    </padding>
-   <children>
-      <Label text="%menu.dashboard">
-         <font>
-            <Font name="System Bold" size="24.0" />
-         </font>
-      </Label>
-      <HBox spacing="20.0">
-         <children>
-            <VBox fx:id="activeTicketsCard" onMouseClicked="#handleActiveTicketsClick" alignment="CENTER" prefHeight="150.0" prefWidth="200.0" styleClass="card, card-accent-blue" HBox.hgrow="ALWAYS">
-               <children>
-                  <Label fx:id="activeTicketsLabel" styleClass="card-value" text="0" />
-                  <Label styleClass="card-title" text="%dashboard.active_tickets" />
-               </children>
+
+   <!-- 0. Alert Container (Hidden by default) -->
+   <VBox fx:id="alertContainer" spacing="10" visible="false" managed="false" styleClass="alert-banner">
+   </VBox>
+
+   <!-- 1. Welcome Banner -->
+   <HBox styleClass="welcome-banner" alignment="CENTER_LEFT">
+       <VBox>
+           <Label fx:id="welcomeLabel" text="Hoş Geldiniz!" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #1E293B;"/>
+           <Label text="%menu.dashboard" style="-fx-font-size: 14px; -fx-text-fill: #64748B;"/>
+       </VBox>
+       <Region HBox.hgrow="ALWAYS" />
+       <!-- Optional right side elements like Date -->
+       <Label fx:id="dateLabel" style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #3B82F6;"/>
+   </HBox>
+
+   <!-- 2. Summary Cards -->
+   <HBox spacing="20.0">
+      <children>
+         <HBox fx:id="activeTicketsCard" onMouseClicked="#handleActiveTicketsClick" alignment="CENTER_LEFT" prefHeight="120.0" styleClass="card-modern, card-accent-blue" HBox.hgrow="ALWAYS">
+            <padding><Insets left="20" right="20"/></padding>
+            <VBox alignment="CENTER" style="-fx-background-radius: 12; -fx-background-color: rgba(59, 130, 246, 0.1); -fx-padding: 15;">
+                <Label text="🔧" style="-fx-font-size: 28px;" />
             </VBox>
-            <VBox fx:id="criticalStockCard" onMouseClicked="#handleCriticalStockClick" alignment="CENTER" prefHeight="150.0" prefWidth="200.0" styleClass="card, card-accent-red" HBox.hgrow="ALWAYS">
-               <children>
-                  <Label fx:id="criticalStockLabel" styleClass="card-value" text="0" />
-                  <Label styleClass="card-title" text="%dashboard.critical_stock" />
-               </children>
+            <VBox alignment="CENTER_LEFT" spacing="5" HBox.hgrow="ALWAYS">
+               <padding><Insets left="15"/></padding>
+               <Label styleClass="card-title-modern" text="%dashboard.active_tickets" />
+               <Label fx:id="activeTicketsLabel" styleClass="card-value-modern" text="0" />
             </VBox>
-            <VBox fx:id="pendingProposalsCard" onMouseClicked="#handlePendingProposalsClick" alignment="CENTER" prefHeight="150.0" prefWidth="200.0" styleClass="card, card-accent-green" HBox.hgrow="ALWAYS">
-               <children>
-                  <Label fx:id="pendingProposalsLabel" styleClass="card-value" text="0" />
-                  <Label styleClass="card-title" text="%dashboard.proposals" />
-               </children>
+         </HBox>
+
+         <HBox fx:id="criticalStockCard" onMouseClicked="#handleCriticalStockClick" alignment="CENTER_LEFT" prefHeight="120.0" styleClass="card-modern, card-accent-red" HBox.hgrow="ALWAYS">
+            <padding><Insets left="20" right="20"/></padding>
+            <VBox alignment="CENTER" style="-fx-background-radius: 12; -fx-background-color: rgba(239, 68, 68, 0.1); -fx-padding: 15;">
+                <Label text="⚠️" style="-fx-font-size: 28px;" />
             </VBox>
-         </children>
-      </HBox>
-      <SplitPane dividerPositions="0.6" VBox.vgrow="ALWAYS">
-         <items>
-            <!-- Left: Performance Chart -->
-            <VBox spacing="10.0">
-               <padding>
-                  <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-               </padding>
-               <children>
-                  <Label text="Teknisyen Performansı (Son 7 Gün)">
-                     <font>
-                        <Font name="System Bold" size="16.0" />
-                     </font>
-                  </Label>
-                  <LineChart fx:id="performanceChart" VBox.vgrow="ALWAYS">
-                     <xAxis>
-                        <CategoryAxis fx:id="xAxis" label="Tarih" side="BOTTOM" tickLabelRotation="-45" gapStartAndEnd="true"/>
-                     </xAxis>
-                     <yAxis>
-                        <NumberAxis label="Tamamlanan İşler" side="LEFT" />
-                     </yAxis>
-                  </LineChart>
-               </children>
+            <VBox alignment="CENTER_LEFT" spacing="5" HBox.hgrow="ALWAYS">
+               <padding><Insets left="15"/></padding>
+               <Label styleClass="card-title-modern" text="%dashboard.critical_stock" />
+               <Label fx:id="criticalStockLabel" styleClass="card-value-modern" text="0" />
             </VBox>
-            <!-- Right: Today's Agenda -->
-            <VBox spacing="10.0">
-               <padding>
-                  <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-               </padding>
-               <children>
-                  <Label text="Bugünkü Randevular">
-                     <font>
-                        <Font name="System Bold" size="16.0" />
-                     </font>
-                  </Label>
-                  <TableView fx:id="agendaTable" VBox.vgrow="ALWAYS">
-                    <columns>
-                      <TableColumn fx:id="colCustomer" text="%dashboard.table.customer" prefWidth="150.0" />
-                      <TableColumn fx:id="colTime" text="%dashboard.table.time" prefWidth="80.0" />
-                      <TableColumn fx:id="colStatus" text="%dashboard.table.status" prefWidth="100.0" />
-                      <TableColumn fx:id="colTechnician" text="%dashboard.table.technician" prefWidth="120.0" />
-                      <TableColumn fx:id="colActions" text="İşlemler" prefWidth="120.0" />
-                    </columns>
-                     <columnResizePolicy>
-                        <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                     </columnResizePolicy>
-                  </TableView>
-               </children>
+         </HBox>
+
+         <HBox fx:id="pendingProposalsCard" onMouseClicked="#handlePendingProposalsClick" alignment="CENTER_LEFT" prefHeight="120.0" styleClass="card-modern, card-accent-green" HBox.hgrow="ALWAYS">
+            <padding><Insets left="20" right="20"/></padding>
+            <VBox alignment="CENTER" style="-fx-background-radius: 12; -fx-background-color: rgba(16, 185, 129, 0.1); -fx-padding: 15;">
+                <Label text="📄" style="-fx-font-size: 28px;" />
             </VBox>
-         </items>
-      </SplitPane>
-   </children>
+            <VBox alignment="CENTER_LEFT" spacing="5" HBox.hgrow="ALWAYS">
+               <padding><Insets left="15"/></padding>
+               <Label styleClass="card-title-modern" text="%dashboard.proposals" />
+               <Label fx:id="pendingProposalsLabel" styleClass="card-value-modern" text="0" />
+            </VBox>
+         </HBox>
+      </children>
+   </HBox>
+
+   <!-- 3. Main Content Area without SplitPane -->
+   <HBox spacing="20.0" VBox.vgrow="ALWAYS">
+       <!-- Left: Performance Chart inside a beautiful Card -->
+       <VBox styleClass="card-container" HBox.hgrow="ALWAYS" prefWidth="600">
+           <Label text="Teknisyen Performansı (Son 7 Gün)" styleClass="section-title" />
+           <LineChart fx:id="performanceChart" VBox.vgrow="ALWAYS" styleClass="premium-chart" createSymbols="false">
+              <xAxis>
+                 <CategoryAxis fx:id="xAxis" side="BOTTOM" tickLabelRotation="0" gapStartAndEnd="true" styleClass="chart-axis-modern"/>
+              </xAxis>
+              <yAxis>
+                 <NumberAxis side="LEFT" styleClass="chart-axis-modern"/>
+              </yAxis>
+           </LineChart>
+       </VBox>
+
+       <!-- Right: Today's Agenda inside a beautiful Card -->
+       <VBox styleClass="card-container" HBox.hgrow="ALWAYS" prefWidth="400">
+           <Label text="Bugünkü Randevular" styleClass="section-title" />
+           <TableView fx:id="agendaTable" VBox.vgrow="ALWAYS" styleClass="premium-table">
+             <columns>
+               <TableColumn fx:id="colCustomer" text="%dashboard.table.customer" prefWidth="120.0" />
+               <TableColumn fx:id="colTime" text="%dashboard.table.time" prefWidth="60.0" />
+               <TableColumn fx:id="colStatus" text="%dashboard.table.status" prefWidth="100.0" />
+               <TableColumn fx:id="colTechnician" text="%dashboard.table.technician" prefWidth="100.0" />
+               <TableColumn fx:id="colActions" text="İşlemler" prefWidth="100.0" />
+             </columns>
+             <columnResizePolicy>
+                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+             </columnResizePolicy>
+           </TableView>
+       </VBox>
+   </HBox>
 </VBox>

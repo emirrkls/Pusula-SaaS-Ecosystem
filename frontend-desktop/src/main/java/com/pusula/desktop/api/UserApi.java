@@ -21,7 +21,7 @@ public interface UserApi {
     Call<UserDTO> updateUser(@Path("id") Long id, @Body UserDTO user);
 
     @DELETE("api/users/{id}")
-    Call<Void> deleteUser(@Path("id") Long id);
+    Call<okhttp3.ResponseBody> deleteUser(@Path("id") Long id, @Query("reassignTo") Long reassignTo);
 
     @POST("api/users/{id}/reset-password")
     Call<Void> resetPassword(@Path("id") Long id, @Body Map<String, String> payload);

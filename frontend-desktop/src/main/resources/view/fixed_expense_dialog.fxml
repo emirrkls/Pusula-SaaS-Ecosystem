@@ -35,15 +35,21 @@
                 <Label text="%table.category" GridPane.columnIndex="0" GridPane.rowIndex="2" />
                 <ComboBox fx:id="categoryComboBox" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="Infinity" />
 
-                <Label text="%settings.day_of_month" GridPane.columnIndex="0" GridPane.rowIndex="3" />
-                <Spinner fx:id="daySpinner" GridPane.columnIndex="1" GridPane.rowIndex="3" 
-                         editable="true" maxWidth="Infinity" />
+                <Label text="%expense.frequency" GridPane.columnIndex="0" GridPane.rowIndex="3" />
+                <ComboBox fx:id="frequencyCombo" GridPane.columnIndex="1" GridPane.rowIndex="3" maxWidth="Infinity" />
 
-                <Label text="%expense.frequency" GridPane.columnIndex="0" GridPane.rowIndex="4" />
-                <ComboBox fx:id="frequencyCombo" GridPane.columnIndex="1" GridPane.rowIndex="4" maxWidth="Infinity" />
+                <Label fx:id="dayLabel" text="%settings.day_of_month" GridPane.columnIndex="0" GridPane.rowIndex="4" />
+                <Spinner fx:id="daySpinner" GridPane.columnIndex="1" GridPane.rowIndex="4" 
+                         editable="true" maxWidth="Infinity" />
+                <ComboBox fx:id="dayOfWeekCombo" GridPane.columnIndex="1" GridPane.rowIndex="4" 
+                          maxWidth="Infinity" visible="false" managed="false" />
 
                 <Label text="%table.description" GridPane.columnIndex="0" GridPane.rowIndex="5" />
                 <TextField fx:id="descriptionField" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+
+                <Label text="Bağlı Gider" GridPane.columnIndex="0" GridPane.rowIndex="6" />
+                <ComboBox fx:id="linkedExpenseCombo" GridPane.columnIndex="1" GridPane.rowIndex="6" 
+                          maxWidth="Infinity" promptText="(Opsiyonel) Haftalık gider seçin..." />
             </children>
         </GridPane>
 

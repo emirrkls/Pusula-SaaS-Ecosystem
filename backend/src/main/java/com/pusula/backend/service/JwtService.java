@@ -1,5 +1,6 @@
 package com.pusula.backend.service;
 
+import com.pusula.backend.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -28,16 +29,49 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
+    public Long extractCompanyId(String token) {
+        Claims claims = extractAllClaims(token);
+        Object val = claims.get("companyId");
+        if (val instanceof Number) {
+            return ((Number) val).longValue();
+        }
+        return null;
+    }
+
+    public String extractRole(String token) {
+        Claims claims = extractAllClaims(token);
+        return (String) claims.get("role");
+    }
+
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
 
+    /**
+     * Generate token with SaaS-critical claims embedded.
+     * The iOS app and all clients rely on companyId, role, and fullName
+     * being present in the JWT payload.
+     */
     public String generateToken(UserDetails userDetails) {
-        return generateToken(new HashMap<>(), userDetails);
+        Map<String, Object> extraClaims = new HashMap<>();
+        if (userDetails instanceof User user) {
+            extraClaims.put("companyId", user.getCompanyId());
+            extraClaims.put("role", user.getRole());
+            extraClaims.put("fullName", user.getFullName());
+            extraClaims.put("userId", user.getId());
+        }
+        return buildToken(extraClaims, userDetails, jwtExpiration);
     }
 
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
+        // Ensure critical SaaS claims are always present
+        if (userDetails instanceof User user) {
+            extraClaims.putIfAbsent("companyId", user.getCompanyId());
+            extraClaims.putIfAbsent("role", user.getRole());
+            extraClaims.putIfAbsent("fullName", user.getFullName());
+            extraClaims.putIfAbsent("userId", user.getId());
+        }
         return buildToken(extraClaims, userDetails, jwtExpiration);
     }
 

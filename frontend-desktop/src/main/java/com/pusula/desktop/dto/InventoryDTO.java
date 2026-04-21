@@ -12,6 +12,8 @@ public class InventoryDTO {
     private Integer criticalLevel;
     private String brand;
     private String category;
+    private String location; // DEPO or VEHICLE
+    private Long vehicleId; // If location is VEHICLE, which vehicle
 
     // Stock distribution fields
     private Integer warehouseQuantity;
@@ -81,6 +83,22 @@ public class InventoryDTO {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public Long getVehicleId() {
+        return vehicleId;
+    }
+
+    public void setVehicleId(Long vehicleId) {
+        this.vehicleId = vehicleId;
     }
 
     public Integer getWarehouseQuantity() {

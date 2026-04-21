@@ -4,6 +4,8 @@ import com.pusula.backend.dto.UserDTO;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.UserRepository;
 import com.pusula.backend.service.FileUploadService;
+import com.pusula.backend.repository.ServiceTicketRepository;
+import com.pusula.backend.service.AuditLogService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,14 +24,18 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-
     private final FileUploadService fileUploadService;
+    private final ServiceTicketRepository serviceTicketRepository;
+    private final AuditLogService auditLogService;
 
     public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder,
-            FileUploadService fileUploadService) {
+            FileUploadService fileUploadService, ServiceTicketRepository serviceTicketRepository,
+            AuditLogService auditLogService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.fileUploadService = fileUploadService;
+        this.serviceTicketRepository = serviceTicketRepository;
+        this.auditLogService = auditLogService;
     }
 
     private User getCurrentUser() {
@@ -136,11 +142,12 @@ public class UserController {
     }
 
     /**
-     * Delete a user (soft delete)
+     * Delete a user (soft delete) with ticket reassignment handling
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<?> deleteUser(@PathVariable Long id, @RequestParam(required = false) Long reassignTo) {
         User currentUser = getCurrentUser();
 
         User userToDelete = userRepository.findById(id)
@@ -154,6 +161,31 @@ public class UserController {
         // Prevent self-deletion
         if (userToDelete.getId().equals(currentUser.getId())) {
             return ResponseEntity.status(400).build(); // Bad Request
+        }
+
+        // Handle Active Tickets
+        Long activeTickets = serviceTicketRepository.countActiveTicketsForTechnician(id);
+        if (activeTickets != null && activeTickets > 0) {
+            if (reassignTo == null) {
+                // Must return 409 with custom body so frontend knows what to do
+                return ResponseEntity.status(409)
+                        .body(Map.of("error", "ACTIVE_TICKETS", "count", activeTickets));
+            } else {
+                // Pre-verify new technician
+                User newTech = userRepository.findById(reassignTo)
+                        .orElseThrow(() -> new RuntimeException("New technician not found"));
+                if (!newTech.getCompanyId().equals(currentUser.getCompanyId())) {
+                    return ResponseEntity.status(403).build();
+                }
+                
+                // Perform reassignment
+                serviceTicketRepository.reassignActiveTickets(id, reassignTo);
+                
+                // Log it
+                auditLogService.log("UPDATE", "USER_TICKETS_REASSIGN", id,
+                        String.format("Reassigned %d active tickets from user %s to user %s prior to deletion.", 
+                                activeTickets, userToDelete.getFullName(), newTech.getFullName()));
+            }
         }
 
         userRepository.delete(userToDelete); // Soft delete via @SQLDelete

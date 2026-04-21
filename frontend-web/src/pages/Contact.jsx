@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Phone, Mail, Send, CheckCircle } from 'lucide-react';
 
 const Contact = () => {
+    useEffect(() => {
+        document.title = 'İletişim - Pusula İklimlendirme Didim | Klima Servisi Randevu';
+    }, []);
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
@@ -58,7 +61,7 @@ const Contact = () => {
                                     </div>
                                     <div>
                                         <h3 className="font-semibold text-gray-900">Adres</h3>
-                                        <p className="text-gray-600">Merkez Mah. Atatürk Cad. No:123<br />İstanbul, Türkiye</p>
+                                        <p className="text-gray-600">Çamlık Mah. Ege Cad. No76/B<br />Didim/AYDIN</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-4">
@@ -67,7 +70,7 @@ const Contact = () => {
                                     </div>
                                     <div>
                                         <h3 className="font-semibold text-gray-900">Telefon</h3>
-                                        <p className="text-gray-600">+90 (212) 555 00 00</p>
+                                        <a href="tel:+905400250925" className="text-gray-600 hover:text-brand-cyan transition-colors">+90 540 025 09 25</a>
                                         <p className="text-gray-500 text-sm">7/24 Acil Destek Hattı</p>
                                     </div>
                                 </div>
@@ -77,7 +80,7 @@ const Contact = () => {
                                     </div>
                                     <div>
                                         <h3 className="font-semibold text-gray-900">E-posta</h3>
-                                        <p className="text-gray-600">info@pusulaiklim.com</p>
+                                        <a href="mailto:pusulaiklimlendirme.didim@gmail.com" className="text-gray-600 hover:text-brand-cyan transition-colors">pusulaiklimlendirme.didim@gmail.com</a>
                                     </div>
                                 </div>
                             </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Twitter, MapPin, Phone, Mail, Snowflake } from 'lucide-react';
+import { Facebook, Instagram, Twitter, MapPin, Phone, Mail } from 'lucide-react';
 
 const Footer = () => {
     return (
@@ -9,13 +9,12 @@ const Footer = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
                     {/* Brand Info */}
                     <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                            <div className="bg-brand-cyan p-1.5 rounded-lg">
-                                <Snowflake className="text-white w-5 h-5" />
-                            </div>
-                            <span className="text-2xl font-bold tracking-tight">
-                                Pusula<span className="text-brand-cyan">.</span>
-                            </span>
+                        <div className="flex items-center">
+                            <img
+                                src="/assets/img/logo.svg"
+                                alt="Pusula İklimlendirme"
+                                className="h-16 w-auto drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]"
+                            />
                         </div>
                         <p className="text-gray-400 text-sm leading-relaxed">
                             Konforunuz için profesyonel iklimlendirme çözümleri.
@@ -51,8 +50,8 @@ const Footer = () => {
                         <ul className="space-y-3 text-gray-400">
                             <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">Klima Bakım & Onarım</Link></li>
                             <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">VRF Sistemleri</Link></li>
-                            <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">Kombi Servisi</Link></li>
-                            <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">Montaj Hizmetleri</Link></li>
+                            <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">Isı Pompası</Link></li>
+                            <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">Güneş Enerjisi</Link></li>
                         </ul>
                     </div>
 
@@ -62,15 +61,15 @@ const Footer = () => {
                         <ul className="space-y-4 text-gray-400">
                             <li className="flex items-start gap-3">
                                 <MapPin className="w-5 h-5 text-brand-cyan shrink-0 mt-0.5" />
-                                <span className="text-sm">Merkez Mah. Atatürk Cad. No:123<br />İstanbul, Türkiye</span>
+                                <span className="text-sm">Çamlık Mah. Ege Cad. No76/B<br />Didim/AYDIN</span>
                             </li>
                             <li className="flex items-center gap-3">
                                 <Phone className="w-5 h-5 text-brand-cyan shrink-0" />
-                                <span className="text-sm">+90 (212) 555 00 00</span>
+                                <a href="tel:+905400250925" className="text-sm hover:text-brand-cyan transition-colors">+90 540 025 09 25</a>
                             </li>
                             <li className="flex items-center gap-3">
                                 <Mail className="w-5 h-5 text-brand-cyan shrink-0" />
-                                <span className="text-sm">info@pusulaiklim.com</span>
+                                <a href="mailto:pusulaiklimlendirme.didim@gmail.com" className="text-sm hover:text-brand-cyan transition-colors">pusulaiklimlendirme.didim@gmail.com</a>
                             </li>
                         </ul>
                     </div>

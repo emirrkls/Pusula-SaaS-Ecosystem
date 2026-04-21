@@ -1,6 +1,7 @@
 package com.pusula.desktop.controller;
 
 import com.pusula.desktop.util.UTF8Control;
+import com.pusula.desktop.util.AnimationHelper;
 
 import com.pusula.desktop.api.CustomerApi;
 import com.pusula.desktop.api.FinanceApi;
@@ -21,6 +22,7 @@ import javafx.scene.chart.LineChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -30,6 +32,15 @@ import java.util.*;
 public class DashboardController {
 
     @FXML
+    private VBox alertContainer;
+
+    @FXML
+    private Label welcomeLabel;
+
+    @FXML
+    private Label dateLabel;
+
+    @FXML
     private Label activeTicketsLabel;
 
     @FXML
@@ -37,6 +48,15 @@ public class DashboardController {
 
     @FXML
     private Label pendingProposalsLabel;
+
+    @FXML
+    private HBox activeTicketsCard;
+
+    @FXML
+    private HBox criticalStockCard;
+
+    @FXML
+    private HBox pendingProposalsCard;
 
     @FXML
     private LineChart<String, Number> performanceChart;
@@ -67,10 +87,29 @@ public class DashboardController {
 
     @FXML
     public void initialize() {
+        if (welcomeLabel != null) {
+            String userName = com.pusula.desktop.util.SessionManager.getUsername();
+            welcomeLabel.setText("Hoş Geldiniz, " + (userName != null ? userName : "Yönetici") + "!");
+        }
+        if (dateLabel != null) {
+            dateLabel.setText(java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd MMMM yyyy, EEEE", new java.util.Locale("tr"))));
+        }
+
         setupTable();
         setupActionColumn();
         loadDashboardData();
         loadPerformanceChart();
+
+        // Apply card hover animations for premium feel
+        if (activeTicketsCard != null) {
+            AnimationHelper.applyCardHover(activeTicketsCard);
+        }
+        if (criticalStockCard != null) {
+            AnimationHelper.applyCardHover(criticalStockCard);
+        }
+        if (pendingProposalsCard != null) {
+            AnimationHelper.applyCardHover(pendingProposalsCard);
+        }
     }
 
     @FXML
@@ -359,6 +398,7 @@ public class DashboardController {
             controller.setTicket(ticket);
 
             javafx.stage.Stage stage = new javafx.stage.Stage();
+            com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.setTitle("Ticket Details - " + ticket.getId());
             stage.setScene(new javafx.scene.Scene(root));
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
@@ -448,7 +488,30 @@ public class DashboardController {
                     long activeCount = response.body().stream()
                             .filter(t -> !Arrays.asList("COMPLETED", "CANCELLED").contains(t.getStatus()))
                             .count();
-                    Platform.runLater(() -> activeTicketsLabel.setText(String.valueOf(activeCount)));
+                            
+                    // SLA Checker
+                    long delayedCount = response.body().stream()
+                            .filter(t -> "PENDING".equals(t.getStatus()) || "IN_PROGRESS".equals(t.getStatus()))
+                            .filter(t -> t.getCreatedAt() != null && t.getCreatedAt().isBefore(LocalDateTime.now().minusHours(48)))
+                            .count();
+
+                    Platform.runLater(() -> {
+                        AnimationHelper.animateCounter(activeTicketsLabel, activeCount, 1500);
+                        
+                        if (alertContainer != null) {
+                            if (delayedCount > 0) {
+                                alertContainer.getChildren().clear();
+                                Label alertText = new Label("🔥 " + delayedCount + " adet servis fişi 48 saatten uzun süredir müdahale bekliyor!");
+                                alertText.setStyle("-fx-text-fill: #991B1B; -fx-font-weight: bold; -fx-font-size: 14px;");
+                                alertContainer.getChildren().add(alertText);
+                                alertContainer.setVisible(true);
+                                alertContainer.setManaged(true);
+                            } else {
+                                alertContainer.setVisible(false);
+                                alertContainer.setManaged(false);
+                            }
+                        }
+                    });
 
                     // Agenda (Today's tickets)
                     java.util.List<ServiceTicketDTO> todayTickets = response.body().stream()
@@ -476,7 +539,7 @@ public class DashboardController {
                     long criticalCount = response.body().stream()
                             .filter(i -> i.getQuantity() <= i.getCriticalLevel())
                             .count();
-                    Platform.runLater(() -> criticalStockLabel.setText(String.valueOf(criticalCount)));
+                    Platform.runLater(() -> AnimationHelper.animateCounter(criticalStockLabel, criticalCount, 1500));
                 }
             }
 
@@ -499,7 +562,7 @@ public class DashboardController {
                     long draftCount = response.body().stream()
                             .filter(p -> "DRAFT".equalsIgnoreCase(p.getStatus()))
                             .count();
-                    Platform.runLater(() -> pendingProposalsLabel.setText(String.valueOf(draftCount)));
+                    Platform.runLater(() -> AnimationHelper.animateCounter(pendingProposalsLabel, draftCount, 1500));
                 } else {
                     Platform.runLater(() -> pendingProposalsLabel.setText("0"));
                 }

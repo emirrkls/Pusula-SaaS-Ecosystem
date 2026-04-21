@@ -1,0 +1,118 @@
+================================================================================
+  PUSULA SaaS ECOSYSTEM — OTONOM DÖNÜŞÜM YOL HARİTASI
+  Oluşturulma: 2026-04-14
+  Mimari: Spring Boot 3.2 + PostgreSQL + SwiftUI (iOS 17+)
+================================================================================
+
+═══════════════════════════════════════════════════════════════════════════════
+  SPRINT 1 — KRİTİK GÜVENLİK YAMALARI (Backend blocker'lar)
+  Neden İlk: iOS auth akışı bu düzeltmeler olmadan çalışamaz.
+═══════════════════════════════════════════════════════════════════════════════
+
+[x] 1.1  JwtService: companyId, role, fullName claim'lerini token'a göm
+[x] 1.2  AuthResponse DTO: planType, features map, quota, isReadOnly alanları ekle
+[x] 1.3  AuthRequest DTO: orgCode alanı ekle (kurumsal giriş desteği)
+[x] 1.4  RegisterRequest DTO: email, fullName, authType alanları ekle (bireysel kayıt)
+[x] 1.5  AuthenticationService: bireysel register + kurumsal authenticate akışı
+[x] 1.6  Company entity: planType, orgCode, trialEndsAt, billingEmail alanları
+[x] 1.7  FinanceController: tüm companyId=1 hardcode'ları kaldır, JWT'den al
+[x] 1.8  Tüm controller'larda companyId parametresini getCurrentUser() ile değiştir
+
+═══════════════════════════════════════════════════════════════════════════════
+  SPRINT 2 — SaaS ALTYAPI (Tenant İzolasyonu + Feature Flags)
+  iOS tarafı bu servisler olmadan dinamik UI kuramaz.
+═══════════════════════════════════════════════════════════════════════════════
+
+[x] 2.1  TenantContext.java — ThreadLocal tenant state
+[x] 2.2  TenantInterceptor.java — Her request'te JWT'den tenantId set et
+[x] 2.3  PlanType enum — CIRAK, USTA, PATRON
+[x] 2.4  Plan entity + PlanRepository
+[x] 2.5  PlanFeature entity + PlanFeatureRepository
+[x] 2.6  UsageTracking entity + UsageTrackingRepository
+[x] 2.7  FeatureService — getFeatureContext(), checkFeature(), checkQuota()
+[x] 2.8  @RequiresFeature + @CheckQuota annotations
+[x] 2.9  FeatureGateAspect — AOP ile annotation-based gating
+[x] 2.10 SaaS exception sınıfları (FeatureNotAvailableException, QuotaExceededException)
+[x] 2.11 SQL migration: plans, plan_features, usage_tracking tabloları + seed data
+[x] 2.12 AuthController: /feature-context endpoint
+[x] 2.13 SubscriptionController: /plans (public) endpoint
+
+═══════════════════════════════════════════════════════════════════════════════
+  SPRINT 3 — iOS UYGULAMA TEMELİ (Xcode Proje + Auth Modülü)
+  Backend Sprint 1-2 ile artık çalışan bir auth API var.
+═══════════════════════════════════════════════════════════════════════════════
+
+[x] 3.1  Xcode proje yapısı: frontend-appstore/PusulaService/
+[x] 3.2  MVVM klasör yapısı: Models, Views, ViewModels, Services, Core
+[x] 3.3  NetworkManager (URLSession async/await, JWT interceptor)
+[x] 3.4  AuthService (login, register, token storage in Keychain)
+[x] 3.5  DTO'lar: AuthRequest, AuthResponse, FeatureContext, QuotaInfo
+[x] 3.6  SessionManager (@Observable) — token, role, planType, features, isReadOnly
+[x] 3.7  LoginView — Bireysel + Kurumsal (orgCode) tab'lı giriş ekranı
+[x] 3.8  RegisterView — Bireysel usta kayıt ekranı
+[x] 3.9  ContentView — role-based routing (Technician vs Admin dashboard)
+[x] 3.10 FeatureGate view modifier — feature flag'e göre gizle/göster
+[x] 3.11 PusulaServiceApp entry point — session routing logic
+
+═══════════════════════════════════════════════════════════════════════════════
+  SPRINT 4 — TEKNİSYEN (SAHA) AKIŞI
+═══════════════════════════════════════════════════════════════════════════════
+
+[x] 4.1  TicketService — assigned tickets CRUD (iOS + Backend getAssignedTickets)
+[x] 4.2  TicketListView — Atanan işler, durum filtreleme, müşteri bilgileri
+[x] 4.3  TicketDetailView — iş detayı, parça listesi, durum güncelleme
+[x] 4.4  Backend: InventoryTechDTO (buyPrice YOK), role-based controller, barcode endpoint
+[x] 4.5  BarcodeScannerView — AVFoundation ile barkod okuma + API lookup
+[x] 4.6  PartSelectionView — sadece sellPrice görünür, maliyet gizli (DTO izolasyonu)
+[x] 4.7  CollectionView — tahsilat formu (nakit/kart/cari seçimi)
+[x] 4.8  Şelale tahsilat: kalan tutar → cari hesap (güvenlik onaylı Alert)
+[x] 4.9  SignatureView — PencilKit ile müşteri imzası + base64 upload
+[x] 4.10 PDFGenerator — profesyonel A4 servis formu (parça tablosu + imza)
+[x] 4.11 WhatsAppNotificationService — servis tamamlanma + cari bildirim (Mock + Meta/Netgsm)
+[x] 4.12 SQL Migration: V3__inventory_barcode.sql
+
+═══════════════════════════════════════════════════════════════════════════════
+  SPRINT 5 — PATRON (ADMİN) AKIŞI
+═══════════════════════════════════════════════════════════════════════════════
+
+[x] 5.1  AdminDashboardView — gradient KPI kartları + teknisyen listesi + hızlı aksiyonlar
+[x] 5.2  Backend AdminDashboardService — KPI aggregation, profit analysis, technician stats
+[x] 5.3  LiveFieldRadar — MapKit pin'leri, durum renkleri, otomatik bölge odaklama
+[x] 5.4  CatalogView — alış/satış fiyatı, marj badge, arama, admin-only
+[x] 5.5  ProfitAnalysisView — COGS vs Revenue, brüt kâr, Top 10 parça
+[x] 5.6  QuotaBar component — animated ProgressBar, renk kodlu limit uyarıları
+[x] 5.7  PlanUpgradeView — 3 paket karşılaştırma, gradient CTA, İyzico hazırlığı
+[x] 5.8  AdminDashboardController — /dashboard, /technician-stats, /profit-analysis, /quota-status, /field-radar, /catalog/bulk-price
+[x] 5.9  AdminModels.swift — iOS DTO'lar + AdminService API katmanı
+[x] 5.10 ContentView güncelleme — tüm admin placeholder'lar kaldırıldı
+
+═══════════════════════════════════════════════════════════════════════════════
+  SPRINT 6 — ÖDEME + WEBHOOK + BACKEND PERFORMANS (FİNAL)
+═══════════════════════════════════════════════════════════════════════════════
+
+[x] 6.1  PaymentController — /init, /webhook/iyzico, /upgrade, /cancel, /status
+[x] 6.2  SubscriptionService — upgrade, renew, gracePeriod, cancel, readOnly cron
+[x] 6.3  Read-Only modu — FeatureGateAspect checkReadOnlyMode, Company.isReadOnly
+[x] 6.4  V4__production_readiness.sql — isReadOnly, subscriptionExpiresAt, perf indexes
+[x] 6.5  Company entity — isReadOnly, subscriptionExpiresAt, iyzicoSubscriptionId
+[x] 6.6  SecurityConfig — /api/payment/webhook/** permitAll (Iyzico unsigned)
+[x] 6.7  iOS PlanUpgradeView — SafariServices WebView, /api/payment/init integration
+[x] 6.8  System.out.println temizliği → @Slf4j (FinanceService, Application, AuditLog, DataSeeder, GlobalExceptionHandler, ServiceTicketService)
+[x] 6.9  application.properties — Iyzico sandbox config eklendi
+[x] 6.10 DEPLOYMENT.md — SSL (Certbot), Nginx reverse proxy, migration komutları, restart script, İyzico production geçişi
+
+═══════════════════════════════════════════════════════════════════════════════
+  BAĞIMLILIK GRAFİĞİ
+═══════════════════════════════════════════════════════════════════════════════
+
+Sprint 1 ──► Sprint 2 ──► Sprint 3 ──┬──► Sprint 4
+                                      └──► Sprint 5
+                                               │
+Sprint 6 ◄────────────────────────────────────┘
+
+Not: Sprint 4 ve 5 birbirinden bağımsızdır, paralel geliştirilebilir.
+Sprint 6 son sprint olarak hepsinin üzerine inşa edilir.
+
+═══════════════════════════════════════════════════════════════════════════════
+  🏁 PROJE DURUMU: TÜM SPRINT'LER TAMAMLANDI
+═══════════════════════════════════════════════════════════════════════════════

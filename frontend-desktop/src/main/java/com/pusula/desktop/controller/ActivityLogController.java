@@ -134,7 +134,8 @@ public class ActivityLogController {
 
             {
                 detailBtn.setStyle(
-                        "-fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand; -fx-font-size: 11px;");
+                        "-fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand; -fx-font-size: 11px; -fx-padding: 4 8 4 8;");
+                detailBtn.setMinWidth(60);
                 detailBtn.setOnAction(event -> {
                     AuditLog log = getTableView().getItems().get(getIndex());
                     showDetailDialog(log);

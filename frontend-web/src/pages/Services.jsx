@@ -1,36 +1,64 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, CheckCircle } from 'lucide-react';
 
 const Services = () => {
+    useEffect(() => {
+        document.title = 'Hizmetlerimiz - Klima, VRF, Isı Pompası, Güneş Enerjisi | Pusula İklimlendirme Didim';
+    }, []);
+    /**
+     * SERVICE DETAIL IMAGES - Place your images in: public/assets/img/
+     * These are the same as Home page services:
+     *   - service-1.jpg (Split Klima)
+     *   - service-2.jpg (VRF Systems)
+     *   - service-3.jpg (Kombi/Boiler)
+     *   - service-4.jpg (Montaj/Installation)
+     */
     const servicesList = [
         {
             id: "split-klima",
             title: "Split Klima Sistemleri",
             desc: "Ev ve küçük ofisler için ideal iklimlendirme çözümü. Enerji tasarruflu, sessiz ve yüksek performanslı split klimaların satışı, montajı ve bakımı konusunda uzmanız.",
             features: ["Yüksek Enerji Verimliliği (A++)", "Sessiz Çalışma Modu", "Hızlı Soğutma/Isıtma", "5 Yıl Garanti"],
-            image: "https://images.unsplash.com/photo-1614634351680-31362e51927c?q=80&w=800&auto=format&fit=crop"
+            image: "/assets/img/service-1.jpg"
         },
         {
             id: "vrf",
             title: "VRF Sistemleri",
             desc: "Oteller, plazalar ve büyük binalar için merkezi iklimlendirme. Tek bir dış ünite ile birden çok iç üniteyi kontrol edin. Maksimum enerji tasarrufu ve konfor sağlar.",
             features: ["Merkezi Kontrol", "Bölgesel İklimlendirme", "Düşük İşletme Maliyeti", "Uzun Ömürlü Sistemler"],
-            image: "https://images.unsplash.com/photo-1581094288338-2314dddb7ece?q=80&w=800&auto=format&fit=crop"
+            image: "/assets/img/service-2.jpg"
         },
         {
-            id: "kombi",
-            title: "Kombi Bakım & Onarım",
-            desc: "Kombinizin verimli çalışması ve güvenliğiniz için periyodik bakım şarttır. Petek temizliği ve kombi arıza onarımlarında 7/24 hizmetinizdeyiz.",
-            features: ["Petek Temizliği", "Gaz Kaçak Kontrolü", "Verimlilik Testi", "Orijinal Yedek Parça"],
-            image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop"
+            id: "isi-pompasi",
+            title: "Isı Pompası Sistemleri",
+            desc: "Yenilenebilir enerji ile ısıtma ve soğutma. Isı pompası sistemleri ile hem çevre dostu hem de ekonomik iklimlendirme çözümleri sunuyoruz.",
+            features: ["Yüksek Enerji Verimliliği", "Düşük Karbon Ayak İzi", "4 Mevsim Kullanım", "Devlet Teşvikleri"],
+            image: "/assets/img/service-3.jpg"
         },
         {
             id: "montaj",
-            title: "Profesyonel Montaj",
+            title: "Profesyonel Montaj & Keşif",
             desc: "Klimanızın performansını doğrudan etkileyen en önemli faktör doğru montajdır. Uzman ekiplerimizle estetik ve güvenli montaj hizmeti sunuyoruz.",
             features: ["Ücretsiz Keşif", "Vakumla Montaj", "Estetik Borulama", "Temiz İşçilik"],
-            image: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=800&auto=format&fit=crop"
+            image: "/assets/img/service-4.jpg",
+            objectPosition: "center 30%"
+        },
+        {
+            id: "gunes-enerjisi",
+            title: "Güneş Enerjisi Sistemleri",
+            desc: "Kopp marka fotovoltaik panel sistemleri ile elektrik faturalarınızı minimize edin. Profesyonel kurulum ve devlet teşviklerinden yararlanma desteği sunuyoruz.",
+            features: ["Yüksek Verimli Paneller", "25 Yıl Panel Garantisi", "Devlet Teşvikleri", "Hızlı Amortisman"],
+            image: "/assets/img/service-5.jpg",
+            objectPosition: "top"
+        },
+        {
+            id: "soguk-hava",
+            title: "Soğuk Hava Deposu",
+            desc: "Ticari ve endüstriyel soğuk hava depoları için komple çözümler. Bakım, onarım, montaj ve yeni sistem kurulumu hizmetleri sunuyoruz.",
+            features: ["Ticari Soğutma", "Endüstriyel Sistemler", "Periyodik Bakım", "7/24 Acil Servis"],
+            image: "/assets/img/service-6.jpg",
+            objectPosition: "top"
         }
     ];
 
@@ -78,11 +106,12 @@ const Services = () => {
                         transition={{ duration: 0.5 }}
                         className={`flex flex-col ${index % 2 === 1 ? 'md:flex-row-reverse' : 'md:flex-row'} gap-8 items-center`}
                     >
-                        <div className="w-full md:w-1/2">
+                        <div className="w-full md:w-1/2 overflow-hidden rounded-2xl shadow-xl h-[400px]">
                             <img
                                 src={service.image}
                                 alt={service.title}
-                                className="rounded-2xl shadow-xl w-full h-[400px] object-cover"
+                                className="w-full h-[120%] object-cover"
+                                style={{ objectPosition: service.objectPosition || 'top' }}
                             />
                         </div>
                         <div className="w-full md:w-1/2 space-y-6">

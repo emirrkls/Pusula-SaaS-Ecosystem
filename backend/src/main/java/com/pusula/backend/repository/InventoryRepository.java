@@ -18,4 +18,6 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
             "LOWER(i.category) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
     List<Inventory> findByCompanyIdAndSearchTerm(@Param("companyId") Long companyId,
             @Param("searchTerm") String searchTerm);
+
+    java.util.Optional<Inventory> findByBarcodeAndCompanyId(String barcode, Long companyId);
 }

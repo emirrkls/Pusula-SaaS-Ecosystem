@@ -49,12 +49,12 @@
     <!-- Table -->
     <TableView fx:id="auditLogTable" VBox.vgrow="ALWAYS" style="-fx-background-color: white;">
         <columns>
-            <TableColumn fx:id="timestampColumn" text="%activity_log.timestamp" prefWidth="150"/>
-            <TableColumn fx:id="userColumn" text="%activity_log.user" prefWidth="120"/>
-            <TableColumn fx:id="actionColumn" text="%activity_log.action" prefWidth="100"/>
-            <TableColumn fx:id="entityColumn" text="%activity_log.entity" prefWidth="100"/>
-            <TableColumn fx:id="descriptionColumn" text="%activity_log.description" prefWidth="300"/>
-            <TableColumn fx:id="actionsColumn" text="İşlemler" prefWidth="80"/>
+            <TableColumn fx:id="timestampColumn" text="%activity_log.timestamp" prefWidth="140" minWidth="140"/>
+            <TableColumn fx:id="userColumn" text="%activity_log.user" prefWidth="130" minWidth="100"/>
+            <TableColumn fx:id="actionColumn" text="%activity_log.action" prefWidth="120" minWidth="100"/>
+            <TableColumn fx:id="entityColumn" text="%activity_log.entity" prefWidth="110" minWidth="90"/>
+            <TableColumn fx:id="descriptionColumn" text="%activity_log.description" prefWidth="280" minWidth="200"/>
+            <TableColumn fx:id="actionsColumn" text="İşlemler" prefWidth="80" minWidth="80"/>
         </columns>
         <placeholder>
             <Label text="%activity_log.no_data"/>

@@ -52,11 +52,19 @@ public class AuditLogController {
 
         Page<AuditLog> logs;
 
-        if (userId != null) {
+        // Handle all 4 combinations of filters
+        if (userId != null && actionType != null) {
+            // Both user and action type filters
+            logs = auditLogService.getLogsByUserAndActionType(companyId, userId, actionType, startDate, endDate,
+                    pageable);
+        } else if (userId != null) {
+            // Only user filter
             logs = auditLogService.getLogsByUser(companyId, userId, startDate, endDate, pageable);
         } else if (actionType != null) {
+            // Only action type filter
             logs = auditLogService.getLogsByActionType(companyId, actionType, startDate, endDate, pageable);
         } else {
+            // No filters (just date range)
             logs = auditLogService.getLogsWithDateRange(companyId, startDate, endDate, pageable);
         }
 

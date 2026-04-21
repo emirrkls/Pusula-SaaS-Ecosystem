@@ -17,17 +17,27 @@ import com.pusula.backend.repository.UserRepository;
 import com.pusula.backend.repository.VehicleStockRepository;
 import com.pusula.backend.entity.VehicleStock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 public class ServiceTicketService {
+
+    private static final Logger log = LoggerFactory.getLogger(ServiceTicketService.class);
 
     private final ServiceTicketRepository repository;
     private final CustomerRepository customerRepository;
@@ -37,6 +47,7 @@ public class ServiceTicketService {
     private final AuditLogService auditLogService;
     private final CurrentAccountRepository currentAccountRepository;
     private final VehicleStockRepository vehicleStockRepository;
+    private final WhatsAppNotificationService whatsAppNotificationService;
 
     public ServiceTicketService(ServiceTicketRepository repository,
             CustomerRepository customerRepository,
@@ -45,7 +56,8 @@ public class ServiceTicketService {
             ServiceUsedPartRepository serviceUsedPartRepository,
             AuditLogService auditLogService,
             CurrentAccountRepository currentAccountRepository,
-            VehicleStockRepository vehicleStockRepository) {
+            VehicleStockRepository vehicleStockRepository,
+            WhatsAppNotificationService whatsAppNotificationService) {
         this.repository = repository;
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
@@ -54,6 +66,7 @@ public class ServiceTicketService {
         this.auditLogService = auditLogService;
         this.currentAccountRepository = currentAccountRepository;
         this.vehicleStockRepository = vehicleStockRepository;
+        this.whatsAppNotificationService = whatsAppNotificationService;
     }
 
     private User getCurrentUser() {
@@ -63,6 +76,16 @@ public class ServiceTicketService {
     public List<ServiceTicketDTO> getAllTickets() {
         User user = getCurrentUser();
         return repository.findByCompanyId(user.getCompanyId()).stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get tickets assigned to a specific technician.
+     * Used by the iOS technician flow — enriched with customer details.
+     */
+    public List<ServiceTicketDTO> getAssignedTickets(Long technicianId) {
+        return repository.findByAssignedTechnicianId(technicianId).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
@@ -319,7 +342,21 @@ public class ServiceTicketService {
             currentAccountRepository.save(account);
         }
 
-        return mapToDTO(repository.save(ticket));
+        ServiceTicket saved = repository.save(ticket);
+
+        // WhatsApp notification — async fire-and-forget
+        try {
+            BigDecimal remainingDebt = BigDecimal.ZERO;
+            if (paymentMethod == PaymentMethod.CURRENT_ACCOUNT) {
+                remainingDebt = collectedAmount;
+            }
+            whatsAppNotificationService.notifyServiceCompleted(ticketId, collectedAmount, remainingDebt);
+        } catch (Exception e) {
+            // Don't fail the service completion if notification fails
+            log.warn("WhatsApp notification failed (non-blocking): {}", e.getMessage());
+        }
+
+        return mapToDTO(saved);
     }
 
     @Transactional
@@ -408,15 +445,43 @@ public class ServiceTicketService {
     }
 
     private ServiceTicketDTO mapToDTO(ServiceTicket ticket) {
-        // Fetch customer name if customerId exists
+        // Fetch customer details for technician field view
         String customerName = null;
+        String customerPhone = null;
+        String customerAddress = null;
+        String customerCoordinates = null;
+        BigDecimal customerBalance = null;
+
         if (ticket.getCustomerId() != null) {
-            customerName = customerRepository.findById(ticket.getCustomerId())
-                    .map(Customer::getName)
-                    .orElse("Unknown Customer");
+            var customerOpt = customerRepository.findById(ticket.getCustomerId());
+            if (customerOpt.isPresent()) {
+                var customer = customerOpt.get();
+                customerName = customer.getName();
+                customerPhone = customer.getPhone();
+                customerAddress = customer.getAddress();
+                customerCoordinates = customer.getCoordinates();
+
+                // Calculate outstanding balance from current account
+                try {
+                    customerBalance = currentAccountRepository
+                            .findByCustomerId(ticket.getCustomerId())
+                            .map(ca -> ca.getBalance() != null ? ca.getBalance() : BigDecimal.ZERO)
+                            .orElse(BigDecimal.ZERO);
+                } catch (Exception e) {
+                    customerBalance = BigDecimal.ZERO;
+                }
+            }
         }
 
-        return ServiceTicketDTO.builder()
+        // Fetch assigned technician name
+        String assignedTechnicianName = null;
+        if (ticket.getAssignedTechnicianId() != null) {
+            assignedTechnicianName = userRepository.findById(ticket.getAssignedTechnicianId())
+                    .map(User::getFullName)
+                    .orElse(null);
+        }
+
+        ServiceTicketDTO dto = ServiceTicketDTO.builder()
                 .id(ticket.getId())
                 .customerId(ticket.getCustomerId())
                 .customerName(customerName)
@@ -431,6 +496,41 @@ public class ServiceTicketService {
                 .isWarrantyCall(ticket.isWarrantyCall())
                 .paymentMethod(ticket.getPaymentMethod())
                 .build();
+
+        // Set enriched customer details for mobile field view
+        dto.setCustomerPhone(customerPhone);
+        dto.setCustomerAddress(customerAddress);
+        dto.setCustomerCoordinates(customerCoordinates);
+        dto.setCustomerBalance(customerBalance);
+        dto.setAssignedTechnicianName(assignedTechnicianName);
+
+        return dto;
+    }
+
+    /**
+     * Save a PencilKit signature image to local storage.
+     * Strategy: local filesystem (same as desktop app), avoiding S3 costs.
+     * Path: /uploads/signatures/{companyId}/{ticketId}.png
+     */
+    public String saveSignature(Long ticketId, String signatureBase64) {
+        User user = getCurrentUser();
+        Long companyId = user.getCompanyId();
+
+        try {
+            Path dir = Paths.get("uploads", "signatures", companyId.toString());
+            Files.createDirectories(dir);
+
+            byte[] imageBytes = Base64.getDecoder().decode(signatureBase64);
+            Path filePath = dir.resolve(ticketId + ".png");
+
+            try (OutputStream os = Files.newOutputStream(filePath)) {
+                os.write(imageBytes);
+            }
+
+            return "/uploads/signatures/" + companyId + "/" + ticketId + ".png";
+        } catch (IOException e) {
+            throw new RuntimeException("İmza kaydedilemedi: " + e.getMessage(), e);
+        }
     }
 
     private String getStatusInTurkish(ServiceTicket.TicketStatus status) {

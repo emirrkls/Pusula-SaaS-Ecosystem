@@ -25,14 +25,10 @@ public class PusulaDesktopApp extends Application {
 
         Scene scene = new Scene(fxmlLoader.load(), 800, 600);
         scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
+        scene.getStylesheets().add(getClass().getResource("/css/table-override.css").toExternalForm());
 
         // Set application icon
-        try {
-            stage.getIcons().add(new javafx.scene.image.Image(
-                    getClass().getResourceAsStream("/app.png")));
-        } catch (Exception e) {
-            System.err.println("Could not load application icon: " + e.getMessage());
-        }
+        com.pusula.desktop.util.StageHelper.setIcon(stage);
 
         stage.setTitle(bundle.getString("app.title"));
         stage.setScene(scene);
