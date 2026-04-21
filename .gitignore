@@ -65,3 +65,4 @@ frontend-desktop/installer/Output/
 
 # Desktop Installer Files
 *.exe
+frontend-desktop/installer/PusulaServiceManagerSetup.exe
