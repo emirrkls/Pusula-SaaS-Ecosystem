@@ -172,30 +172,91 @@ public class ServiceTicketService {
     }
 
     public ServiceTicketDTO createPublicTicket(PublicServiceRequestDTO dto) {
-        // 1. Find or Create Customer
+        // 1. Telefon numarasını normalize et (başındaki 0 veya +90 kaldır, tutarlılık için)
+        String normalizedPhone = normalizePhoneNumber(dto.getCustomerPhone());
+
+        // 2. Müşteri bul veya oluştur (telefon numarasına göre)
         Customer customer = customerRepository.findByCompanyId(dto.getCompanyId()).stream()
-                .filter(c -> c.getPhone() != null && c.getPhone().equals(dto.getCustomerPhone()))
+                .filter(c -> c.getPhone() != null && normalizePhoneNumber(c.getPhone()).equals(normalizedPhone))
                 .findFirst()
                 .orElseGet(() -> {
                     Customer newCustomer = Customer.builder()
                             .companyId(dto.getCompanyId())
                             .name(dto.getCustomerName())
-                            .phone(dto.getCustomerPhone())
+                            .phone(normalizedPhone)
                             .address(dto.getCustomerAddress())
                             .build();
+                    log.info("Web formundan yeni müşteri oluşturuldu: {}", dto.getCustomerName());
                     return customerRepository.save(newCustomer);
                 });
 
-        // 2. Create Ticket
+        // 3. Mevcut müşterinin adresini güncelle (farklı adresten talep geldiyse)
+        if (dto.getCustomerAddress() != null && !dto.getCustomerAddress().equals(customer.getAddress())) {
+            customer.setAddress(dto.getCustomerAddress());
+            customerRepository.save(customer);
+        }
+
+        // 4. Açıklama metnini cihaz tipi bilgisiyle zenginleştir
+        String enrichedDescription = buildTicketDescription(dto);
+
+        // 5. İş emri oluştur — PENDING (Beklemede) statüsüyle
         ServiceTicket ticket = ServiceTicket.builder()
                 .companyId(dto.getCompanyId())
                 .customerId(customer.getId())
                 .status(ServiceTicket.TicketStatus.PENDING)
-                .description(dto.getDescription())
+                .description(enrichedDescription)
+                .notes("[WEB FORMU] " + dto.getCustomerName() + " — " + normalizedPhone)
                 .build();
 
         ServiceTicket saved = repository.save(ticket);
+
+        // 6. Audit log kaydı
+        auditLogService.log(
+                "CREATE",
+                "TICKET",
+                saved.getId(),
+                "Web formundan servis talebi: " + dto.getCustomerName() + " - " + dto.getDeviceType());
+
         return mapToDTO(saved);
+    }
+
+    /**
+     * Telefon numarasını normalize eder.
+     * +905551234567 → 5551234567
+     * 05551234567 → 5551234567
+     */
+    private String normalizePhoneNumber(String phone) {
+        if (phone == null) return "";
+        String cleaned = phone.replaceAll("[^0-9]", "");
+        if (cleaned.startsWith("90") && cleaned.length() == 12) {
+            return cleaned.substring(2); // +90 kaldır
+        }
+        if (cleaned.startsWith("0") && cleaned.length() == 11) {
+            return cleaned.substring(1); // Baştaki 0 kaldır
+        }
+        return cleaned;
+    }
+
+    /**
+     * İş emri açıklamasını cihaz tipi ve müşteri notu ile zenginleştirir.
+     * Operatörün iş emrini ilk bakışta anlaması için yapılandırılmış format.
+     */
+    private String buildTicketDescription(PublicServiceRequestDTO dto) {
+        StringBuilder sb = new StringBuilder();
+
+        // Cihaz tipi etiketi
+        if (dto.getDeviceType() != null && !dto.getDeviceType().isBlank()) {
+            sb.append("[").append(dto.getDeviceType().toUpperCase()).append("] ");
+        }
+
+        // Müşteri açıklaması
+        if (dto.getDescription() != null && !dto.getDescription().isBlank()) {
+            sb.append(dto.getDescription());
+        } else {
+            sb.append("Web formu üzerinden servis talebi");
+        }
+
+        return sb.toString();
     }
 
     public ServiceTicketDTO assignTechnician(Long ticketId, Long technicianId) {
