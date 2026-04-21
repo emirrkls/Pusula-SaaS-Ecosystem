@@ -86,9 +86,26 @@ const Contact = () => {
                             </div>
                         </div>
 
-                        {/* Map Placeholder */}
-                        <div className="bg-gray-200 rounded-2xl h-64 w-full flex items-center justify-center text-gray-500 font-medium">
-                            Google Maps Entegrasyonu
+                        {/* Google Maps */}
+                        <div className="rounded-2xl overflow-hidden shadow-lg h-72 w-full relative group">
+                            <iframe
+                                title="Pusula İklimlendirme Konum"
+                                src="https://maps.google.com/maps?q=37.3579,27.2685&t=&z=16&ie=UTF8&iwloc=&output=embed"
+                                width="100%"
+                                height="100%"
+                                style={{ border: 0 }}
+                                allowFullScreen=""
+                                loading="lazy"
+                                referrerPolicy="no-referrer-when-downgrade"
+                                className="absolute inset-0"
+                            ></iframe>
+                            {/* Map overlay on hover */}
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-brand-dark/80 to-transparent p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                                <div className="flex items-center gap-2 text-white text-sm">
+                                    <MapPin className="w-4 h-4 text-brand-cyan" />
+                                    <span>Çamlık Mah. Ege Cad. No76/B, Didim/AYDIN</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

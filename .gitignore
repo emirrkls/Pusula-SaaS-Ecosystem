@@ -62,3 +62,6 @@ error.txt
 frontend-desktop/portable/
 frontend-desktop/installer/Output/
 .vercel/
+
+# Desktop Installer Files
+*.exe
