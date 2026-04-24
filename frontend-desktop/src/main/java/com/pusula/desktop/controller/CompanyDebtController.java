@@ -173,7 +173,7 @@ public class CompanyDebtController {
 
     @FXML
     public void loadDebts() {
-        api.getAllDebts(1L).enqueue(new Callback<>() {
+        api.getAllDebts().enqueue(new Callback<>() {
             @Override
             public void onResponse(Call<List<CompanyDebtDTO>> call, Response<List<CompanyDebtDTO>> response) {
                 Platform.runLater(() -> {
@@ -191,7 +191,7 @@ public class CompanyDebtController {
     }
 
     private void loadTotalDebt() {
-        api.getTotalUnpaidDebt(1L).enqueue(new Callback<>() {
+        api.getTotalUnpaidDebt().enqueue(new Callback<>() {
             @Override
             public void onResponse(Call<Map<String, BigDecimal>> call, Response<Map<String, BigDecimal>> response) {
                 Platform.runLater(() -> {
@@ -215,7 +215,7 @@ public class CompanyDebtController {
             loadDebts();
         } else {
             // Filter locally
-            api.getAllDebts(1L).enqueue(new Callback<>() {
+            api.getAllDebts().enqueue(new Callback<>() {
                 @Override
                 public void onResponse(Call<List<CompanyDebtDTO>> call, Response<List<CompanyDebtDTO>> response) {
                     Platform.runLater(() -> {

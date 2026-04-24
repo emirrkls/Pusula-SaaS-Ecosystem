@@ -10,13 +10,13 @@ import java.util.Map;
 public interface CurrentAccountApi {
 
     @GET("api/current-accounts")
-    Call<List<CurrentAccountDTO>> getAll(@Header("X-Company-Id") Long companyId);
+    Call<List<CurrentAccountDTO>> getAll();
 
     @GET("api/current-accounts/by-customer/{customerId}")
     Call<CurrentAccountDTO> getByCustomer(@Path("customerId") Long customerId);
 
     @POST("api/current-accounts")
-    Call<CurrentAccountDTO> createOrUpdate(@Header("X-Company-Id") Long companyId, @Body Map<String, Object> request);
+    Call<CurrentAccountDTO> createOrUpdate(@Body Map<String, Object> request);
 
     @PUT("api/current-accounts/{id}/adjust")
     Call<CurrentAccountDTO> adjustBalance(@Path("id") Long id, @Body Map<String, Object> request);

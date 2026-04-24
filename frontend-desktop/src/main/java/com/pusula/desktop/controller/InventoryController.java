@@ -343,7 +343,7 @@ public class InventoryController {
 
     private void loadVehicles() {
         VehicleApi vehicleApi = RetrofitClient.getClient().create(VehicleApi.class);
-        vehicleApi.getAll(1L).enqueue(new Callback<List<VehicleDTO>>() {
+        vehicleApi.getAll().enqueue(new Callback<List<VehicleDTO>>() {
             @Override
             public void onResponse(Call<List<VehicleDTO>> call, Response<List<VehicleDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -363,7 +363,7 @@ public class InventoryController {
 
     private void loadVehicleStocks() {
         VehicleStockApi stockApi = RetrofitClient.getClient().create(VehicleStockApi.class);
-        stockApi.getAll(1L).enqueue(new Callback<List<VehicleStockDTO>>() {
+        stockApi.getAll().enqueue(new Callback<List<VehicleStockDTO>>() {
             @Override
             public void onResponse(Call<List<VehicleStockDTO>> call, Response<List<VehicleStockDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {

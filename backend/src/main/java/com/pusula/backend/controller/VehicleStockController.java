@@ -40,7 +40,8 @@ public class VehicleStockController {
     }
 
     @GetMapping
-    public List<VehicleStockDTO> getAll(@RequestHeader("X-Company-Id") Long companyId) {
+    public List<VehicleStockDTO> getAll() {
+        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
         return vehicleStockRepository.findByCompanyId(companyId).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
@@ -61,8 +62,8 @@ public class VehicleStockController {
     }
 
     @PostMapping
-    public ResponseEntity<?> create(@RequestHeader("X-Company-Id") Long companyId,
-            @RequestBody Map<String, Object> request) {
+    public ResponseEntity<?> create(@RequestBody Map<String, Object> request) {
+        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
         Long vehicleId = ((Number) request.get("vehicleId")).longValue();
         Long inventoryId = ((Number) request.get("inventoryId")).longValue();
         Integer quantity = ((Number) request.get("quantity")).intValue();

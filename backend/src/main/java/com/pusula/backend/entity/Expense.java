@@ -36,4 +36,7 @@ public class Expense {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ExpenseCategory category;
+
+    @Column(name = "fixed_expense_id")
+    private Long fixedExpenseId;
 }

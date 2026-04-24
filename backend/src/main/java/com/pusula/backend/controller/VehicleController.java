@@ -16,12 +16,14 @@ public class VehicleController {
     private VehicleRepository vehicleRepository;
 
     @GetMapping
-    public List<Vehicle> getAll(@RequestHeader("X-Company-Id") Long companyId) {
+    public List<Vehicle> getAll() {
+        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
         return vehicleRepository.findByCompanyId(companyId);
     }
 
     @GetMapping("/active")
-    public List<Vehicle> getActive(@RequestHeader("X-Company-Id") Long companyId) {
+    public List<Vehicle> getActive() {
+        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
         return vehicleRepository.findByCompanyIdAndIsActiveTrue(companyId);
     }
 
@@ -33,8 +35,8 @@ public class VehicleController {
     }
 
     @PostMapping
-    public Vehicle create(@RequestHeader("X-Company-Id") Long companyId,
-            @RequestBody Vehicle vehicle) {
+    public Vehicle create(@RequestBody Vehicle vehicle) {
+        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
         vehicle.setCompanyId(companyId);
         return vehicleRepository.save(vehicle);
     }

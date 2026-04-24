@@ -31,7 +31,8 @@ public class CurrentAccountController {
     private ServiceTicketRepository serviceTicketRepository;
 
     @GetMapping
-    public List<CurrentAccountDTO> getAll(@RequestHeader("X-Company-Id") Long companyId) {
+    public List<CurrentAccountDTO> getAll() {
+        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
         return currentAccountRepository.findByCompanyIdOrderByBalanceDesc(companyId).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
@@ -45,8 +46,8 @@ public class CurrentAccountController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createOrUpdate(@RequestHeader("X-Company-Id") Long companyId,
-            @RequestBody Map<String, Object> request) {
+    public ResponseEntity<?> createOrUpdate(@RequestBody Map<String, Object> request) {
+        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
         Long customerId = ((Number) request.get("customerId")).longValue();
         BigDecimal amount = new BigDecimal(request.get("amount").toString());
 

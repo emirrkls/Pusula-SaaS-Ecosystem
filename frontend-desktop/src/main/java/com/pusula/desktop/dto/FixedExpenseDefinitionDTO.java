@@ -22,6 +22,7 @@ public class FixedExpenseDefinitionDTO {
     private String description;
     @SerializedName("isPaidThisMonth")
     private boolean paidThisMonth; // Maps to backend's isPaidThisMonth, getter: isPaidThisMonth()
+    private BigDecimal paidAmountThisMonth; // Track partial payments
     private String frequency; // "MONTHLY" or "WEEKLY" from backend Enum
 
     // Parent-child expense linking

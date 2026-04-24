@@ -28,13 +28,24 @@
             <Tab text="%unified_expense.tab.daily">
                 <VBox spacing="18" style="-fx-padding: 24;">
                     <children>
-                        <!-- Category -->
-                        <VBox spacing="6">
-                            <Label text="%unified_expense.daily.category"
-                                   style="-fx-font-weight: bold; -fx-font-size: 13px;" />
-                            <ComboBox fx:id="comboCategory" maxWidth="Infinity"
-                                      style="-fx-min-height: 38; -fx-font-size: 13px;" />
-                        </VBox>
+                        <!-- Category and Linked Expense -->
+                        <HBox spacing="16">
+                            <children>
+                                <VBox spacing="6" HBox.hgrow="ALWAYS" prefWidth="250">
+                                    <Label text="%unified_expense.daily.category"
+                                           style="-fx-font-weight: bold; -fx-font-size: 13px;" />
+                                    <ComboBox fx:id="comboCategory" maxWidth="Infinity"
+                                              style="-fx-min-height: 38; -fx-font-size: 13px;" />
+                                </VBox>
+                                <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                    <Label text="Bağlı Sabit Gider (Opsiyonel)"
+                                           style="-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #7f8c8d;" />
+                                    <ComboBox fx:id="comboLinkedFixedExpense" maxWidth="Infinity"
+                                              promptText="Sabit gidere bağla..."
+                                              style="-fx-min-height: 38; -fx-font-size: 13px;" />
+                                </VBox>
+                            </children>
+                        </HBox>
 
                         <!-- Amount and Date side by side -->
                         <HBox spacing="16">

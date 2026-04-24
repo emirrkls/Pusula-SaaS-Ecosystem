@@ -4,11 +4,17 @@ public class SessionManager {
     private static String authToken;
     private static String username;
     private static String userRole;
+    private static Long companyId;
 
-    public static void setSession(String token, String user, String role) {
+    public static void setSession(String token, String user, String role, Long cId) {
         authToken = token;
         username = user;
         userRole = role;
+        companyId = cId;
+    }
+
+    public static Long getCompanyId() {
+        return companyId;
     }
 
     public static String getAuthToken() {
@@ -31,6 +37,7 @@ public class SessionManager {
         authToken = null;
         username = null;
         userRole = null;
+        companyId = null;
     }
 
     public static boolean isLoggedIn() {

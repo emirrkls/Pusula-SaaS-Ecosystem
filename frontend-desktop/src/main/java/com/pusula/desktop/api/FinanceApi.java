@@ -22,11 +22,10 @@ public interface FinanceApi {
 
         @GET("/api/finance/summary")
         Call<FinancialSummaryDTO> getSummary(
-                        @Query("companyId") Long companyId,
                         @Query("period") String period);
 
         @GET("/api/finance/cumulative")
-        Call<Map<String, Object>> getCumulativeSummary(@Query("companyId") Long companyId);
+        Call<Map<String, Object>> getCumulativeSummary();
 
         @POST("/api/finance/expenses")
         Call<ExpenseDTO> addExpense(@Body ExpenseDTO expense);
@@ -40,11 +39,10 @@ public interface FinanceApi {
         Call<Void> deleteExpense(@Path("id") Long id);
 
         @GET("/api/finance/expenses")
-        Call<List<ExpenseDTO>> getExpenses(@Query("companyId") Long companyId);
+        Call<List<ExpenseDTO>> getExpenses();
 
         @GET("/api/finance/daily-summary")
         Call<DailySummaryDTO> getDailySummary(
-                        @Query("companyId") Long companyId,
                         @Query("date") String date);
 
         @POST("/api/finance/close-day")
@@ -52,12 +50,11 @@ public interface FinanceApi {
 
         @GET("/api/finance/category-report")
         Call<CategoryReportDTO> getCategoryReport(
-                        @Query("companyId") Long companyId,
                         @Query("startDate") String startDate,
                         @Query("endDate") String endDate);
 
         @GET("/api/finance/fixed-expenses")
-        Call<List<FixedExpenseDefinitionDTO>> getFixedExpenses(@Query("companyId") Long companyId);
+        Call<List<FixedExpenseDefinitionDTO>> getFixedExpenses();
 
         @POST("/api/finance/fixed-expenses")
         Call<FixedExpenseDefinitionDTO> createFixedExpense(@Body FixedExpenseDefinitionDTO definition);
@@ -73,28 +70,25 @@ public interface FinanceApi {
         @POST("/api/finance/fixed-expenses/pay/{id}")
         Call<ExpenseDTO> payFixedExpense(
                         @Path("id") Long id,
-                        @Query("companyId") Long companyId,
                         @Query("date") String date,
                         @Query("amount") java.math.BigDecimal amount);
 
         @GET("/api/finance/daily-totals")
-        Call<List<DailyTotalDTO>> get30DayTotals(@Query("companyId") Long companyId);
+        Call<List<DailyTotalDTO>> get30DayTotals();
 
         @GET("/api/finance/upcoming-fixed-expenses")
         Call<List<FixedExpenseDefinitionDTO>> getUpcomingFixedExpenses(
-                        @Query("companyId") Long companyId,
                         @Query("daysThreshold") int daysThreshold);
 
         // Monthly Reporting
         @GET("/api/reports/finance/archives")
         Call<List<com.pusula.desktop.dto.MonthlySummaryDTO>> getMonthlyArchives(
-                        @Query("companyId") Long companyId);
+                        );
 
         @GET("/api/reports/finance/pdf")
         Call<okhttp3.ResponseBody> downloadMonthlyPDF(
-                        @Query("month") String month,
-                        @Query("companyId") Long companyId);
+                        @Query("month") String month);
 
         @GET("/api/finance/inventory-value")
-        Call<Map<String, BigDecimal>> getInventoryValue(@Query("companyId") Long companyId);
+        Call<Map<String, BigDecimal>> getInventoryValue();
 }

@@ -25,7 +25,8 @@ public class CompanyDebtController {
      */
     @GetMapping
     public ResponseEntity<List<CompanyDebtDTO>> getAllDebts(
-            @RequestParam(defaultValue = "1") Long companyId) {
+            ) {
+        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
         return ResponseEntity.ok(debtService.getAllDebts(companyId));
     }
 
@@ -34,7 +35,8 @@ public class CompanyDebtController {
      */
     @GetMapping("/unpaid")
     public ResponseEntity<List<CompanyDebtDTO>> getUnpaidDebts(
-            @RequestParam(defaultValue = "1") Long companyId) {
+            ) {
+        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
         return ResponseEntity.ok(debtService.getUnpaidDebts(companyId));
     }
 
@@ -43,7 +45,8 @@ public class CompanyDebtController {
      */
     @GetMapping("/total-unpaid")
     public ResponseEntity<Map<String, BigDecimal>> getTotalUnpaidDebt(
-            @RequestParam(defaultValue = "1") Long companyId) {
+            ) {
+        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
         BigDecimal total = debtService.getTotalUnpaidDebt(companyId);
         return ResponseEntity.ok(Map.of("totalUnpaid", total));
     }

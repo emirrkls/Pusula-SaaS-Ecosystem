@@ -202,7 +202,7 @@ public class PayFixedExpenseDialogController {
     }
 
     private void loadFixedExpenses() {
-        financeApi.getFixedExpenses(1L).enqueue(new Callback<List<FixedExpenseDefinitionDTO>>() {
+        financeApi.getFixedExpenses().enqueue(new Callback<List<FixedExpenseDefinitionDTO>>() {
             @Override
             public void onResponse(Call<List<FixedExpenseDefinitionDTO>> call,
                     Response<List<FixedExpenseDefinitionDTO>> response) {
@@ -287,7 +287,7 @@ public class PayFixedExpenseDialogController {
             }
 
             final BigDecimal finalAmount = customAmount;
-            financeApi.payFixedExpense(row.getDto().getId(), 1L, finalDate.toString(), finalAmount)
+            financeApi.payFixedExpense(row.getDto().getId(), finalDate.toString(), finalAmount)
                     .enqueue(new Callback<ExpenseDTO>() {
                         @Override
                         public void onResponse(Call<ExpenseDTO> call, Response<ExpenseDTO> response) {

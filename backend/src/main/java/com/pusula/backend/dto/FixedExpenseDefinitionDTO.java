@@ -22,6 +22,7 @@ public class FixedExpenseDefinitionDTO {
     private String description;
     @JsonProperty("isPaidThisMonth")
     private boolean paidThisMonth; // Serialized as "isPaidThisMonth" in JSON
+    private BigDecimal paidAmountThisMonth; // Track partial payments
     private String frequency; // MONTHLY or WEEKLY
 
     // Parent-child expense linking

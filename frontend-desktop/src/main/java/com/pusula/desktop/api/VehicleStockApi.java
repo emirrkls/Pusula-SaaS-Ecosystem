@@ -10,7 +10,7 @@ import java.util.Map;
 public interface VehicleStockApi {
 
     @GET("api/vehicle-stocks")
-    Call<List<VehicleStockDTO>> getAll(@Header("X-Company-Id") Long companyId);
+    Call<List<VehicleStockDTO>> getAll();
 
     @GET("api/vehicle-stocks/by-vehicle/{vehicleId}")
     Call<List<VehicleStockDTO>> getByVehicle(@Path("vehicleId") Long vehicleId);
@@ -19,7 +19,7 @@ public interface VehicleStockApi {
     Call<List<VehicleStockDTO>> getByInventory(@Path("inventoryId") Long inventoryId);
 
     @POST("api/vehicle-stocks")
-    Call<VehicleStockDTO> create(@Header("X-Company-Id") Long companyId, @Body Map<String, Object> request);
+    Call<VehicleStockDTO> create(@Body Map<String, Object> request);
 
     @PUT("api/vehicle-stocks/{id}")
     Call<VehicleStockDTO> update(@Path("id") Long id, @Body Map<String, Object> request);

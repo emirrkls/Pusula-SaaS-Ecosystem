@@ -86,7 +86,7 @@ public class VehicleDialogController {
         if (vehicleToSave.getId() != null) {
             call = api.update(vehicleToSave.getId(), vehicleToSave);
         } else {
-            call = api.create(1L, vehicleToSave); // Using company ID 1
+            call = api.create(vehicleToSave); // Using company ID 1
         }
 
         call.enqueue(new Callback<VehicleDTO>() {

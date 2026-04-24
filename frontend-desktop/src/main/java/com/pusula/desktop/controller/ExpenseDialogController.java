@@ -96,7 +96,7 @@ private void handleSave() {
         return;
 
     ExpenseDTO expense = expenseToEdit != null ? expenseToEdit : new ExpenseDTO();
-    expense.setCompanyId(1L);
+    expense.setCompanyId(com.pusula.desktop.util.SessionManager.getCompanyId());
     expense.setCategory(comboCategory.getValue());
     expense.setAmount(txtAmount.getRawValue());
     expense.setDescription(txtDescription.getText());

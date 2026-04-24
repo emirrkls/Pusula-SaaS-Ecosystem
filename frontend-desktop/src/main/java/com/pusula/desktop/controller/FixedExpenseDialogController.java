@@ -206,7 +206,7 @@ public class FixedExpenseDialogController {
             // Build DTO
             if (fixedExpense == null) {
                 fixedExpense = new FixedExpenseDefinitionDTO();
-                fixedExpense.setCompanyId(1L);
+                fixedExpense.setCompanyId(com.pusula.desktop.util.SessionManager.getCompanyId());
             }
 
             fixedExpense.setName(nameField.getText().trim());

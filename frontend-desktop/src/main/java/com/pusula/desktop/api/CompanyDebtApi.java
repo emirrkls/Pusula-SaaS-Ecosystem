@@ -14,13 +14,13 @@ import java.util.Map;
 public interface CompanyDebtApi {
 
     @GET("/api/company-debts")
-    Call<List<CompanyDebtDTO>> getAllDebts(@Query("companyId") Long companyId);
+    Call<List<CompanyDebtDTO>> getAllDebts();
 
     @GET("/api/company-debts/unpaid")
-    Call<List<CompanyDebtDTO>> getUnpaidDebts(@Query("companyId") Long companyId);
+    Call<List<CompanyDebtDTO>> getUnpaidDebts();
 
     @GET("/api/company-debts/total-unpaid")
-    Call<Map<String, BigDecimal>> getTotalUnpaidDebt(@Query("companyId") Long companyId);
+    Call<Map<String, BigDecimal>> getTotalUnpaidDebt();
 
     @POST("/api/company-debts")
     Call<CompanyDebtDTO> createDebt(@Body CompanyDebtDTO dto);

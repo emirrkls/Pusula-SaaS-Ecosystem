@@ -368,19 +368,28 @@ public class FinanceService {
                                 .collect(java.util.stream.Collectors.toMap(FixedExpenseDefinition::getId, d -> d));
 
                 return definitions.stream().map(def -> {
-                        // Check if this fixed expense was paid this month
-                        // Match by description containing the fixed expense name (case-insensitive)
-                        boolean isPaid = monthExpenses.stream()
-                                        .anyMatch(expense -> {
-                                                String expDesc = expense.getDescription() != null
-                                                                ? expense.getDescription().toLowerCase()
-                                                                : "";
-                                                String defName = def.getName() != null ? def.getName().toLowerCase()
-                                                                : "";
-                                                return expDesc.contains(defName) || expDesc.startsWith(defName);
-                                        });
+                        // Calculate total paid this month using fixedExpenseId
+                        BigDecimal paidAmount = monthExpenses.stream()
+                                .filter(expense -> def.getId().equals(expense.getFixedExpenseId()))
+                                .map(Expense::getAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                        log.debug("Fixed: {} -> isPaid: {}", def.getName(), isPaid);
+                        // If fixedExpenseId was not set (legacy data), fallback to string match
+                        BigDecimal legacyPaidAmount = monthExpenses.stream()
+                                .filter(expense -> expense.getFixedExpenseId() == null)
+                                .filter(expense -> {
+                                        String expDesc = expense.getDescription() != null
+                                                        ? expense.getDescription().toLowerCase()
+                                                        : "";
+                                        String defName = def.getName() != null ? def.getName().toLowerCase()
+                                                        : "";
+                                        return expDesc.contains(defName) || expDesc.startsWith(defName);
+                                })
+                                .map(Expense::getAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        BigDecimal totalPaid = paidAmount.add(legacyPaidAmount);
+                        boolean isPaid = totalPaid.compareTo(def.getDefaultAmount()) >= 0;
 
                         // Calculate linked payments (for monthly expenses linked to weekly)
                         BigDecimal linkedPaymentsThisMonth = BigDecimal.ZERO;
@@ -392,6 +401,13 @@ public class FinanceService {
                                         linkedExpenseName = linkedDef.getName();
                                         // Sum all payments from the linked expense this month
                                         linkedPaymentsThisMonth = monthExpenses.stream()
+                                                        .filter(expense -> linkedDef.getId().equals(expense.getFixedExpenseId()))
+                                                        .map(Expense::getAmount)
+                                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                                        
+                                        // Legacy string match for linked payments
+                                        BigDecimal legacyLinkedPayments = monthExpenses.stream()
+                                                        .filter(expense -> expense.getFixedExpenseId() == null)
                                                         .filter(expense -> {
                                                                 String expDesc = expense.getDescription() != null
                                                                                 ? expense.getDescription().toLowerCase()
@@ -404,6 +420,7 @@ public class FinanceService {
                                                         })
                                                         .map(Expense::getAmount)
                                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
+                                        linkedPaymentsThisMonth = linkedPaymentsThisMonth.add(legacyLinkedPayments);
                                 }
                         }
 
@@ -416,6 +433,7 @@ public class FinanceService {
                                         .dayOfMonth(def.getDayOfMonth())
                                         .description(def.getDescription())
                                         .paidThisMonth(isPaid)
+                                        .paidAmountThisMonth(totalPaid)
                                         .frequency(def.getFrequency() != null ? def.getFrequency().name() : "MONTHLY")
                                         .linkedExpenseId(def.getLinkedExpenseId())
                                         .linkedExpenseName(linkedExpenseName)
@@ -451,21 +469,34 @@ public class FinanceService {
                 List<Expense> monthExpenses = expenseRepository.findByCompanyIdAndDateBetween(
                                 companyId, startOfMonth, endOfMonth);
 
-                boolean alreadyPaid = monthExpenses.stream()
-                                .anyMatch(expense -> expense.getDescription().startsWith(definition.getName() + " ("));
+                BigDecimal totalPaidThisMonth = monthExpenses.stream()
+                                .filter(e -> definition.getId().equals(e.getFixedExpenseId()))
+                                .map(Expense::getAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                if (alreadyPaid) {
+                // Legacy fallback for already paid
+                BigDecimal legacyPaid = monthExpenses.stream()
+                                .filter(e -> e.getFixedExpenseId() == null && e.getDescription().startsWith(definition.getName() + " ("))
+                                .map(Expense::getAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                totalPaidThisMonth = totalPaidThisMonth.add(legacyPaid);
+
+                if (totalPaidThisMonth.compareTo(definition.getDefaultAmount()) >= 0) {
                         java.time.format.DateTimeFormatter monthFormatter = java.time.format.DateTimeFormatter
                                         .ofPattern("MMMM yyyy", new java.util.Locale("tr", "TR"));
                         String monthYear = paymentDate.format(monthFormatter);
                         throw new IllegalStateException(
-                                        definition.getName() + " zaten " + monthYear + " ayı için ödendi!");
+                                        definition.getName() + " zaten " + monthYear + " ayı için tamamen ödendi!");
                 }
 
-                // Use custom amount if provided, otherwise use the default amount
+                // Use custom amount if provided, otherwise use the remaining amount
+                BigDecimal remainingAmount = definition.getDefaultAmount().subtract(totalPaidThisMonth);
+                if (remainingAmount.compareTo(BigDecimal.ZERO) < 0) remainingAmount = BigDecimal.ZERO;
+                
                 BigDecimal paymentAmount = (customAmount != null && customAmount.compareTo(BigDecimal.ZERO) > 0)
                                 ? customAmount
-                                : definition.getDefaultAmount();
+                                : (remainingAmount.compareTo(BigDecimal.ZERO) > 0 ? remainingAmount : definition.getDefaultAmount());
 
                 // Format description with month and year (e.g., "Kira (Kasım 2025)")
                 java.time.format.DateTimeFormatter monthFormatter = java.time.format.DateTimeFormatter
@@ -479,6 +510,7 @@ public class FinanceService {
                                 .description(definition.getName() + " (" + monthYear + ")")
                                 .date(paymentDate)
                                 .category(definition.getCategory())
+                                .fixedExpenseId(definition.getId())
                                 .build();
 
                 Expense saved = expenseRepository.save(expense);
@@ -601,11 +633,19 @@ public class FinanceService {
                                                 return false;
 
                                         // Check if already paid this month
-                                        boolean isPaid = monthExpenses.stream()
-                                                        .anyMatch(expense -> expense.getDescription()
-                                                                        .startsWith(def.getName()));
-                                        if (isPaid)
-                                                return false;
+                                        BigDecimal totalPaidThisMonth = monthExpenses.stream()
+                                                        .filter(e -> def.getId().equals(e.getFixedExpenseId()))
+                                                        .map(Expense::getAmount)
+                                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                                        BigDecimal legacyPaid = monthExpenses.stream()
+                                                        .filter(e -> e.getFixedExpenseId() == null && e.getDescription().startsWith(def.getName()))
+                                                        .map(Expense::getAmount)
+                                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                                        if (totalPaidThisMonth.add(legacyPaid).compareTo(def.getDefaultAmount()) >= 0) {
+                                                return false; // Paid
+                                        }
 
                                         // Calculate the next due date for this expense
                                         LocalDate dueDate;

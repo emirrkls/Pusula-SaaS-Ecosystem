@@ -158,7 +158,7 @@ public class TransferStockDialogController {
 
     private void loadVehicles() {
         VehicleApi api = RetrofitClient.getClient().create(VehicleApi.class);
-        api.getAll(1L).enqueue(new Callback<>() {
+        api.getAll().enqueue(new Callback<>() {
             @Override
             public void onResponse(Call<List<VehicleDTO>> call, Response<List<VehicleDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -309,7 +309,7 @@ public class TransferStockDialogController {
             request.put("inventoryId", item.getId());
             request.put("quantity", quantity);
 
-            vehicleStockApi.create(1L, request).enqueue(new Callback<>() {
+            vehicleStockApi.create(request).enqueue(new Callback<>() {
                 @Override
                 public void onResponse(Call<VehicleStockDTO> call, Response<VehicleStockDTO> response) {
                     Platform.runLater(() -> {

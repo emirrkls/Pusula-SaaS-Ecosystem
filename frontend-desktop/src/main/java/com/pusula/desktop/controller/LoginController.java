@@ -152,7 +152,8 @@ public class LoginController {
                 if (response.isSuccessful() && response.body() != null) {
                     String token = response.body().getToken();
                     String role = response.body().getRole();
-                    SessionManager.setSession(token, username, role);
+                    Long companyId = response.body().getCompanyId();
+                    SessionManager.setSession(token, username, role, companyId);
 
                     Platform.runLater(() -> {
                         try {

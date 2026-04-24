@@ -209,7 +209,7 @@ public class FinanceController {
 
     private void loadDailySummary(LocalDate date) {
         String dateStr = date.toString();
-        financeApi.getDailySummary(1L, dateStr).enqueue(new Callback<DailySummaryDTO>() {
+        financeApi.getDailySummary(dateStr).enqueue(new Callback<DailySummaryDTO>() {
             @Override
             public void onResponse(Call<DailySummaryDTO> call, Response<DailySummaryDTO> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -261,7 +261,7 @@ public class FinanceController {
 
     private void checkUpcomingPayments() {
         // Check for both upcoming and overdue payments
-        financeApi.getFixedExpenses(1L).enqueue(new Callback<List<FixedExpenseDefinitionDTO>>() {
+        financeApi.getFixedExpenses().enqueue(new Callback<List<FixedExpenseDefinitionDTO>>() {
             @Override
             public void onResponse(Call<List<FixedExpenseDefinitionDTO>> call,
                     Response<List<FixedExpenseDefinitionDTO>> response) {
@@ -339,7 +339,7 @@ public class FinanceController {
     // Removed: Individual pay button handler - now using centralized dialog only
 
     private void load30DayTrends() {
-        financeApi.get30DayTotals(1L).enqueue(new Callback<List<DailyTotalDTO>>() {
+        financeApi.get30DayTotals().enqueue(new Callback<List<DailyTotalDTO>>() {
             @Override
             public void onResponse(Call<List<DailyTotalDTO>> call, Response<List<DailyTotalDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -380,7 +380,7 @@ public class FinanceController {
         LocalDate startOfMonth = LocalDate.now().withDayOfMonth(1);
         LocalDate endOfMonth = LocalDate.now();
 
-        financeApi.getCategoryReport(1L, startOfMonth.toString(), endOfMonth.toString())
+        financeApi.getCategoryReport(startOfMonth.toString(), endOfMonth.toString())
                 .enqueue(new Callback<CategoryReportDTO>() {
                     @Override
                     public void onResponse(Call<CategoryReportDTO> call, Response<CategoryReportDTO> response) {
@@ -541,7 +541,7 @@ public class FinanceController {
 
     private void performDayClosing() {
         CloseDayRequest request = CloseDayRequest.builder()
-                .companyId(1L)
+                .companyId(com.pusula.desktop.util.SessionManager.getCompanyId())
                 .date(currentDate)
                 .userId(1L)
                 .build();
@@ -637,7 +637,7 @@ public class FinanceController {
     }
 
     private void loadMonthlyReports() {
-        financeApi.getMonthlyArchives(1L).enqueue(new Callback<List<MonthlySummaryDTO>>() {
+        financeApi.getMonthlyArchives().enqueue(new Callback<List<MonthlySummaryDTO>>() {
             @Override
             public void onResponse(Call<List<MonthlySummaryDTO>> call, Response<List<MonthlySummaryDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -655,7 +655,7 @@ public class FinanceController {
     }
 
     private void handleDownloadPDF(String period) {
-        financeApi.downloadMonthlyPDF(period, 1L).enqueue(new Callback<okhttp3.ResponseBody>() {
+        financeApi.downloadMonthlyPDF(period).enqueue(new Callback<okhttp3.ResponseBody>() {
             @Override
             public void onResponse(Call<okhttp3.ResponseBody> call, Response<okhttp3.ResponseBody> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -745,7 +745,7 @@ public class FinanceController {
         System.out.println("=== loadCurrentAccounts() called ===");
         CurrentAccountApi api = RetrofitClient.getClient().create(CurrentAccountApi.class);
         System.out.println("Calling API: " + RetrofitClient.BASE_URL + "api/current-accounts");
-        api.getAll(1L).enqueue(new Callback<List<CurrentAccountDTO>>() {
+        api.getAll().enqueue(new Callback<List<CurrentAccountDTO>>() {
             @Override
             public void onResponse(Call<List<CurrentAccountDTO>> call, Response<List<CurrentAccountDTO>> response) {
                 System.out.println("Response received: " + response.code());
@@ -854,7 +854,7 @@ public class FinanceController {
     // ========== INVENTORY VALUE CARD ==========
 
     private void loadInventoryValue() {
-        financeApi.getInventoryValue(1L).enqueue(new Callback<Map<String, BigDecimal>>() {
+        financeApi.getInventoryValue().enqueue(new Callback<Map<String, BigDecimal>>() {
             @Override
             public void onResponse(Call<Map<String, BigDecimal>> call, Response<Map<String, BigDecimal>> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -885,7 +885,7 @@ public class FinanceController {
 
     private void loadBusinessAssets() {
         // Load inventory value for assets tab
-        financeApi.getInventoryValue(1L).enqueue(new Callback<Map<String, BigDecimal>>() {
+        financeApi.getInventoryValue().enqueue(new Callback<Map<String, BigDecimal>>() {
             @Override
             public void onResponse(Call<Map<String, BigDecimal>> call, Response<Map<String, BigDecimal>> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -910,7 +910,7 @@ public class FinanceController {
         });
 
         // Load net cash value for assets tab (CUMULATIVE, not just today)
-        financeApi.getCumulativeSummary(1L).enqueue(new Callback<Map<String, Object>>() {
+        financeApi.getCumulativeSummary().enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 if (response.isSuccessful() && response.body() != null) {

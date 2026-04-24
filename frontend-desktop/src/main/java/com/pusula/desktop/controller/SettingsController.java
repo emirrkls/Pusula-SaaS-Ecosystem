@@ -170,7 +170,7 @@ public class SettingsController {
     }
 
     private void loadFixedExpenses() {
-        financeApi.getFixedExpenses(1L).enqueue(new Callback<List<FixedExpenseDefinitionDTO>>() {
+        financeApi.getFixedExpenses().enqueue(new Callback<List<FixedExpenseDefinitionDTO>>() {
             @Override
             public void onResponse(Call<List<FixedExpenseDefinitionDTO>> call,
                     Response<List<FixedExpenseDefinitionDTO>> response) {
@@ -682,7 +682,7 @@ public class SettingsController {
     }
 
     private void loadVehicles() {
-        vehicleApi.getAll(1L).enqueue(new Callback<List<VehicleDTO>>() {
+        vehicleApi.getAll().enqueue(new Callback<List<VehicleDTO>>() {
             @Override
             public void onResponse(Call<List<VehicleDTO>> call, Response<List<VehicleDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {

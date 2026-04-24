@@ -45,6 +45,11 @@ public class UnifiedExpenseDialogController {
     private DatePicker datePicker;
     @FXML
     private TextArea txtDescription;
+    @FXML
+    private ComboBox<FixedExpenseDefinitionDTO> comboLinkedFixedExpense;
+
+    // Store all fixed expenses to filter later
+    private List<FixedExpenseDefinitionDTO> allFixedExpenses = FXCollections.observableArrayList();
 
     // ===== Fixed Expense Tab =====
     @FXML
@@ -120,6 +125,29 @@ public class UnifiedExpenseDialogController {
             }
         });
 
+        comboCategory.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && allFixedExpenses != null) {
+                List<FixedExpenseDefinitionDTO> filtered = allFixedExpenses.stream()
+                        .filter(f -> f.getCategory().equals(newVal))
+                        .collect(Collectors.toList());
+                comboLinkedFixedExpense.setItems(FXCollections.observableArrayList(filtered));
+            } else {
+                comboLinkedFixedExpense.setItems(FXCollections.observableArrayList());
+            }
+        });
+
+        comboLinkedFixedExpense.setConverter(new StringConverter<FixedExpenseDefinitionDTO>() {
+            @Override
+            public String toString(FixedExpenseDefinitionDTO dto) {
+                return dto == null ? "" : dto.getName();
+            }
+
+            @Override
+            public FixedExpenseDefinitionDTO fromString(String string) {
+                return null;
+            }
+        });
+
         datePicker.setValue(LocalDate.now());
     }
 
@@ -128,11 +156,74 @@ public class UnifiedExpenseDialogController {
         if (!validateDailyInput()) return;
 
         ExpenseDTO expense = expenseToEdit != null ? expenseToEdit : new ExpenseDTO();
-        expense.setCompanyId(1L);
+        expense.setCompanyId(com.pusula.desktop.util.SessionManager.getCompanyId());
         expense.setCategory(comboCategory.getValue());
         expense.setAmount(txtAmount.getRawValue());
         expense.setDescription(txtDescription.getText());
         expense.setDate(datePicker.getValue().toString());
+
+        if (comboLinkedFixedExpense.getValue() != null) {
+            expense.setFixedExpenseId(comboLinkedFixedExpense.getValue().getId());
+        } else if (!isEditMode && allFixedExpenses != null) {
+            // Akıllı Uyarı Sistemi (Gelişmiş Seçim Ekranı)
+            java.util.List<FixedExpenseDefinitionDTO> unpaidMatches = allFixedExpenses.stream()
+                    .filter(f -> f.getCategory().equals(comboCategory.getValue()))
+                    .filter(f -> !f.isPaidThisMonth())
+                    .collect(Collectors.toList());
+
+            if (!unpaidMatches.isEmpty()) {
+                String categoryLocalized = bundle.containsKey("category." + comboCategory.getValue()) 
+                        ? bundle.getString("category." + comboCategory.getValue()) 
+                        : comboCategory.getValue();
+
+                Dialog<ButtonType> dialog = new Dialog<>();
+                dialog.setTitle("Akıllı Eşleştirme Önerisi");
+                dialog.setHeaderText("Ödenmemiş Sabit Giderler Bulundu");
+                
+                ButtonType btnMatch = new ButtonType("Seçili Olanla Eşleştir", ButtonBar.ButtonData.OK_DONE);
+                ButtonType btnStandalone = new ButtonType("Hiçbiriyle Eşleştirme", ButtonBar.ButtonData.OTHER);
+                ButtonType btnCancel = new ButtonType("İptal", ButtonBar.ButtonData.CANCEL_CLOSE);
+                
+                dialog.getDialogPane().getButtonTypes().addAll(btnMatch, btnStandalone, btnCancel);
+                
+                javafx.scene.layout.VBox vbox = new javafx.scene.layout.VBox(10);
+                javafx.scene.control.Label label = new javafx.scene.control.Label(
+                    String.format("Bu kategoride (%s) ödenmemiş sabit giderleriniz bulunmaktadır.\nLütfen eşleştirmek istediğiniz faturayı seçin:", categoryLocalized));
+                
+                ComboBox<FixedExpenseDefinitionDTO> choiceBox = new ComboBox<>();
+                choiceBox.getItems().addAll(unpaidMatches);
+                choiceBox.getSelectionModel().selectFirst();
+                choiceBox.setMaxWidth(Double.MAX_VALUE);
+                choiceBox.setStyle("-fx-font-size: 14px; -fx-padding: 5px;");
+                
+                choiceBox.setConverter(new StringConverter<FixedExpenseDefinitionDTO>() {
+                    @Override
+                    public String toString(FixedExpenseDefinitionDTO dto) {
+                        return dto == null ? "" : dto.getName() + " (" + String.format("%.2f \u20ba", dto.getDefaultAmount()) + ")";
+                    }
+                    @Override
+                    public FixedExpenseDefinitionDTO fromString(String string) {
+                        return null;
+                    }
+                });
+                
+                vbox.getChildren().addAll(label, choiceBox);
+                dialog.getDialogPane().setContent(vbox);
+                
+                java.util.Optional<ButtonType> result = dialog.showAndWait();
+                if (result.isPresent()) {
+                    if (result.get() == btnMatch) {
+                        FixedExpenseDefinitionDTO selected = choiceBox.getValue();
+                        if (selected != null) {
+                            expense.setFixedExpenseId(selected.getId());
+                        }
+                    } else if (result.get() == btnCancel) {
+                        return; // İşlemi tamamen iptal et
+                    }
+                    // btnStandalone seçilirse hiçbir şey yapma, ID eklemeden normal kaydet
+                }
+            }
+        }
 
         Call<ExpenseDTO> call = isEditMode
                 ? financeApi.updateExpense(expense.getId(), expense)
@@ -224,6 +315,8 @@ public class UnifiedExpenseDialogController {
                     setStyle("-fx-background-color: #334155; -fx-text-fill: white;");
                 } else if (item.getDto().isPaidThisMonth()) {
                     setStyle("-fx-background-color: #dcfce7;");
+                } else if (item.getDto().getPaidAmountThisMonth() != null && item.getDto().getPaidAmountThisMonth().compareTo(BigDecimal.ZERO) > 0) {
+                    setStyle("-fx-background-color: #fef08a;"); // Yellow for partial
                 } else if (item.getDaysUntilDue() < 0) {
                     setStyle("-fx-background-color: #fee2e2;");
                 } else if (item.getDaysUntilDue() >= 0 && item.getDaysUntilDue() <= 3) {
@@ -325,20 +418,32 @@ public class UnifiedExpenseDialogController {
 
         // Status
         colFixedStatus.setCellValueFactory(cellData -> {
-            boolean isPaid = cellData.getValue().getDto().isPaidThisMonth();
-            String status = isPaid ? bundle.getString("finance.pay_fixed_expense_dialog.paid") : "";
+            FixedExpenseDefinitionDTO dto = cellData.getValue().getDto();
+            boolean isPaid = dto.isPaidThisMonth();
+            BigDecimal paidAmount = dto.getPaidAmountThisMonth();
+            BigDecimal defaultAmount = dto.getDefaultAmount();
+
+            String status = "";
+            if (isPaid) {
+                status = bundle.containsKey("finance.pay_fixed_expense_dialog.paid") ? bundle.getString("finance.pay_fixed_expense_dialog.paid") : "Ödendi";
+            } else if (paidAmount != null && paidAmount.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal remaining = defaultAmount.subtract(paidAmount);
+                if (remaining.compareTo(BigDecimal.ZERO) < 0) remaining = BigDecimal.ZERO;
+                status = "Kısmi (Kalan: " + String.format("%.0f", remaining) + "\u20ba)";
+            }
             return new SimpleStringProperty(status);
         });
     }
 
     private void loadFixedExpenses() {
-        financeApi.getFixedExpenses(1L).enqueue(new Callback<List<FixedExpenseDefinitionDTO>>() {
+        financeApi.getFixedExpenses().enqueue(new Callback<List<FixedExpenseDefinitionDTO>>() {
             @Override
             public void onResponse(Call<List<FixedExpenseDefinitionDTO>> call,
                                    Response<List<FixedExpenseDefinitionDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     Platform.runLater(() -> {
-                        List<FixedExpenseRow> rows = response.body().stream()
+                        allFixedExpenses = response.body();
+                        List<FixedExpenseRow> rows = allFixedExpenses.stream()
                                 .map(dto -> new FixedExpenseRow(dto, calculateDaysUntilDue(dto.getDayOfMonth())))
                                 .collect(Collectors.toList());
                         fixedExpensesTable.setItems(FXCollections.observableArrayList(rows));
@@ -348,6 +453,14 @@ public class UnifiedExpenseDialogController {
                                 row.setSelectable(false);
                             }
                         });
+                        
+                        // Update combo box if category is already selected
+                        if (comboCategory.getValue() != null) {
+                            List<FixedExpenseDefinitionDTO> filtered = allFixedExpenses.stream()
+                                    .filter(f -> f.getCategory().equals(comboCategory.getValue()))
+                                    .collect(Collectors.toList());
+                            comboLinkedFixedExpense.setItems(FXCollections.observableArrayList(filtered));
+                        }
                     });
                 }
             }
@@ -402,7 +515,7 @@ public class UnifiedExpenseDialogController {
             }
 
             final BigDecimal finalAmount = customAmount;
-            financeApi.payFixedExpense(row.getDto().getId(), 1L, finalDate.toString(), finalAmount)
+            financeApi.payFixedExpense(row.getDto().getId(), finalDate.toString(), finalAmount)
                     .enqueue(new Callback<ExpenseDTO>() {
                         @Override
                         public void onResponse(Call<ExpenseDTO> call, Response<ExpenseDTO> response) {

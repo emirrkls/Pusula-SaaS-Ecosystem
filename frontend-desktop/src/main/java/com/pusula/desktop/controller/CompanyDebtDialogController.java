@@ -64,7 +64,7 @@ public class CompanyDebtDialogController {
         BigDecimal amount = amountField.getRawValue();
 
         CompanyDebtDTO dto = CompanyDebtDTO.builder()
-                .companyId(1L)
+                .companyId(com.pusula.desktop.util.SessionManager.getCompanyId())
                 .creditorName(creditorField.getText().trim())
                 .originalAmount(amount)
                 .description(descriptionField.getText().trim())
