@@ -31,7 +31,12 @@ Desktop.ini
 
 # Environment / Secrets
 .env
+.env.*
 *.env.local
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 
 # Temp Files
 *.tmp
@@ -66,3 +71,24 @@ frontend-desktop/installer/Output/
 # Desktop Installer Files
 *.exe
 frontend-desktop/installer/PusulaServiceManagerSetup.exe
+
+# Android / IntelliJ
+**/local.properties
+**/.gradle/
+**/.kotlin/
+**/.idea/
+**/captures/
+
+# iOS / Xcode
+**/DerivedData/
+**/*.xcuserstate
+**/xcuserdata/
+
+# Signing / Certificates / Private keys
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+*.p8
+*.pem
+*.key
