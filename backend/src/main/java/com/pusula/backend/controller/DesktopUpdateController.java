@@ -15,7 +15,7 @@ public class DesktopUpdateController {
         // In a real scenario, this could be fetched from a database or application properties
         DesktopVersionDTO updateInfo = DesktopVersionDTO.builder()
                 .latestVersion("1.0.1") // the fake new version
-                .downloadUrl("https://pusulaservis.com/downloads/v2.zip")
+                .downloadUrl("http://168.231.104.133:8080/downloads/v2.zip")
                 .mandatory(false)
                 .releaseNotes("Sistem performansı artırıldı ve finans hataları giderildi.")
                 .build();

@@ -2,6 +2,7 @@ package com.pusula.backend.service;
 
 import com.pusula.backend.dto.AuthRequest;
 import com.pusula.backend.dto.AuthResponse;
+import com.pusula.backend.dto.GoogleAuthRequest;
 import com.pusula.backend.dto.QuotaDTO;
 import com.pusula.backend.dto.RegisterRequest;
 import com.pusula.backend.entity.Company;
@@ -10,12 +11,17 @@ import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.CompanyRepository;
 import com.pusula.backend.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.jackson2.JacksonFactory;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -24,6 +30,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Collections;
 import java.util.UUID;
 
 @Service
@@ -35,6 +42,9 @@ public class AuthenticationService {
         private final JwtService jwtService;
         private final AuthenticationManager authenticationManager;
         private final AuditLogService auditLogService;
+
+        @Value("${google.oauth.web-client-id:}")
+        private String googleWebClientId;
 
         public AuthenticationService(UserRepository userRepository,
                         CompanyRepository companyRepository,
@@ -73,7 +83,15 @@ public class AuthenticationService {
                 companyRepository.save(company);
 
                 // 3. Create admin user
-                String username = request.getEmail() != null ? request.getEmail() : request.getUsername();
+                String username = request.getUsername() != null && !request.getUsername().isBlank()
+                                ? request.getUsername().trim()
+                                : request.getEmail();
+                if (username == null || username.isBlank()) {
+                        throw new BadCredentialsException("Kullanıcı adı veya e-posta gerekli");
+                }
+                if (userRepository.findByUsername(username).isPresent()) {
+                        throw new BadCredentialsException("Bu kullanıcı adı zaten kullanılıyor");
+                }
                 var user = User.builder()
                                 .companyId(company.getId())
                                 .username(username)
@@ -191,6 +209,95 @@ public class AuthenticationService {
                                         ipAddress);
 
                         throw e;
+                }
+        }
+
+        public AuthResponse authenticateWithGoogle(GoogleAuthRequest request) {
+                String ipAddress = getClientIpAddress();
+                try {
+                        if (request == null || request.getIdToken() == null || request.getIdToken().isBlank()) {
+                                throw new BadCredentialsException("Google token gerekli");
+                        }
+                        if (googleWebClientId == null || googleWebClientId.isBlank()) {
+                                throw new BadCredentialsException("Google OAuth yapılandırması eksik");
+                        }
+
+                        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                                        new NetHttpTransport(),
+                                        JacksonFactory.getDefaultInstance())
+                                        .setAudience(Collections.singletonList(googleWebClientId))
+                                        .build();
+
+                        GoogleIdToken googleIdToken = verifier.verify(request.getIdToken());
+                        if (googleIdToken == null) {
+                                throw new BadCredentialsException("Google token doğrulanamadı");
+                        }
+
+                        GoogleIdToken.Payload payload = googleIdToken.getPayload();
+                        String email = payload.getEmail();
+                        String fullName = (String) payload.get("name");
+
+                        if (email == null || email.isBlank()) {
+                                throw new BadCredentialsException("Google hesabından e-posta alınamadı");
+                        }
+
+                        User user = userRepository.findByUsername(email).orElse(null);
+                        Company company;
+
+                        if (user == null) {
+                                String orgCode = generateOrgCode();
+                                company = new Company();
+                                company.setName((fullName != null && !fullName.isBlank() ? fullName : email) + " Servisi");
+                                company.setSubscriptionStatus("TRIAL");
+                                company.setPlanType(PlanType.CIRAK);
+                                company.setTrialEndsAt(LocalDateTime.now().plusDays(14));
+                                company.setOrgCode(orgCode);
+                                company.setEmail(email);
+                                company.setBillingEmail(email);
+                                companyRepository.save(company);
+
+                                String preferredUsername = request.getPreferredUsername();
+                                String username = preferredUsername != null && !preferredUsername.isBlank()
+                                                ? preferredUsername.trim()
+                                                : email;
+                                if (userRepository.findByUsername(username).isPresent()) {
+                                        throw new BadCredentialsException("Bu kullanıcı adı zaten kullanılıyor");
+                                }
+
+                                user = User.builder()
+                                                .companyId(company.getId())
+                                                .username(username)
+                                                .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
+                                                .fullName(fullName != null && !fullName.isBlank() ? fullName : email)
+                                                .role("COMPANY_ADMIN")
+                                                .build();
+                                userRepository.save(user);
+
+                                auditLogService.logAuth(
+                                                user.getCompanyId(),
+                                                user.getId(),
+                                                user.getFullName(),
+                                                "USER_REGISTERED_GOOGLE",
+                                                "Google ile bireysel kayıt: " + email,
+                                                ipAddress);
+                        } else {
+                                company = companyRepository.findById(user.getCompanyId()).orElse(null);
+                        }
+
+                        String jwtToken = jwtService.generateToken(user);
+                        auditLogService.logAuth(
+                                        user.getCompanyId(),
+                                        user.getId(),
+                                        user.getFullName(),
+                                        "LOGIN_SUCCESS_GOOGLE",
+                                        "Google ile giriş başarılı: " + email,
+                                        ipAddress);
+
+                        return buildAuthResponse(jwtToken, user, company);
+                } catch (BadCredentialsException e) {
+                        throw e;
+                } catch (Exception e) {
+                        throw new BadCredentialsException("Google ile giriş başarısız");
                 }
         }
 

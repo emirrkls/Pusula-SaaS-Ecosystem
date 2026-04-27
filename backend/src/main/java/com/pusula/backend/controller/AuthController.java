@@ -2,6 +2,7 @@ package com.pusula.backend.controller;
 
 import com.pusula.backend.dto.AuthRequest;
 import com.pusula.backend.dto.AuthResponse;
+import com.pusula.backend.dto.GoogleAuthRequest;
 import com.pusula.backend.dto.RegisterRequest;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.service.AuthenticationService;
@@ -53,6 +54,14 @@ public class AuthController {
     public ResponseEntity<AuthResponse> authenticate(
             @RequestBody AuthRequest request) {
         return ResponseEntity.ok(service.authenticate(request));
+    }
+
+    /**
+     * Google authentication — verifies Google ID token and signs user in/up.
+     */
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> authenticateWithGoogle(@RequestBody GoogleAuthRequest request) {
+        return ResponseEntity.ok(service.authenticateWithGoogle(request));
     }
 
     /**

@@ -36,6 +36,11 @@ public class ServiceTicketController {
         return ResponseEntity.ok(service.getAllTickets());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ServiceTicketDTO> getTicketById(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getTicketById(id));
+    }
+
     /**
      * GET /api/tickets/my-assigned — technician's assigned tickets only.
      * Enriched with customer address, phone, and outstanding balance.

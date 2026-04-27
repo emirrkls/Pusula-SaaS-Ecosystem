@@ -90,6 +90,20 @@ public class ServiceTicketService {
                 .collect(Collectors.toList());
     }
 
+    public ServiceTicketDTO getTicketById(Long ticketId) {
+        User user = getCurrentUser();
+        ServiceTicket ticket = repository.findById(ticketId)
+                .filter(t -> t.getCompanyId().equals(user.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
+
+        if ("TECHNICIAN".equals(user.getRole())) {
+            if (ticket.getAssignedTechnicianId() == null || !ticket.getAssignedTechnicianId().equals(user.getId())) {
+                throw new RuntimeException("Access Denied: You can only view tickets assigned to you.");
+            }
+        }
+        return mapToDTO(ticket);
+    }
+
     public ServiceTicketDTO createTicket(ServiceTicketDTO dto) {
         User user = getCurrentUser();
         ServiceTicket ticket = ServiceTicket.builder()

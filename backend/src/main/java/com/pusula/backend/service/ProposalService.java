@@ -89,9 +89,9 @@ public class ProposalService {
         Proposal proposal = proposalRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Teklif bulunamadı"));
 
-        // Track if we need to create a service ticket (status changing to APPROVED)
         Proposal.ProposalStatus oldStatus = proposal.getStatus();
-        Proposal.ProposalStatus newStatus = Proposal.ProposalStatus.valueOf(dto.getStatus());
+        Proposal.ProposalStatus newStatus = parseStatus(dto.getStatus());
+        validateStatusTransition(oldStatus, newStatus);
         boolean shouldCreateTicket = (newStatus == Proposal.ProposalStatus.APPROVED)
                 && (oldStatus != Proposal.ProposalStatus.APPROVED);
 
@@ -168,7 +168,10 @@ public class ProposalService {
         Proposal proposal = proposalRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Teklif bulunamadı"));
 
-        // Update status to APPROVED
+        if (proposal.getStatus() == Proposal.ProposalStatus.APPROVED) {
+            throw new RuntimeException("Teklif zaten işe dönüştürülmüş");
+        }
+
         proposal.setStatus(Proposal.ProposalStatus.APPROVED);
         proposalRepository.save(proposal);
 
@@ -254,5 +257,34 @@ public class ProposalService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    private Proposal.ProposalStatus parseStatus(String status) {
+        if (status == null || status.isBlank()) {
+            throw new RuntimeException("Teklif durumu boş olamaz");
+        }
+        try {
+            return Proposal.ProposalStatus.valueOf(status);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Geçersiz teklif durumu: " + status);
+        }
+    }
+
+    private void validateStatusTransition(Proposal.ProposalStatus oldStatus, Proposal.ProposalStatus newStatus) {
+        if (oldStatus == newStatus) {
+            return;
+        }
+        switch (oldStatus) {
+            case DRAFT:
+                if (newStatus == Proposal.ProposalStatus.SENT || newStatus == Proposal.ProposalStatus.REJECTED) return;
+                break;
+            case SENT:
+                if (newStatus == Proposal.ProposalStatus.APPROVED || newStatus == Proposal.ProposalStatus.REJECTED) return;
+                break;
+            case APPROVED:
+            case REJECTED:
+                break;
+        }
+        throw new RuntimeException("Durum geçişine izin verilmiyor: " + oldStatus + " -> " + newStatus);
     }
 }

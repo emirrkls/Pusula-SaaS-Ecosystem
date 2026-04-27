@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.context.ApplicationContext;
@@ -26,17 +27,19 @@ public class PusulaBackendApplication implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(PusulaBackendApplication.class);
 
     private final ApplicationContext applicationContext;
+    private final Environment environment;
 
     private final UserRepository userRepository;
     private final CompanyRepository companyRepository;
     private final PasswordEncoder passwordEncoder;
 
     public PusulaBackendApplication(UserRepository userRepository, CompanyRepository companyRepository,
-            PasswordEncoder passwordEncoder, ApplicationContext applicationContext) {
+            PasswordEncoder passwordEncoder, ApplicationContext applicationContext, Environment environment) {
         this.userRepository = userRepository;
         this.companyRepository = companyRepository;
         this.passwordEncoder = passwordEncoder;
         this.applicationContext = applicationContext;
+        this.environment = environment;
     }
 
     public static void main(String[] args) {
@@ -74,8 +77,8 @@ public class PusulaBackendApplication implements CommandLineRunner {
             userRepository.save(admin);
 
             log.info("Created default admin user: admin / password");
-        } else {
-            // Reset admin password to ensure it works in development
+        } else if (isDevProfileActive()) {
+            // Keep default admin reset behavior only for local development profile.
             userRepository.findByUsername("admin").ifPresent(admin -> {
                 String newHash = passwordEncoder.encode("password");
                 admin.setPasswordHash(newHash);
@@ -86,5 +89,14 @@ public class PusulaBackendApplication implements CommandLineRunner {
 
         userRepository.findAll()
                 .forEach(u -> log.debug("User: {} | Role: {}", u.getUsername(), u.getRole()));
+    }
+
+    private boolean isDevProfileActive() {
+        for (String profile : environment.getActiveProfiles()) {
+            if ("dev".equalsIgnoreCase(profile)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -49,8 +49,12 @@ public class ProposalController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ProposalDTO> update(@PathVariable Long id, @RequestBody ProposalDTO dto) {
-        ProposalDTO updated = proposalService.update(id, dto);
-        return ResponseEntity.ok(updated);
+        try {
+            ProposalDTO updated = proposalService.update(id, dto);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     @DeleteMapping("/{id}")
