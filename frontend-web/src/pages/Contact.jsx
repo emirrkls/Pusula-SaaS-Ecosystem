@@ -46,7 +46,7 @@ const i18n = {
 };
 
 // ===== API Yapılandırması =====
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://168.231.104.133:8080';
 const COMPANY_ID = import.meta.env.VITE_COMPANY_ID || '1';
 
 // ===== Telefon Numarası Yardımcı Fonksiyonları =====

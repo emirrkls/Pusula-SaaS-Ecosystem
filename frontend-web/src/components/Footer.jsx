@@ -41,6 +41,7 @@ const Footer = () => {
                             <li><Link to="/hakkimizda" className="hover:text-brand-cyan transition-colors">Hakkımızda</Link></li>
                             <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">Hizmetlerimiz</Link></li>
                             <li><Link to="/iletisim" className="hover:text-brand-cyan transition-colors">İletişim</Link></li>
+                            <li><Link to="/destek" className="hover:text-brand-cyan transition-colors">Destek</Link></li>
                         </ul>
                     </div>
 
@@ -76,6 +77,10 @@ const Footer = () => {
                 </div>
 
                 <div className="border-t border-white/10 pt-8 text-center text-gray-500 text-sm">
+                    <div className="flex justify-center gap-6 mb-4">
+                        <Link to="/privacy" className="hover:text-brand-cyan transition-colors">Gizlilik Politikası</Link>
+                        <Link to="/terms" className="hover:text-brand-cyan transition-colors">Kullanım Şartları</Link>
+                    </div>
                     <p>&copy; {new Date().getFullYear()} Pusula İklimlendirme. Tüm hakları saklıdır.</p>
                 </div>
             </div>
