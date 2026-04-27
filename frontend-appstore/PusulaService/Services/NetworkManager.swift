@@ -5,8 +5,7 @@ import Foundation
 actor NetworkManager {
     static let shared = NetworkManager()
     
-    // TODO: Move to configuration/environment before production
-    private let baseURL = "https://api.pusulaservis.com"
+    private let baseURL = "http://168.231.104.133:8080"
     
     private var authToken: String?
     
