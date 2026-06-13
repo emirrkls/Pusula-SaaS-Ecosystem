@@ -10,7 +10,7 @@ const PrivacyPolicy = () => {
 
           <div className="space-y-6 text-gray-700 leading-relaxed">
             <p>
-              Pusula Service olarak, kişisel verilerinizin güvenliğini önemsiyoruz. Bu politika;
+              Pusula İklimlendirme olarak, kişisel verilerinizin güvenliğini önemsiyoruz. Bu politika;
               web sitemiz ile Android ve iOS mobil uygulamalarımız üzerinden toplanan verilerin
               hangi amaçlarla kullanıldığını, nasıl saklandığını ve haklarınızı açıklar.
             </p>
