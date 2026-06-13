@@ -87,8 +87,12 @@ frontend-desktop/installer/PusulaServiceManagerSetup.exe
 # Signing / Certificates / Private keys
 *.jks
 *.keystore
+**/keystore/
 *.p12
 *.mobileprovision
 *.p8
 *.pem
 *.key
+
+# Local dev scripts, mock data, and one-off generators
+backend/scripts/
