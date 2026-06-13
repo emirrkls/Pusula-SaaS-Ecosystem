@@ -9,6 +9,7 @@ package com.pusula.backend.context;
  */
 public class TenantContext {
     private static final ThreadLocal<Long> currentTenantId = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> readOnlyImpersonation = new ThreadLocal<>();
 
     public static void setTenantId(Long tenantId) {
         currentTenantId.set(tenantId);
@@ -18,7 +19,16 @@ public class TenantContext {
         return currentTenantId.get();
     }
 
+    public static void setReadOnlyImpersonation(boolean readOnly) {
+        readOnlyImpersonation.set(readOnly);
+    }
+
+    public static boolean isReadOnlyImpersonation() {
+        return Boolean.TRUE.equals(readOnlyImpersonation.get());
+    }
+
     public static void clear() {
         currentTenantId.remove();
+        readOnlyImpersonation.remove();
     }
 }

@@ -4,6 +4,7 @@ import com.pusula.backend.entity.*;
 import com.pusula.backend.repository.*;
 import lombok.Builder;
 import lombok.Data;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -11,6 +12,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -20,6 +22,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class AdminDashboardService {
+    private final ZoneId businessZone;
+    private final ZoneId serverZone = ZoneId.systemDefault();
 
     private final ServiceTicketRepository ticketRepository;
     private final CurrentAccountRepository currentAccountRepository;
@@ -39,7 +43,8 @@ public class AdminDashboardService {
                                   ServiceUsedPartRepository usedPartRepository,
                                   CustomerRepository customerRepository,
                                   PlanFeatureRepository planFeatureRepository,
-                                  UsageTrackingRepository usageTrackingRepository) {
+                                  UsageTrackingRepository usageTrackingRepository,
+                                  @Value("${app.business.timezone:Europe/Istanbul}") String businessTimezone) {
         this.ticketRepository = ticketRepository;
         this.currentAccountRepository = currentAccountRepository;
         this.expenseRepository = expenseRepository;
@@ -49,6 +54,7 @@ public class AdminDashboardService {
         this.customerRepository = customerRepository;
         this.planFeatureRepository = planFeatureRepository;
         this.usageTrackingRepository = usageTrackingRepository;
+        this.businessZone = ZoneId.of(businessTimezone);
     }
 
     // ═══════════════════════════════════════════════════
@@ -65,29 +71,45 @@ public class AdminDashboardService {
         private int activeTickets;
         private int completedThisMonth;
         private BigDecimal inventoryValue;
+        private int openedToday;
+        private int closedToday;
+        private int pendingNow;
     }
 
     public DashboardKPIs getDashboardKPIs(Long companyId) {
-        LocalDate monthStart = LocalDate.now().withDayOfMonth(1);
-        LocalDateTime monthStartDT = monthStart.atStartOfDay();
+        LocalDate businessToday = LocalDate.now(businessZone);
+        LocalDate monthStart = businessToday.withDayOfMonth(1);
+        LocalDate monthEnd = businessToday;
 
         List<ServiceTicket> tickets = ticketRepository.findByCompanyId(companyId);
 
-        // Monthly revenue
-        BigDecimal monthlyRevenue = tickets.stream()
+        /*
+         * Align with FinanceService / ReportService semantics:
+         * - Ticket income excludes CURRENT_ACCOUNT (debt until collected).
+         * - DEVICE_SALE expenses are stored as negative; count as revenue, not as expense rows.
+         */
+        BigDecimal ticketRevenueThisMonth = tickets.stream()
                 .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
-                .filter(t -> t.getUpdatedAt() != null && !t.getUpdatedAt().isBefore(monthStartDT))
+                .filter(t -> t.getPaymentMethod() != PaymentMethod.CURRENT_ACCOUNT)
+                .filter(t -> isOnOrAfterBusinessDate(t.getUpdatedAt(), monthStart))
                 .map(t -> t.getCollectedAmount() != null ? t.getCollectedAmount() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Monthly expenses
-        BigDecimal monthlyExpenses = expenseRepository
-                .findByCompanyIdAndDateBetween(companyId, monthStart, LocalDate.now())
-                .stream()
+        List<Expense> monthExpenses = expenseRepository
+                .findByCompanyIdAndDateBetween(companyId, monthStart, monthEnd);
+
+        BigDecimal deviceSaleIncome = monthExpenses.stream()
+                .filter(e -> ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
+                .map(e -> e.getAmount().negate())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal monthlyExpenseOnly = monthExpenses.stream()
+                .filter(e -> !ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
                 .map(Expense::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal netProfit = monthlyRevenue.subtract(monthlyExpenses);
+        BigDecimal monthlyRevenue = ticketRevenueThisMonth.add(deviceSaleIncome);
+        BigDecimal netProfit = monthlyRevenue.subtract(monthlyExpenseOnly);
 
         // Profit margin
         BigDecimal profitMargin = BigDecimal.ZERO;
@@ -110,7 +132,22 @@ public class AdminDashboardService {
 
         int completedThisMonth = (int) tickets.stream()
                 .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
-                .filter(t -> t.getUpdatedAt() != null && !t.getUpdatedAt().isBefore(monthStartDT))
+                .filter(t -> isOnOrAfterBusinessDate(t.getUpdatedAt(), monthStart))
+                .count();
+
+        int openedToday = (int) tickets.stream()
+                .filter(t -> isBusinessDateEquals(t.getCreatedAt(), businessToday))
+                .count();
+
+        int closedToday = (int) tickets.stream()
+                .filter(t -> t.getStatus() == ServiceTicket.TicketStatus.COMPLETED
+                        || t.getStatus() == ServiceTicket.TicketStatus.CANCELLED)
+                .filter(t -> isBusinessDateEquals(t.getUpdatedAt(), businessToday))
+                .count();
+
+        int pendingNow = (int) tickets.stream()
+                .filter(t -> t.getAssignedTechnicianId() == null)
+                .filter(t -> t.getStatus() == ServiceTicket.TicketStatus.PENDING)
                 .count();
 
         // Inventory value
@@ -127,6 +164,9 @@ public class AdminDashboardService {
                 .activeTickets(activeTickets)
                 .completedThisMonth(completedThisMonth)
                 .inventoryValue(inventoryValue)
+                .openedToday(openedToday)
+                .closedToday(closedToday)
+                .pendingNow(pendingNow)
                 .build();
     }
 
@@ -153,8 +193,8 @@ public class AdminDashboardService {
                 .collect(Collectors.toList());
 
         List<ServiceTicket> allTickets = ticketRepository.findByCompanyId(companyId);
-        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
-        LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDate businessToday = LocalDate.now(businessZone);
+        LocalDate monthStart = businessToday.withDayOfMonth(1);
 
         return technicians.stream().map(tech -> {
             List<ServiceTicket> myTickets = allTickets.stream()
@@ -164,26 +204,26 @@ public class AdminDashboardService {
             // Completed today
             long completedToday = myTickets.stream()
                     .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
-                    .filter(t -> t.getUpdatedAt() != null && !t.getUpdatedAt().isBefore(todayStart))
+                    .filter(t -> isBusinessDateEquals(t.getUpdatedAt(), businessToday))
                     .count();
 
             // Completed this month
             long completedMonth = myTickets.stream()
                     .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
-                    .filter(t -> t.getUpdatedAt() != null && !t.getUpdatedAt().isBefore(monthStart))
+                    .filter(t -> isOnOrAfterBusinessDate(t.getUpdatedAt(), monthStart))
                     .count();
 
             // Collections today
             BigDecimal collectedToday = myTickets.stream()
                     .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
-                    .filter(t -> t.getUpdatedAt() != null && !t.getUpdatedAt().isBefore(todayStart))
+                    .filter(t -> isBusinessDateEquals(t.getUpdatedAt(), businessToday))
                     .map(t -> t.getCollectedAmount() != null ? t.getCollectedAmount() : BigDecimal.ZERO)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
             // Collections this month
             BigDecimal collectedMonth = myTickets.stream()
                     .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
-                    .filter(t -> t.getUpdatedAt() != null && !t.getUpdatedAt().isBefore(monthStart))
+                    .filter(t -> isOnOrAfterBusinessDate(t.getUpdatedAt(), monthStart))
                     .map(t -> t.getCollectedAmount() != null ? t.getCollectedAmount() : BigDecimal.ZERO)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -212,6 +252,21 @@ public class AdminDashboardService {
                     .lastLocation(lastLocation)
                     .build();
         }).collect(Collectors.toList());
+    }
+
+    private LocalDate toBusinessDate(LocalDateTime dateTime) {
+        if (dateTime == null) return null;
+        return dateTime.atZone(serverZone).withZoneSameInstant(businessZone).toLocalDate();
+    }
+
+    private boolean isBusinessDateEquals(LocalDateTime dateTime, LocalDate date) {
+        LocalDate businessDate = toBusinessDate(dateTime);
+        return businessDate != null && businessDate.equals(date);
+    }
+
+    private boolean isOnOrAfterBusinessDate(LocalDateTime dateTime, LocalDate date) {
+        LocalDate businessDate = toBusinessDate(dateTime);
+        return businessDate != null && !businessDate.isBefore(date);
     }
 
     // ═══════════════════════════════════════════════════

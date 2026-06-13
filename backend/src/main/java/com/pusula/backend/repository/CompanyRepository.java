@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface CompanyRepository extends JpaRepository<Company, Long> {
     Optional<Company> findByOrgCode(String orgCode);
+    Optional<Company> findByOrgCodeIgnoreCase(String orgCode);
 }

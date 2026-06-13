@@ -11,6 +11,8 @@ import java.util.List;
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
 
+    List<User> findAllByUsername(String username);
+
     /**
      * Company-scoped user lookup — prevents cross-tenant username collisions.
      * Used primarily in the corporate (B2B) authentication flow where org_code
@@ -19,6 +21,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsernameAndCompanyId(String username, Long companyId);
 
     List<User> findByCompanyId(Long companyId);
+
+    Optional<User> findFirstByCompanyIdAndRoleOrderByIdAsc(Long companyId, String role);
 
     long countByCompanyIdAndRole(Long companyId, String role);
 }

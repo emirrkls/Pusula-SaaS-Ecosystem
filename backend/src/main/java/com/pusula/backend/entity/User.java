@@ -10,6 +10,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Locale;
 
 @Entity
 @Table(name = "users")
@@ -89,8 +91,32 @@ public class User extends BaseEntity implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        String normalizedRole = role == null ? "" : role.trim().toUpperCase(Locale.ROOT);
         // Spring Security's hasAnyRole() expects authorities with ROLE_ prefix
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role));
+        authorities.add(new SimpleGrantedAuthority("ROLE_" + normalizedRole));
+
+        switch (normalizedRole) {
+            case "SUPER_ADMIN":
+                authorities.add(new SimpleGrantedAuthority("SUPERADMIN_READ_COMPANIES"));
+                authorities.add(new SimpleGrantedAuthority("SUPERADMIN_WRITE_COMPANY"));
+                authorities.add(new SimpleGrantedAuthority("SUPERADMIN_SUSPEND_COMPANY"));
+                authorities.add(new SimpleGrantedAuthority("SUPERADMIN_RESET_PASSWORD"));
+                authorities.add(new SimpleGrantedAuthority("SUPERADMIN_VIEW_SYSTEM"));
+                break;
+            case "SUPER_ADMIN_OPS":
+                authorities.add(new SimpleGrantedAuthority("SUPERADMIN_READ_COMPANIES"));
+                authorities.add(new SimpleGrantedAuthority("SUPERADMIN_SUSPEND_COMPANY"));
+                authorities.add(new SimpleGrantedAuthority("SUPERADMIN_VIEW_SYSTEM"));
+                break;
+            case "SUPER_ADMIN_READONLY":
+                authorities.add(new SimpleGrantedAuthority("SUPERADMIN_READ_COMPANIES"));
+                authorities.add(new SimpleGrantedAuthority("SUPERADMIN_VIEW_SYSTEM"));
+                break;
+            default:
+                break;
+        }
+        return authorities;
     }
 
     @Override

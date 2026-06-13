@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 @Table(name = "audit_logs")
 public class AuditLog extends BaseEntity {
 
-    @Column(name = "company_id", nullable = false)
+    @Column(name = "company_id")
     private Long companyId;
 
     @Column(name = "user_id", nullable = false)
