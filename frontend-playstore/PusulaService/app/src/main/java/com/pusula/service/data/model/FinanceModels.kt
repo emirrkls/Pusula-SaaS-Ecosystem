@@ -36,7 +36,12 @@ data class FixedExpenseDefinitionDTO(
     val dayOfMonth: Int? = null,
     val description: String? = null,
     @SerializedName("isPaidThisMonth")
-    val paidThisMonth: Boolean = false
+    val paidThisMonth: Boolean = false,
+    val paidAmountThisMonth: Double? = null,
+    val frequency: String? = null,
+    val linkedExpenseId: Long? = null,
+    val linkedExpenseName: String? = null,
+    val linkedPaymentsThisMonth: Double? = null
 )
 
 data class ExpenseDTO(

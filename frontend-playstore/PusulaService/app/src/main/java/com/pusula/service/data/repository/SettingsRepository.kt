@@ -45,8 +45,8 @@ class SettingsRepository @Inject constructor(
         )
     )
 
-    suspend fun deleteUser(id: Long) {
-        apiService.deleteUser(id = id)
+    suspend fun deleteUser(id: Long, reassignTo: Long? = null) {
+        apiService.deleteUser(id = id, reassignTo = reassignTo)
     }
 
     suspend fun resetPassword(id: Long, password: String) {

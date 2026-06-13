@@ -29,13 +29,15 @@ class FinanceRepository @Inject constructor(
         amount: Double,
         description: String,
         category: String,
+        fixedExpenseId: Long? = null,
         date: LocalDate = LocalDate.now()
     ): ExpenseDTO {
         val payload = ExpenseDTO(
             amount = amount,
             description = description,
             category = category,
-            date = date.toString()
+            date = date.toString(),
+            fixedExpenseId = fixedExpenseId
         )
         return apiService.financeAddExpense(payload)
     }

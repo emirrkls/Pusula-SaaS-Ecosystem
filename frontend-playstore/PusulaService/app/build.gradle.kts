@@ -31,7 +31,7 @@ fun apiBaseUrl(raw: String?, fallback: String): String {
     return "$trimmed/"
 }
 
-val defaultVpsApiHost = "http://168.231.104.133:8080"
+val defaultVpsApiHost = "https://api.pusulaiklimlendirme.com"
 val debugApiBaseUrl = apiBaseUrl(
     localProperties.getProperty("debug.api.base.url"),
     defaultVpsApiHost
@@ -48,6 +48,32 @@ val googleWebClientId = (
         ?: providers.gradleProperty("GOOGLE_WEB_CLIENT_ID").orNull
         ?: ""
 ).trim()
+val releaseKeystorePath = (
+    localProperties.getProperty("release.keystore.path")
+        ?: providers.environmentVariable("RELEASE_KEYSTORE_PATH").orNull
+        ?: ""
+).trim()
+val releaseKeystorePassword = (
+    localProperties.getProperty("release.keystore.password")
+        ?: providers.environmentVariable("RELEASE_KEYSTORE_PASSWORD").orNull
+        ?: ""
+).trim()
+val releaseKeyAlias = (
+    localProperties.getProperty("release.key.alias")
+        ?: providers.environmentVariable("RELEASE_KEY_ALIAS").orNull
+        ?: ""
+).trim()
+val releaseKeyPassword = (
+    localProperties.getProperty("release.key.password")
+        ?: providers.environmentVariable("RELEASE_KEY_PASSWORD").orNull
+        ?: ""
+).trim()
+val hasReleaseSigning = listOf(
+    releaseKeystorePath,
+    releaseKeystorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword
+).all { it.isNotBlank() }
 
 android {
     namespace = "com.pusula.service"
@@ -57,17 +83,36 @@ android {
         applicationId = "com.pusula.service"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 10
+        versionName = "1.0.9"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+
+        ndk {
+            debugSymbolLevel = "SYMBOL_TABLE"
+        }
     }
 
+    signingConfigs {
+        create("release") {
+            if (hasReleaseSigning) {
+                storeFile = file(releaseKeystorePath)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                logger.warn("Release signing is not fully configured; release artifacts will remain unsigned.")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -126,6 +171,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("io.coil-kt:coil-compose:2.7.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 

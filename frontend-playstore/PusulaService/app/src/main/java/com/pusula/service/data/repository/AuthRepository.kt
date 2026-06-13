@@ -15,14 +15,20 @@ class AuthRepository @Inject constructor(
     private val sessionManager: SessionManager
 ) {
     suspend fun login(username: String, password: String): AuthResponse {
-        val response = apiService.authenticate(AuthRequest(username = username, password = password))
+        val response = apiService.authenticate(
+            AuthRequest(username = username.trim(), password = password.trim())
+        )
         sessionManager.configure(response)
         return response
     }
 
     suspend fun loginCorporate(orgCode: String, username: String, password: String): AuthResponse {
         val response = apiService.authenticate(
-            AuthRequest(username = username, password = password, orgCode = orgCode)
+            AuthRequest(
+                username = username.trim(),
+                password = password.trim(),
+                orgCode = orgCode.trim()
+            )
         )
         sessionManager.configure(response)
         return response
@@ -36,10 +42,10 @@ class AuthRepository @Inject constructor(
     ): AuthResponse {
         val response = apiService.registerIndividual(
             RegisterRequest(
-                email = email,
-                username = username,
-                password = password,
-                fullName = fullName
+                email = email.trim(),
+                username = username.trim(),
+                password = password.trim(),
+                fullName = fullName.trim()
             )
         )
         sessionManager.configure(response)
@@ -59,9 +65,21 @@ class AuthRepository @Inject constructor(
         return response
     }
 
-    suspend fun refreshFeatureContext(): AuthResponse {
-        val context = apiService.myContext()
-        sessionManager.configure(context)
-        return context
+    suspend fun refreshFeatureContext() {
+        val profile = apiService.authFeatureContext()
+        sessionManager.mergeProfile(profile)
+        val sub = apiService.subscriptionMyContext()
+        sessionManager.mergeSubscription(sub)
+    }
+
+    /**
+     * After restoring JWT from storage, load role/plan/features from the API.
+     * Must not call [SessionManager.configure] with a wrong-shaped response.
+     */
+    suspend fun syncRestoredSession() {
+        val profile = apiService.authFeatureContext()
+        sessionManager.mergeProfile(profile)
+        val sub = apiService.subscriptionMyContext()
+        sessionManager.mergeSubscription(sub)
     }
 }

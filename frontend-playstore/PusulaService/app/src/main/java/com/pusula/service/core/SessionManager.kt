@@ -3,8 +3,10 @@ package com.pusula.service.core
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.pusula.service.data.model.AuthProfileResponse
 import com.pusula.service.data.model.AuthResponse
 import com.pusula.service.data.model.QuotaDTO
+import com.pusula.service.data.model.SubscriptionContextDto
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,10 +32,17 @@ data class SessionState(
     val isTechnician: Boolean get() = role == "TECHNICIAN"
 }
 
+/**
+ * Oturum JWT’si [EncryptedSharedPreferences] ile şifrelenmiş olarak cihazda saklanır (dosya düz metin değildir).
+ */
 @Singleton
 class SessionManager @Inject constructor(
     @ApplicationContext context: Context
 ) {
+    /** OkHttp interceptors must not use [runBlocking]; use this for Authorization header. */
+    @Volatile
+    private var tokenCache: String? = null
+
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
@@ -46,12 +55,22 @@ class SessionManager @Inject constructor(
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     )
 
+    /** Persisted so cold start can restore admin vs technician shell before /auth/feature-context returns. */
+    private companion object {
+        const val PREF_ROLE = "session_role"
+    }
+
     private val _state = MutableStateFlow(SessionState())
     val state: StateFlow<SessionState> = _state.asStateFlow()
 
+    fun bearerTokenSnapshot(): String? =
+        tokenCache ?: securePrefs.getString("token", null).also { tokenCache = it }
+
     fun configure(response: AuthResponse) {
+        tokenCache = response.token
         securePrefs.edit()
             .putString("token", response.token)
+            .putString(PREF_ROLE, response.role)
             .apply()
 
         _state.update {
@@ -72,16 +91,50 @@ class SessionManager @Inject constructor(
     }
 
     fun logout() {
-        securePrefs.edit().remove("token").apply()
+        tokenCache = null
+        securePrefs.edit()
+            .remove("token")
+            .remove(PREF_ROLE)
+            .apply()
         _state.value = SessionState()
     }
 
     fun tryRestoreSession() {
         val token = securePrefs.getString("token", null) ?: return
+        val cachedRole = securePrefs.getString(PREF_ROLE, "").orEmpty()
+        tokenCache = token
         _state.update {
             it.copy(
                 isAuthenticated = true,
-                token = token
+                token = token,
+                role = cachedRole
+            )
+        }
+    }
+
+    fun mergeProfile(profile: AuthProfileResponse) {
+        _state.update {
+            it.copy(
+                role = profile.role?.takeIf { r -> r.isNotBlank() } ?: it.role,
+                fullName = profile.fullName ?: it.fullName,
+                companyId = profile.companyId?.toInt() ?: it.companyId,
+                companyName = profile.companyName ?: it.companyName
+            )
+        }
+        val r = _state.value.role
+        if (r.isNotBlank()) {
+            securePrefs.edit().putString(PREF_ROLE, r).apply()
+        }
+    }
+
+    fun mergeSubscription(ctx: SubscriptionContextDto) {
+        _state.update {
+            it.copy(
+                planType = ctx.planType ?: it.planType,
+                features = ctx.features ?: it.features,
+                quota = ctx.quota ?: it.quota,
+                isReadOnly = ctx.isReadOnly ?: it.isReadOnly,
+                trialDaysRemaining = ctx.trialDaysRemaining ?: it.trialDaysRemaining
             )
         }
     }

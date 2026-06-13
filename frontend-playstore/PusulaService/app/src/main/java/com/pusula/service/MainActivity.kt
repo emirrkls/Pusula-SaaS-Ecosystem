@@ -3,6 +3,7 @@ package com.pusula.service
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -17,7 +18,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             PusulaTheme {
-                Surface {
+                Surface(color = MaterialTheme.colorScheme.background) {
                     val authViewModel: AuthViewModel = hiltViewModel()
                     LaunchedEffect(Unit) {
                         authViewModel.tryRestoreSession()

@@ -7,7 +7,10 @@ data class DashboardKPIs(
     val profitMargin: Double? = null,
     val activeTickets: Int? = null,
     val completedThisMonth: Int? = null,
-    val inventoryValue: Double? = null
+    val inventoryValue: Double? = null,
+    val openedToday: Int? = null,
+    val closedToday: Int? = null,
+    val pendingNow: Int? = null
 )
 
 data class TechnicianStat(

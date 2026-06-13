@@ -2,10 +2,11 @@ package com.pusula.service.di
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import android.util.Log
 import com.pusula.service.BuildConfig
 import com.pusula.service.data.remote.ApiService
 import com.pusula.service.data.remote.AuthInterceptor
-import com.pusula.service.data.remote.NetworkError
+import com.pusula.service.util.SensitiveHttpLogRedactor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -26,22 +27,20 @@ object AppModule {
     @Provides
     @Singleton
     fun provideOkHttp(authInterceptor: AuthInterceptor): OkHttpClient {
-        val logInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        }
-
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
-            .addInterceptor { chain ->
-                val response = chain.proceed(chain.request())
-                when (response.code) {
-                    401 -> throw NetworkError.Unauthorized
-                    403 -> throw NetworkError.Forbidden
-                    429 -> throw NetworkError.QuotaExceeded
+            .apply {
+                if (BuildConfig.DEBUG) {
+                    addInterceptor(
+                        HttpLoggingInterceptor { message ->
+                            Log.d("OkHttp", SensitiveHttpLogRedactor.redact(message))
+                        }.apply {
+                            level = HttpLoggingInterceptor.Level.BODY
+                            redactHeader("Authorization")
+                        }
+                    )
                 }
-                response
             }
-            .addInterceptor(logInterceptor)
             .build()
     }
 

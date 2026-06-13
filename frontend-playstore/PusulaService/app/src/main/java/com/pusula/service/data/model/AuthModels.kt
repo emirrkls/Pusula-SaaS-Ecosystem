@@ -1,5 +1,7 @@
 package com.pusula.service.data.model
 
+import com.google.gson.annotations.SerializedName
+
 data class AuthRequest(
     val username: String,
     val password: String,
@@ -19,6 +21,24 @@ data class GoogleAuthRequest(
     val preferredUsername: String? = null
 )
 
+/** Partial JSON from GET /api/auth/feature-context (token optional). */
+data class AuthProfileResponse(
+    val role: String? = null,
+    val fullName: String? = null,
+    val companyId: Long? = null,
+    val companyName: String? = null
+)
+
+/** JSON from GET /api/subscription/my-context */
+data class SubscriptionContextDto(
+    val planType: String? = null,
+    val features: Map<String, Boolean>? = null,
+    val quota: QuotaDTO? = null,
+    @SerializedName("isReadOnly")
+    val isReadOnly: Boolean? = null,
+    val trialDaysRemaining: Int? = null
+)
+
 data class AuthResponse(
     val token: String,
     val role: String,
@@ -28,6 +48,7 @@ data class AuthResponse(
     val planType: String? = null,
     val features: Map<String, Boolean>? = null,
     val quota: QuotaDTO? = null,
+    @SerializedName("isReadOnly")
     val isReadOnly: Boolean? = null,
     val trialDaysRemaining: Int? = null
 )
@@ -63,7 +84,8 @@ data class ServiceTicketDTO(
     val paymentMethod: String? = null,
     val isWarrantyCall: Boolean? = null,
     val parentTicketId: Long? = null,
-    val completedAt: String? = null
+    val completedAt: String? = null,
+    val createdAt: String? = null
 )
 
 data class PlanDTO(

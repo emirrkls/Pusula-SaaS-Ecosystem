@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 
 @Composable
@@ -43,24 +44,27 @@ fun FeatureGated(
 }
 
 fun Modifier.readOnlyProtected(isReadOnly: Boolean): Modifier = composed {
-    if (isReadOnly) {
-        this
-            .graphicsLayer { alpha = 0.6f }
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        awaitPointerEvent()
-                    }
-                }
-            }
-    } else {
-        this
-    }
+    if (!isReadOnly) return@composed this
+    graphicsLayer { alpha = 0.6f }
+        .pointerInput(Unit) {
+            detectTapGestures { /* taps absorbed; avoids infinite awaitPointerEvent loops */ }
+        }
+}
+
+fun featureLabelTr(featureKey: String): String = when (featureKey) {
+    "FINANCE_MODULE" -> "Finans modülü"
+    "BASIC_INVENTORY" -> "Stok / barkod"
+    "PROPOSAL_MODULE" -> "Teklif modülü"
+    "PDF_EXPORT" -> "PDF dışa aktarma"
+    "MULTI_TECHNICIAN" -> "Çoklu teknisyen"
+    "VEHICLE_TRACKING" -> "Araç takibi"
+    else -> featureKey
 }
 
 fun Modifier.featureGated(
     sessionManager: SessionManager,
-    featureKey: String
+    featureKey: String,
+    onLockedTap: () -> Unit = {}
 ): Modifier = composed {
     val state by sessionManager.state.collectAsState()
     val enabled = state.features[featureKey] ?: false
@@ -69,12 +73,13 @@ fun Modifier.featureGated(
     } else {
         this
             .graphicsLayer { alpha = 0.45f }
-            .pointerInput(featureKey) {
-                awaitPointerEventScope {
-                    while (true) {
-                        awaitPointerEvent()
+            .pointerInput(sessionManager, featureKey) {
+                detectTapGestures(
+                    onTap = {
+                        val snapshot = sessionManager.state.value.features[featureKey] ?: false
+                        if (!snapshot) onLockedTap()
                     }
-                }
+                )
             }
     }
 }

@@ -16,7 +16,9 @@ import com.pusula.service.data.model.CreateTicketRequest
 import com.pusula.service.data.model.FieldPin
 import com.pusula.service.data.model.FieldTicketDTO
 import com.pusula.service.data.model.FixedExpenseDefinitionDTO
+import com.pusula.service.data.model.AuthProfileResponse
 import com.pusula.service.data.model.GoogleAuthRequest
+import com.pusula.service.data.model.SubscriptionContextDto
 import com.pusula.service.data.model.InventoryItemDTO
 import com.pusula.service.data.model.MonthlySummaryDTO
 import com.pusula.service.data.model.PlanDTO
@@ -25,6 +27,7 @@ import com.pusula.service.data.model.ProposalDTO
 import com.pusula.service.data.model.QuotaStatus
 import com.pusula.service.data.model.RegisterRequest
 import com.pusula.service.data.model.ServiceTicketDTO
+import com.pusula.service.data.model.ServicePhotoDTO
 import com.pusula.service.data.model.SignatureRequest
 import com.pusula.service.data.model.TechnicianDTO
 import com.pusula.service.data.model.TechnicianStat
@@ -58,8 +61,11 @@ interface ApiService {
     @DELETE("/api/auth/delete-account")
     suspend fun deleteAccount()
 
+    @GET("/api/auth/feature-context")
+    suspend fun authFeatureContext(): AuthProfileResponse
+
     @GET("/api/subscription/my-context")
-    suspend fun myContext(): AuthResponse
+    suspend fun subscriptionMyContext(): SubscriptionContextDto
 
     @GET("/api/tickets/my-assigned")
     suspend fun myAssignedTickets(): List<FieldTicketDTO>
@@ -99,6 +105,32 @@ interface ApiService {
 
     @POST("/api/tickets/{id}/signature")
     suspend fun uploadSignature(@Path("id") ticketId: Long, @Body request: SignatureRequest)
+
+    @Multipart
+    @POST("/api/tickets/{id}/photos")
+    suspend fun uploadServicePhoto(
+        @Path("id") ticketId: Long,
+        @Part("type") type: okhttp3.RequestBody,
+        @Part file: MultipartBody.Part
+    ): ServicePhotoDTO
+
+    @GET("/api/tickets/{id}/photos")
+    suspend fun getServicePhotos(@Path("id") ticketId: Long): List<ServicePhotoDTO>
+
+    @GET("/api/tickets/photos")
+    suspend fun getCompanyServicePhotos(
+        @Query("type") type: String? = null,
+        @Query("ticketId") ticketId: Long? = null,
+        @Query("startDate") startDate: String? = null,
+        @Query("endDate") endDate: String? = null,
+        @Query("limit") limit: Int? = null
+    ): List<ServicePhotoDTO>
+
+    @DELETE("/api/tickets/{ticketId}/photos/{photoId}")
+    suspend fun deleteServicePhoto(
+        @Path("ticketId") ticketId: Long,
+        @Path("photoId") photoId: Long
+    )
 
     @GET("/api/inventory/barcode/{code}")
     suspend fun inventoryByBarcode(@Path("code") code: String): InventoryItemDTO
@@ -147,6 +179,10 @@ interface ApiService {
 
     @GET("/api/reports/finance/pdf")
     suspend fun financeMonthlyPdf(@Query("month") month: String): ResponseBody
+
+    /** Same PDF as desktop: company logo, Inter typography, parts table, technician signature image. */
+    @GET("/api/reports/pdf/service/{ticketId}")
+    suspend fun serviceReportPdf(@Path("ticketId") ticketId: Long): ResponseBody
 
     @POST("/api/finance/close-day")
     suspend fun financeCloseDay(@Body request: CloseDayRequest): DailyClosingDTO

@@ -17,7 +17,8 @@ data class FieldTicketDTO(
     val collectedAmount: Double? = null,
     val paymentMethod: String? = null,
     val isWarrantyCall: Boolean? = null,
-    val parentTicketId: Long? = null
+    val parentTicketId: Long? = null,
+    val createdAt: String? = null
 )
 
 data class UsedPartDTO(
@@ -43,4 +44,12 @@ data class TechnicianDTO(
     val id: Long,
     val fullName: String? = null,
     val role: String? = null
+)
+
+data class ServicePhotoDTO(
+    val id: Long,
+    val ticketId: Long,
+    val url: String,
+    val type: String,
+    val uploadedAt: String? = null
 )

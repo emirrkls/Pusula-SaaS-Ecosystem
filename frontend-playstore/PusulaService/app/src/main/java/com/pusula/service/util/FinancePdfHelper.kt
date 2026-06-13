@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.annotation.RequiresApi
 import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileOutputStream
@@ -40,6 +41,7 @@ object FinancePdfHelper {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun saveToDownloadsMediaStore(context: Context, month: String, data: ByteArray): String {
         val fileName = "finans_raporu_$month.pdf"
         val resolver = context.contentResolver
