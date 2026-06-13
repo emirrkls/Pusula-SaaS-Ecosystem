@@ -28,17 +28,23 @@ public class FeatureService {
     private final PlanFeatureRepository planFeatureRepository;
     private final UsageTrackingRepository usageTrackingRepository;
     private final UserRepository userRepository;
+    private final CustomerRepository customerRepository;
+    private final InventoryRepository inventoryRepository;
 
     public FeatureService(CompanyRepository companyRepository,
                           PlanRepository planRepository,
                           PlanFeatureRepository planFeatureRepository,
                           UsageTrackingRepository usageTrackingRepository,
-                          UserRepository userRepository) {
+                          UserRepository userRepository,
+                          CustomerRepository customerRepository,
+                          InventoryRepository inventoryRepository) {
         this.companyRepository = companyRepository;
         this.planRepository = planRepository;
         this.planFeatureRepository = planFeatureRepository;
         this.usageTrackingRepository = usageTrackingRepository;
         this.userRepository = userRepository;
+        this.customerRepository = customerRepository;
+        this.inventoryRepository = inventoryRepository;
     }
 
     /**
@@ -165,8 +171,10 @@ public class FeatureService {
 
         // Set current usage
         dto.setCurrentTechnicians((int) userRepository.countByCompanyIdAndRole(company.getId(), "TECHNICIAN"));
+        dto.setCurrentCustomers(customerRepository.findByCompanyId(company.getId()).size());
         dto.setCurrentMonthlyTickets(getCurrentUsage(company.getId(), "TICKETS"));
         dto.setCurrentMonthlyProposals(getCurrentUsage(company.getId(), "PROPOSALS"));
+        dto.setCurrentInventoryItems(inventoryRepository.findByCompanyId(company.getId()).size());
 
         return dto;
     }

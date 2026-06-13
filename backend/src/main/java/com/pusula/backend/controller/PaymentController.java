@@ -3,16 +3,27 @@ package com.pusula.backend.controller;
 import com.pusula.backend.entity.Company;
 import com.pusula.backend.entity.PlanType;
 import com.pusula.backend.entity.User;
+import com.pusula.backend.entity.WebhookEvent;
+import com.pusula.backend.entity.WebhookEventStatus;
+import com.pusula.backend.repository.WebhookEventRepository;
+import com.pusula.backend.service.AuditLogService;
 import com.pusula.backend.service.SubscriptionService;
+import com.pusula.backend.service.WebhookSecurityService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Payment and subscription management endpoints.
@@ -25,9 +36,22 @@ public class PaymentController {
     private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
 
     private final SubscriptionService subscriptionService;
+    private final WebhookSecurityService webhookSecurityService;
+    private final AuditLogService auditLogService;
+    private final WebhookEventRepository webhookEventRepository;
+    private final ObjectMapper objectMapper;
 
-    public PaymentController(SubscriptionService subscriptionService) {
+    public PaymentController(
+            SubscriptionService subscriptionService,
+            WebhookSecurityService webhookSecurityService,
+            AuditLogService auditLogService,
+            WebhookEventRepository webhookEventRepository,
+            ObjectMapper objectMapper) {
         this.subscriptionService = subscriptionService;
+        this.webhookSecurityService = webhookSecurityService;
+        this.auditLogService = auditLogService;
+        this.webhookEventRepository = webhookEventRepository;
+        this.objectMapper = objectMapper;
     }
 
     private User getCurrentUser() {
@@ -66,38 +90,118 @@ public class PaymentController {
      * NOT authenticated — validated by Iyzico signature.
      */
     @PostMapping("/webhook/iyzico")
-    public ResponseEntity<Map<String, String>> iyzicoWebhook(@RequestBody Map<String, Object> payload) {
-        log.info("Iyzico webhook received: {}", payload);
+    public ResponseEntity<Map<String, String>> iyzicoWebhook(
+            @RequestBody String rawBody,
+            @RequestHeader(value = "x-iyz-signature", required = false) String signatureHeader,
+            @RequestHeader(value = "x-iyz-retry-count", required = false) String retryHeader,
+            HttpServletRequest request) {
 
-        String eventType = (String) payload.getOrDefault("iyziEventType", "");
-        String subscriptionId = (String) payload.getOrDefault("subscriptionReferenceCode", "");
-        String status = (String) payload.getOrDefault("status", "");
+        Map<String, Object> payload = parsePayload(rawBody);
+        String eventType = String.valueOf(payload.getOrDefault("iyziEventType", "UNKNOWN"));
+        String subscriptionId = String.valueOf(payload.getOrDefault("subscriptionReferenceCode", ""));
+        String eventId = String.valueOf(payload.getOrDefault("conversationId", ""));
 
-        // TODO: Validate Iyzico signature (HMAC)
-        // String signature = request.getHeader("x-iyz-signature");
-        // if (!validateSignature(signature, payload)) return ResponseEntity.status(401).build();
+        int retryCount = parseRetryCount(retryHeader, payload.get("retryCount"));
+        WebhookEvent webhookEvent = new WebhookEvent();
+        webhookEvent.setProvider("IYZICO");
+        webhookEvent.setEventId(eventId);
+        webhookEvent.setEventType(eventType);
+        webhookEvent.setExternalSubscriptionId(subscriptionId);
+        webhookEvent.setRetryCount(retryCount);
+        webhookEvent.setLastRetryAt(retryCount > 0 ? LocalDateTime.now() : null);
+        webhookEvent.setStatus(WebhookEventStatus.RECEIVED);
 
-        switch (eventType) {
-            case "subscription.order.success":
-                subscriptionService.handlePaymentSuccess(subscriptionId);
-                log.info("Iyzico: Payment success for subscription {}", subscriptionId);
-                break;
+        boolean signatureValid = webhookSecurityService.isIyzicoSignatureValid(rawBody, signatureHeader);
+        webhookEvent.setSignatureValid(signatureValid);
+        webhookEventRepository.save(webhookEvent);
 
-            case "subscription.order.failure":
-                subscriptionService.handlePaymentFailure(subscriptionId);
-                log.warn("Iyzico: Payment failed for subscription {}", subscriptionId);
-                break;
+        if (!signatureValid) {
+            webhookEvent.setStatus(WebhookEventStatus.FAILED);
+            webhookEvent.setFailureReason("Invalid webhook signature");
+            webhookEventRepository.save(webhookEvent);
 
-            case "subscription.cancelled":
-                // Find company by subscription ID and cancel
-                log.warn("Iyzico: Subscription cancelled: {}", subscriptionId);
-                break;
+            auditLogService.logAuth(
+                    0L,
+                    0L,
+                    "IYZICO_WEBHOOK",
+                    "WEBHOOK_SIGNATURE_INVALID",
+                    "Iyzico webhook signature doğrulaması başarısız",
+                    request.getRemoteAddr());
 
-            default:
-                log.info("Iyzico: Unhandled event type: {}", eventType);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorBody(
+                    HttpStatus.UNAUTHORIZED,
+                    "INVALID_WEBHOOK_SIGNATURE",
+                    "Webhook imza doğrulaması başarısız",
+                    request.getRequestURI()));
         }
 
-        return ResponseEntity.ok(Map.of("status", "received"));
+        try {
+            switch (eventType) {
+                case "subscription.order.success":
+                    subscriptionService.handlePaymentSuccess(subscriptionId);
+                    log.info("Iyzico: Payment success for subscription {}", subscriptionId);
+                    break;
+                case "subscription.order.failure":
+                    subscriptionService.handlePaymentFailure(subscriptionId);
+                    log.warn("Iyzico: Payment failed for subscription {}", subscriptionId);
+                    break;
+                case "subscription.cancelled":
+                    log.warn("Iyzico: Subscription cancelled: {}", subscriptionId);
+                    break;
+                default:
+                    log.info("Iyzico: Unhandled event type: {}", eventType);
+            }
+
+            webhookEvent.setStatus(WebhookEventStatus.PROCESSED);
+            webhookEvent.setProcessedAt(LocalDateTime.now());
+            webhookEventRepository.save(webhookEvent);
+            return ResponseEntity.ok(Map.of("status", "processed"));
+        } catch (Exception ex) {
+            webhookEvent.setStatus(WebhookEventStatus.FAILED);
+            webhookEvent.setFailureReason(ex.getMessage());
+            webhookEventRepository.save(webhookEvent);
+            log.error("Iyzico webhook processing failed for eventId={}", eventId, ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorBody(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "WEBHOOK_PROCESSING_FAILED",
+                    "Webhook işleme başarısız",
+                    request.getRequestURI()));
+        }
+    }
+
+    private Map<String, Object> parsePayload(String rawBody) {
+        if (rawBody == null || rawBody.isBlank()) {
+            return new HashMap<>();
+        }
+        try {
+            return objectMapper.readValue(rawBody, Map.class);
+        } catch (Exception e) {
+            return new HashMap<>();
+        }
+    }
+
+    private int parseRetryCount(String retryHeader, Object retryPayload) {
+        try {
+            if (retryHeader != null && !retryHeader.isBlank()) {
+                return Integer.parseInt(retryHeader.trim());
+            }
+            if (retryPayload != null) {
+                return Integer.parseInt(String.valueOf(retryPayload));
+            }
+        } catch (NumberFormatException ignored) {
+            // Ignore and return 0
+        }
+        return 0;
+    }
+
+    private Map<String, String> errorBody(HttpStatus status, String code, String message, String path) {
+        Map<String, String> body = new HashMap<>();
+        body.put("status", String.valueOf(status.value()));
+        body.put("code", code);
+        body.put("message", message);
+        body.put("traceId", UUID.randomUUID().toString());
+        body.put("path", path);
+        return body;
     }
 
     /**

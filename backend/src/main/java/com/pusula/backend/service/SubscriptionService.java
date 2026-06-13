@@ -1,8 +1,11 @@
 package com.pusula.backend.service;
 
 import com.pusula.backend.entity.Company;
+import com.pusula.backend.entity.PaymentEvent;
+import com.pusula.backend.entity.PaymentEventStatus;
 import com.pusula.backend.entity.PlanType;
 import com.pusula.backend.repository.CompanyRepository;
+import com.pusula.backend.repository.PaymentEventRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +13,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,9 +31,19 @@ public class SubscriptionService {
     private static final Logger log = LoggerFactory.getLogger(SubscriptionService.class);
 
     private final CompanyRepository companyRepository;
+    private final PaymentEventRepository paymentEventRepository;
+    private final GooglePlayVerificationService googlePlayVerificationService;
+    private final AuditLogService auditLogService;
 
-    public SubscriptionService(CompanyRepository companyRepository) {
+    public SubscriptionService(
+            CompanyRepository companyRepository,
+            PaymentEventRepository paymentEventRepository,
+            GooglePlayVerificationService googlePlayVerificationService,
+            AuditLogService auditLogService) {
         this.companyRepository = companyRepository;
+        this.paymentEventRepository = paymentEventRepository;
+        this.googlePlayVerificationService = googlePlayVerificationService;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -52,6 +69,73 @@ public class SubscriptionService {
                 companyId, oldPlan, newPlan, iyzicoSubscriptionId);
 
         return saved;
+    }
+
+    @Transactional
+    public GoogleVerifyResult verifyGooglePurchaseAndUpgradePlan(
+            Long companyId,
+            PlanType planType,
+            String purchaseToken,
+            String productId) {
+        String tokenHash = sha256(purchaseToken);
+        Optional<PaymentEvent> existingOpt = paymentEventRepository
+                .findByProviderAndTokenHash("GOOGLE_PLAY", tokenHash);
+
+        if (existingOpt.isPresent()) {
+            PaymentEvent existing = existingOpt.get();
+            boolean alreadyProcessed = existing.getStatus() == PaymentEventStatus.PROCESSED;
+            String description = alreadyProcessed
+                    ? "Google purchase token tekrar geldi; idempotent replay olarak işlendi"
+                    : "Google purchase token daha once kaydedildi; tekrar işlenmedi";
+            auditLogService.log(
+                    "SUBSCRIPTION_GOOGLE_VERIFY_IDEMPOTENT",
+                    "PAYMENT_EVENT",
+                    existing.getId(),
+                    description);
+            return new GoogleVerifyResult(
+                    alreadyProcessed,
+                    true,
+                    planType.name(),
+                    existing.getExternalSubscriptionId(),
+                    alreadyProcessed ? "processed" : "failed");
+        }
+
+        PaymentEvent paymentEvent = new PaymentEvent();
+        paymentEvent.setCompanyId(companyId);
+        paymentEvent.setProvider("GOOGLE_PLAY");
+        paymentEvent.setEventType("SUBSCRIPTION_VERIFY");
+        paymentEvent.setTokenHash(tokenHash);
+        paymentEvent.setPurchaseTokenMasked(maskToken(purchaseToken));
+        paymentEvent.setStatus(PaymentEventStatus.RECEIVED);
+        paymentEventRepository.save(paymentEvent);
+
+        GooglePlayVerificationService.GoogleVerificationResult verification = googlePlayVerificationService
+                .verifySubscription(purchaseToken, productId);
+
+        if (!verification.valid()) {
+            paymentEvent.setStatus(PaymentEventStatus.FAILED);
+            paymentEvent.setFailureReason(verification.reason());
+            paymentEventRepository.save(paymentEvent);
+            auditLogService.log(
+                    "SUBSCRIPTION_GOOGLE_VERIFY_FAILED",
+                    "PAYMENT_EVENT",
+                    paymentEvent.getId(),
+                    "Google subscription doğrulama başarısız: " + verification.reason());
+            return new GoogleVerifyResult(false, false, planType.name(), null, "failed");
+        }
+
+        Company updated = upgradePlan(companyId, planType, "google:" + verification.subscriptionId());
+        paymentEvent.setExternalSubscriptionId(verification.subscriptionId());
+        paymentEvent.setStatus(PaymentEventStatus.PROCESSED);
+        paymentEventRepository.save(paymentEvent);
+
+        auditLogService.log(
+                "SUBSCRIPTION_GOOGLE_VERIFY_SUCCESS",
+                "PAYMENT_EVENT",
+                paymentEvent.getId(),
+                "Google subscription doğrulandı ve plan upgrade edildi: " + updated.getPlanType());
+
+        return new GoogleVerifyResult(true, false, updated.getPlanType().name(), verification.subscriptionId(), "processed");
     }
 
     /**
@@ -161,5 +245,34 @@ public class SubscriptionService {
         }
 
         log.info("Subscription check complete: {} companies set to read-only", enforced);
+    }
+
+    private String sha256(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 kullanılamıyor", e);
+        }
+    }
+
+    private String maskToken(String token) {
+        if (token == null || token.isBlank()) {
+            return "n/a";
+        }
+        if (token.length() <= 8) {
+            return "****" + token;
+        }
+        return "****" + token.substring(token.length() - 8);
+    }
+
+    public record GoogleVerifyResult(
+            boolean verified,
+            boolean idempotentReplay,
+            String plan,
+            String subscriptionId,
+            String status
+    ) {
     }
 }
