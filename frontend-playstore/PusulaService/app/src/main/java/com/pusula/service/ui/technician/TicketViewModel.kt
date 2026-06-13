@@ -348,12 +348,23 @@ class TicketViewModel @Inject constructor(
         if (ticketIds.isEmpty()) return@launch
         _uiState.update { it.copy(bulkAssigning = true, error = null) }
         runCatching {
+            val updatedById = linkedMapOf<Long, FieldTicketDTO>()
             ticketIds.forEach { ticketId ->
-                repository.assignTechnician(ticketId, technicianId)
+                updatedById[ticketId] = repository.assignTechnician(ticketId, technicianId)
             }
-        }.onSuccess {
-            loadTickets(refresh = true)
-            _uiState.update { it.copy(bulkAssigning = false) }
+            updatedById
+        }.onSuccess { updatedById ->
+            _uiState.update { state ->
+                state.copy(
+                    bulkAssigning = false,
+                    tickets = state.tickets.map { ticket ->
+                        updatedById[ticket.id] ?: ticket
+                    },
+                    selectedTicket = state.selectedTicket?.let { selected ->
+                        updatedById[selected.id] ?: selected
+                    }
+                )
+            }
         }.onFailure { throwable ->
             _uiState.update {
                 it.copy(

@@ -21,13 +21,7 @@ import androidx.compose.material.icons.outlined.AssignmentInd
 import androidx.compose.material.icons.outlined.AssignmentLate
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,12 +40,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.pusula.service.data.model.FieldTicketDTO
 import com.pusula.service.data.model.TechnicianDTO
-import com.pusula.service.ui.components.AppDashboardSection
 import com.pusula.service.ui.components.AppDropdownField
 import com.pusula.service.ui.components.AppEmptyState
 import com.pusula.service.ui.components.AppGhostCard
-import com.pusula.service.ui.components.AppHeroCard
 import com.pusula.service.ui.components.AppPrimaryButton
+import com.pusula.service.ui.components.AppSecondaryButton
 import com.pusula.service.ui.components.AppStatusBadge
 import com.pusula.service.ui.theme.BrandCyan
 import com.pusula.service.ui.theme.BrandNavy
@@ -137,7 +130,12 @@ private fun statusTone(apiStatus: String?): Color = when (apiStatus?.trim()?.upp
     else -> BrandNavy.copy(alpha = 0.5f)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+private fun pendingUnassignedTickets(tickets: List<FieldTicketDTO>): List<FieldTicketDTO> =
+    tickets.filter {
+        val status = it.status?.trim()?.uppercase().orEmpty()
+        it.assignedTechnicianId == null && status == "PENDING"
+    }
+
 @Composable
 fun TicketListScreen(
     onOpenTicket: (Long) -> Unit,
@@ -151,6 +149,14 @@ fun TicketListScreen(
     val defaultFilter = if (session.isAdmin) "Atama Bekleyen" else "Atanan"
     var selectedFilter by remember(session.isAdmin) { mutableStateOf(defaultFilter) }
     var showCreateTicketDialog by remember { mutableStateOf(false) }
+    var showBulkAssignDialog by remember { mutableStateOf(false) }
+
+    val openCreateTicketDialog = {
+        showCreateTicketDialog = true
+        if (uiState.customers.isEmpty()) {
+            viewModel.loadCustomers()
+        }
+    }
 
     LaunchedEffect(Unit) { viewModel.loadTickets() }
     LaunchedEffect(session.isAdmin) { selectedFilter = defaultFilter }
@@ -187,12 +193,7 @@ fun TicketListScreen(
                     )
                     AppPrimaryButton(
                         text = "Servis Fişi Oluştur",
-                        onClick = {
-                            showCreateTicketDialog = true
-                            if (uiState.customers.isEmpty()) {
-                                viewModel.loadCustomers()
-                            }
-                        },
+                        onClick = openCreateTicketDialog,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -201,15 +202,14 @@ fun TicketListScreen(
                 val filtered = uiState.tickets.filter {
                     ticketMatchesFilter(it, selectedFilter, session.isAdmin)
                 }
-                val unassignedInFiltered = filtered.filter { it.assignedTechnicianId == null }
+                val pendingUnassigned = pendingUnassignedTickets(uiState.tickets)
                 val activeCount = uiState.tickets.count { (it.status?.uppercase() ?: "") == "IN_PROGRESS" }
-                val unassignedCount = uiState.tickets.count {
-                    val s = it.status?.uppercase() ?: ""
-                    it.assignedTechnicianId == null && s == "PENDING"
+
+                LaunchedEffect(showBulkAssignDialog, pendingUnassigned.size) {
+                    if (showBulkAssignDialog && pendingUnassigned.isEmpty()) {
+                        showBulkAssignDialog = false
+                    }
                 }
-                var bulkExpanded by remember(selectedFilter, filtered.size) { mutableStateOf(false) }
-                var bulkTechName by remember(selectedFilter, filtered.size) { mutableStateOf("Teknisyen Seç") }
-                var bulkTechId by remember(selectedFilter, filtered.size) { mutableStateOf<Long?>(null) }
 
                 Column(modifier = Modifier.fillMaxSize()) {
                     if (uiState.refreshing) {
@@ -228,23 +228,14 @@ fun TicketListScreen(
                         verticalArrangement = Arrangement.spacedBy(Spacing.xl)
                     ) {
                         item {
-                            AppHeroCard(
+                            OperationCompactHeader(
                                 eyebrow = if (session.isAdmin) "Operasyon" else "İşlerim",
                                 title = "${uiState.tickets.size} iş emri",
-                                subtitle = "$unassignedCount atama bekliyor · $activeCount devam ediyor",
-                                badge = if (session.isAdmin) "Yönetici görünümü" else "Teknisyen görünümü"
-                            )
-                        }
-                        item {
-                            AppPrimaryButton(
-                                text = "Servis Fişi Oluştur",
-                                onClick = {
-                                    showCreateTicketDialog = true
-                                    if (uiState.customers.isEmpty()) {
-                                        viewModel.loadCustomers()
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
+                                subtitle = if (session.isAdmin) {
+                                    "${pendingUnassigned.size} atama bekliyor · $activeCount devam ediyor"
+                                } else {
+                                    "$activeCount devam ediyor"
+                                }
                             )
                         }
                         item {
@@ -255,107 +246,60 @@ fun TicketListScreen(
                             )
                         }
                         item {
-                            AppDashboardSection(
-                                title = "Servis Fişi",
-                                subtitle = "Müşteri seç, hızlı müşteri oluştur ve fiş aç"
-                            ) {
-                                AppGhostCard {
+                            if (session.isAdmin && pendingUnassigned.isNotEmpty()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+                                ) {
                                     AppPrimaryButton(
                                         text = "Servis Fişi Oluştur",
-                                        onClick = {
-                                            showCreateTicketDialog = true
-                                            if (uiState.customers.isEmpty()) {
-                                                viewModel.loadCustomers()
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
+                                        onClick = openCreateTicketDialog,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    AppSecondaryButton(
+                                        text = "Toplu Atama (${pendingUnassigned.size})",
+                                        onClick = { showBulkAssignDialog = true },
+                                        modifier = Modifier.weight(1f),
+                                        enabled = !uiState.bulkAssigning
                                     )
                                 }
-                            }
-                        }
-                        if (session.isAdmin && unassignedInFiltered.isNotEmpty()) {
-                            item {
-                                AppDashboardSection(
-                                    title = "Toplu Atama",
-                                    subtitle = "${unassignedInFiltered.size} atanmamış"
-                                ) {
-                                    AppGhostCard {
-                                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                                            ExposedDropdownMenuBox(expanded = bulkExpanded, onExpandedChange = { bulkExpanded = it }) {
-                                                OutlinedTextField(
-                                                    value = bulkTechName,
-                                                    onValueChange = {},
-                                                    readOnly = true,
-                                                    label = { Text("Teknisyen Seç") },
-                                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = bulkExpanded) },
-                                                    modifier = Modifier
-                                                        .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
-                                                        .fillMaxWidth()
-                                                )
-                                                ExposedDropdownMenu(expanded = bulkExpanded, onDismissRequest = { bulkExpanded = false }) {
-                                                    uiState.technicians.forEach { tech ->
-                                                        DropdownMenuItem(
-                                                            text = {
-                                                                Text(
-                                                                    (tech.fullName ?: "Teknisyen #${tech.id}").safeForComposeText(
-                                                                        "Teknisyen #${tech.id}"
-                                                                    )
-                                                                )
-                                                            },
-                                                            onClick = {
-                                                                bulkTechName = (tech.fullName ?: "Teknisyen #${tech.id}")
-                                                                    .safeForComposeText("Teknisyen #${tech.id}")
-                                                                bulkTechId = tech.id
-                                                                bulkExpanded = false
-                                                            }
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                            AppPrimaryButton(
-                                                text = if (uiState.bulkAssigning) "Toplu Atama Yapılıyor..." else "Filtredeki Atanmamış Fişleri Ata",
-                                                onClick = {
-                                                    val ids = unassignedInFiltered.map { it.id }
-                                                    val techId = bulkTechId
-                                                    if (techId != null && ids.isNotEmpty()) {
-                                                        viewModel.assignTechnicianBulk(ids, techId)
-                                                    }
-                                                },
-                                                enabled = bulkTechId != null && !uiState.bulkAssigning,
-                                                modifier = Modifier.fillMaxWidth()
-                                            )
-                                        }
-                                    }
-                                }
+                            } else {
+                                AppPrimaryButton(
+                                    text = "Servis Fişi Oluştur",
+                                    onClick = openCreateTicketDialog,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
                         }
                         item {
-                            AppDashboardSection(
+                            TicketListSectionHeader(
                                 title = "İş Emirleri",
                                 subtitle = "${filtered.size} sonuç"
-                            ) {
-                                if (filtered.isEmpty()) {
-                                    AppEmptyState(
-                                        title = if (selectedFilter == "Tümü") "İş emri yok" else "Bu filtrede sonuç yok",
-                                        subtitle = if (selectedFilter == "Tümü") {
-                                            "Yeni bir fiş açıldığında burada görünecek."
-                                        } else {
-                                            "Farklı bir filtre seçmeyi deneyin."
-                                        },
-                                        icon = Icons.Outlined.AssignmentInd,
-                                        tint = BrandCyan
-                                    )
-                                }
-                            }
-                        }
-                        items(filtered, key = { it.id }) { ticket ->
-                            TicketCard(
-                                ticket = ticket,
-                                isAdmin = session.isAdmin,
-                                technicians = uiState.technicians,
-                                onAssignTechnician = { techId -> viewModel.assignTechnician(ticket.id, techId) },
-                                onClick = { onOpenTicket(ticket.id) }
                             )
+                        }
+                        if (filtered.isEmpty()) {
+                            item {
+                                AppEmptyState(
+                                    title = if (selectedFilter == "Tümü") "İş emri yok" else "Bu filtrede sonuç yok",
+                                    subtitle = if (selectedFilter == "Tümü") {
+                                        "Yeni bir fiş açıldığında burada görünecek."
+                                    } else {
+                                        "Farklı bir filtre seçmeyi deneyin."
+                                    },
+                                    icon = Icons.Outlined.AssignmentInd,
+                                    tint = BrandCyan
+                                )
+                            }
+                        } else {
+                            items(filtered, key = { it.id }) { ticket ->
+                                TicketCard(
+                                    ticket = ticket,
+                                    isAdmin = session.isAdmin,
+                                    technicians = uiState.technicians,
+                                    onAssignTechnician = { techId -> viewModel.assignTechnician(ticket.id, techId) },
+                                    onClick = { onOpenTicket(ticket.id) }
+                                )
+                            }
                         }
                     }
                 }
@@ -378,6 +322,67 @@ fun TicketListScreen(
             onCreateTicket = { customerId, description, notes, techId ->
                 viewModel.createServiceTicket(customerId, description, notes, techId)
             }
+        )
+    }
+
+    if (showBulkAssignDialog) {
+        BulkAssignDialog(
+            tickets = pendingUnassignedTickets(uiState.tickets),
+            technicians = uiState.technicians,
+            assigning = uiState.bulkAssigning,
+            onDismiss = { showBulkAssignDialog = false },
+            onAssignSelected = { ticketIds, technicianId ->
+                viewModel.assignTechnicianBulk(ticketIds, technicianId)
+            }
+        )
+    }
+}
+
+@Composable
+private fun OperationCompactHeader(
+    eyebrow: String,
+    title: String,
+    subtitle: String
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = eyebrow,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun TicketListSectionHeader(title: String, subtitle: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+        )
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
