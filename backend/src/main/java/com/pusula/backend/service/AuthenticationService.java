@@ -29,8 +29,10 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -157,9 +159,10 @@ public class AuthenticationService {
 
                         if (request.getOrgCode() != null && !request.getOrgCode().isEmpty()) {
                                 // B2B Corporate login
-                                company = companyRepository.findByOrgCode(request.getOrgCode())
+                                String normalizedOrgCode = request.getOrgCode().trim().toUpperCase(Locale.ROOT);
+                                company = companyRepository.findByOrgCodeIgnoreCase(normalizedOrgCode)
                                                 .orElseThrow(() -> new BadCredentialsException(
-                                                                "Kurum kodu bulunamadı: " + request.getOrgCode()));
+                                                                "Kurum kodu bulunamadı: " + normalizedOrgCode));
 
                                 user = userRepository.findByUsernameAndCompanyId(
                                                 request.getUsername(), company.getId())
@@ -171,14 +174,20 @@ public class AuthenticationService {
                                         throw new BadCredentialsException("Hatalı şifre");
                                 }
                         } else {
-                                // Individual login — use Spring Security authentication manager
-                                authenticationManager.authenticate(
-                                                new UsernamePasswordAuthenticationToken(
-                                                                request.getUsername(),
-                                                                request.getPassword()));
-
-                                user = userRepository.findByUsername(request.getUsername())
-                                                .orElseThrow();
+                                // Individual login — username is unique per company; resolve tenant safely.
+                                List<User> matches = userRepository.findAllByUsername(request.getUsername());
+                                if (matches.isEmpty()) {
+                                        throw new BadCredentialsException("Kullanıcı bulunamadı");
+                                }
+                                if (matches.size() > 1) {
+                                        throw new BadCredentialsException(
+                                                        "Bu kullanıcı adı birden fazla kurumda kayıtlı. "
+                                                                        + "Lütfen Kurumsal giriş sekmesinden kurum kodunuzla giriş yapın.");
+                                }
+                                user = matches.get(0);
+                                if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+                                        throw new BadCredentialsException("Hatalı şifre");
+                                }
                                 company = companyRepository.findById(user.getCompanyId()).orElse(null);
                         }
 

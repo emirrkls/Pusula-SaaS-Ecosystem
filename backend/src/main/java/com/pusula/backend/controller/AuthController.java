@@ -6,6 +6,7 @@ import com.pusula.backend.dto.GoogleAuthRequest;
 import com.pusula.backend.dto.RegisterRequest;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.service.AuthenticationService;
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,12 +17,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
     private final AuthenticationService service;
+    private final ConcurrentHashMap<String, AttemptWindow> failedAttempts = new ConcurrentHashMap<>();
+    private static final int MAX_FAILED_ATTEMPTS = 8;
+    private static final long WINDOW_MS = 10 * 60 * 1000L;
 
     public AuthController(AuthenticationService service) {
         this.service = service;
@@ -51,9 +57,25 @@ public class AuthController {
      * Authenticate — supports both individual and corporate (orgCode) flows.
      */
     @PostMapping("/authenticate")
-    public ResponseEntity<AuthResponse> authenticate(
-            @RequestBody AuthRequest request) {
-        return ResponseEntity.ok(service.authenticate(request));
+    public ResponseEntity<?> authenticate(
+            @RequestBody AuthRequest request,
+            HttpServletRequest httpRequest) {
+        String key = buildThrottleKey(request.getUsername(), httpRequest);
+        if (isBlocked(key)) {
+            return ResponseEntity.status(429).body(Map.of(
+                    "status", 429,
+                    "code", "AUTH_RATE_LIMITED",
+                    "message", "Çok fazla başarısız giriş denemesi. Lütfen daha sonra tekrar deneyin.",
+                    "path", "/api/auth/authenticate"));
+        }
+        try {
+            AuthResponse response = service.authenticate(request);
+            failedAttempts.remove(key);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException ex) {
+            registerFailure(key);
+            throw ex;
+        }
     }
 
     /**
@@ -105,5 +127,43 @@ public class AuthController {
 
     private User getCurrentUser() {
         return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    }
+
+    private String buildThrottleKey(String username, HttpServletRequest request) {
+        String normalizedUser = username == null ? "" : username.trim().toLowerCase();
+        String ip = request.getRemoteAddr();
+        return normalizedUser + "|" + ip;
+    }
+
+    private boolean isBlocked(String key) {
+        AttemptWindow window = failedAttempts.get(key);
+        if (window == null) return false;
+        long now = System.currentTimeMillis();
+        if (now - window.windowStartMs > WINDOW_MS) {
+            failedAttempts.remove(key);
+            return false;
+        }
+        return window.failedCount.get() >= MAX_FAILED_ATTEMPTS;
+    }
+
+    private void registerFailure(String key) {
+        long now = System.currentTimeMillis();
+        failedAttempts.compute(key, (k, current) -> {
+            if (current == null || now - current.windowStartMs > WINDOW_MS) {
+                return new AttemptWindow(now, new AtomicInteger(1));
+            }
+            current.failedCount.incrementAndGet();
+            return current;
+        });
+    }
+
+    private static final class AttemptWindow {
+        private final long windowStartMs;
+        private final AtomicInteger failedCount;
+
+        private AttemptWindow(long windowStartMs, AtomicInteger failedCount) {
+            this.windowStartMs = windowStartMs;
+            this.failedCount = failedCount;
+        }
     }
 }

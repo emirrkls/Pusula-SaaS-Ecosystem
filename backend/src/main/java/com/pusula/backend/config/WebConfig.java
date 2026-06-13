@@ -1,5 +1,6 @@
 package com.pusula.backend.config;
 
+import com.pusula.backend.context.TenantInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.http.MediaType;
@@ -24,9 +25,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
 
     private final RateLimitInterceptor rateLimitInterceptor;
+    private final TenantInterceptor tenantInterceptor;
 
-    public WebConfig(RateLimitInterceptor rateLimitInterceptor) {
+    public WebConfig(RateLimitInterceptor rateLimitInterceptor, TenantInterceptor tenantInterceptor) {
         this.rateLimitInterceptor = rateLimitInterceptor;
+        this.tenantInterceptor = tenantInterceptor;
     }
 
     /**
@@ -37,6 +40,10 @@ public class WebConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns("/api/public/**");
+
+        registry.addInterceptor(tenantInterceptor)
+                .addPathPatterns("/api/**")
+                .excludePathPatterns("/api/public/**", "/api/auth/**", "/api/payment/webhook/**");
     }
 
     @Override

@@ -43,6 +43,18 @@ public class JwtService {
         return (String) claims.get("role");
     }
 
+    public Boolean extractBooleanClaim(String token, String claimName) {
+        Claims claims = extractAllClaims(token);
+        Object val = claims.get(claimName);
+        if (val instanceof Boolean b) {
+            return b;
+        }
+        if (val instanceof String s) {
+            return Boolean.parseBoolean(s);
+        }
+        return false;
+    }
+
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);

@@ -73,7 +73,10 @@ echo ""
 # Test API endpoint
 echo "[7/8] Testing API endpoint (localhost)..."
 if command -v curl &> /dev/null; then
-    response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/auth/login 2>/dev/null || echo "000")
+    response=$(curl -s -o /dev/null -w "%{http_code}" \
+      -X POST http://localhost:8080/api/auth/authenticate \
+      -H "Content-Type: application/json" \
+      -d '{"username":"diag","password":"diag"}' 2>/dev/null || echo "000")
     if [ "$response" != "000" ]; then
         echo "✓ API is responding (HTTP $response)"
     else
