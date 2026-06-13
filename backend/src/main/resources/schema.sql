@@ -70,8 +70,8 @@ CREATE TABLE service_tickets (
 
 -- Service Photos Table
 CREATE TABLE service_photos (
-    id UUID DEFAULT random_uuid() PRIMARY KEY,
-    ticket_id UUID NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    ticket_id BIGINT NOT NULL,
     url TEXT NOT NULL,
     type VARCHAR(50) NOT NULL, -- BEFORE, AFTER
     uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
