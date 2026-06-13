@@ -28,22 +28,19 @@ import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -70,9 +67,9 @@ import com.pusula.service.data.model.CurrentAccountDTO
 import com.pusula.service.data.model.ExpenseItemDTO
 import com.pusula.service.data.model.FixedExpenseDefinitionDTO
 import com.pusula.service.ui.components.AppDashboardSection
+import com.pusula.service.ui.components.AppPickerField
 import com.pusula.service.ui.components.AppEmptyState
 import com.pusula.service.ui.components.AppGhostCard
-import com.pusula.service.ui.components.AppHeroCard
 import com.pusula.service.ui.components.AppIconBadge
 import com.pusula.service.ui.components.AppInitialsAvatar
 import com.pusula.service.ui.components.AppPrimaryButton
@@ -84,6 +81,7 @@ import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.ui.theme.Success
 import com.pusula.service.ui.theme.Warning
 import com.pusula.service.util.FinancePdfHelper
+import java.time.LocalDate
 import java.util.Locale
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -120,6 +118,56 @@ private fun formatFixedDueSummary(item: FixedExpenseDefinitionDTO): String {
     }
 }
 
+private fun fixedExpenseOptionLabel(item: FixedExpenseDefinitionDTO): String =
+    buildString {
+        append(item.name.orEmpty().ifBlank { "Sabit gider" })
+        append(" · kalan ₺${formatMoney(fixedExpenseRemainingAmount(item))}")
+    }
+
+private data class FinanceHeaderInfo(
+    val eyebrow: String,
+    val title: String,
+    val subtitle: String
+)
+
+private fun financeHeaderInfo(
+    selectedTab: String,
+    headerIncome: Double,
+    headerExpense: Double,
+    headerNet: Double,
+    currentAccounts: List<CurrentAccountDTO>,
+    dailyTotals: List<DailyTotalDTO>
+): FinanceHeaderInfo = when (selectedTab) {
+    "Analiz" -> {
+        val income = dailyTotals.sumOf { it.income ?: 0.0 }
+        val expense = dailyTotals.sumOf { it.expense ?: 0.0 }
+        FinanceHeaderInfo(
+            eyebrow = "Son 30 gün",
+            title = "Net ₺${formatMoney(income - expense)}",
+            subtitle = "Gelir ₺${formatMoney(income)} • Gider ₺${formatMoney(expense)}"
+        )
+    }
+    "Cari" -> {
+        val debtors = currentAccounts.count { (it.balance ?: 0.0) > 0.0 }
+        val total = currentAccounts.sumOf { (it.balance ?: 0.0).coerceAtLeast(0.0) }
+        FinanceHeaderInfo(
+            eyebrow = "Toplam alacak",
+            title = "₺${formatMoney(total)}",
+            subtitle = "$debtors borçlu müşteri · ${currentAccounts.size} cari kayıt"
+        )
+    }
+    "Rapor" -> FinanceHeaderInfo(
+        eyebrow = "Rapor özeti",
+        title = "₺${formatMoney(headerNet)}",
+        subtitle = "Gelir ₺${formatMoney(headerIncome)} • Gider ₺${formatMoney(headerExpense)}"
+    )
+    else -> FinanceHeaderInfo(
+        eyebrow = "Bugünkü kasa",
+        title = "₺${formatMoney(headerNet)}",
+        subtitle = "Gelir ₺${formatMoney(headerIncome)} • Gider ₺${formatMoney(headerExpense)}"
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FinanceScreen(
@@ -141,6 +189,7 @@ fun FinanceScreen(
     var showIncome by remember { mutableStateOf(true) }
     var showExpense by remember { mutableStateOf(true) }
     var showNet by remember { mutableStateOf(true) }
+    var pdfMenuMonth by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -170,6 +219,14 @@ fun FinanceScreen(
     val unpaidFixedMatches = remember(uiState.fixedExpenses, category) {
         uiState.fixedExpenses.filter { !it.paidThisMonth && it.category == category }
     }
+    val headerInfo = financeHeaderInfo(
+        selectedTab = selectedTab,
+        headerIncome = headerIncome,
+        headerExpense = headerExpense,
+        headerNet = headerNet,
+        currentAccounts = uiState.currentAccounts,
+        dailyTotals = uiState.dailyTotals
+    )
 
     LaunchedEffect(Unit) { viewModel.loadDashboard() }
     LaunchedEffect(uiState.debtPaymentSavedAt) {
@@ -182,7 +239,6 @@ fun FinanceScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Finans") }) },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         when {
@@ -213,11 +269,10 @@ fun FinanceScreen(
                         verticalArrangement = Arrangement.spacedBy(Spacing.lg)
                     ) {
                         item {
-                            AppHeroCard(
-                                eyebrow = if (selectedTab == "Rapor") "Rapor özeti" else "Bugünkü kasa",
-                                title = "₺${formatMoney(headerNet)}",
-                                subtitle = "Gelir ₺${formatMoney(headerIncome)} • Gider ₺${formatMoney(headerExpense)}",
-                                badge = if (headerNet >= 0) "Pozitif" else "Negatif"
+                            FinanceCompactHeader(
+                                eyebrow = headerInfo.eyebrow,
+                                title = headerInfo.title,
+                                subtitle = headerInfo.subtitle
                             )
                         }
                         item {
@@ -227,28 +282,8 @@ fun FinanceScreen(
                                 onSelect = { selectedTab = it }
                             )
                         }
-                        item {
-                            SummaryCards(
-                                income = headerIncome,
-                                expense = headerExpense,
-                                net = headerNet
-                            )
-                        }
                         when (selectedTab) {
                             "Günlük" -> {
-                                if (uiState.overdueFixedCount > 0 || uiState.upcomingFixedCount > 0) {
-                                    item {
-                                        AlertsCard(
-                                            overdueCount = uiState.overdueFixedCount,
-                                            upcomingCount = uiState.upcomingFixedCount
-                                        )
-                                    }
-                                }
-                                if (uiState.fixedExpenses.isNotEmpty()) {
-                                    item {
-                                        FixedExpensesCard(fixedExpenses = uiState.fixedExpenses)
-                                    }
-                                }
                                 item {
                                     AddExpenseCard(
                                         amountText = amountText,
@@ -284,6 +319,19 @@ fun FinanceScreen(
                                             }
                                         }
                                     )
+                                }
+                                if (uiState.overdueFixedCount > 0 || uiState.upcomingFixedCount > 0) {
+                                    item {
+                                        AlertsCard(
+                                            overdueCount = uiState.overdueFixedCount,
+                                            upcomingCount = uiState.upcomingFixedCount
+                                        )
+                                    }
+                                }
+                                if (uiState.fixedExpenses.isNotEmpty()) {
+                                    item {
+                                        FixedExpensesCard(fixedExpenses = uiState.fixedExpenses)
+                                    }
                                 }
                                 item {
                                     AppDashboardSection(
@@ -386,17 +434,17 @@ fun FinanceScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        FilterDropdown(
+                                        AppPickerField(
                                             label = "Yıl",
+                                            selectedValue = selectedYear,
                                             options = yearOptions,
-                                            selected = selectedYear,
                                             onSelected = { selectedYear = it },
                                             modifier = Modifier.weight(1f)
                                         )
-                                        FilterDropdown(
+                                        AppPickerField(
                                             label = "Ay",
+                                            selectedValue = selectedMonth,
                                             options = monthOptions,
-                                            selected = selectedMonth,
                                             onSelected = { selectedMonth = it },
                                             modifier = Modifier.weight(1f)
                                         )
@@ -424,45 +472,9 @@ fun FinanceScreen(
                                                     text = if (uiState.downloadingMonth == month) {
                                                         "PDF Hazırlanıyor..."
                                                     } else {
-                                                        "PDF İndir/Paylaş"
+                                                        "PDF"
                                                     },
-                                                    onClick = {
-                                                        if (!month.isNullOrBlank()) {
-                                                            scope.launch {
-                                                                runCatching {
-                                                                    val data = viewModel.downloadMonthlyPdf(month)
-                                                                    FinancePdfHelper.saveAndShare(context, month, data)
-                                                                }
-                                                            }
-                                                        }
-                                                    },
-                                                    enabled = !month.isNullOrBlank() && uiState.downloadingMonth != month,
-                                                    modifier = Modifier.fillMaxWidth()
-                                                )
-                                                AppPrimaryButton(
-                                                    text = if (uiState.downloadingMonth == month) {
-                                                        "PDF Hazırlanıyor..."
-                                                    } else {
-                                                        "Downloads'a Kaydet"
-                                                    },
-                                                    onClick = {
-                                                        if (!month.isNullOrBlank()) {
-                                                            scope.launch {
-                                                                runCatching {
-                                                                    val data = viewModel.downloadMonthlyPdf(month)
-                                                                    FinancePdfHelper.saveToDownloads(context, month, data)
-                                                                        .onSuccess { path ->
-                                                                            snackbarHostState.showSnackbar("PDF kaydedildi: $path")
-                                                                        }
-                                                                        .onFailure {
-                                                                            snackbarHostState.showSnackbar("PDF kaydedilemedi: ${it.message}")
-                                                                        }
-                                                                }.onFailure {
-                                                                    snackbarHostState.showSnackbar("PDF indirilemedi: ${it.message}")
-                                                                }
-                                                            }
-                                                        }
-                                                    },
+                                                    onClick = { if (!month.isNullOrBlank()) pdfMenuMonth = month },
                                                     enabled = !month.isNullOrBlank() && uiState.downloadingMonth != month,
                                                     modifier = Modifier.fillMaxWidth()
                                                 )
@@ -568,7 +580,7 @@ fun FinanceScreen(
                                 fontWeight = FontWeight.SemiBold,
                                 color = Info
                             )
-                            ExposedFixedExpenseSelector(
+                            FixedExpensePickerField(
                                 items = unpaidFixedMatches,
                                 selectedId = smartLinkSelectionId,
                                 onSelected = { smartLinkSelectionId = it }
@@ -618,44 +630,96 @@ fun FinanceScreen(
             }
         )
     }
+
+    pdfMenuMonth?.let { month ->
+        AlertDialog(
+            onDismissRequest = { pdfMenuMonth = null },
+            title = { Text("PDF") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text(
+                        "Aylık finans raporu için bir işlem seçin.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(
+                        onClick = {
+                            pdfMenuMonth = null
+                            scope.launch {
+                                runCatching {
+                                    val data = viewModel.downloadMonthlyPdf(month)
+                                    FinancePdfHelper.saveAndShare(context, month, data)
+                                }.onFailure {
+                                    snackbarHostState.showSnackbar("PDF indirilemedi: ${it.message}")
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Paylaş", modifier = Modifier.fillMaxWidth())
+                    }
+                    TextButton(
+                        onClick = {
+                            pdfMenuMonth = null
+                            scope.launch {
+                                runCatching {
+                                    val data = viewModel.downloadMonthlyPdf(month)
+                                    FinancePdfHelper.saveToDownloads(context, month, data)
+                                        .onSuccess { path ->
+                                            snackbarHostState.showSnackbar("PDF kaydedildi: $path")
+                                        }
+                                        .onFailure {
+                                            snackbarHostState.showSnackbar("PDF kaydedilemedi: ${it.message}")
+                                        }
+                                }.onFailure {
+                                    snackbarHostState.showSnackbar("PDF indirilemedi: ${it.message}")
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Downloads'a Kaydet", modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { pdfMenuMonth = null }) { Text("Vazgeç") }
+            }
+        )
+    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FilterDropdown(
-    label: String,
-    options: List<String>,
-    selected: String,
-    onSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
+private fun FinanceCompactHeader(
+    eyebrow: String,
+    title: String,
+    subtitle: String
 ) {
-    var expanded by remember(label) { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
     ) {
-        OutlinedTextField(
-            value = selected,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor(type = MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
+        Column(
+            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = {
-                        onSelected(option)
-                        expanded = false
-                    }
-                )
-            }
+            Text(
+                text = eyebrow,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -877,79 +941,27 @@ private fun CurrentAccountRow(
 }
 
 @Composable
-private fun SummaryCards(income: Double, expense: Double, net: Double) {
-    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), modifier = Modifier.fillMaxWidth()) {
-        SummaryCard("Gelir", income, Success, Modifier.weight(1f))
-        SummaryCard("Gider", expense, ErrorTone, Modifier.weight(1f))
-        SummaryCard("Net Kasa", net, if (net >= 0) Info else ErrorTone, Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun SummaryCard(title: String, value: Double, tone: Color, modifier: Modifier) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
-    ) {
-        Column(
-            modifier = Modifier.padding(Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .background(tone.copy(alpha = 0.18f), RoundedCornerShape(9.dp))
-            )
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
-            )
-            Text(
-                text = "₺${formatMoney(value)}",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = tone,
-                maxLines = 1
-            )
-        }
-    }
-}
-
-@Composable
 private fun FinanceTabs(tabs: List<String>, selected: String, onSelect: (String) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+    val selectedIndex = tabs.indexOf(selected).coerceAtLeast(0)
+    ScrollableTabRow(
+        selectedTabIndex = selectedIndex,
+        edgePadding = 0.dp,
+        divider = {}
     ) {
-        tabs.forEach { tab ->
-            val isSelected = tab == selected
-            Surface(
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(50),
-                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                else MaterialTheme.colorScheme.surface,
-                border = BorderStroke(
-                    1.dp,
-                    if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                    else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                ),
-                onClick = { onSelect(tab) }
-            ) {
-                Text(
-                    text = tab,
-                    modifier = Modifier.padding(vertical = Spacing.sm),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                    ),
-                    color = if (isSelected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1
-                )
-            }
+        tabs.forEachIndexed { index, tab ->
+            Tab(
+                selected = index == selectedIndex,
+                onClick = { onSelect(tab) },
+                text = {
+                    Text(
+                        text = tab,
+                        maxLines = 1,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = if (index == selectedIndex) FontWeight.Bold else FontWeight.Medium
+                        )
+                    )
+                }
+            )
         }
     }
 }
@@ -1020,59 +1032,36 @@ private fun AlertsCard(overdueCount: Int, upcomingCount: Int) {
 
 @Composable
 private fun FixedExpensesCard(fixedExpenses: List<FixedExpenseDefinitionDTO>) {
+    var expanded by remember { mutableStateOf(false) }
+    val sorted = remember(fixedExpenses) { fixedExpenses.sortedBy { it.dayOfMonth ?: Int.MAX_VALUE } }
+    val currentDay = LocalDate.now().dayOfMonth
+    val overdueCount = sorted.count { !it.paidThisMonth && (it.dayOfMonth ?: 99) < currentDay }
+
     AppGhostCard {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            Text("Sabit Gider Takvimi", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            fixedExpenses.sortedBy { it.dayOfMonth ?: Int.MAX_VALUE }.take(5).forEach { item ->
-                val target = fixedExpenseTargetAmount(item)
-                val paid = fixedExpensePaidAmount(item)
-                val remaining = fixedExpenseRemainingAmount(item)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(item.name.orEmpty().ifBlank { "Sabit Gider" }, fontWeight = FontWeight.Medium)
-                        Text(
-                            formatFixedDueSummary(item),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            expenseCategoryOptions.firstOrNull { it.first == item.category }?.second
-                                ?: (item.category ?: "Diğer"),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                        Text(
-                            buildString {
-                                append("Bu ay ödenen ₺${formatMoney(paid)}")
-                                append(" · ")
-                                if (item.paidThisMonth || remaining < 0.005) {
-                                    append("Tamamlandı")
-                                } else {
-                                    append("Kalan ₺${formatMoney(remaining)}")
-                                }
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (item.paidThisMonth) Success else Warning,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            "₺${formatMoney(target)}",
-                            fontWeight = FontWeight.SemiBold,
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            if (item.paidThisMonth) "Ödendi" else "Bekliyor",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (item.paidThisMonth) Success else Warning,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Sabit Gider Takvimi", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        buildString {
+                            append("${sorted.size} kayıt")
+                            if (overdueCount > 0) append(" · $overdueCount geciken")
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "Daralt" else "Göster")
+                }
+            }
+            if (expanded) {
+                sorted.forEach { item ->
+                    FixedExpenseRow(item = item)
                 }
             }
         }
@@ -1080,38 +1069,54 @@ private fun FixedExpensesCard(fixedExpenses: List<FixedExpenseDefinitionDTO>) {
 }
 
 @Composable
-private fun FixedExpenseDropdownMenuLine(item: FixedExpenseDefinitionDTO, compact: Boolean) {
-    val variant = MaterialTheme.colorScheme.onSurfaceVariant
-    val paid = fixedExpensePaidAmount(item)
-    val rem = fixedExpenseRemainingAmount(item)
+private fun FixedExpenseRow(item: FixedExpenseDefinitionDTO) {
     val target = fixedExpenseTargetAmount(item)
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-            item.name.orEmpty().ifBlank { "Sabit gider" },
-            style = if (compact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
-        )
-        Text(
-            buildString {
-                append(formatFixedDueSummary(item))
-                append(" · ")
-                append("₺${formatMoney(paid)} / ₺${formatMoney(target)}")
-                if (!item.paidThisMonth && rem >= 0.005) {
-                    append(" · kalan ₺${formatMoney(rem)}")
-                }
-            },
-            style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
-            color = variant,
-            maxLines = 3
-        )
-        val linkedName = item.linkedExpenseName
-        val linkedPaid = item.linkedPaymentsThisMonth ?: 0.0
-        if (!linkedName.isNullOrBlank() && linkedPaid > 0.0) {
+    val paid = fixedExpensePaidAmount(item)
+    val remaining = fixedExpenseRemainingAmount(item)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(item.name.orEmpty().ifBlank { "Sabit Gider" }, fontWeight = FontWeight.Medium)
             Text(
-                "Bağlı: $linkedName · ₺${formatMoney(linkedPaid)}",
+                formatFixedDueSummary(item),
                 style = MaterialTheme.typography.labelSmall,
-                color = variant.copy(alpha = 0.88f),
-                maxLines = 2
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                expenseCategoryOptions.firstOrNull { it.first == item.category }?.second
+                    ?: (item.category ?: "Diğer"),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline
+            )
+            Text(
+                buildString {
+                    append("Bu ay ödenen ₺${formatMoney(paid)}")
+                    append(" · ")
+                    if (item.paidThisMonth || remaining < 0.005) {
+                        append("Tamamlandı")
+                    } else {
+                        append("Kalan ₺${formatMoney(remaining)}")
+                    }
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = if (item.paidThisMonth) Success else Warning,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                "₺${formatMoney(target)}",
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                if (item.paidThisMonth) "Ödendi" else "Bekliyor",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (item.paidThisMonth) Success else Warning,
+                fontWeight = FontWeight.Medium
             )
         }
     }
@@ -1131,16 +1136,14 @@ private fun AddExpenseCard(
     onLinkedFixedExpenseChange: (Long?) -> Unit,
     onAdd: () -> Unit
 ) {
-    var categoryExpanded by remember { mutableStateOf(false) }
-    var fixedExpanded by remember { mutableStateOf(false) }
     val selectedCategoryLabel = expenseCategoryOptions.firstOrNull { it.first == category }?.second ?: category
     val selectedFixed = fixedExpenses.firstOrNull { it.id == linkedFixedExpenseId }
     val selectedFixedLabel = when {
-        selectedFixed == null -> "Bağlama yapma"
-        else -> buildString {
-            append(selectedFixed.name.orEmpty().ifBlank { "Sabit gider" })
-            append(" · kalan ₺${formatMoney(fixedExpenseRemainingAmount(selectedFixed))}")
-        }
+        selectedFixed == null -> "Bağlama yapma (genel gider)"
+        else -> fixedExpenseOptionLabel(selectedFixed)
+    }
+    val fixedOptions = remember(fixedExpenses) {
+        listOf("Bağlama yapma (genel gider)") + fixedExpenses.map { fixedExpenseOptionLabel(it) }
     }
 
     AppGhostCard {
@@ -1159,78 +1162,28 @@ private fun AddExpenseCard(
                 label = "Açıklama",
                 modifier = Modifier.fillMaxWidth()
             )
-            ExposedDropdownMenuBox(
-                expanded = categoryExpanded,
-                onExpandedChange = { categoryExpanded = it }
-            ) {
-                OutlinedTextField(
-                    value = selectedCategoryLabel,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Kategori") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
-                    modifier = Modifier
-                        .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth()
-                )
-                ExposedDropdownMenu(
-                    expanded = categoryExpanded,
-                    onDismissRequest = { categoryExpanded = false }
-                ) {
-                    expenseCategoryOptions.forEach { (key, label) ->
-                        DropdownMenuItem(
-                            text = { Text(label) },
-                            onClick = {
-                                onCategoryChange(key)
-                                categoryExpanded = false
-                            }
-                        )
+            AppPickerField(
+                label = "Kategori",
+                selectedValue = selectedCategoryLabel,
+                options = expenseCategoryOptions.map { it.second },
+                onSelected = { label ->
+                    expenseCategoryOptions.firstOrNull { it.second == label }?.first?.let(onCategoryChange)
+                }
+            )
+            AppPickerField(
+                label = "Sabit kayıtla eşleştir",
+                selectedValue = selectedFixedLabel,
+                options = fixedOptions,
+                supportingText = "Varsayılan gider olarak kaydeder veya seçtiğiniz sabit ödemeye bağlar.",
+                leadingIcon = { Icon(Icons.Outlined.Link, contentDescription = null, tint = Info) },
+                onSelected = { option ->
+                    if (option == "Bağlama yapma (genel gider)") {
+                        onLinkedFixedExpenseChange(null)
+                    } else {
+                        fixedExpenses.firstOrNull { fixedExpenseOptionLabel(it) == option }?.id?.let(onLinkedFixedExpenseChange)
                     }
                 }
-            }
-            ExposedDropdownMenuBox(
-                expanded = fixedExpanded,
-                onExpandedChange = { fixedExpanded = it }
-            ) {
-                OutlinedTextField(
-                    value = selectedFixedLabel,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Sabit kayıtla eşleştir") },
-                    supportingText = {
-                        Text(
-                            "Varsayılan gider olarak kaydeder veya seçtiğiniz sabit ödemeye bağlar.",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    },
-                    leadingIcon = { Icon(Icons.Outlined.Link, contentDescription = null, tint = Info) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fixedExpanded) },
-                    modifier = Modifier
-                        .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth()
-                )
-                ExposedDropdownMenu(
-                    expanded = fixedExpanded,
-                    onDismissRequest = { fixedExpanded = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Bağlama yapma (genel gider)") },
-                        onClick = {
-                            onLinkedFixedExpenseChange(null)
-                            fixedExpanded = false
-                        }
-                    )
-                    fixedExpenses.forEach { item ->
-                        DropdownMenuItem(
-                            text = { FixedExpenseDropdownMenuLine(item = item, compact = false) },
-                            onClick = {
-                                onLinkedFixedExpenseChange(item.id)
-                                fixedExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
+            )
             AppPrimaryButton(
                 text = if (adding) "Ekleniyor..." else "Gideri Kaydet",
                 onClick = onAdd,
@@ -1241,42 +1194,23 @@ private fun AddExpenseCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExposedFixedExpenseSelector(
+private fun FixedExpensePickerField(
     items: List<FixedExpenseDefinitionDTO>,
     selectedId: Long?,
     onSelected: (Long?) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    val options = remember(items) { items.map { fixedExpenseOptionLabel(it) } }
     val selected = items.firstOrNull { it.id == selectedId }
-    val label = selected?.let { s ->
-        buildString {
-            append(s.name.orEmpty().ifBlank { "Kayıt" })
-            append(" · kalan ₺${formatMoney(fixedExpenseRemainingAmount(s))}")
+    val label = selected?.let { fixedExpenseOptionLabel(it) } ?: "Kayıt seçin"
+    AppPickerField(
+        label = "Önerilen sabit kayıt",
+        selectedValue = label,
+        options = options,
+        onSelected = { option ->
+            items.firstOrNull { fixedExpenseOptionLabel(it) == option }?.id?.let(onSelected)
         }
-    } ?: "Kayıt seçin"
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-        OutlinedTextField(
-            value = label,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Önerilen sabit kayıt") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor(type = MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            items.forEach { item ->
-                DropdownMenuItem(
-                    text = { FixedExpenseDropdownMenuLine(item = item, compact = true) },
-                    onClick = {
-                        onSelected(item.id)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
+    )
 }
 
 @Composable
