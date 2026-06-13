@@ -133,26 +133,7 @@ fun SettingsScreen(
         }
     }
 
-    Scaffold(topBar = {
-        TopAppBar(
-            title = { Text("Hesap & Ayarlar") },
-            actions = {
-                IconButton(
-                    onClick = { viewModel.loadSettings(refresh = true) },
-                    enabled = !uiState.loading && !uiState.refreshing
-                ) {
-                    if (uiState.refreshing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(Icons.Outlined.Refresh, contentDescription = "Yenile")
-                    }
-                }
-            }
-        )
-    }) { padding ->
+    Scaffold { padding ->
         if (uiState.loading) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(padding),

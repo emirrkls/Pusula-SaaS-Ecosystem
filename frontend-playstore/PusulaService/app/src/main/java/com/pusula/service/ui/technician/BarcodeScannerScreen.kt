@@ -26,8 +26,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,6 +61,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun BarcodeScannerScreen(
     ticketId: Long,
+    onBack: () -> Unit,
     onDone: () -> Unit,
     onUpgrade: () -> Unit = {},
     viewModel: TicketViewModel = hiltViewModel()
@@ -76,6 +78,8 @@ fun BarcodeScannerScreen(
             onDone()
         }
     }
+
+    BackHandler(onBack = onBack)
 
     if (showInventoryLockedDialog) {
         AlertDialog(
@@ -101,7 +105,7 @@ fun BarcodeScannerScreen(
         )
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Barkod Tarayıcı") }) }) { padding ->
+    Scaffold(topBar = { AppTopBar(title = "Barkod Tarayıcı", onBack = onBack) }) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg)

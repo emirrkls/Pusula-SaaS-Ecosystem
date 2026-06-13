@@ -26,8 +26,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,6 +68,7 @@ private val paymentMethods = listOf(
 @Composable
 fun CollectionScreen(
     ticketId: Long,
+    onBack: () -> Unit,
     onDone: () -> Unit,
     viewModel: TicketViewModel = hiltViewModel()
 ) {
@@ -90,7 +92,9 @@ fun CollectionScreen(
         }
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Tahsilat") }) }) { padding ->
+    BackHandler(onBack = onBack)
+
+    Scaffold(topBar = { AppTopBar(title = "Tahsilat", onBack = onBack) }) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(

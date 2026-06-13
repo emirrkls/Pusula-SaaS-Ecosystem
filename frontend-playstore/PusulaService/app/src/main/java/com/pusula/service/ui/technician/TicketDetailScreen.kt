@@ -37,8 +37,9 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.activity.compose.BackHandler
+import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -75,6 +76,7 @@ import com.pusula.service.util.safeForComposeText
 @Composable
 fun TicketDetailScreen(
     ticketId: Long,
+    onBack: () -> Unit,
     onOpenBarcode: (Long) -> Unit,
     onOpenCollection: (Long) -> Unit,
     onOpenSignature: (Long) -> Unit,
@@ -90,10 +92,12 @@ fun TicketDetailScreen(
 
     LaunchedEffect(ticketId) { viewModel.selectTicket(ticketId) }
 
+    BackHandler(onBack = onBack)
+
     val ticket = uiState.selectedTicket
     val pdfLoading = uiState.downloadingServicePdfTicketId == ticketId
 
-    Scaffold(topBar = { TopAppBar(title = { Text("İş Emri Detayı") }) }) { padding ->
+    Scaffold(topBar = { AppTopBar(title = "İş Emri Detayı", onBack = onBack) }) { padding ->
         if (ticket == null) {
             Box(modifier = Modifier.fillMaxSize().padding(padding).padding(Spacing.lg), contentAlignment = Alignment.Center) {
                 AppEmptyState(

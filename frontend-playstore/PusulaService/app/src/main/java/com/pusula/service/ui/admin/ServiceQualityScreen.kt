@@ -21,15 +21,16 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
+import androidx.activity.compose.BackHandler
+import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,7 +44,10 @@ import com.pusula.service.ui.theme.Spacing
 import java.time.LocalDate
 
 @Composable
-fun ServiceQualityScreen(viewModel: AdminViewModel = hiltViewModel()) {
+fun ServiceQualityScreen(
+    onBack: () -> Unit,
+    viewModel: AdminViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var filterType by remember { mutableStateOf<String?>(null) }
@@ -55,7 +59,9 @@ fun ServiceQualityScreen(viewModel: AdminViewModel = hiltViewModel()) {
         viewModel.loadServiceQualityPhotos(type = null, ticketId = null, startDate = startDateInput, endDate = endDateInput, limit = 200)
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Servis Kalite") }) }) { padding ->
+    BackHandler(onBack = onBack)
+
+    Scaffold(topBar = { AppTopBar(title = "Servis Kalite", onBack = onBack) }) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()

@@ -20,11 +20,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.activity.compose.BackHandler
+import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -52,7 +53,10 @@ private fun money2(d: Double?): String =
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfitAnalysisScreen(viewModel: AdminViewModel = hiltViewModel()) {
+fun ProfitAnalysisScreen(
+    onBack: () -> Unit,
+    viewModel: AdminViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsState()
     val analysis = uiState.profitAnalysis
     val kpis = uiState.kpis
@@ -62,7 +66,8 @@ fun ProfitAnalysisScreen(viewModel: AdminViewModel = hiltViewModel()) {
         featureKey = "FINANCE_MODULE",
         showUpgradeHint = true
     ) {
-        Scaffold(topBar = { TopAppBar(title = { Text("Kâr Analizi") }) }) { padding ->
+        BackHandler(onBack = onBack)
+        Scaffold(topBar = { AppTopBar(title = "Kâr Analizi", onBack = onBack) }) { padding ->
             Box(modifier = Modifier.fillMaxSize().padding(padding)) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),

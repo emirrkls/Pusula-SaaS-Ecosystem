@@ -30,8 +30,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.activity.compose.BackHandler
+import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,7 +61,10 @@ private data class PlanCardData(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlanUpgradeScreen(viewModel: AdminViewModel = hiltViewModel()) {
+fun PlanUpgradeScreen(
+    onBack: () -> Unit,
+    viewModel: AdminViewModel = hiltViewModel()
+) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
@@ -91,7 +95,9 @@ fun PlanUpgradeScreen(viewModel: AdminViewModel = hiltViewModel()) {
         )
     )
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Paket Yükselt") }) }) { padding ->
+    BackHandler(onBack = onBack)
+
+    Scaffold(topBar = { AppTopBar(title = "Paket Yükselt", onBack = onBack) }) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),

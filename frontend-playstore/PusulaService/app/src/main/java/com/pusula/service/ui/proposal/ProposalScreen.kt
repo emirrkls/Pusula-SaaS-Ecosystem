@@ -108,9 +108,7 @@ fun ProposalScreen(
             (proposal.title?.lowercase()?.contains(q) == true)
     }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("Teklifler") }) }
-    ) { padding ->
+    Scaffold { padding ->
         when {
             uiState.loading -> {
                 Box(

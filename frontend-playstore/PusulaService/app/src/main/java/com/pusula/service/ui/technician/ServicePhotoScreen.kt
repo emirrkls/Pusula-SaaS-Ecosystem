@@ -27,8 +27,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.activity.compose.BackHandler
+import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,6 +57,7 @@ import okhttp3.RequestBody.Companion.asRequestBody
 @Composable
 fun ServicePhotoScreen(
     ticketId: Long,
+    onBack: () -> Unit,
     onDone: () -> Unit,
     viewModel: TicketViewModel = hiltViewModel()
 ) {
@@ -74,7 +76,9 @@ fun ServicePhotoScreen(
 
     LaunchedEffect(ticketId) { viewModel.loadServicePhotos(ticketId) }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Servis Görselleri") }) }) { padding ->
+    BackHandler(onBack = onBack)
+
+    Scaffold(topBar = { AppTopBar(title = "Servis Görselleri", onBack = onBack) }) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

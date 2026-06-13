@@ -20,14 +20,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.activity.compose.BackHandler
+import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -52,7 +53,10 @@ import com.pusula.service.ui.theme.Warning
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FieldRadarScreen(viewModel: AdminViewModel = hiltViewModel()) {
+fun FieldRadarScreen(
+    onBack: () -> Unit,
+    viewModel: AdminViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsState()
     val cameraState = rememberCameraPositionState()
     val selectedInfo = remember { mutableStateOf<FieldPinInfo?>(null) }
@@ -80,7 +84,9 @@ fun FieldRadarScreen(viewModel: AdminViewModel = hiltViewModel()) {
         cameraState.animate(CameraUpdateFactory.newLatLngBounds(bounds, 120))
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Saha Radarı") }) }) { padding ->
+    BackHandler(onBack = onBack)
+
+    Scaffold(topBar = { AppTopBar(title = "Saha Radarı", onBack = onBack) }) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (pins.isEmpty()) {
                 Column(

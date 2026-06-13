@@ -51,7 +51,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.pusula.service.ui.components.AppTopBar
+import com.pusula.service.ui.settings.SettingsViewModel
 import com.pusula.service.core.SessionManager
 import com.pusula.service.core.featureGated
 import com.pusula.service.core.featureLabelTr
@@ -69,6 +76,27 @@ import com.pusula.service.ui.theme.BrandCyan
 import com.pusula.service.ui.theme.BrandNavy
 import com.pusula.service.ui.theme.Spacing
 import java.util.Locale
+
+private val secondaryModuleTabs = setOf("Müşteriler", "Teklifler", "Stok")
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MainTopBarActions(selectedTab: String, isAdmin: Boolean) {
+    if (selectedTab == "Hesap" && isAdmin) {
+        val viewModel: SettingsViewModel = hiltViewModel()
+        val uiState by viewModel.uiState.collectAsState()
+        IconButton(
+            onClick = { viewModel.loadSettings(refresh = true) },
+            enabled = !uiState.loading && !uiState.refreshing
+        ) {
+            if (uiState.refreshing) {
+                CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(Icons.Outlined.Refresh, contentDescription = "Yenile")
+            }
+        }
+    }
+}
 
 @Composable
 fun MainScreen(
@@ -112,6 +140,20 @@ fun MainScreen(
         }
     }
     var selectedTab by remember(session.isAdmin) { mutableStateOf(tabs.first().title) }
+    val homeTab = tabs.first().title
+    var lastMainTab by remember(session.isAdmin) { mutableStateOf(homeTab) }
+    val canGoBack = selectedTab != homeTab
+    val goBack: () -> Unit = {
+        selectedTab = if (selectedTab in secondaryModuleTabs) lastMainTab else homeTab
+    }
+
+    BackHandler(enabled = canGoBack, onBack = goBack)
+
+    LaunchedEffect(selectedTab) {
+        if (selectedTab !in secondaryModuleTabs) {
+            lastMainTab = selectedTab
+        }
+    }
     LaunchedEffect(session.isAuthenticated, session.isAdmin, selectedTab) {
         if (session.isAuthenticated && session.isAdmin && selectedTab == "Özet") {
             adminViewModel.loadDashboard(refresh = true)
@@ -144,6 +186,13 @@ fun MainScreen(
     }
 
     Scaffold(
+        topBar = {
+            AppTopBar(
+                title = selectedTab,
+                onBack = if (canGoBack) goBack else null,
+                actions = { MainTopBarActions(selectedTab = selectedTab, isAdmin = session.isAdmin) }
+            )
+        },
         bottomBar = {
             BottomAppBar {
                 if (session.isAdmin && tabs.size == 4) {
@@ -322,10 +371,6 @@ fun MainScreen(
                         AdminDashboardScreen(
                             onLogout = onLogout,
                             onOpenRadar = onNavigateFieldRadar,
-                            onOpenProfit = onNavigateProfitAnalysis,
-                            onOpenCatalog = onNavigateCatalog,
-                            onOpenUpgrade = onUpgrade,
-                            onOpenServiceQuality = onNavigateServiceQuality,
                             onOpenOperationFilter = { filter ->
                                 selectedTab = "Operasyon"
                                 operationRequestedFilter = filter
@@ -452,6 +497,9 @@ fun MainScreen(
                                     shape = MaterialTheme.shapes.medium
                                 )
                                 .clickable {
+                                    if (tab.title in secondaryModuleTabs) {
+                                        lastMainTab = selectedTab
+                                    }
                                     if (tab.title == "Servis Kalite" && session.isAdmin) {
                                         onNavigateServiceQuality()
                                     } else {

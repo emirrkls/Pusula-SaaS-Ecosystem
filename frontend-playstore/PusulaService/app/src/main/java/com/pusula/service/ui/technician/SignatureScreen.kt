@@ -31,8 +31,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.activity.compose.BackHandler
+import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,6 +61,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun SignatureScreen(
     ticketId: Long,
+    onBack: () -> Unit,
     onDone: () -> Unit,
     viewModel: TicketViewModel = hiltViewModel()
 ) {
@@ -67,7 +69,9 @@ fun SignatureScreen(
     val session by viewModel.sessionManager.state.collectAsState()
     val points = remember { mutableStateListOf<Offset>() }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("İmza Al") }) }) { padding ->
+    BackHandler(onBack = onBack)
+
+    Scaffold(topBar = { AppTopBar(title = "İmza Al", onBack = onBack) }) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.xl)

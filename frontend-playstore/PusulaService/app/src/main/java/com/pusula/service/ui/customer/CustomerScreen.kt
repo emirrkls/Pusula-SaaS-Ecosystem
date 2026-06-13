@@ -97,9 +97,7 @@ fun CustomerScreen(
             (it.address?.lowercase()?.contains(q) == true)
     }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("Müşteriler") }) }
-    ) { padding ->
+    Scaffold { padding ->
         when {
             uiState.loading -> {
                 Box(

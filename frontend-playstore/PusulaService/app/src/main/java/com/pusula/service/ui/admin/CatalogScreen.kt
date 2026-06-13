@@ -43,6 +43,7 @@ import com.pusula.service.ui.components.AppGhostCard
 import com.pusula.service.ui.components.AppHeroCard
 import com.pusula.service.ui.components.AppIconBadge
 import com.pusula.service.ui.components.AppPrimaryButton
+import com.pusula.service.ui.components.AppScreenScaffold
 import com.pusula.service.ui.components.CameraBarcodeScannerView
 import com.pusula.service.ui.theme.BrandCyan
 import com.pusula.service.ui.theme.BrandNavy
@@ -52,7 +53,10 @@ import com.pusula.service.ui.theme.Success
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CatalogScreen(viewModel: AdminViewModel = hiltViewModel()) {
+fun CatalogScreen(
+    onBack: (() -> Unit)? = null,
+    viewModel: AdminViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -86,13 +90,18 @@ fun CatalogScreen(viewModel: AdminViewModel = hiltViewModel()) {
     val isAllowed = session.role == "COMPANY_ADMIN" || session.role == "SUPER_ADMIN"
 
     if (!isAllowed) {
-        Box(modifier = Modifier.fillMaxSize().padding(Spacing.lg), contentAlignment = Alignment.Center) {
-            AppEmptyState(
-                title = "Bu ekran sadece adminlere açık",
-                subtitle = "Erişim için yöneticinizle iletişime geçin.",
-                icon = Icons.Default.Inventory2,
-                tint = ErrorTone
-            )
+        AppScreenScaffold(title = "Stok", onBack = onBack) { padding ->
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding).padding(Spacing.lg),
+                contentAlignment = Alignment.Center
+            ) {
+                AppEmptyState(
+                    title = "Bu ekran sadece adminlere açık",
+                    subtitle = "Erişim için yöneticinizle iletişime geçin.",
+                    icon = Icons.Default.Inventory2,
+                    tint = ErrorTone
+                )
+            }
         }
         return
     }
@@ -114,7 +123,8 @@ fun CatalogScreen(viewModel: AdminViewModel = hiltViewModel()) {
         ?.average()
         ?.toInt() ?: 0
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    AppScreenScaffold(title = "Stok", onBack = onBack) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
@@ -408,6 +418,7 @@ fun CatalogScreen(viewModel: AdminViewModel = hiltViewModel()) {
                 TextButton(onClick = { deletingItemId = null }) { Text("Vazgeç") }
             }
         )
+    }
     }
 }
 

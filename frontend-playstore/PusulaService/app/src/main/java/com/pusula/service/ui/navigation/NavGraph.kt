@@ -25,6 +25,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
+import androidx.activity.compose.BackHandler
 import com.pusula.service.BuildConfig
 import com.pusula.service.ui.auth.AuthViewModel
 import com.pusula.service.ui.auth.LoginScreen
@@ -164,12 +165,14 @@ fun PusulaNavGraph(authViewModel: AuthViewModel) {
         }
         composable<Screen.Register> {
             val context = LocalContext.current
+            BackHandler { navController.popBackStack() }
             RegisterScreen(
                 uiState = uiState,
                 onRegister = authViewModel::register,
                 onGoogleRegister = { preferredUsername ->
                     authViewModel.registerWithGoogle(context, preferredUsername)
-                }
+                },
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         composable<Screen.Main> {
@@ -185,11 +188,21 @@ fun PusulaNavGraph(authViewModel: AuthViewModel) {
                 onNavigateServiceQuality = { navController.navigate(Screen.ServiceQuality) }
             )
         }
-        composable<Screen.ProfitAnalysis> { ProfitAnalysisScreen() }
-        composable<Screen.Catalog> { CatalogScreen() }
-        composable<Screen.FieldRadar> { FieldRadarScreen() }
-        composable<Screen.PlanUpgrade> { PlanUpgradeScreen() }
-        composable<Screen.ServiceQuality> { ServiceQualityScreen() }
+        composable<Screen.ProfitAnalysis> {
+            ProfitAnalysisScreen(onBack = { navController.popBackStack() })
+        }
+        composable<Screen.Catalog> {
+            CatalogScreen(onBack = { navController.popBackStack() })
+        }
+        composable<Screen.FieldRadar> {
+            FieldRadarScreen(onBack = { navController.popBackStack() })
+        }
+        composable<Screen.PlanUpgrade> {
+            PlanUpgradeScreen(onBack = { navController.popBackStack() })
+        }
+        composable<Screen.ServiceQuality> {
+            ServiceQualityScreen(onBack = { navController.popBackStack() })
+        }
         composable<Screen.TicketDetail>(
             deepLinks = listOf(
                 navDeepLink<Screen.TicketDetail>(basePath = TICKET_DEEP_LINK_BASE)
@@ -201,6 +214,7 @@ fun PusulaNavGraph(authViewModel: AuthViewModel) {
             val pdfScope = rememberCoroutineScope()
             TicketDetailScreen(
                 ticketId = ticketId,
+                onBack = { navController.popBackStack() },
                 onOpenBarcode = { navController.navigate(Screen.BarcodeScanner(it)) },
                 onOpenCollection = { navController.navigate(Screen.Collection(it)) },
                 onOpenSignature = { navController.navigate(Screen.Signature(it)) },
@@ -226,21 +240,34 @@ fun PusulaNavGraph(authViewModel: AuthViewModel) {
             val ticketId = backStack.toRoute<Screen.BarcodeScanner>().ticketId
             BarcodeScannerScreen(
                 ticketId = ticketId,
+                onBack = { navController.popBackStack() },
                 onDone = { navController.popBackStack() },
                 onUpgrade = { navController.navigate(Screen.PlanUpgrade) }
             )
         }
         composable<Screen.Collection> { backStack ->
             val ticketId = backStack.toRoute<Screen.Collection>().ticketId
-            CollectionScreen(ticketId = ticketId, onDone = { navController.popBackStack() })
+            CollectionScreen(
+                ticketId = ticketId,
+                onBack = { navController.popBackStack() },
+                onDone = { navController.popBackStack() }
+            )
         }
         composable<Screen.Signature> { backStack ->
             val ticketId = backStack.toRoute<Screen.Signature>().ticketId
-            SignatureScreen(ticketId = ticketId, onDone = { navController.popBackStack() })
+            SignatureScreen(
+                ticketId = ticketId,
+                onBack = { navController.popBackStack() },
+                onDone = { navController.popBackStack() }
+            )
         }
         composable<Screen.ServicePhotos> { backStack ->
             val ticketId = backStack.toRoute<Screen.ServicePhotos>().ticketId
-            ServicePhotoScreen(ticketId = ticketId, onDone = { navController.popBackStack() })
+            ServicePhotoScreen(
+                ticketId = ticketId,
+                onBack = { navController.popBackStack() },
+                onDone = { navController.popBackStack() }
+            )
         }
     }
 }

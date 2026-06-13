@@ -20,6 +20,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.activity.compose.BackHandler
+import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,7 +43,8 @@ import com.pusula.service.ui.theme.Spacing
 fun RegisterScreen(
     uiState: AuthUiState,
     onRegister: (String, String, String, String) -> Unit,
-    onGoogleRegister: (String?) -> Unit
+    onGoogleRegister: (String?) -> Unit,
+    onNavigateBack: () -> Unit = {}
 ) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -55,7 +58,12 @@ fun RegisterScreen(
         unfocusedBorderColor = MaterialTheme.colorScheme.outline
     )
 
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+    BackHandler(onBack = onNavigateBack)
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = { AppTopBar(title = "Hesap Oluştur", onBack = onNavigateBack) }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
