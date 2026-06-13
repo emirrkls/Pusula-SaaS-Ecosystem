@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.GroupOff
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -27,15 +29,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -52,7 +53,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.pusula.service.core.SessionManager
-import com.pusula.service.core.readOnlyProtected
 import com.pusula.service.data.model.CompanyDTO
 import com.pusula.service.data.model.UserDTO
 import com.pusula.service.data.model.VehicleDTO
@@ -133,20 +133,34 @@ fun SettingsScreen(
         }
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Hesap & Ayarlar") }) }) { padding ->
+    Scaffold(topBar = {
+        TopAppBar(
+            title = { Text("Hesap & Ayarlar") },
+            actions = {
+                IconButton(
+                    onClick = { viewModel.loadSettings(refresh = true) },
+                    enabled = !uiState.loading && !uiState.refreshing
+                ) {
+                    if (uiState.refreshing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(Icons.Outlined.Refresh, contentDescription = "Yenile")
+                    }
+                }
+            }
+        )
+    }) { padding ->
         if (uiState.loading) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
             ) { CircularProgressIndicator() }
         } else {
-            PullToRefreshBox(
-                isRefreshing = uiState.refreshing,
-                onRefresh = { viewModel.loadSettings(refresh = true) },
-                modifier = Modifier.fillMaxSize().padding(padding)
-            ) {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().padding(padding),
                     contentPadding = PaddingValues(
                         start = Spacing.lg,
                         end = Spacing.lg,
@@ -164,17 +178,16 @@ fun SettingsScreen(
                         )
                     }
                     item {
-                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+                        ) {
                             settingsTabs.forEach { tab ->
-                                SegmentedButton(
-                                    selected = selectedTab == tab,
+                                FilledTonalButton(
+                                    modifier = Modifier.weight(1f),
                                     onClick = { selectedTab = tab },
-                                    shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(
-                                        index = settingsTabs.indexOf(tab),
-                                        count = settingsTabs.size
-                                    ),
-                                    label = { Text(tab) }
-                                )
+                                    enabled = selectedTab != tab
+                                ) { Text(tab) }
                             }
                         }
                     }
@@ -201,7 +214,8 @@ fun SettingsScreen(
                                             editingUser = null
                                             showUserDialog = true
                                         },
-                                        modifier = Modifier.fillMaxWidth().readOnlyProtected(session.isReadOnly)
+                                        enabled = !session.isReadOnly,
+                                        modifier = Modifier.fillMaxWidth()
                                     )
                                 }
                             }
@@ -251,7 +265,8 @@ fun SettingsScreen(
                                             editingVehicle = null
                                             showVehicleDialog = true
                                         },
-                                        modifier = Modifier.fillMaxWidth().readOnlyProtected(session.isReadOnly)
+                                        enabled = !session.isReadOnly,
+                                        modifier = Modifier.fillMaxWidth()
                                     )
                                 }
                             }
@@ -308,7 +323,6 @@ fun SettingsScreen(
                         }
                     }
                 }
-            }
         }
     }
 
@@ -366,6 +380,20 @@ fun SettingsScreen(
         )
     }
 
+    uiState.pendingDeleteReassign?.let { pending ->
+        val reassignCandidates = uiState.users.filter { u ->
+            u.id != null && u.id != pending.userId &&
+                (u.role == "TECHNICIAN" || u.role == "COMPANY_ADMIN")
+        }
+        ReassignTicketsBeforeDeleteDialog(
+            pending = pending,
+            candidates = reassignCandidates,
+            saving = uiState.saving,
+            onDismiss = { viewModel.dismissPendingDeleteReassign() },
+            onConfirm = { newTechId -> viewModel.deleteUser(pending.userId, newTechId) }
+        )
+    }
+
     if (passwordResetUserId != null) {
         PasswordResetDialog(
             onDismiss = { passwordResetUserId = null },
@@ -411,20 +439,24 @@ private fun UserCard(
         Spacer(Modifier.height(Spacing.sm))
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs), modifier = Modifier.fillMaxWidth()) {
             FilledTonalButton(
-                modifier = Modifier.weight(1f).readOnlyProtected(readOnly),
+                modifier = Modifier.weight(1f),
+                enabled = !readOnly,
                 onClick = onEdit
             ) { Text("Düzenle") }
             OutlinedButton(
-                modifier = Modifier.weight(1f).readOnlyProtected(readOnly),
+                modifier = Modifier.weight(1f),
+                enabled = !readOnly,
                 onClick = onResetPassword
             ) { Text("Şifre") }
             OutlinedButton(
-                modifier = Modifier.weight(1f).readOnlyProtected(readOnly),
+                modifier = Modifier.weight(1f),
+                enabled = !readOnly,
                 onClick = onUploadSignature
             ) { Text("İmza") }
         }
         TextButton(
-            modifier = Modifier.align(Alignment.End).readOnlyProtected(readOnly),
+            modifier = Modifier.align(Alignment.End),
+            enabled = !readOnly,
             onClick = onDelete
         ) {
             Text("Sil", color = MaterialTheme.colorScheme.error)
@@ -470,11 +502,13 @@ private fun VehicleCard(
         Spacer(Modifier.height(Spacing.sm))
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs), modifier = Modifier.fillMaxWidth()) {
             FilledTonalButton(
-                modifier = Modifier.weight(1f).readOnlyProtected(readOnly),
+                modifier = Modifier.weight(1f),
+                enabled = !readOnly,
                 onClick = onEdit
             ) { Text("Düzenle") }
             OutlinedButton(
-                modifier = Modifier.weight(1f).readOnlyProtected(readOnly),
+                modifier = Modifier.weight(1f),
+                enabled = !readOnly,
                 onClick = onDelete
             ) {
                 Text("Sil", color = MaterialTheme.colorScheme.error)
@@ -515,13 +549,13 @@ private fun CompanyCard(
                 text = "Logo Yükle",
                 onClick = onUploadLogo,
                 enabled = !saving && !readOnly,
-                modifier = Modifier.fillMaxWidth().readOnlyProtected(readOnly)
+                modifier = Modifier.fillMaxWidth()
             )
             AppPrimaryButton(
                 text = if (saving) "Kaydediliyor..." else "Kaydet",
                 onClick = { onSave(name.trim(), phone.trim(), email.trim(), address.trim()) },
                 enabled = !saving && !readOnly && name.isNotBlank(),
-                modifier = Modifier.fillMaxWidth().readOnlyProtected(readOnly)
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }
@@ -642,6 +676,70 @@ private fun PasswordResetDialog(
         },
         confirmButton = {
             TextButton(enabled = password.isNotBlank(), onClick = { onSubmit(password.trim()) }) { Text("Sıfırla") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Vazgeç") } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReassignTicketsBeforeDeleteDialog(
+    pending: PendingDeleteReassign,
+    candidates: List<UserDTO>,
+    saving: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (Long) -> Unit
+) {
+    var expanded by remember(pending.userId) { mutableStateOf(false) }
+    var selected by remember(pending.userId) { mutableStateOf<UserDTO?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Aktif iş emirleri var") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Bu kullanıcıya atanmış ${pending.activeTicketCount} adet açık iş emri var. " +
+                        "Silmek için bu işleri başka bir teknisyene devredin."
+                )
+                if (candidates.isEmpty()) {
+                    Text(
+                        "Uygun başka kullanıcı yok. Yeni teknisyen ekleyin veya iş emirlerini tamamlayın.",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                } else {
+                    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+                        OutlinedTextField(
+                            value = selected?.let { u -> u.fullName?.takeIf { it.isNotBlank() } ?: u.username }.orEmpty(),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("İş emirlerini devret") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            modifier = Modifier.menuAnchor(type = MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                            candidates.forEach { user ->
+                                DropdownMenuItem(
+                                    text = { Text(user.fullName?.takeIf { it.isNotBlank() } ?: user.username) },
+                                    onClick = {
+                                        selected = user
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !saving && candidates.isNotEmpty() && selected?.id != null,
+                onClick = {
+                    val id = selected?.id ?: return@TextButton
+                    onConfirm(id)
+                }
+            ) { Text(if (saving) "Siliniyor..." else "Sil ve devret") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Vazgeç") } }
     )

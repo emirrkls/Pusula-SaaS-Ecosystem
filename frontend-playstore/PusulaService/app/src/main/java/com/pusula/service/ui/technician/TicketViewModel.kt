@@ -3,11 +3,15 @@ package com.pusula.service.ui.technician
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pusula.service.core.SessionManager
+import com.pusula.service.data.model.CustomerDTO
 import com.pusula.service.data.model.FieldTicketDTO
 import com.pusula.service.data.model.InventoryItemDTO
+import com.pusula.service.data.model.ServicePhotoDTO
 import com.pusula.service.data.model.TechnicianDTO
 import com.pusula.service.data.model.UsedPartDTO
 import com.pusula.service.data.repository.TicketRepository
+import com.pusula.service.usecase.technician.OperationTicketUseCase
+import com.pusula.service.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okhttp3.MultipartBody
 
 data class TicketUiState(
     val loading: Boolean = false,
@@ -30,12 +35,23 @@ data class TicketUiState(
     val assigningTicketId: Long? = null,
     val bulkAssigning: Boolean = false,
     val usedPartAddedTicketId: Long? = null,
-    val serviceCompletedTicketId: Long? = null
+    val serviceCompletedTicketId: Long? = null,
+    val customers: List<CustomerDTO> = emptyList(),
+    val customersLoading: Boolean = false,
+    val customerSaving: Boolean = false,
+    val creatingTicket: Boolean = false,
+    val ticketCreatedId: Long? = null,
+    val servicePhotos: List<ServicePhotoDTO> = emptyList(),
+    val photosLoading: Boolean = false,
+    val photoUploading: Boolean = false,
+    /** Sunucu servis raporu PDF indirilirken (paylaşım öncesi). */
+    val downloadingServicePdfTicketId: Long? = null
 )
 
 @HiltViewModel
 class TicketViewModel @Inject constructor(
     private val repository: TicketRepository,
+    private val operationTicketUseCase: OperationTicketUseCase,
     val sessionManager: SessionManager
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(TicketUiState())
@@ -56,10 +72,93 @@ class TicketViewModel @Inject constructor(
                 it.copy(
                     loading = false,
                     refreshing = false,
-                    error = throwable.message ?: "İş emirleri yüklenemedi"
+                    error = throwable.toUserMessage("İş emirleri yüklenemedi")
                 )
             }
         }
+    }
+
+    fun loadCustomers(refresh: Boolean = false) = viewModelScope.launch {
+        if (_uiState.value.customersLoading && !refresh) return@launch
+        _uiState.update { it.copy(customersLoading = true, error = null) }
+        runCatching { operationTicketUseCase.loadCustomers() }
+            .onSuccess { customers ->
+                _uiState.update {
+                    it.copy(
+                        customersLoading = false,
+                        customers = customers
+                    )
+                }
+            }
+            .onFailure { throwable ->
+                _uiState.update {
+                    it.copy(
+                        customersLoading = false,
+                        error = throwable.toUserMessage("Müşteriler yüklenemedi")
+                    )
+                }
+            }
+    }
+
+    fun createCustomerQuick(name: String, phone: String, address: String, onCreated: (CustomerDTO) -> Unit) =
+        viewModelScope.launch {
+            _uiState.update { it.copy(customerSaving = true, error = null) }
+            runCatching { operationTicketUseCase.createQuickCustomer(name, phone, address) }
+                .onSuccess { customer ->
+                    _uiState.update { state ->
+                        state.copy(
+                            customerSaving = false,
+                            customers = (state.customers + customer).sortedBy { it.name.lowercase() }
+                        )
+                    }
+                    onCreated(customer)
+                }
+                .onFailure { throwable ->
+                    _uiState.update {
+                        it.copy(
+                            customerSaving = false,
+                            error = throwable.toUserMessage("Müşteri kaydedilemedi")
+                        )
+                    }
+                }
+        }
+
+    fun createServiceTicket(
+        customerId: Long,
+        description: String,
+        notes: String,
+        technicianId: Long?
+    ) = viewModelScope.launch {
+        _uiState.update { it.copy(creatingTicket = true, error = null) }
+        runCatching {
+            operationTicketUseCase.createServiceTicket(
+                customerId = customerId,
+                description = description,
+                notes = notes,
+                assignedTechnicianId = technicianId
+            )
+        }
+            .onSuccess { created ->
+                _uiState.update { state ->
+                    state.copy(
+                        creatingTicket = false,
+                        ticketCreatedId = created.id,
+                        tickets = listOf(created) + state.tickets
+                    )
+                }
+            }
+            .onFailure { throwable ->
+                _uiState.update {
+                    it.copy(
+                        creatingTicket = false,
+                        error = throwable.toUserMessage("Servis fişi oluşturulamadı")
+                    )
+                }
+            }
+    }
+
+    fun consumeTicketCreated() {
+        _uiState.update { it.copy(ticketCreatedId = null) }
     }
 
     private fun loadTechnicians() = viewModelScope.launch {
@@ -68,7 +167,7 @@ class TicketViewModel @Inject constructor(
                 _uiState.update { it.copy(technicians = technicians, error = null) }
             }
             .onFailure { throwable ->
-                _uiState.update { it.copy(error = throwable.message ?: "Teknisyen listesi alınamadı") }
+                _uiState.update { it.copy(error = throwable.toUserMessage("Teknisyen listesi alınamadı")) }
             }
     }
 
@@ -79,7 +178,7 @@ class TicketViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         selectedTicket = null,
-                        error = throwable.message ?: "İş emri detayları alınamadı"
+                        error = throwable.toUserMessage("İş emri detayları alınamadı")
                     )
                 }
             }
@@ -101,7 +200,7 @@ class TicketViewModel @Inject constructor(
     fun loadUsedParts(ticketId: Long) = viewModelScope.launch {
         runCatching { repository.getUsedParts(ticketId) }
             .onSuccess { _uiState.update { s -> s.copy(usedParts = it, error = null) } }
-            .onFailure { _uiState.update { s -> s.copy(error = it.message ?: "Parçalar alınamadı") } }
+            .onFailure { _uiState.update { s -> s.copy(error = it.toUserMessage("Parçalar alınamadı")) } }
     }
 
     fun addUsedPart(ticketId: Long, item: InventoryItemDTO, quantity: Int) = viewModelScope.launch {
@@ -125,7 +224,7 @@ class TicketViewModel @Inject constructor(
                 )
             }
         }.onFailure {
-            _uiState.update { s -> s.copy(error = it.message ?: "Parça eklenemedi") }
+            _uiState.update { s -> s.copy(error = it.toUserMessage("Parça eklenemedi")) }
         }
     }
 
@@ -134,7 +233,7 @@ class TicketViewModel @Inject constructor(
             .onSuccess { _uiState.update { s -> s.copy(barcodeItem = it, error = null) } }
             .onFailure {
                 _uiState.update {
-                    s -> s.copy(barcodeItem = null, error = it.message ?: "Barkod bulunamadı")
+                    s -> s.copy(barcodeItem = null, error = it.toUserMessage("Barkod bulunamadı"))
                 }
             }
     }
@@ -155,7 +254,7 @@ class TicketViewModel @Inject constructor(
                 }
             }
             .onFailure { throwable ->
-                _uiState.update { it.copy(error = throwable.message ?: "Tahsilat kaydedilemedi") }
+                _uiState.update { it.copy(error = throwable.toUserMessage("Tahsilat kaydedilemedi")) }
             }
     }
 
@@ -164,8 +263,58 @@ class TicketViewModel @Inject constructor(
             .onSuccess { _uiState.update { it.copy(signatureSaved = true, error = null) } }
             .onFailure { throwable ->
                 _uiState.update { state ->
-                    state.copy(error = throwable.message ?: "İmza yüklenemedi")
+                    state.copy(error = throwable.toUserMessage("İmza yüklenemedi"))
                 }
+            }
+    }
+
+    fun loadServicePhotos(ticketId: Long) = viewModelScope.launch {
+        _uiState.update { it.copy(photosLoading = true) }
+        runCatching { repository.getServicePhotos(ticketId) }
+            .onSuccess { photos ->
+                _uiState.update { it.copy(photosLoading = false, servicePhotos = photos, error = null) }
+            }
+            .onFailure { throwable ->
+                _uiState.update {
+                    it.copy(
+                        photosLoading = false,
+                        error = throwable.toUserMessage("Servis görselleri alınamadı")
+                    )
+                }
+            }
+    }
+
+    fun uploadServicePhoto(ticketId: Long, type: String, filePart: MultipartBody.Part) = viewModelScope.launch {
+        _uiState.update { it.copy(photoUploading = true) }
+        runCatching { repository.uploadServicePhoto(ticketId, type, filePart) }
+            .onSuccess { created ->
+                _uiState.update { state ->
+                    state.copy(
+                        photoUploading = false,
+                        servicePhotos = listOf(created) + state.servicePhotos,
+                        error = null
+                    )
+                }
+            }
+            .onFailure { throwable ->
+                _uiState.update {
+                    it.copy(
+                        photoUploading = false,
+                        error = throwable.toUserMessage("Görsel yüklenemedi")
+                    )
+                }
+            }
+    }
+
+    fun deleteServicePhoto(ticketId: Long, photoId: Long) = viewModelScope.launch {
+        runCatching { repository.deleteServicePhoto(ticketId, photoId) }
+            .onSuccess {
+                _uiState.update { state ->
+                    state.copy(servicePhotos = state.servicePhotos.filterNot { it.id == photoId }, error = null)
+                }
+            }
+            .onFailure { throwable ->
+                _uiState.update { it.copy(error = throwable.toUserMessage("Görsel silinemedi")) }
             }
     }
 
@@ -189,7 +338,7 @@ class TicketViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         assigningTicketId = null,
-                        error = throwable.message ?: "Teknisyen ataması yapılamadı"
+                        error = throwable.toUserMessage("Teknisyen ataması yapılamadı")
                     )
                 }
             }
@@ -209,7 +358,7 @@ class TicketViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     bulkAssigning = false,
-                    error = throwable.message ?: "Toplu atama yapılamadı"
+                    error = throwable.toUserMessage("Toplu atama yapılamadı")
                 )
             }
         }
@@ -221,5 +370,14 @@ class TicketViewModel @Inject constructor(
 
     fun consumeServiceCompleted() {
         _uiState.update { it.copy(serviceCompletedTicketId = null) }
+    }
+
+    suspend fun downloadServiceReportPdf(ticketId: Long): ByteArray {
+        _uiState.update { it.copy(downloadingServicePdfTicketId = ticketId) }
+        return try {
+            repository.downloadServiceReportPdf(ticketId)
+        } finally {
+            _uiState.update { it.copy(downloadingServicePdfTicketId = null) }
+        }
     }
 }

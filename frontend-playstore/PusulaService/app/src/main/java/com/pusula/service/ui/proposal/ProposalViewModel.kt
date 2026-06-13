@@ -7,6 +7,7 @@ import com.pusula.service.data.model.CustomerDTO
 import com.pusula.service.data.model.ProposalDTO
 import com.pusula.service.data.model.ProposalItemDTO
 import com.pusula.service.data.repository.ProposalRepository
+import com.pusula.service.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,7 +55,7 @@ class ProposalViewModel @Inject constructor(
                 it.copy(
                     loading = false,
                     refreshing = false,
-                    error = throwable.message ?: "Teklif verileri yüklenemedi"
+                    error = throwable.toUserMessage("Teklif verileri yüklenemedi")
                 )
             }
         }
@@ -108,7 +109,7 @@ class ProposalViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     saving = false,
-                    error = throwable.message ?: "Teklif kaydedilemedi"
+                    error = throwable.toUserMessage("Teklif kaydedilemedi")
                 )
             }
         }
@@ -126,7 +127,7 @@ class ProposalViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         deletingId = null,
-                        error = throwable.message ?: "Teklif silinemedi"
+                        error = throwable.toUserMessage("Teklif silinemedi")
                     )
                 }
             }
@@ -140,7 +141,7 @@ class ProposalViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         convertingId = null,
-                        error = throwable.message ?: "Teklif işe dönüştürülemedi"
+                        error = throwable.toUserMessage("Teklif işe dönüştürülemedi")
                     )
                 }
             }
@@ -153,7 +154,7 @@ class ProposalViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         downloadingPdfId = null,
-                        error = throwable.message ?: "Teklif PDF indirilemedi"
+                        error = throwable.toUserMessage("Teklif PDF indirilemedi")
                     )
                 }
             }

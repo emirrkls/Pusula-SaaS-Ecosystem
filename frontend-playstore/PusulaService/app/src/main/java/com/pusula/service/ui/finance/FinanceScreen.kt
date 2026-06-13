@@ -23,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.PersonOff
 import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,6 +42,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -65,6 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.pusula.service.data.model.DailyTotalDTO
 import com.pusula.service.data.model.CurrentAccountDTO
 import com.pusula.service.data.model.ExpenseItemDTO
+import com.pusula.service.data.model.FixedExpenseDefinitionDTO
 import com.pusula.service.ui.components.AppDashboardSection
 import com.pusula.service.ui.components.AppEmptyState
 import com.pusula.service.ui.components.AppGhostCard
@@ -95,6 +99,27 @@ private val expenseCategoryOptions = listOf(
     "OTHER" to "Diğer"
 )
 
+private fun fixedExpenseTargetAmount(item: FixedExpenseDefinitionDTO): Double =
+    item.defaultAmount ?: 0.0
+
+private fun fixedExpensePaidAmount(item: FixedExpenseDefinitionDTO): Double =
+    item.paidAmountThisMonth ?: 0.0
+
+private fun fixedExpenseRemainingAmount(item: FixedExpenseDefinitionDTO): Double =
+    (fixedExpenseTargetAmount(item) - fixedExpensePaidAmount(item)).coerceAtLeast(0.0)
+
+private fun formatFixedDueSummary(item: FixedExpenseDefinitionDTO): String {
+    val freq = item.frequency?.uppercase(Locale.US) ?: "MONTHLY"
+    return when (freq) {
+        "WEEKLY" -> "Haftalık ödeme"
+        else -> {
+            val d = item.dayOfMonth
+            if (d != null && d in 1..31) "Her ayın $d. günü"
+            else "Aylık ödeme"
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FinanceScreen(
@@ -104,6 +129,9 @@ fun FinanceScreen(
     var amountText by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("OTHER") }
+    var linkedFixedExpenseId by remember { mutableStateOf<Long?>(null) }
+    var showSmartLinkDialog by remember { mutableStateOf(false) }
+    var smartLinkSelectionId by remember { mutableStateOf<Long?>(null) }
     var selectedTab by remember { mutableStateOf("Günlük") }
     var selectedAccountId by remember { mutableStateOf<Long?>(null) }
     var paymentText by remember { mutableStateOf("") }
@@ -116,6 +144,32 @@ fun FinanceScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val filteredArchives = uiState.monthlyArchives.filter { monthly ->
+        val parts = monthly.period?.split("-").orEmpty()
+        val y = parts.getOrNull(0)
+        val m = parts.getOrNull(1)
+        val yearOk = selectedYear == "Tümü" || y == selectedYear
+        val monthOk = selectedMonth == "Tümü" || m == selectedMonth
+        yearOk && monthOk
+    }
+    val headerIncome = if (selectedTab == "Rapor") {
+        filteredArchives.sumOf { it.totalIncome ?: 0.0 }
+    } else {
+        uiState.summary.totalIncome ?: 0.0
+    }
+    val headerExpense = if (selectedTab == "Rapor") {
+        filteredArchives.sumOf { it.totalExpense ?: 0.0 }
+    } else {
+        uiState.summary.totalExpense ?: 0.0
+    }
+    val headerNet = if (selectedTab == "Rapor") {
+        filteredArchives.sumOf { it.netProfit ?: 0.0 }
+    } else {
+        uiState.summary.netCash ?: 0.0
+    }
+    val unpaidFixedMatches = remember(uiState.fixedExpenses, category) {
+        uiState.fixedExpenses.filter { !it.paidThisMonth && it.category == category }
+    }
 
     LaunchedEffect(Unit) { viewModel.loadDashboard() }
     LaunchedEffect(uiState.debtPaymentSavedAt) {
@@ -159,14 +213,11 @@ fun FinanceScreen(
                         verticalArrangement = Arrangement.spacedBy(Spacing.lg)
                     ) {
                         item {
-                            val income = uiState.summary.totalIncome ?: 0.0
-                            val expense = uiState.summary.totalExpense ?: 0.0
-                            val net = uiState.summary.netCash ?: 0.0
                             AppHeroCard(
-                                eyebrow = "Bugünkü kasa",
-                                title = "₺${formatMoney(net)}",
-                                subtitle = "Gelir ₺${formatMoney(income)} • Gider ₺${formatMoney(expense)}",
-                                badge = if (net >= 0) "Pozitif" else "Negatif"
+                                eyebrow = if (selectedTab == "Rapor") "Rapor özeti" else "Bugünkü kasa",
+                                title = "₺${formatMoney(headerNet)}",
+                                subtitle = "Gelir ₺${formatMoney(headerIncome)} • Gider ₺${formatMoney(headerExpense)}",
+                                badge = if (headerNet >= 0) "Pozitif" else "Negatif"
                             )
                         }
                         item {
@@ -178,9 +229,9 @@ fun FinanceScreen(
                         }
                         item {
                             SummaryCards(
-                                income = uiState.summary.totalIncome ?: 0.0,
-                                expense = uiState.summary.totalExpense ?: 0.0,
-                                net = uiState.summary.netCash ?: 0.0
+                                income = headerIncome,
+                                expense = headerExpense,
+                                net = headerNet
                             )
                         }
                         when (selectedTab) {
@@ -203,16 +254,33 @@ fun FinanceScreen(
                                         amountText = amountText,
                                         description = description,
                                         category = category,
+                                        fixedExpenses = unpaidFixedMatches,
+                                        linkedFixedExpenseId = linkedFixedExpenseId,
                                         adding = uiState.addingExpense,
                                         onAmountChange = { amountText = it },
                                         onDescriptionChange = { description = it },
-                                        onCategoryChange = { category = it },
+                                        onCategoryChange = {
+                                            category = it
+                                            linkedFixedExpenseId = null
+                                        },
+                                        onLinkedFixedExpenseChange = { linkedFixedExpenseId = it },
                                         onAdd = {
                                             val amount = amountText.toDoubleOrNull() ?: 0.0
                                             if (amount > 0.0 && description.isNotBlank()) {
-                                                viewModel.addExpense(amount, description.trim(), category)
-                                                amountText = ""
-                                                description = ""
+                                                if (linkedFixedExpenseId == null && unpaidFixedMatches.isNotEmpty()) {
+                                                    smartLinkSelectionId = unpaidFixedMatches.firstOrNull()?.id
+                                                    showSmartLinkDialog = true
+                                                } else {
+                                                    viewModel.addExpense(
+                                                        amount = amount,
+                                                        description = description.trim(),
+                                                        category = category,
+                                                        fixedExpenseId = linkedFixedExpenseId
+                                                    )
+                                                    amountText = ""
+                                                    description = ""
+                                                    linkedFixedExpenseId = null
+                                                }
                                             }
                                         }
                                     )
@@ -307,15 +375,6 @@ fun FinanceScreen(
                                     add("Tümü")
                                     addAll((1..12).map { it.toString().padStart(2, '0') })
                                 }
-                                val filteredArchives = uiState.monthlyArchives.filter { monthly ->
-                                    val parts = monthly.period?.split("-").orEmpty()
-                                    val y = parts.getOrNull(0)
-                                    val m = parts.getOrNull(1)
-                                    val yearOk = selectedYear == "Tümü" || y == selectedYear
-                                    val monthOk = selectedMonth == "Tümü" || m == selectedMonth
-                                    yearOk && monthOk
-                                }
-
                                 item {
                                     AppDashboardSection(
                                         title = "Aylık Arşiv",
@@ -465,6 +524,97 @@ fun FinanceScreen(
             },
             dismissButton = {
                 TextButton(onClick = { selectedAccountId = null }) { Text("Vazgeç") }
+            }
+        )
+    }
+
+    if (showSmartLinkDialog) {
+        AlertDialog(
+            onDismissRequest = { showSmartLinkDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Outlined.CalendarMonth,
+                    contentDescription = null,
+                    tint = Info
+                )
+            },
+            title = {
+                Text(
+                    "Sabit ödemeye bağlamak ister misiniz?",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                    Text(
+                        "Bu kategoride henüz tamamlanmamış bir sabit gider tanımınız var. " +
+                            "Bu kaydı seçtiğinizde tutar, o sabit ödemenin bu ayki ödemeleriyle birlikte takip edilir.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Info.copy(alpha = 0.1f),
+                        border = BorderStroke(1.dp, Info.copy(alpha = 0.35f))
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(Spacing.md),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+                        ) {
+                            Text(
+                                "Hangi sabit kayda yazılsın?",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Info
+                            )
+                            ExposedFixedExpenseSelector(
+                                items = unpaidFixedMatches,
+                                selectedId = smartLinkSelectionId,
+                                onSelected = { smartLinkSelectionId = it }
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val amount = amountText.toDoubleOrNull() ?: 0.0
+                    if (amount > 0.0 && description.isNotBlank()) {
+                        viewModel.addExpense(
+                            amount = amount,
+                            description = description.trim(),
+                            category = category,
+                            fixedExpenseId = smartLinkSelectionId
+                        )
+                        amountText = ""
+                        description = ""
+                        linkedFixedExpenseId = null
+                    }
+                    showSmartLinkDialog = false
+                }) {
+                    Text("Bağla ve kaydet", color = Info, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = {
+                        val amount = amountText.toDoubleOrNull() ?: 0.0
+                        if (amount > 0.0 && description.isNotBlank()) {
+                            viewModel.addExpense(
+                                amount = amount,
+                                description = description.trim(),
+                                category = category,
+                                fixedExpenseId = null
+                            )
+                            amountText = ""
+                            description = ""
+                            linkedFixedExpenseId = null
+                        }
+                        showSmartLinkDialog = false
+                    }) { Text("Bağlamadan kaydet") }
+                    TextButton(onClick = { showSmartLinkDialog = false }) { Text("İptal") }
+                }
             }
         )
     }
@@ -869,31 +1019,100 @@ private fun AlertsCard(overdueCount: Int, upcomingCount: Int) {
 }
 
 @Composable
-private fun FixedExpensesCard(fixedExpenses: List<com.pusula.service.data.model.FixedExpenseDefinitionDTO>) {
+private fun FixedExpensesCard(fixedExpenses: List<FixedExpenseDefinitionDTO>) {
     AppGhostCard {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Text("Sabit Gider Takvimi", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             fixedExpenses.sortedBy { it.dayOfMonth ?: Int.MAX_VALUE }.take(5).forEach { item ->
+                val target = fixedExpenseTargetAmount(item)
+                val paid = fixedExpensePaidAmount(item)
+                val remaining = fixedExpenseRemainingAmount(item)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(item.name.orEmpty().ifBlank { "Sabit Gider" }, fontWeight = FontWeight.Medium)
                         Text(
-                            "Vade: ${item.dayOfMonth ?: "-"} • ${item.category ?: "OTHER"}",
+                            formatFixedDueSummary(item),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Text(
+                            expenseCategoryOptions.firstOrNull { it.first == item.category }?.second
+                                ?: (item.category ?: "Diğer"),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                        Text(
+                            buildString {
+                                append("Bu ay ödenen ₺${formatMoney(paid)}")
+                                append(" · ")
+                                if (item.paidThisMonth || remaining < 0.005) {
+                                    append("Tamamlandı")
+                                } else {
+                                    append("Kalan ₺${formatMoney(remaining)}")
+                                }
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (item.paidThisMonth) Success else Warning,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
-                    Text(
-                        "₺${formatMoney(item.defaultAmount ?: 0.0)}",
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (item.paidThisMonth) Success else Warning
-                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            "₺${formatMoney(target)}",
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Text(
+                            if (item.paidThisMonth) "Ödendi" else "Bekliyor",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (item.paidThisMonth) Success else Warning,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun FixedExpenseDropdownMenuLine(item: FixedExpenseDefinitionDTO, compact: Boolean) {
+    val variant = MaterialTheme.colorScheme.onSurfaceVariant
+    val paid = fixedExpensePaidAmount(item)
+    val rem = fixedExpenseRemainingAmount(item)
+    val target = fixedExpenseTargetAmount(item)
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            item.name.orEmpty().ifBlank { "Sabit gider" },
+            style = if (compact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium
+        )
+        Text(
+            buildString {
+                append(formatFixedDueSummary(item))
+                append(" · ")
+                append("₺${formatMoney(paid)} / ₺${formatMoney(target)}")
+                if (!item.paidThisMonth && rem >= 0.005) {
+                    append(" · kalan ₺${formatMoney(rem)}")
+                }
+            },
+            style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
+            color = variant,
+            maxLines = 3
+        )
+        val linkedName = item.linkedExpenseName
+        val linkedPaid = item.linkedPaymentsThisMonth ?: 0.0
+        if (!linkedName.isNullOrBlank() && linkedPaid > 0.0) {
+            Text(
+                "Bağlı: $linkedName · ₺${formatMoney(linkedPaid)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = variant.copy(alpha = 0.88f),
+                maxLines = 2
+            )
         }
     }
 }
@@ -903,14 +1122,26 @@ private fun AddExpenseCard(
     amountText: String,
     description: String,
     category: String,
+    fixedExpenses: List<FixedExpenseDefinitionDTO>,
+    linkedFixedExpenseId: Long?,
     adding: Boolean,
     onAmountChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onCategoryChange: (String) -> Unit,
+    onLinkedFixedExpenseChange: (Long?) -> Unit,
     onAdd: () -> Unit
 ) {
     var categoryExpanded by remember { mutableStateOf(false) }
+    var fixedExpanded by remember { mutableStateOf(false) }
     val selectedCategoryLabel = expenseCategoryOptions.firstOrNull { it.first == category }?.second ?: category
+    val selectedFixed = fixedExpenses.firstOrNull { it.id == linkedFixedExpenseId }
+    val selectedFixedLabel = when {
+        selectedFixed == null -> "Bağlama yapma"
+        else -> buildString {
+            append(selectedFixed.name.orEmpty().ifBlank { "Sabit gider" })
+            append(" · kalan ₺${formatMoney(fixedExpenseRemainingAmount(selectedFixed))}")
+        }
+    }
 
     AppGhostCard {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -957,12 +1188,93 @@ private fun AddExpenseCard(
                     }
                 }
             }
+            ExposedDropdownMenuBox(
+                expanded = fixedExpanded,
+                onExpandedChange = { fixedExpanded = it }
+            ) {
+                OutlinedTextField(
+                    value = selectedFixedLabel,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Sabit kayıtla eşleştir") },
+                    supportingText = {
+                        Text(
+                            "Varsayılan gider olarak kaydeder veya seçtiğiniz sabit ödemeye bağlar.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    },
+                    leadingIcon = { Icon(Icons.Outlined.Link, contentDescription = null, tint = Info) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fixedExpanded) },
+                    modifier = Modifier
+                        .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+                        .fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = fixedExpanded,
+                    onDismissRequest = { fixedExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Bağlama yapma (genel gider)") },
+                        onClick = {
+                            onLinkedFixedExpenseChange(null)
+                            fixedExpanded = false
+                        }
+                    )
+                    fixedExpenses.forEach { item ->
+                        DropdownMenuItem(
+                            text = { FixedExpenseDropdownMenuLine(item = item, compact = false) },
+                            onClick = {
+                                onLinkedFixedExpenseChange(item.id)
+                                fixedExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
             AppPrimaryButton(
                 text = if (adding) "Ekleniyor..." else "Gideri Kaydet",
                 onClick = onAdd,
                 enabled = !adding,
                 modifier = Modifier.fillMaxWidth()
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExposedFixedExpenseSelector(
+    items: List<FixedExpenseDefinitionDTO>,
+    selectedId: Long?,
+    onSelected: (Long?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selected = items.firstOrNull { it.id == selectedId }
+    val label = selected?.let { s ->
+        buildString {
+            append(s.name.orEmpty().ifBlank { "Kayıt" })
+            append(" · kalan ₺${formatMoney(fixedExpenseRemainingAmount(s))}")
+        }
+    } ?: "Kayıt seçin"
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        OutlinedTextField(
+            value = label,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Önerilen sabit kayıt") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor(type = MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            items.forEach { item ->
+                DropdownMenuItem(
+                    text = { FixedExpenseDropdownMenuLine(item = item, compact = true) },
+                    onClick = {
+                        onSelected(item.id)
+                        expanded = false
+                    }
+                )
+            }
         }
     }
 }

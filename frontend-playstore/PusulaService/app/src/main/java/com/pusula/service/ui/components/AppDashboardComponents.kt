@@ -15,10 +15,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -33,19 +35,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.pusula.service.ui.theme.AccentCyan
-import com.pusula.service.ui.theme.AccentPurple
-import com.pusula.service.ui.theme.BlueSecondary
-import com.pusula.service.ui.theme.CyanPrimary
+import com.pusula.service.ui.theme.BrandCyan
+import com.pusula.service.ui.theme.BrandGrayLight
+import com.pusula.service.ui.theme.BrandNavy
 import com.pusula.service.ui.theme.Spacing
 
 /**
- * Shared dashboard primitives used by every Admin and Technician screen.
- * Goal: visual consistency, generous spacing, and minimal cognitive load.
+ * Shared dashboard primitives — beyaz zemin, marka lacivert/cyan vurgular.
  */
 
-private val DefaultHeroGradient = listOf(CyanPrimary.copy(alpha = 0.85f), BlueSecondary)
-private val DefaultAvatarGradient = listOf(CyanPrimary.copy(alpha = 0.7f), BlueSecondary.copy(alpha = 0.7f))
+private val DefaultAvatarGradient = listOf(BrandCyan, BrandNavy.copy(alpha = 0.85f))
 
 @Composable
 fun AppHeroCard(
@@ -54,49 +53,48 @@ fun AppHeroCard(
     eyebrow: String? = null,
     subtitle: String? = null,
     badge: String? = null,
-    gradient: List<Color> = DefaultHeroGradient,
+    @Suppress("UNUSED_PARAMETER") gradient: List<Color>? = null,
     extraContent: (@Composable ColumnScope.() -> Unit)? = null
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Brush.linearGradient(gradient))
-                .padding(horizontal = Spacing.xl, vertical = Spacing.xl)
-        ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            listOf(Color.White.copy(alpha = 0.18f), Color.Transparent)
-                        )
-                    )
+                    .padding(vertical = Spacing.lg)
+                    .padding(start = 0.dp)
+                    .width(4.dp)
+                    .height(72.dp)
+                    .clip(RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp))
+                    .background(BrandCyan)
             )
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs)
+            ) {
                 if (!eyebrow.isNullOrBlank()) {
                     Text(
                         text = eyebrow,
-                        color = Color.White.copy(alpha = 0.78f),
+                        color = BrandGrayLight,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
                 Text(
                     text = title,
-                    color = Color.White,
+                    color = BrandNavy,
                     style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
                 )
                 if (!subtitle.isNullOrBlank()) {
                     Text(
                         text = subtitle,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -117,12 +115,12 @@ fun AppHeroCard(
 fun AppHeroChip(text: String) {
     Surface(
         shape = RoundedCornerShape(50),
-        color = Color.White.copy(alpha = 0.18f)
+        color = BrandCyan.copy(alpha = 0.10f)
     ) {
         Text(
             text = text,
             modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
-            color = Color.White,
+            color = BrandNavy,
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
         )
     }
@@ -174,10 +172,11 @@ fun AppMiniMetricChip(
     label: String,
     value: String,
     tint: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
     Surface(
-        modifier = modifier,
+        modifier = if (onClick != null) modifier.clickable(onClick = onClick) else modifier,
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
@@ -224,12 +223,20 @@ fun AppQuickActionTile(
     icon: ImageVector,
     tint: Color,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    loading: Boolean = false
 ) {
+    val interactive = enabled && !loading
+    val contentAlpha = when {
+        loading -> 1f
+        interactive -> 1f
+        else -> 0.45f
+    }
     Surface(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick),
+            .clickable(enabled = interactive, onClick = onClick),
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
@@ -246,17 +253,26 @@ fun AppQuickActionTile(
                     .background(tint.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = tint,
-                    modifier = Modifier.size(20.dp)
-                )
+                if (loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.dp,
+                        color = tint
+                    )
+                } else {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = label,
+                        tint = tint.copy(alpha = contentAlpha),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                maxLines = 1
+                maxLines = 1,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
             )
         }
     }
@@ -349,7 +365,7 @@ fun AppEmptyState(
     title: String,
     subtitle: String? = null,
     icon: ImageVector? = null,
-    tint: Color = AccentPurple,
+    tint: Color = BrandCyan,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -384,4 +400,4 @@ fun AppEmptyState(
 }
 
 @Suppress("unused")
-internal fun defaultAccentPair(): List<Color> = listOf(AccentCyan, BlueSecondary)
+internal fun defaultAccentPair(): List<Color> = listOf(BrandCyan, BrandNavy)

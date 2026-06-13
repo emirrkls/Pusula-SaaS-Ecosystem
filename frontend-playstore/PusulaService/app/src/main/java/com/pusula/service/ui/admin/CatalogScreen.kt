@@ -44,8 +44,8 @@ import com.pusula.service.ui.components.AppHeroCard
 import com.pusula.service.ui.components.AppIconBadge
 import com.pusula.service.ui.components.AppPrimaryButton
 import com.pusula.service.ui.components.CameraBarcodeScannerView
-import com.pusula.service.ui.theme.AccentOrange
-import com.pusula.service.ui.theme.AccentPurple
+import com.pusula.service.ui.theme.BrandCyan
+import com.pusula.service.ui.theme.BrandNavy
 import com.pusula.service.ui.theme.ErrorTone
 import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.ui.theme.Success
@@ -177,8 +177,8 @@ fun CatalogScreen(viewModel: AdminViewModel = hiltViewModel()) {
                 val margin = if (buy == 0.0) 0 else (((sell - buy) / buy) * 100).toInt()
                 val marginColor = when {
                     margin >= 30 -> Success
-                    margin >= 15 -> AccentPurple
-                    else -> AccentOrange
+                    margin >= 15 -> BrandNavy
+                    else -> BrandCyan.copy(alpha = 0.75f)
                 }
                 AppGhostCard {
                     Row(
@@ -232,7 +232,7 @@ fun CatalogScreen(viewModel: AdminViewModel = hiltViewModel()) {
                             onClick = { editingItemId = item.id },
                             modifier = Modifier.weight(1f)
                         ) {
-                            AppIconBadge(icon = Icons.Outlined.Edit, tint = AccentPurple, size = 22.dp, iconSize = 12.dp, cornerRadius = 6.dp)
+                            AppIconBadge(icon = Icons.Outlined.Edit, tint = BrandNavy, size = 22.dp, iconSize = 12.dp, cornerRadius = 6.dp)
                             Text(" Düzenle")
                         }
                         TextButton(

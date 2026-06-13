@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,6 +31,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,12 +55,9 @@ import com.pusula.service.ui.components.AppHeroCard
 import com.pusula.service.ui.components.AppInitialsAvatar
 import com.pusula.service.ui.components.AppMiniMetricChip
 import com.pusula.service.ui.components.AppQuickActionTile
-import com.pusula.service.ui.theme.AccentCyan
-import com.pusula.service.ui.theme.AccentOrange
-import com.pusula.service.ui.theme.AccentPurple
-import com.pusula.service.ui.theme.BlueSecondary
+import com.pusula.service.ui.theme.BrandCyan
+import com.pusula.service.ui.theme.BrandNavy
 import com.pusula.service.ui.theme.ErrorTone
-import com.pusula.service.ui.theme.Info
 import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.ui.theme.Success
 import com.pusula.service.ui.theme.Warning
@@ -71,6 +70,8 @@ fun AdminDashboardScreen(
     onOpenProfit: () -> Unit,
     onOpenCatalog: () -> Unit,
     onOpenUpgrade: () -> Unit,
+    onOpenServiceQuality: () -> Unit,
+    onOpenOperationFilter: (String) -> Unit,
     viewModel: AdminViewModel = hiltViewModel(),
     embedded: Boolean = false
 ) {
@@ -120,8 +121,11 @@ fun AdminDashboardScreen(
                     }
 
                     item {
-                        AppDashboardSection(title = "Bugün") {
-                            TodayMetricsRow(state = uiState)
+                        AppDashboardSection(title = "Operasyon Durumu", subtitle = "Kartlara dokunarak Operasyon filtresine git") {
+                            TodayMetricsRow(
+                                state = uiState,
+                                onOpenOperationFilter = onOpenOperationFilter
+                            )
                         }
                     }
 
@@ -169,10 +173,49 @@ fun AdminDashboardScreen(
                             }
                         }
                     }
+
+                    item {
+                        AppDashboardSection(
+                            title = "Servis Kalite Görselleri",
+                            subtitle = "Detayları ayrı kategoride açın"
+                        ) {
+                            ServiceQualitySummaryCard(
+                                total = uiState.serviceQualityPhotos.size,
+                                beforeCount = uiState.serviceQualityPhotos.count { it.type == "BEFORE" },
+                                afterCount = uiState.serviceQualityPhotos.count { it.type == "AFTER" },
+                                onOpen = onOpenServiceQuality
+                            )
+                        }
+                    }
                 }
             }
         }
         LazyLoadingOverlay(isLoading = uiState.loading)
+    }
+}
+
+@Composable
+private fun ServiceQualitySummaryCard(
+    total: Int,
+    beforeCount: Int,
+    afterCount: Int,
+    onOpen: () -> Unit
+) {
+    AppGhostCard {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Text(
+                text = "$total görsel mevcut",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = "Öncesi: $beforeCount  •  Sonrası: $afterCount",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            TextButton(onClick = onOpen) {
+                Text("Servis Kalite kategorisini aç")
+            }
+        }
     }
 }
 
@@ -187,13 +230,13 @@ private fun MainKpiGrid(state: AdminUiState) {
             HeroKpiCard(
                 title = "Aylık Ciro",
                 value = "₺${formatAmount(state.kpis.monthlyRevenue)}",
-                accent = listOf(Info.copy(alpha = 0.8f), Info),
+                accent = listOf(BrandCyan, BrandCyan.copy(alpha = 0.55f)),
                 modifier = Modifier.weight(1f)
             )
             HeroKpiCard(
                 title = "Bekleyen Alacak",
                 value = "₺${formatAmount(state.kpis.outstandingDebt)}",
-                accent = listOf(Warning, AccentOrange),
+                accent = listOf(BrandNavy, BrandNavy.copy(alpha = 0.65f)),
                 modifier = Modifier.weight(1f)
             )
         }
@@ -207,14 +250,14 @@ private fun MainKpiGrid(state: AdminUiState) {
                 accent = if (netProfit < 0) {
                     listOf(ErrorTone, ErrorTone.copy(alpha = 0.7f))
                 } else {
-                    listOf(Success, AccentCyan)
+                    listOf(Success, BrandCyan.copy(alpha = 0.7f))
                 },
                 modifier = Modifier.weight(1f)
             )
             HeroKpiCard(
                 title = "Kâr Marjı",
                 value = "%${state.kpis.profitMargin?.toInt() ?: 0}",
-                accent = listOf(AccentPurple, BlueSecondary),
+                accent = listOf(BrandNavy, BrandCyan),
                 modifier = Modifier.weight(1f)
             )
         }
@@ -280,31 +323,37 @@ private fun HeroKpiCard(
 }
 
 @Composable
-private fun TodayMetricsRow(state: AdminUiState) {
+private fun TodayMetricsRow(
+    state: AdminUiState,
+    onOpenOperationFilter: (String) -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         AppMiniMetricChip(
             icon = Icons.Default.PlayArrow,
-            label = "Aktif İş",
-            value = "${state.kpis.activeTickets ?: 0}",
-            tint = Info,
-            modifier = Modifier.weight(1f)
+            label = "Yeni Açılan",
+            value = "${state.kpis.openedToday ?: 0}",
+            tint = BrandCyan,
+            modifier = Modifier.weight(1f),
+            onClick = { onOpenOperationFilter("Bugün Açılan") }
         )
         AppMiniMetricChip(
             icon = Icons.Default.TaskAlt,
-            label = "Bu Ay Biten",
-            value = "${state.kpis.completedThisMonth ?: 0}",
+            label = "Kapanan",
+            value = "${state.kpis.closedToday ?: 0}",
             tint = Success,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            onClick = { onOpenOperationFilter("Kapanan") }
         )
         AppMiniMetricChip(
             icon = Icons.Default.Inventory2,
-            label = "Envanter",
-            value = "₺${formatAmount(state.kpis.inventoryValue)}",
-            tint = AccentPurple,
-            modifier = Modifier.weight(1f)
+            label = "Bekleyen",
+            value = "${state.kpis.pendingNow ?: 0}",
+            tint = BrandNavy,
+            modifier = Modifier.weight(1f),
+            onClick = { onOpenOperationFilter("Atama Bekleyen") }
         )
     }
 }
@@ -323,28 +372,28 @@ private fun QuickActionRow(
         AppQuickActionTile(
             label = "Saha Radarı",
             icon = Icons.Outlined.Map,
-            tint = Info,
+            tint = BrandCyan,
             onClick = onOpenRadar,
             modifier = Modifier.weight(1f)
         )
         AppQuickActionTile(
             label = "Kâr Analizi",
             icon = Icons.Outlined.AutoGraph,
-            tint = Success,
+            tint = BrandNavy,
             onClick = onOpenProfit,
             modifier = Modifier.weight(1f)
         )
         AppQuickActionTile(
             label = "Katalog",
             icon = Icons.Outlined.Storefront,
-            tint = AccentPurple,
+            tint = BrandCyan.copy(alpha = 0.85f),
             onClick = onOpenCatalog,
             modifier = Modifier.weight(1f)
         )
         AppQuickActionTile(
             label = "Yükselt",
             icon = Icons.Outlined.Upgrade,
-            tint = AccentOrange,
+            tint = BrandNavy.copy(alpha = 0.75f),
             onClick = onOpenUpgrade,
             modifier = Modifier.weight(1f)
         )
@@ -357,7 +406,7 @@ private fun QuotaRow(quota: QuotaItem) {
     val barColor = when {
         progress >= 0.9f -> ErrorTone
         progress >= 0.7f -> Warning
-        else -> Success
+        else -> BrandCyan
     }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         Row(

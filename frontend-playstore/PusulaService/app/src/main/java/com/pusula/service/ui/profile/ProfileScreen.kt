@@ -42,11 +42,9 @@ import com.pusula.service.ui.components.AppDashboardSection
 import com.pusula.service.ui.components.AppGhostCard
 import com.pusula.service.ui.components.AppHeroCard
 import com.pusula.service.ui.components.AppIconBadge
-import com.pusula.service.ui.theme.AccentCyan
-import com.pusula.service.ui.theme.AccentOrange
-import com.pusula.service.ui.theme.AccentPurple
+import com.pusula.service.ui.theme.BrandCyan
+import com.pusula.service.ui.theme.BrandNavy
 import com.pusula.service.ui.theme.ErrorTone
-import com.pusula.service.ui.theme.Info
 import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.ui.theme.Success
 import com.pusula.service.ui.theme.Warning
@@ -88,28 +86,28 @@ fun ProfileScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         ProfileLine(
                             icon = Icons.Outlined.Person,
-                            tint = Info,
+                            tint = BrandCyan,
                             label = "Ad Soyad",
                             value = session.fullName.ifBlank { "-" }
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
                         ProfileLine(
                             icon = Icons.Outlined.Badge,
-                            tint = AccentPurple,
+                            tint = BrandNavy,
                             label = "Rol",
                             value = session.role.takeIf { it.isNotBlank() }?.let { translateRole(it) } ?: "-"
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
                         ProfileLine(
                             icon = Icons.Outlined.Apartment,
-                            tint = AccentCyan,
+                            tint = BrandCyan,
                             label = "Şirket",
                             value = session.companyName ?: "-"
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
                         ProfileLine(
                             icon = Icons.Outlined.Star,
-                            tint = AccentOrange,
+                            tint = BrandNavy,
                             label = "Plan",
                             value = session.planType.ifBlank { "-" }
                         )

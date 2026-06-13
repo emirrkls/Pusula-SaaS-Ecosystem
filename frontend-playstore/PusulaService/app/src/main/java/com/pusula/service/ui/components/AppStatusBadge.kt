@@ -7,20 +7,21 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.pusula.service.ui.theme.BrandCyan
+import com.pusula.service.ui.theme.BrandNavy
 import com.pusula.service.ui.theme.ErrorTone
-import com.pusula.service.ui.theme.Info
 import com.pusula.service.ui.theme.Success
 import com.pusula.service.ui.theme.Warning
 
 @Composable
 fun AppStatusBadge(text: String, statusKey: String?) {
     val key = statusKey?.trim()?.uppercase().orEmpty()
-    val color: Color = when (key) {
+    val color = when (key) {
         "PENDING", "ASSIGNED" -> Warning
-        "IN_PROGRESS" -> Info
+        "IN_PROGRESS" -> BrandCyan
         "COMPLETED" -> Success
         "CANCELLED" -> ErrorTone
-        else -> MaterialTheme.colorScheme.outline
+        else -> BrandNavy.copy(alpha = 0.45f)
     }
     Text(
         text = text,

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AssignmentInd
 import androidx.compose.material.icons.outlined.AssignmentLate
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -29,7 +30,6 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -53,21 +53,65 @@ import com.pusula.service.ui.components.AppGhostCard
 import com.pusula.service.ui.components.AppHeroCard
 import com.pusula.service.ui.components.AppPrimaryButton
 import com.pusula.service.ui.components.AppStatusBadge
-import com.pusula.service.ui.theme.AccentOrange
+import com.pusula.service.ui.theme.BrandCyan
+import com.pusula.service.ui.theme.BrandNavy
 import com.pusula.service.ui.theme.ErrorTone
-import com.pusula.service.ui.theme.Info
 import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.ui.theme.Success
 import com.pusula.service.ui.theme.Warning
+import com.pusula.service.util.safeForComposeText
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 
-private val filters = listOf("Tümü", "Atama Bekleyen", "Atanan", "Devam Eden", "Kapanan")
+private val adminFilters = listOf("Atama Bekleyen", "Bugün Açılan", "Atanan", "Devam Eden", "Kapanan", "Tümü")
+private val technicianFilters = listOf("Atanan", "Kapanan", "Tümü")
+private val businessZoneId: ZoneId = ZoneId.of("Europe/Istanbul")
+private val localDateTimeParsers = listOf(
+    DateTimeFormatter.ISO_LOCAL_DATE_TIME,
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+)
 
-private fun ticketMatchesFilter(ticket: FieldTicketDTO, filter: String): Boolean {
+private fun isTodayInBusinessZone(dateRaw: String?): Boolean {
+    if (dateRaw.isNullOrBlank()) return false
+    val businessToday = LocalDate.now(businessZoneId)
+
+    runCatching {
+        OffsetDateTime.parse(dateRaw).atZoneSameInstant(businessZoneId).toLocalDate()
+    }.getOrNull()?.let { return it == businessToday }
+
+    runCatching {
+        ZonedDateTime.parse(dateRaw).withZoneSameInstant(businessZoneId).toLocalDate()
+    }.getOrNull()?.let { return it == businessToday }
+
+    for (formatter in localDateTimeParsers) {
+        try {
+            val local = java.time.LocalDateTime.parse(dateRaw, formatter)
+            val dateInBusiness = local.atZone(ZoneId.systemDefault()).withZoneSameInstant(businessZoneId).toLocalDate()
+            return dateInBusiness == businessToday
+        } catch (_: DateTimeParseException) {
+            // try next parser
+        }
+    }
+
+    return dateRaw.startsWith(businessToday.toString())
+}
+
+private fun ticketMatchesFilter(ticket: FieldTicketDTO, filter: String, isAdmin: Boolean): Boolean {
     if (filter == "Tümü") return true
     val s = ticket.status?.trim()?.uppercase().orEmpty()
     return when (filter) {
         "Atama Bekleyen" -> ticket.assignedTechnicianId == null && s == "PENDING"
-        "Atanan" -> s == "ASSIGNED"
+        "Bugün Açılan" -> isTodayInBusinessZone(ticket.createdAt)
+        "Atanan" -> if (isAdmin) {
+            s == "ASSIGNED"
+        } else {
+            s == "ASSIGNED" || s == "IN_PROGRESS"
+        }
         "Devam Eden" -> s == "IN_PROGRESS"
         "Kapanan" -> s == "COMPLETED" || s == "CANCELLED"
         else -> s.equals(filter, ignoreCase = true)
@@ -81,29 +125,47 @@ private fun statusLabelForDisplay(apiStatus: String?): String {
         "IN_PROGRESS" -> "Devam Ediyor"
         "COMPLETED" -> "Tamamlandı"
         "CANCELLED" -> "İptal"
-        else -> if (apiStatus.isNullOrBlank()) "Bilinmiyor" else apiStatus
+        else -> if (apiStatus.isNullOrBlank()) "Bilinmiyor" else apiStatus.safeForComposeText("Bilinmiyor")
     }
 }
 
 private fun statusTone(apiStatus: String?): Color = when (apiStatus?.trim()?.uppercase().orEmpty()) {
     "COMPLETED" -> Success
-    "IN_PROGRESS" -> Info
+    "IN_PROGRESS" -> BrandCyan
     "CANCELLED" -> ErrorTone
     "PENDING", "ASSIGNED" -> Warning
-    else -> AccentOrange
+    else -> BrandNavy.copy(alpha = 0.5f)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TicketListScreen(
     onOpenTicket: (Long) -> Unit,
+    requestedFilter: String? = null,
+    onRequestedFilterApplied: () -> Unit = {},
     viewModel: TicketViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
-    var selectedFilter by remember { mutableStateOf("Tümü") }
+    val availableFilters = if (session.isAdmin) adminFilters else technicianFilters
+    val defaultFilter = if (session.isAdmin) "Atama Bekleyen" else "Atanan"
+    var selectedFilter by remember(session.isAdmin) { mutableStateOf(defaultFilter) }
+    var showCreateTicketDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.loadTickets() }
+    LaunchedEffect(session.isAdmin) { selectedFilter = defaultFilter }
+    LaunchedEffect(requestedFilter, session.isAdmin) {
+        if (!requestedFilter.isNullOrBlank() && requestedFilter in availableFilters) {
+            selectedFilter = requestedFilter
+            onRequestedFilterApplied()
+        }
+    }
+    LaunchedEffect(uiState.ticketCreatedId) {
+        if (uiState.ticketCreatedId != null) {
+            showCreateTicketDialog = false
+            viewModel.consumeTicketCreated()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
@@ -115,34 +177,48 @@ fun TicketListScreen(
             uiState.error != null && uiState.tickets.isEmpty() -> {
                 Column(
                     modifier = Modifier.fillMaxSize().padding(Spacing.lg),
-                    verticalArrangement = Arrangement.Center
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md, Alignment.CenterVertically)
                 ) {
                     AppEmptyState(
                         title = "İş emirleri yüklenemedi",
-                        subtitle = uiState.error,
+                        subtitle = uiState.error?.safeForComposeText(),
                         icon = Icons.Outlined.AssignmentLate,
                         tint = ErrorTone
+                    )
+                    AppPrimaryButton(
+                        text = "Servis Fişi Oluştur",
+                        onClick = {
+                            showCreateTicketDialog = true
+                            if (uiState.customers.isEmpty()) {
+                                viewModel.loadCustomers()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
             else -> {
-                PullToRefreshBox(
-                    isRefreshing = uiState.refreshing,
-                    onRefresh = { viewModel.loadTickets(refresh = true) }
-                ) {
-                    val filtered = uiState.tickets.filter { ticketMatchesFilter(it, selectedFilter) }
-                    val unassignedInFiltered = filtered.filter { it.assignedTechnicianId == null }
-                    val activeCount = uiState.tickets.count { (it.status?.uppercase() ?: "") == "IN_PROGRESS" }
-                    val unassignedCount = uiState.tickets.count {
-                        val s = it.status?.uppercase() ?: ""
-                        it.assignedTechnicianId == null && s == "PENDING"
-                    }
-                    var bulkExpanded by remember(selectedFilter, filtered.size) { mutableStateOf(false) }
-                    var bulkTechName by remember(selectedFilter, filtered.size) { mutableStateOf("Teknisyen Seç") }
-                    var bulkTechId by remember(selectedFilter, filtered.size) { mutableStateOf<Long?>(null) }
+                val filtered = uiState.tickets.filter {
+                    ticketMatchesFilter(it, selectedFilter, session.isAdmin)
+                }
+                val unassignedInFiltered = filtered.filter { it.assignedTechnicianId == null }
+                val activeCount = uiState.tickets.count { (it.status?.uppercase() ?: "") == "IN_PROGRESS" }
+                val unassignedCount = uiState.tickets.count {
+                    val s = it.status?.uppercase() ?: ""
+                    it.assignedTechnicianId == null && s == "PENDING"
+                }
+                var bulkExpanded by remember(selectedFilter, filtered.size) { mutableStateOf(false) }
+                var bulkTechName by remember(selectedFilter, filtered.size) { mutableStateOf("Teknisyen Seç") }
+                var bulkTechId by remember(selectedFilter, filtered.size) { mutableStateOf<Long?>(null) }
 
+                Column(modifier = Modifier.fillMaxSize()) {
+                    if (uiState.refreshing) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
                         contentPadding = PaddingValues(
                             start = Spacing.lg,
                             end = Spacing.lg,
@@ -155,12 +231,47 @@ fun TicketListScreen(
                             AppHeroCard(
                                 eyebrow = if (session.isAdmin) "Operasyon" else "İşlerim",
                                 title = "${uiState.tickets.size} iş emri",
-                                subtitle = "$unassignedCount atama bekliyor • $activeCount devam ediyor",
+                                subtitle = "$unassignedCount atama bekliyor · $activeCount devam ediyor",
                                 badge = if (session.isAdmin) "Yönetici görünümü" else "Teknisyen görünümü"
                             )
                         }
                         item {
-                            FilterRow(selectedFilter = selectedFilter, onSelect = { selectedFilter = it })
+                            AppPrimaryButton(
+                                text = "Servis Fişi Oluştur",
+                                onClick = {
+                                    showCreateTicketDialog = true
+                                    if (uiState.customers.isEmpty()) {
+                                        viewModel.loadCustomers()
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        item {
+                            FilterRow(
+                                filters = availableFilters,
+                                selectedFilter = selectedFilter,
+                                onSelect = { selectedFilter = it }
+                            )
+                        }
+                        item {
+                            AppDashboardSection(
+                                title = "Servis Fişi",
+                                subtitle = "Müşteri seç, hızlı müşteri oluştur ve fiş aç"
+                            ) {
+                                AppGhostCard {
+                                    AppPrimaryButton(
+                                        text = "Servis Fişi Oluştur",
+                                        onClick = {
+                                            showCreateTicketDialog = true
+                                            if (uiState.customers.isEmpty()) {
+                                                viewModel.loadCustomers()
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
                         }
                         if (session.isAdmin && unassignedInFiltered.isNotEmpty()) {
                             item {
@@ -184,9 +295,16 @@ fun TicketListScreen(
                                                 ExposedDropdownMenu(expanded = bulkExpanded, onDismissRequest = { bulkExpanded = false }) {
                                                     uiState.technicians.forEach { tech ->
                                                         DropdownMenuItem(
-                                                            text = { Text(tech.fullName ?: "Teknisyen #${tech.id}") },
+                                                            text = {
+                                                                Text(
+                                                                    (tech.fullName ?: "Teknisyen #${tech.id}").safeForComposeText(
+                                                                        "Teknisyen #${tech.id}"
+                                                                    )
+                                                                )
+                                                            },
                                                             onClick = {
-                                                                bulkTechName = tech.fullName ?: "Teknisyen #${tech.id}"
+                                                                bulkTechName = (tech.fullName ?: "Teknisyen #${tech.id}")
+                                                                    .safeForComposeText("Teknisyen #${tech.id}")
                                                                 bulkTechId = tech.id
                                                                 bulkExpanded = false
                                                             }
@@ -225,7 +343,7 @@ fun TicketListScreen(
                                             "Farklı bir filtre seçmeyi deneyin."
                                         },
                                         icon = Icons.Outlined.AssignmentInd,
-                                        tint = Info
+                                        tint = BrandCyan
                                     )
                                 }
                             }
@@ -244,10 +362,32 @@ fun TicketListScreen(
             }
         }
     }
+
+    if (showCreateTicketDialog) {
+        CreateTicketFromOperationDialog(
+            customers = uiState.customers,
+            technicians = uiState.technicians,
+            customersLoading = uiState.customersLoading,
+            customerSaving = uiState.customerSaving,
+            creatingTicket = uiState.creatingTicket,
+            onDismiss = { showCreateTicketDialog = false },
+            onRefreshCustomers = { viewModel.loadCustomers(refresh = true) },
+            onQuickCreateCustomer = { name, phone, address, onCreated ->
+                viewModel.createCustomerQuick(name, phone, address, onCreated)
+            },
+            onCreateTicket = { customerId, description, notes, techId ->
+                viewModel.createServiceTicket(customerId, description, notes, techId)
+            }
+        )
+    }
 }
 
 @Composable
-private fun FilterRow(selectedFilter: String, onSelect: (String) -> Unit) {
+private fun FilterRow(
+    filters: List<String>,
+    selectedFilter: String,
+    onSelect: (String) -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -292,7 +432,10 @@ private fun TicketCard(
     onClick: () -> Unit
 ) {
     var selectedTechName by remember(ticket.id, ticket.assignedTechnicianName) {
-        mutableStateOf(ticket.assignedTechnicianName ?: "Teknisyen Seç")
+        val label = ticket.assignedTechnicianName
+            ?.safeForComposeText()
+            ?.takeIf { it.isNotBlank() }
+        mutableStateOf(label ?: "Teknisyen Seç")
     }
     val isUnassigned = ticket.assignedTechnicianId == null
     val tone = statusTone(ticket.status)
@@ -317,22 +460,24 @@ private fun TicketCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        ticket.customerName ?: "Müşteri",
+                        text = ticket.customerName.safeForComposeText("Müşteri"),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1
                     )
                     AppStatusBadge(text = statusLabelForDisplay(ticket.status), statusKey = ticket.status)
                 }
-                if (!ticket.customerPhone.isNullOrBlank()) {
+                val phoneDisplay = ticket.customerPhone.safeForComposeText()
+                if (phoneDisplay.isNotBlank()) {
                     Text(
-                        text = ticket.customerPhone.orEmpty(),
+                        text = phoneDisplay,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                if (!ticket.customerAddress.isNullOrBlank()) {
+                val addressDisplay = ticket.customerAddress.safeForComposeText()
+                if (addressDisplay.isNotBlank()) {
                     Text(
-                        text = ticket.customerAddress.orEmpty(),
+                        text = addressDisplay,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2
@@ -344,14 +489,18 @@ private fun TicketCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = ticket.scheduledDate?.takeIf { it.isNotBlank() } ?: "Tarih: -",
+                        text = ticket.scheduledDate
+                            ?.takeIf { it.isNotBlank() }
+                            ?.safeForComposeText("Tarih: -")
+                            ?: "Tarih: -",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
+                    val techLine = ticket.assignedTechnicianName.safeForComposeText()
                     Text(
-                        text = if (ticket.assignedTechnicianName.isNullOrBlank()) "Atanmadı" else ticket.assignedTechnicianName.orEmpty(),
+                        text = if (techLine.isBlank()) "Atanmadı" else techLine,
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (ticket.assignedTechnicianName.isNullOrBlank()) ErrorTone else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (techLine.isBlank()) ErrorTone else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -359,10 +508,14 @@ private fun TicketCard(
                     AppDropdownField(
                         label = "Teknisyen Atama",
                         selectedValue = selectedTechName,
-                        options = technicians.map { it.fullName ?: "Teknisyen #${it.id}" },
+                        options = technicians.map { tech ->
+                            (tech.fullName ?: "Teknisyen #${tech.id}").safeForComposeText("Teknisyen #${tech.id}")
+                        },
                         onSelected = { selected ->
                             selectedTechName = selected
-                            val tech = technicians.firstOrNull { (it.fullName ?: "Teknisyen #${it.id}") == selected }
+                            val tech = technicians.firstOrNull { t ->
+                                (t.fullName ?: "Teknisyen #${t.id}").safeForComposeText("Teknisyen #${t.id}") == selected
+                            }
                             if (tech != null) onAssignTechnician(tech.id)
                         },
                         modifier = Modifier.fillMaxWidth()

@@ -45,13 +45,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.pusula.service.ui.components.AppHeroCard
-import com.pusula.service.ui.theme.AccentCyan
-import com.pusula.service.ui.theme.AccentOrange
-import com.pusula.service.ui.theme.AccentPurple
-import com.pusula.service.ui.theme.BlueSecondary
+import com.pusula.service.ui.theme.BrandCyan
+import com.pusula.service.ui.theme.BrandNavy
 import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.ui.theme.Success
-import com.pusula.service.ui.theme.Warning
 
 private data class PlanCardData(
     val code: String,
@@ -76,21 +73,21 @@ fun PlanUpgradeScreen(viewModel: AdminViewModel = hiltViewModel()) {
             title = "Çırak",
             tagline = "Başlangıç",
             features = listOf("2 teknisyen", "200 müşteri", "Temel modüller"),
-            accent = listOf(AccentCyan, BlueSecondary)
+            accent = listOf(BrandCyan, BrandNavy.copy(alpha = 0.85f))
         ),
         PlanCardData(
             code = "USTA",
             title = "Usta",
             tagline = "Büyüyen ekipler",
             features = listOf("10 teknisyen", "2000 müşteri", "Finans modülü"),
-            accent = listOf(AccentPurple, BlueSecondary)
+            accent = listOf(BrandNavy, BrandCyan.copy(alpha = 0.75f))
         ),
         PlanCardData(
             code = "PATRON",
             title = "Patron",
             tagline = "Ölçek için",
             features = listOf("Sınırsız teknisyen", "Sınırsız müşteri", "Tüm premium özellikler"),
-            accent = listOf(Warning, AccentOrange)
+            accent = listOf(BrandNavy, BrandNavy.copy(alpha = 0.65f))
         )
     )
 

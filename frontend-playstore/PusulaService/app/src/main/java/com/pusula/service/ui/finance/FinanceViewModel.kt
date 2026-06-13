@@ -10,6 +10,7 @@ import com.pusula.service.data.model.ExpenseItemDTO
 import com.pusula.service.data.model.FixedExpenseDefinitionDTO
 import com.pusula.service.data.model.MonthlySummaryDTO
 import com.pusula.service.data.repository.FinanceRepository
+import com.pusula.service.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import javax.inject.Inject
@@ -107,21 +108,26 @@ class FinanceViewModel @Inject constructor(
                     payingAccountId = null,
                     closingDay = false,
                     downloadingMonth = null,
-                    error = throwable.message ?: "Finans verileri yüklenemedi"
+                    error = throwable.toUserMessage("Finans verileri yüklenemedi")
                 )
             }
         }
     }
 
-    fun addExpense(amount: Double, description: String, category: String) = viewModelScope.launch {
+    fun addExpense(
+        amount: Double,
+        description: String,
+        category: String,
+        fixedExpenseId: Long? = null
+    ) = viewModelScope.launch {
         _uiState.update { it.copy(addingExpense = true, error = null) }
-        runCatching { financeRepository.addExpense(amount, description, category) }
+        runCatching { financeRepository.addExpense(amount, description, category, fixedExpenseId = fixedExpenseId) }
             .onSuccess { loadDashboard(refresh = true) }
             .onFailure { throwable ->
                 _uiState.update {
                     it.copy(
                         addingExpense = false,
-                        error = throwable.message ?: "Gider eklenemedi"
+                        error = throwable.toUserMessage("Gider eklenemedi")
                     )
                 }
             }
@@ -138,7 +144,7 @@ class FinanceViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         payingAccountId = null,
-                        error = throwable.message ?: "Cari ödeme kaydedilemedi"
+                        error = throwable.toUserMessage("Cari ödeme kaydedilemedi")
                     )
                 }
             }
@@ -155,7 +161,7 @@ class FinanceViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         downloadingMonth = null,
-                        error = throwable.message ?: "Aylık PDF indirilemedi"
+                        error = throwable.toUserMessage("Aylık PDF indirilemedi")
                     )
                 }
             }
@@ -171,7 +177,7 @@ class FinanceViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         closingDay = false,
-                        error = throwable.message ?: "Gün kapatma başarısız"
+                        error = throwable.toUserMessage("Gün kapatma başarısız")
                     )
                 }
             }

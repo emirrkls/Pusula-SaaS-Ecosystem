@@ -7,6 +7,7 @@ import androidx.credentials.Credential
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,6 +17,7 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingExcept
 import com.pusula.service.BuildConfig
 import com.pusula.service.core.SessionManager
 import com.pusula.service.data.repository.AuthRepository
+import com.pusula.service.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -39,29 +41,47 @@ class AuthViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
-    fun tryRestoreSession() = sessionManager.tryRestoreSession()
+    fun tryRestoreSession() = viewModelScope.launch {
+        sessionManager.tryRestoreSession()
+        if (!sessionManager.state.value.isAuthenticated) return@launch
+        runCatching {
+            authRepository.syncRestoredSession()
+        }.onFailure {
+            sessionManager.logout()
+        }
+    }
 
     fun login(username: String, password: String, orgCode: String?) = viewModelScope.launch {
+        sessionManager.logout()
         _uiState.value = AuthUiState(isLoading = true)
+        val u = username.trim()
+        val p = password.trim()
+        val org = orgCode?.trim()?.takeIf { it.isNotBlank() }
         runCatching {
-            if (!orgCode.isNullOrBlank()) {
-                authRepository.loginCorporate(orgCode, username, password)
+            if (!org.isNullOrBlank()) {
+                authRepository.loginCorporate(org, u, p)
             } else {
-                authRepository.login(username, password)
+                authRepository.login(u, p)
             }
         }.onFailure {
-            _uiState.value = AuthUiState(errorMessage = it.message ?: "Giriş sırasında hata oluştu")
+            _uiState.value = AuthUiState(errorMessage = it.toUserMessage("Giriş sırasında hata oluştu"))
         }.onSuccess {
             _uiState.value = AuthUiState()
         }
     }
 
     fun register(email: String, username: String, password: String, fullName: String) = viewModelScope.launch {
+        sessionManager.logout()
         _uiState.value = AuthUiState(isLoading = true)
         runCatching {
-            authRepository.registerIndividual(email, username, password, fullName)
+            authRepository.registerIndividual(
+                email.trim(),
+                username.trim(),
+                password.trim(),
+                fullName.trim()
+            )
         }.onFailure {
-            _uiState.value = AuthUiState(errorMessage = it.message ?: "Kayıt sırasında hata oluştu")
+            _uiState.value = AuthUiState(errorMessage = it.toUserMessage("Kayıt sırasında hata oluştu"))
         }.onSuccess {
             _uiState.value = AuthUiState()
         }
@@ -100,13 +120,25 @@ class AuthViewModel @Inject constructor(
                 preferredUsername = preferredUsername
             )
         }.onFailure { error ->
+            val msg = error.message.orEmpty()
+            val userCanceled =
+                error is GetCredentialCancellationException ||
+                    (error is GetCredentialException && (
+                        msg.contains("cancelled by the user", ignoreCase = true) ||
+                            msg.contains("canceled by the user", ignoreCase = true) ||
+                            msg.contains("TYPE_USER_CANCELED", ignoreCase = true)
+                        ))
+            if (userCanceled) {
+                _uiState.value = AuthUiState()
+                return@onFailure
+            }
             val message = when (error) {
                 is GetCredentialException -> {
                     val detail = error.message?.takeIf { it.isNotBlank() }
                     if (detail != null) "Google girişi başarısız: $detail" else "Google hesabı seçilemedi"
                 }
                 is GoogleIdTokenParsingException -> "Google token okunamadı"
-                else -> error.message ?: "Google ile doğrulama sırasında hata oluştu"
+                else -> error.toUserMessage("Google ile doğrulama sırasında hata oluştu")
             }
             _uiState.value = AuthUiState(errorMessage = message)
         }.onSuccess {
@@ -142,7 +174,7 @@ class AuthViewModel @Inject constructor(
         runCatching {
             authRepository.deleteAccount()
         }.onFailure {
-            _uiState.value = AuthUiState(errorMessage = it.message ?: "Hesap silinirken hata oluştu")
+            _uiState.value = AuthUiState(errorMessage = it.toUserMessage("Hesap silinirken hata oluştu"))
         }.onSuccess {
             _uiState.value = AuthUiState()
         }

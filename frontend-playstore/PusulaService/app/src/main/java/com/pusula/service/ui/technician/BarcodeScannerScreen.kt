@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Remove
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -24,6 +25,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.pusula.service.core.featureGated
+import com.pusula.service.core.featureLabelTr
 import com.pusula.service.core.readOnlyProtected
 import com.pusula.service.ui.components.CameraBarcodeScannerView
 import com.pusula.service.ui.components.AppDashboardSection
@@ -58,18 +61,44 @@ import kotlinx.coroutines.delay
 fun BarcodeScannerScreen(
     ticketId: Long,
     onDone: () -> Unit,
+    onUpgrade: () -> Unit = {},
     viewModel: TicketViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
     var quantity by remember { mutableIntStateOf(1) }
     var scanLocked by remember { mutableStateOf(false) }
+    var showInventoryLockedDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.usedPartAddedTicketId) {
         if (uiState.usedPartAddedTicketId == ticketId) {
             viewModel.consumeUsedPartAdded()
             onDone()
         }
+    }
+
+    if (showInventoryLockedDialog) {
+        AlertDialog(
+            onDismissRequest = { showInventoryLockedDialog = false },
+            title = { Text("Modül kullanılamıyor") },
+            text = {
+                Text(
+                    "${featureLabelTr("BASIC_INVENTORY")} bu paket kapsamında değil. " +
+                        "Kullanmak için daha üst bir plana geçebilirsiniz."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showInventoryLockedDialog = false
+                        onUpgrade()
+                    }
+                ) { Text("Planları gör") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showInventoryLockedDialog = false }) { Text("Kapat") }
+            }
+        )
     }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Barkod Tarayıcı") }) }) { padding ->
@@ -123,7 +152,11 @@ fun BarcodeScannerScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .featureGated(viewModel.sessionManager, "BASIC_INVENTORY")
+                                .featureGated(
+                                    viewModel.sessionManager,
+                                    "BASIC_INVENTORY",
+                                    onLockedTap = { showInventoryLockedDialog = true }
+                                )
                                 .readOnlyProtected(session.isReadOnly),
                             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                             verticalAlignment = Alignment.CenterVertically

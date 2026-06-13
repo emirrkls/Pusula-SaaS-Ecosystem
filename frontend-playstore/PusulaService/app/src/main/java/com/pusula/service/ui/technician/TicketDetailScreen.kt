@@ -1,5 +1,9 @@
 package com.pusula.service.ui.technician
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +23,7 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.RequestQuote
@@ -42,7 +47,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -61,6 +69,7 @@ import com.pusula.service.ui.theme.AccentPurple
 import com.pusula.service.ui.theme.Info
 import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.ui.theme.Success
+import com.pusula.service.util.safeForComposeText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,9 +78,11 @@ fun TicketDetailScreen(
     onOpenBarcode: (Long) -> Unit,
     onOpenCollection: (Long) -> Unit,
     onOpenSignature: (Long) -> Unit,
+    onOpenPhotos: (Long) -> Unit,
     onGeneratePdf: () -> Unit,
     viewModel: TicketViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
     var expanded by remember(ticketId) { mutableStateOf(false) }
@@ -80,6 +91,7 @@ fun TicketDetailScreen(
     LaunchedEffect(ticketId) { viewModel.selectTicket(ticketId) }
 
     val ticket = uiState.selectedTicket
+    val pdfLoading = uiState.downloadingServicePdfTicketId == ticketId
 
     Scaffold(topBar = { TopAppBar(title = { Text("İş Emri Detayı") }) }) { padding ->
         if (ticket == null) {
@@ -109,8 +121,12 @@ fun TicketDetailScreen(
             item {
                 AppHeroCard(
                     eyebrow = "Servis fişi #${ticket.id}",
-                    title = ticket.customerName ?: "Müşteri",
-                    subtitle = ticket.scheduledDate?.takeIf { it.isNotBlank() }?.let { "Plan: $it" },
+                    title = ticket.customerName.safeForComposeText("Müşteri"),
+                    subtitle = ticket.scheduledDate
+                        ?.takeIf { it.isNotBlank() }
+                        ?.safeForComposeText()
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { "Plan: $it" },
                     badge = ticket.status?.let { translateStatus(it) },
                     extraContent = {
                         if (totalAmount > 0.0) {
@@ -123,10 +139,30 @@ fun TicketDetailScreen(
             item {
                 AppDashboardSection(title = "Müşteri") {
                     AppGhostCard {
-                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                            DetailRow(icon = Icons.Outlined.Person, label = "Ad", value = ticket.customerName.orEmpty().ifBlank { "-" })
-                            DetailRow(icon = Icons.Outlined.Phone, label = "Telefon", value = ticket.customerPhone.orEmpty().ifBlank { "-" })
-                            DetailRow(icon = Icons.Outlined.Home, label = "Adres", value = ticket.customerAddress.orEmpty().ifBlank { "-" })
+                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            DetailRow(
+                                icon = Icons.Outlined.Person,
+                                label = "Ad",
+                                value = ticket.customerName.safeForComposeText().ifBlank { "-" }
+                            )
+                            InteractiveContactRow(
+                                icon = Icons.Outlined.Phone,
+                                label = "Telefon",
+                                value = ticket.customerPhone.safeForComposeText().ifBlank { "-" },
+                                onClick = {
+                                    val raw = ticket.customerPhone.orEmpty()
+                                    if (raw.isNotBlank()) openDialer(context, raw)
+                                }
+                            )
+                            InteractiveContactRow(
+                                icon = Icons.Outlined.Home,
+                                label = "Adres",
+                                value = ticket.customerAddress.safeForComposeText().ifBlank { "-" },
+                                onClick = {
+                                    val raw = ticket.customerAddress.orEmpty()
+                                    if (raw.isNotBlank()) openMapsForAddress(context, raw)
+                                }
+                            )
                         }
                     }
                 }
@@ -145,7 +181,11 @@ fun TicketDetailScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        text = ticket.description?.takeIf { it.isNotBlank() } ?: "Açıklama girilmemiş",
+                                        text = ticket.description
+                                            ?.takeIf { it.isNotBlank() }
+                                            ?.safeForComposeText()
+                                            ?.takeIf { it.isNotBlank() }
+                                            ?: "Açıklama girilmemiş",
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                 }
@@ -161,14 +201,15 @@ fun TicketDetailScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 AppStatusBadge(
-                                    text = ticket.assignedTechnicianName ?: "Atanmadı",
+                                    text = ticket.assignedTechnicianName.safeForComposeText("Atanmadı")
+                                        .ifBlank { "Atanmadı" },
                                     statusKey = if (ticket.assignedTechnicianName.isNullOrBlank()) "PENDING" else "IN_PROGRESS"
                                 )
                             }
                             DetailRow(
                                 icon = Icons.Outlined.Description,
                                 label = "Notlar",
-                                value = ticket.notes.orEmpty().ifBlank { "-" }
+                                value = ticket.notes.safeForComposeText().ifBlank { "-" }
                             )
                             DetailRow(
                                 icon = Icons.Outlined.Build,
@@ -291,11 +332,19 @@ fun TicketDetailScreen(
                                 modifier = Modifier.weight(1f).readOnlyProtected(session.isReadOnly)
                             )
                             AppQuickActionTile(
-                                label = "PDF",
+                                label = "Görsel",
+                                icon = Icons.Outlined.PhotoLibrary,
+                                tint = Info,
+                                onClick = { onOpenPhotos(ticketId) },
+                                modifier = Modifier.weight(1f).readOnlyProtected(session.isReadOnly)
+                            )
+                            AppQuickActionTile(
+                                label = if (pdfLoading) "Hazırlanıyor..." else "PDF",
                                 icon = Icons.Outlined.PictureAsPdf,
                                 tint = AccentPurple,
                                 onClick = onGeneratePdf,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                loading = pdfLoading
                             )
                         }
                     }
@@ -324,6 +373,89 @@ private fun DetailRow(icon: ImageVector, label: String, value: String) {
                 style = MaterialTheme.typography.bodyMedium
             )
         }
+    }
+}
+
+/**
+ * Phone / address: one continuous tap target (icon + texts), subtle shape; value uses primary when active.
+ */
+@Composable
+private fun InteractiveContactRow(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    onClick: () -> Unit
+) {
+    val active = value.isNotBlank() && value != "-"
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .then(
+                if (active) {
+                    Modifier.clickable(role = Role.Button, onClick = onClick)
+                } else {
+                    Modifier
+                }
+            )
+            .padding(vertical = 4.dp, horizontal = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+    ) {
+        AppIconBadge(
+            icon = icon,
+            tint = if (active) MaterialTheme.colorScheme.primary else Info,
+            size = 32.dp,
+            iconSize = 16.dp,
+            cornerRadius = 10.dp
+        )
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                fontWeight = if (active) FontWeight.Medium else FontWeight.Normal
+            )
+        }
+    }
+}
+
+private fun openDialer(context: Context, rawPhone: String) {
+    val normalized = rawPhone.trim()
+    if (normalized.isBlank()) return
+    val telBody = buildString {
+        var seenDigit = false
+        normalized.forEach { ch ->
+            when {
+                ch.isDigit() -> {
+                    append(ch)
+                    seenDigit = true
+                }
+                ch == '+' && !seenDigit && isEmpty() -> append(ch)
+            }
+        }
+    }.ifBlank { normalized.filter { it.isDigit() || it == '+' } }
+    if (telBody.isBlank()) return
+    runCatching {
+        context.startActivity(
+            Intent(Intent.ACTION_DIAL, Uri.parse("tel:$telBody"))
+        )
+    }
+}
+
+private fun openMapsForAddress(context: Context, address: String) {
+    val q = address.trim()
+    if (q.isBlank()) return
+    val uri = Uri.parse(
+        "https://www.google.com/maps/search/?api=1&query=" + Uri.encode(q)
+    )
+    runCatching {
+        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
     }
 }
 

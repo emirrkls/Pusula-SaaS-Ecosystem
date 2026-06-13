@@ -10,17 +10,19 @@ import com.pusula.service.data.model.FieldPin
 import com.pusula.service.data.model.InventoryItemDTO
 import com.pusula.service.data.model.ProfitAnalysis
 import com.pusula.service.data.model.QuotaStatus
+import com.pusula.service.data.model.ServicePhotoDTO
 import com.pusula.service.data.model.TechnicianStat
 import com.pusula.service.data.repository.AdminRepository
 import com.pusula.service.data.repository.TicketRepository
+import com.pusula.service.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 data class AdminUiState(
     val loading: Boolean = false,
@@ -41,7 +43,12 @@ data class AdminUiState(
     val inventoryDeletedAt: Long? = null,
     val barcodeLookupLoading: Boolean = false,
     val barcodeLookupCode: String? = null,
-    val barcodeLookupItem: InventoryItemDTO? = null
+    val barcodeLookupItem: InventoryItemDTO? = null,
+    val serviceQualityPhotos: List<ServicePhotoDTO> = emptyList(),
+    val serviceQualityFilterType: String? = null,
+    val serviceQualityFilterTicketId: Long? = null,
+    val serviceQualityFilterStartDate: String? = null,
+    val serviceQualityFilterEndDate: String? = null
 )
 
 @HiltViewModel
@@ -57,19 +64,21 @@ class AdminViewModel @Inject constructor(
     fun loadDashboard(refresh: Boolean = false) = viewModelScope.launch {
         _uiState.update { it.copy(loading = !refresh, refreshing = refresh, error = null) }
         runCatching {
-            val kpisDeferred = async { adminRepository.getDashboardKPIs() }
-            val technicianDeferred = async { adminRepository.getTechnicianStats() }
-            val profitDeferred = async { adminRepository.getProfitAnalysis() }
-            val quotaDeferred = async { adminRepository.getQuotaStatus() }
-            val radarDeferred = async { adminRepository.getFieldRadar() }
-            val inventoryDeferred = async { ticketRepository.getInventory() }
+            val today = LocalDate.now().toString()
+            val todayQualityPhotos = runCatching {
+                ticketRepository.getCompanyServicePhotos(
+                    startDate = today,
+                    endDate = today
+                )
+            }.getOrElse { emptyList() }
             AdminUiState(
-                kpis = kpisDeferred.await(),
-                technicianStats = technicianDeferred.await(),
-                profitAnalysis = profitDeferred.await(),
-                quotaStatus = quotaDeferred.await(),
-                fieldPins = radarDeferred.await(),
-                inventory = inventoryDeferred.await()
+                kpis = adminRepository.getDashboardKPIs(),
+                technicianStats = adminRepository.getTechnicianStats(),
+                profitAnalysis = adminRepository.getProfitAnalysis(),
+                quotaStatus = adminRepository.getQuotaStatus(),
+                fieldPins = adminRepository.getFieldRadar(),
+                inventory = ticketRepository.getInventory(),
+                serviceQualityPhotos = todayQualityPhotos
             )
         }.onSuccess { loaded ->
             _uiState.update {
@@ -81,7 +90,8 @@ class AdminViewModel @Inject constructor(
                     profitAnalysis = loaded.profitAnalysis,
                     quotaStatus = loaded.quotaStatus,
                     fieldPins = loaded.fieldPins,
-                    inventory = loaded.inventory
+                    inventory = loaded.inventory,
+                    serviceQualityPhotos = loaded.serviceQualityPhotos
                 )
             }
         }.onFailure { throwable ->
@@ -89,7 +99,7 @@ class AdminViewModel @Inject constructor(
                 it.copy(
                     loading = false,
                     refreshing = false,
-                    error = throwable.message ?: "Yönetici paneli yüklenemedi"
+                    error = throwable.toUserMessage("Yönetici paneli yüklenemedi")
                 )
             }
         }
@@ -133,7 +143,7 @@ class AdminViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     creatingInventory = false,
-                    error = throwable.message ?: "Stok kalemi eklenemedi"
+                    error = throwable.toUserMessage("Stok kalemi eklenemedi")
                 )
             }
         }
@@ -179,7 +189,7 @@ class AdminViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     updatingInventoryId = null,
-                    error = throwable.message ?: "Stok kalemi güncellenemedi"
+                    error = throwable.toUserMessage("Stok kalemi güncellenemedi")
                 )
             }
         }
@@ -201,7 +211,7 @@ class AdminViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         deletingInventoryId = null,
-                        error = throwable.message ?: "Stok kalemi silinemedi"
+                        error = throwable.toUserMessage("Stok kalemi silinemedi")
                     )
                 }
             }
@@ -251,6 +261,40 @@ class AdminViewModel @Inject constructor(
                 barcodeLookupItem = null
             )
         }
+    }
+
+    fun loadServiceQualityPhotos(
+        type: String? = null,
+        ticketId: Long? = null,
+        startDate: String? = null,
+        endDate: String? = null,
+        limit: Int? = null
+    ) = viewModelScope.launch {
+        _uiState.update {
+            it.copy(
+                serviceQualityFilterType = type,
+                serviceQualityFilterTicketId = ticketId,
+                serviceQualityFilterStartDate = startDate,
+                serviceQualityFilterEndDate = endDate
+            )
+        }
+        runCatching {
+            ticketRepository.getCompanyServicePhotos(
+                type = type,
+                ticketId = ticketId,
+                startDate = startDate,
+                endDate = endDate,
+                limit = limit
+            )
+        }
+            .onSuccess { photos ->
+                _uiState.update { it.copy(serviceQualityPhotos = photos, error = null) }
+            }
+            .onFailure { throwable ->
+                _uiState.update {
+                    it.copy(error = throwable.toUserMessage("Servis kalite görselleri yüklenemedi"))
+                }
+            }
     }
 
     fun purchasePlan(planName: String) {

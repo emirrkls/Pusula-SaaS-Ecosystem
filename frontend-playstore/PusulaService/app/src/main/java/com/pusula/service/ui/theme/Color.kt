@@ -2,17 +2,30 @@ package com.pusula.service.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val CyanPrimary = Color(0xFF22D3EE)
-val BlueSecondary = Color(0xFF2563EB)
-val DarkStart = Color(0xFF0F1729)
-val DarkEnd = Color(0xFF1A2440)
-val SurfaceDark = Color(0xFF111827)
+/** Marka renkleri — logo: cyan pusula + navy metin (#555555 ikincil). */
+val BrandCyan = Color(0xFF00B6EB)
+val BrandNavy = Color(0xFF1C3461)
+val BrandGray = Color(0xFF555555)
+val BrandGrayLight = Color(0xFF94A3B8)
 
-// Semantic tones used across cards, badges and chart legends.
-val Success = Color(0xFF2E7D32)
-val Warning = Color(0xFFFF9800)
-val ErrorTone = Color(0xFFD32F2F)
-val Info = Color(0xFF1976D2)
-val AccentPurple = Color(0xFF7E57C2)
-val AccentCyan = Color(0xFF00ACC1)
-val AccentOrange = Color(0xFFEF6C00)
+val SurfaceWhite = Color(0xFFFFFFFF)
+val SurfaceMuted = Color(0xFFF5F8FB)
+val SurfaceSubtle = Color(0xFFEEF4F8)
+val BorderLight = Color(0xFFE2E8F0)
+
+/** Eski adlar — marka paletine yönlendirilir (ekranlar tek tek güncellenmeden tutarlılık). */
+val CyanPrimary = BrandCyan
+val BlueSecondary = BrandNavy
+val AccentCyan = BrandCyan
+val AccentPurple = BrandNavy
+val AccentOrange = BrandNavy.copy(alpha = 0.72f)
+
+val DarkStart = SurfaceMuted
+val DarkEnd = SurfaceWhite
+val SurfaceDark = SurfaceWhite
+
+/** Anlamsal tonlar — marka ile uyumlu, sade. */
+val Success = Color(0xFF0F766E)
+val Warning = Color(0xFFB45309)
+val ErrorTone = Color(0xFFB91C1C)
+val Info = BrandCyan

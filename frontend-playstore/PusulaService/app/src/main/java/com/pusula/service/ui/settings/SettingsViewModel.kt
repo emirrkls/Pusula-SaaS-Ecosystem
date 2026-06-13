@@ -6,6 +6,8 @@ import com.pusula.service.data.model.CompanyDTO
 import com.pusula.service.data.model.UserDTO
 import com.pusula.service.data.model.VehicleDTO
 import com.pusula.service.data.repository.SettingsRepository
+import com.google.gson.Gson
+import com.pusula.service.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,12 +16,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import okhttp3.MultipartBody
+import retrofit2.HttpException
+
+data class PendingDeleteReassign(
+    val userId: Long,
+    val activeTicketCount: Long
+)
 
 data class SettingsUiState(
     val loading: Boolean = false,
     val refreshing: Boolean = false,
     val saving: Boolean = false,
     val error: String? = null,
+    val pendingDeleteReassign: PendingDeleteReassign? = null,
     val users: List<UserDTO> = emptyList(),
     val vehicles: List<VehicleDTO> = emptyList(),
     val company: CompanyDTO? = null,
@@ -53,7 +62,7 @@ class SettingsViewModel @Inject constructor(
                 it.copy(
                     loading = false,
                     refreshing = false,
-                    error = throwable.message ?: "Ayar verileri yüklenemedi"
+                    error = throwable.toUserMessage("Ayar verileri yüklenemedi")
                 )
             }
         }
@@ -70,20 +79,39 @@ class SettingsViewModel @Inject constructor(
             _uiState.update { it.copy(saving = false, userSavedAt = System.currentTimeMillis()) }
             loadSettings(refresh = true)
         }.onFailure { throwable ->
-            _uiState.update { it.copy(saving = false, error = throwable.message ?: "Kullanıcı kaydedilemedi") }
+            _uiState.update { it.copy(saving = false, error = throwable.toUserMessage("Kullanıcı kaydedilemedi")) }
         }
     }
 
-    fun deleteUser(id: Long) = viewModelScope.launch {
-        _uiState.update { it.copy(saving = true, error = null) }
-        runCatching { repository.deleteUser(id) }
+    fun deleteUser(id: Long, reassignTo: Long? = null) = viewModelScope.launch {
+        _uiState.update {
+            it.copy(saving = true, error = null, pendingDeleteReassign = null)
+        }
+        runCatching { repository.deleteUser(id, reassignTo) }
             .onSuccess {
-                _uiState.update { it.copy(saving = false) }
+                _uiState.update { it.copy(saving = false, pendingDeleteReassign = null) }
                 loadSettings(refresh = true)
             }
             .onFailure { throwable ->
-                _uiState.update { it.copy(saving = false, error = throwable.message ?: "Kullanıcı silinemedi") }
+                val conflict = parseActiveTicketConflictCount(throwable, reassignTo != null)
+                if (conflict != null) {
+                    _uiState.update {
+                        it.copy(
+                            saving = false,
+                            error = null,
+                            pendingDeleteReassign = PendingDeleteReassign(id, conflict)
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(saving = false, error = throwable.toUserMessage("Kullanıcı silinemedi"))
+                    }
+                }
             }
+    }
+
+    fun dismissPendingDeleteReassign() {
+        _uiState.update { it.copy(pendingDeleteReassign = null) }
     }
 
     fun resetPassword(id: Long, password: String) = viewModelScope.launch {
@@ -91,7 +119,7 @@ class SettingsViewModel @Inject constructor(
         runCatching { repository.resetPassword(id, password) }
             .onSuccess { _uiState.update { it.copy(saving = false) } }
             .onFailure { throwable ->
-                _uiState.update { it.copy(saving = false, error = throwable.message ?: "Şifre sıfırlanamadı") }
+                _uiState.update { it.copy(saving = false, error = throwable.toUserMessage("Şifre sıfırlanamadı")) }
             }
     }
 
@@ -106,7 +134,7 @@ class SettingsViewModel @Inject constructor(
             _uiState.update { it.copy(saving = false, vehicleSavedAt = System.currentTimeMillis()) }
             loadSettings(refresh = true)
         }.onFailure { throwable ->
-            _uiState.update { it.copy(saving = false, error = throwable.message ?: "Araç kaydedilemedi") }
+            _uiState.update { it.copy(saving = false, error = throwable.toUserMessage("Araç kaydedilemedi")) }
         }
     }
 
@@ -118,7 +146,7 @@ class SettingsViewModel @Inject constructor(
                 loadSettings(refresh = true)
             }
             .onFailure { throwable ->
-                _uiState.update { it.copy(saving = false, error = throwable.message ?: "Araç silinemedi") }
+                _uiState.update { it.copy(saving = false, error = throwable.toUserMessage("Araç silinemedi")) }
             }
     }
 
@@ -129,7 +157,7 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(saving = false, company = updated) }
             }
             .onFailure { throwable ->
-                _uiState.update { it.copy(saving = false, error = throwable.message ?: "Firma güncellenemedi") }
+                _uiState.update { it.copy(saving = false, error = throwable.toUserMessage("Firma güncellenemedi")) }
             }
     }
 
@@ -140,7 +168,7 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(saving = false) }
             }
             .onFailure { throwable ->
-                _uiState.update { it.copy(saving = false, error = throwable.message ?: "İmza yüklenemedi") }
+                _uiState.update { it.copy(saving = false, error = throwable.toUserMessage("İmza yüklenemedi")) }
             }
     }
 
@@ -151,7 +179,7 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(saving = false, company = updated) }
             }
             .onFailure { throwable ->
-                _uiState.update { it.copy(saving = false, error = throwable.message ?: "Logo yüklenemedi") }
+                _uiState.update { it.copy(saving = false, error = throwable.toUserMessage("Logo yüklenemedi")) }
             }
     }
 
@@ -162,4 +190,21 @@ class SettingsViewModel @Inject constructor(
     fun consumeVehicleSavedEvent() {
         _uiState.update { it.copy(vehicleSavedAt = null) }
     }
+}
+
+private data class ActiveTicketsErrorBody(
+    val error: String?,
+    val count: Number?
+)
+
+/** HTTP 409 with ACTIVE_TICKETS: open jobs must be reassigned before deleting the technician. */
+private fun parseActiveTicketConflictCount(throwable: Throwable, reassignAttempted: Boolean): Long? {
+    if (reassignAttempted) return null
+    val http = throwable as? HttpException ?: return null
+    if (http.code() != 409) return null
+    val raw = http.response()?.errorBody()?.string() ?: return null
+    return runCatching {
+        val body = Gson().fromJson(raw, ActiveTicketsErrorBody::class.java)
+        if (body.error == "ACTIVE_TICKETS" && body.count != null) body.count.toLong() else null
+    }.getOrNull()
 }

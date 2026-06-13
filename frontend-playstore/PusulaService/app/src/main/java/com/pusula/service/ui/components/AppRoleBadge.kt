@@ -6,8 +6,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.pusula.service.ui.theme.BrandCyan
+import com.pusula.service.ui.theme.BrandNavy
 import com.pusula.service.ui.theme.ErrorTone
-import com.pusula.service.ui.theme.Info
 import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.ui.theme.Success
 import com.pusula.service.ui.theme.Warning
@@ -16,8 +17,8 @@ import com.pusula.service.ui.theme.Warning
 fun AppRoleBadge(role: String) {
     val roleKey = role.uppercase()
     val tone = when (roleKey) {
-        "SUPER_ADMIN" -> Warning
-        "COMPANY_ADMIN" -> Info
+        "SUPER_ADMIN" -> BrandNavy
+        "COMPANY_ADMIN" -> BrandCyan
         "TECHNICIAN" -> Success
         else -> ErrorTone
     }

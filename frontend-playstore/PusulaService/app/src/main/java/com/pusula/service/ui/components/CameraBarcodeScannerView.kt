@@ -1,6 +1,7 @@
 package com.pusula.service.ui.components
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.os.VibrationEffect
 import android.os.Vibrator
 import androidx.camera.core.CameraSelector
@@ -42,6 +43,7 @@ import com.pusula.service.ui.theme.Warning
 import java.util.concurrent.Executors
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
+@SuppressLint("UnsafeOptInUsageError")
 @Composable
 fun CameraBarcodeScannerView(
     modifier: Modifier = Modifier,

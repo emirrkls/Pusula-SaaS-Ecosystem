@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.pusula.service.data.model.CustomerDTO
 import com.pusula.service.data.model.TechnicianDTO
 import com.pusula.service.data.repository.CustomerRepository
+import com.pusula.service.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,7 +56,7 @@ class CustomerViewModel @Inject constructor(
                         loading = false,
                         refreshing = false,
                 technicians = emptyList(),
-                        error = throwable.message ?: "Müşteriler yüklenemedi"
+                        error = throwable.toUserMessage("Müşteriler yüklenemedi")
                     )
                 }
             }
@@ -72,7 +73,7 @@ class CustomerViewModel @Inject constructor(
             _uiState.update { it.copy(saving = false, customerSavedAt = System.currentTimeMillis()) }
             loadCustomers(refresh = true)
         }.onFailure { throwable ->
-            _uiState.update { it.copy(saving = false, error = throwable.message ?: "Müşteri kaydedilemedi") }
+            _uiState.update { it.copy(saving = false, error = throwable.toUserMessage("Müşteri kaydedilemedi")) }
         }
     }
 
@@ -86,7 +87,7 @@ class CustomerViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         creatingTicket = false,
-                        error = throwable.message ?: "Servis fişi oluşturulamadı"
+                        error = throwable.toUserMessage("Servis fişi oluşturulamadı")
                     )
                 }
             }
