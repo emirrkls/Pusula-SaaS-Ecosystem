@@ -1,22 +1,26 @@
 package com.pusula.backend.entity;
 
-import jakarta.persistence.*;
-
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "service_photos")
 public class ServicePhoto {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(name = "ticket_id", nullable = false)
-    private UUID ticketId;
+    private Long ticketId;
 
     @Column(nullable = false)
     private String url;
@@ -36,7 +40,7 @@ public class ServicePhoto {
     public ServicePhoto() {
     }
 
-    public ServicePhoto(UUID id, UUID ticketId, String url, PhotoType type, LocalDateTime uploadedAt) {
+    public ServicePhoto(Long id, Long ticketId, String url, PhotoType type, LocalDateTime uploadedAt) {
         this.id = id;
         this.ticketId = ticketId;
         this.url = url;
@@ -48,19 +52,19 @@ public class ServicePhoto {
         return new ServicePhotoBuilder();
     }
 
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
-    public UUID getTicketId() {
+    public Long getTicketId() {
         return ticketId;
     }
 
-    public void setTicketId(UUID ticketId) {
+    public void setTicketId(Long ticketId) {
         this.ticketId = ticketId;
     }
 
@@ -89,8 +93,8 @@ public class ServicePhoto {
     }
 
     public static class ServicePhotoBuilder {
-        private UUID id;
-        private UUID ticketId;
+        private Long id;
+        private Long ticketId;
         private String url;
         private PhotoType type;
         private LocalDateTime uploadedAt;
@@ -98,12 +102,12 @@ public class ServicePhoto {
         ServicePhotoBuilder() {
         }
 
-        public ServicePhotoBuilder id(UUID id) {
+        public ServicePhotoBuilder id(Long id) {
             this.id = id;
             return this;
         }
 
-        public ServicePhotoBuilder ticketId(UUID ticketId) {
+        public ServicePhotoBuilder ticketId(Long ticketId) {
             this.ticketId = ticketId;
             return this;
         }

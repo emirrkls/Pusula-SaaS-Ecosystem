@@ -1,5 +1,6 @@
 package com.pusula.backend.service;
 
+import com.pusula.backend.annotation.CheckQuota;
 import com.pusula.backend.dto.ProposalDTO;
 import com.pusula.backend.dto.ProposalItemDTO;
 import com.pusula.backend.entity.*;
@@ -21,17 +22,20 @@ public class ProposalService {
     private final CustomerRepository customerRepository;
     private final UserRepository userRepository;
     private final ServiceTicketRepository serviceTicketRepository;
+    private final FeatureService featureService;
 
     public ProposalService(ProposalRepository proposalRepository,
             ProposalItemRepository proposalItemRepository,
             CustomerRepository customerRepository,
             UserRepository userRepository,
-            ServiceTicketRepository serviceTicketRepository) {
+            ServiceTicketRepository serviceTicketRepository,
+            FeatureService featureService) {
         this.proposalRepository = proposalRepository;
         this.proposalItemRepository = proposalItemRepository;
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
         this.serviceTicketRepository = serviceTicketRepository;
+        this.featureService = featureService;
     }
 
     public List<ProposalDTO> getAllByCompany(Long companyId) {
@@ -47,6 +51,7 @@ public class ProposalService {
     }
 
     @Transactional
+    @CheckQuota("PROPOSALS")
     public ProposalDTO create(ProposalDTO dto) {
         User currentUser = getCurrentUser();
 
@@ -80,6 +85,7 @@ public class ProposalService {
 
         // Recalculate total
         recalculateTotal(saved);
+        featureService.incrementUsage(currentUser.getCompanyId(), "PROPOSALS");
 
         return mapToDTO(proposalRepository.save(saved));
     }
@@ -140,6 +146,7 @@ public class ProposalService {
      * APPROVED.
      */
     private void createServiceTicketFromProposal(Proposal proposal) {
+        featureService.checkQuota(proposal.getCompanyId(), "TICKETS");
         // Build description from items
         StringBuilder description = new StringBuilder("Teklif #" + proposal.getId() + "\n");
         for (ProposalItem item : proposal.getItems()) {
@@ -156,6 +163,7 @@ public class ProposalService {
         ticket.setCollectedAmount(BigDecimal.ZERO);
 
         serviceTicketRepository.save(ticket);
+        featureService.incrementUsage(proposal.getCompanyId(), "TICKETS");
     }
 
     @Transactional

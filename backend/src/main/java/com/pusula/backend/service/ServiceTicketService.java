@@ -1,6 +1,8 @@
 package com.pusula.backend.service;
 
+import com.pusula.backend.annotation.CheckQuota;
 import com.pusula.backend.dto.PublicServiceRequestDTO;
+import com.pusula.backend.dto.ServicePhotoDTO;
 import com.pusula.backend.dto.ServiceTicketDTO;
 import com.pusula.backend.dto.ServiceUsedPartDTO;
 import com.pusula.backend.entity.CurrentAccount;
@@ -12,13 +14,16 @@ import com.pusula.backend.repository.CurrentAccountRepository;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.InventoryRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
+import com.pusula.backend.repository.ServicePhotoRepository;
 import com.pusula.backend.repository.ServiceUsedPartRepository;
 import com.pusula.backend.repository.UserRepository;
 import com.pusula.backend.repository.VehicleStockRepository;
 import com.pusula.backend.entity.VehicleStock;
+import com.pusula.backend.entity.ServicePhoto;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,14 +35,21 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Base64;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class ServiceTicketService {
+    private static final long MAX_SERVICE_PHOTO_SIZE_BYTES = 5L * 1024 * 1024; // 5 MB
+
 
     private static final Logger log = LoggerFactory.getLogger(ServiceTicketService.class);
+    private final ZoneId businessZone;
+    private final ZoneId serverZone = ZoneId.systemDefault();
 
     private final ServiceTicketRepository repository;
     private final CustomerRepository customerRepository;
@@ -48,6 +60,9 @@ public class ServiceTicketService {
     private final CurrentAccountRepository currentAccountRepository;
     private final VehicleStockRepository vehicleStockRepository;
     private final WhatsAppNotificationService whatsAppNotificationService;
+    private final FeatureService featureService;
+    private final ServicePhotoRepository servicePhotoRepository;
+    private final FileUploadService fileUploadService;
 
     public ServiceTicketService(ServiceTicketRepository repository,
             CustomerRepository customerRepository,
@@ -57,7 +72,11 @@ public class ServiceTicketService {
             AuditLogService auditLogService,
             CurrentAccountRepository currentAccountRepository,
             VehicleStockRepository vehicleStockRepository,
-            WhatsAppNotificationService whatsAppNotificationService) {
+            WhatsAppNotificationService whatsAppNotificationService,
+            FeatureService featureService,
+            ServicePhotoRepository servicePhotoRepository,
+            FileUploadService fileUploadService,
+            @Value("${app.business.timezone:Europe/Istanbul}") String businessTimezone) {
         this.repository = repository;
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
@@ -67,6 +86,10 @@ public class ServiceTicketService {
         this.currentAccountRepository = currentAccountRepository;
         this.vehicleStockRepository = vehicleStockRepository;
         this.whatsAppNotificationService = whatsAppNotificationService;
+        this.featureService = featureService;
+        this.servicePhotoRepository = servicePhotoRepository;
+        this.fileUploadService = fileUploadService;
+        this.businessZone = ZoneId.of(businessTimezone);
     }
 
     private User getCurrentUser() {
@@ -104,6 +127,7 @@ public class ServiceTicketService {
         return mapToDTO(ticket);
     }
 
+    @CheckQuota("TICKETS")
     public ServiceTicketDTO createTicket(ServiceTicketDTO dto) {
         User user = getCurrentUser();
         ServiceTicket ticket = ServiceTicket.builder()
@@ -121,6 +145,7 @@ public class ServiceTicketService {
         }
 
         ServiceTicket saved = repository.save(ticket);
+        featureService.incrementUsage(user.getCompanyId(), "TICKETS");
 
         // Log ticket creation
         auditLogService.log(
@@ -186,6 +211,7 @@ public class ServiceTicketService {
     }
 
     public ServiceTicketDTO createPublicTicket(PublicServiceRequestDTO dto) {
+        featureService.checkQuota(dto.getCompanyId(), "TICKETS");
         // 1. Telefon numarasını normalize et (başındaki 0 veya +90 kaldır, tutarlılık için)
         String normalizedPhone = normalizePhoneNumber(dto.getCustomerPhone());
 
@@ -223,6 +249,7 @@ public class ServiceTicketService {
                 .build();
 
         ServiceTicket saved = repository.save(ticket);
+        featureService.incrementUsage(dto.getCompanyId(), "TICKETS");
 
         // 6. Audit log kaydı
         auditLogService.log(
@@ -606,6 +633,137 @@ public class ServiceTicketService {
         } catch (IOException e) {
             throw new RuntimeException("İmza kaydedilemedi: " + e.getMessage(), e);
         }
+    }
+
+    public ServicePhotoDTO uploadServicePhoto(Long ticketId, ServicePhoto.PhotoType type, MultipartFile file) {
+        User user = getCurrentUser();
+        ServiceTicket ticket = repository.findById(ticketId)
+                .filter(t -> t.getCompanyId().equals(user.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
+
+        validateServicePhotoUpload(file);
+
+        try {
+            String relativePath = fileUploadService.uploadServicePhoto(
+                    user.getCompanyId(),
+                    ticket.getId(),
+                    type.name(),
+                    file
+            );
+            String url = "/uploads/" + relativePath;
+            ServicePhoto photo = ServicePhoto.builder()
+                    .ticketId(ticket.getId())
+                    .url(url)
+                    .type(type)
+                    .build();
+            ServicePhoto saved = servicePhotoRepository.save(photo);
+            return mapPhotoToDTO(saved);
+        } catch (IOException e) {
+            throw new RuntimeException("Servis görseli yüklenemedi: " + e.getMessage(), e);
+        }
+    }
+
+    public List<ServicePhotoDTO> getServicePhotos(Long ticketId) {
+        User user = getCurrentUser();
+        repository.findById(ticketId)
+                .filter(t -> t.getCompanyId().equals(user.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
+
+        return servicePhotoRepository.findByTicketIdOrderByUploadedAtDesc(ticketId).stream()
+                .map(this::mapPhotoToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<ServicePhotoDTO> getCompanyServicePhotos(
+            ServicePhoto.PhotoType type,
+            Long ticketId,
+            LocalDate startDate,
+            LocalDate endDate,
+            Integer limit) {
+        User user = getCurrentUser();
+        List<Long> companyTicketIds = repository.findByCompanyId(user.getCompanyId()).stream()
+                .map(ServiceTicket::getId)
+                .collect(Collectors.toList());
+
+        if (companyTicketIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<ServicePhoto> photos = servicePhotoRepository.findByTicketIdInOrderByUploadedAtDesc(companyTicketIds);
+        return photos.stream()
+                .filter(photo -> type == null || photo.getType() == type)
+                .filter(photo -> ticketId == null || photo.getTicketId().equals(ticketId))
+                .filter(photo -> {
+                    LocalDate photoDate = toBusinessDate(photo.getUploadedAt());
+                    if (photoDate == null) return false;
+                    boolean afterStart = startDate == null || !photoDate.isBefore(startDate);
+                    boolean beforeEnd = endDate == null || !photoDate.isAfter(endDate);
+                    return afterStart && beforeEnd;
+                })
+                .limit(limit != null && limit > 0 ? limit : Long.MAX_VALUE)
+                .map(this::mapPhotoToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public void deleteServicePhoto(Long ticketId, Long photoId) {
+        User user = getCurrentUser();
+        repository.findById(ticketId)
+                .filter(t -> t.getCompanyId().equals(user.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
+
+        ServicePhoto photo = servicePhotoRepository.findById(photoId)
+                .filter(p -> p.getTicketId().equals(ticketId))
+                .orElseThrow(() -> new RuntimeException("Photo not found"));
+        deletePhotoFileIfExists(photo.getUrl());
+        servicePhotoRepository.delete(photo);
+    }
+
+    private ServicePhotoDTO mapPhotoToDTO(ServicePhoto photo) {
+        return new ServicePhotoDTO(
+                photo.getId(),
+                photo.getTicketId(),
+                photo.getUrl(),
+                photo.getType(),
+                photo.getUploadedAt()
+        );
+    }
+
+    private void validateServicePhotoUpload(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new RuntimeException("Yüklenecek görsel bulunamadı.");
+        }
+        if (file.getSize() > MAX_SERVICE_PHOTO_SIZE_BYTES) {
+            throw new RuntimeException("Görsel boyutu 5 MB'dan büyük olamaz.");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null) {
+            throw new RuntimeException("Görsel tipi doğrulanamadı.");
+        }
+        boolean allowed = contentType.equalsIgnoreCase("image/jpeg")
+                || contentType.equalsIgnoreCase("image/jpg")
+                || contentType.equalsIgnoreCase("image/png")
+                || contentType.equalsIgnoreCase("image/webp");
+        if (!allowed) {
+            throw new RuntimeException("Sadece JPG, PNG veya WEBP formatı desteklenir.");
+        }
+    }
+
+    private void deletePhotoFileIfExists(String url) {
+        if (url == null || !url.startsWith("/uploads/")) {
+            return;
+        }
+        try {
+            String relative = url.substring(1); // uploads/...
+            Path filePath = Paths.get(relative).normalize();
+            Files.deleteIfExists(filePath);
+        } catch (Exception e) {
+            log.warn("Service photo file could not be deleted for url={}", url, e);
+        }
+    }
+
+    private LocalDate toBusinessDate(LocalDateTime dateTime) {
+        if (dateTime == null) return null;
+        return dateTime.atZone(serverZone).withZoneSameInstant(businessZone).toLocalDate();
     }
 
     private String getStatusInTurkish(ServiceTicket.TicketStatus status) {

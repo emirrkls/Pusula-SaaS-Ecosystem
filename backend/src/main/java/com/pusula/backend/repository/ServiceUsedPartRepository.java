@@ -12,6 +12,6 @@ import java.util.List;
 public interface ServiceUsedPartRepository extends JpaRepository<ServiceUsedPart, Long> {
     List<ServiceUsedPart> findByCompanyId(Long companyId);
 
-    @Query("SELECT s FROM ServiceUsedPart s WHERE s.serviceTicket.id = :ticketId")
+    @Query("SELECT DISTINCT s FROM ServiceUsedPart s LEFT JOIN FETCH s.inventory WHERE s.serviceTicket.id = :ticketId")
     List<ServiceUsedPart> findByServiceTicketId(@Param("ticketId") Long ticketId);
 }

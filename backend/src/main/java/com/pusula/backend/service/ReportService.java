@@ -5,9 +5,11 @@ import com.lowagie.text.pdf.*;
 import com.pusula.backend.entity.*;
 import com.pusula.backend.repository.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -46,11 +48,24 @@ public class ReportService {
         private static Font TABLE_HEADER_FONT;
         private static Font TOTAL_FONT;
 
+        /**
+         * Prefer classpath {@code /fonts/Inter.ttf}; VPS JAR'larında dosya yoksa veya
+         * {@code BaseFont.createFont("/fonts/...")} yerel dosya yoluna çözülürse üretimde kırılıyordu.
+         */
+        private static BaseFont loadEmbeddedOrSystemFont() throws Exception {
+                try (InputStream in = ReportService.class.getResourceAsStream("/fonts/Inter.ttf")) {
+                        if (in != null) {
+                                byte[] fontBytes = in.readAllBytes();
+                                return BaseFont.createFont("Inter.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true,
+                                                fontBytes, null);
+                        }
+                }
+                return BaseFont.createFont(BaseFont.HELVETICA, "Cp1254", BaseFont.NOT_EMBEDDED);
+        }
+
         static {
                 try {
-                        // Load Inter font with Turkish character support (modern, premium look)
-                        interBaseFont = BaseFont.createFont("/fonts/Inter.ttf", BaseFont.IDENTITY_H,
-                                        BaseFont.EMBEDDED);
+                        interBaseFont = loadEmbeddedOrSystemFont();
                         HEADER_FONT = new Font(interBaseFont, 18, Font.BOLD, BRAND_COLOR);
                         SECTION_FONT = new Font(interBaseFont, 12, Font.BOLD, BRAND_COLOR);
                         NORMAL_FONT = new Font(interBaseFont, 10, Font.NORMAL, Color.BLACK);
@@ -59,8 +74,13 @@ public class ReportService {
                         TABLE_HEADER_FONT = new Font(interBaseFont, 10, Font.BOLD, TABLE_HEADER_TEXT);
                         TOTAL_FONT = new Font(interBaseFont, 11, Font.BOLD, ACCENT_GREEN);
                 } catch (Exception e) {
-                        throw new RuntimeException("Failed to load Inter font", e);
+                        throw new ExceptionInInitializerError(e);
                 }
+        }
+
+        /** OpenPDF Paragraph/Phrase does not accept null text; DB outliers still slip through. */
+        private static String safePdfText(String s) {
+                return s != null ? s : "";
         }
 
         private final ServiceUsedPartRepository serviceUsedPartRepository;
@@ -87,6 +107,7 @@ public class ReportService {
         /**
          * Generate Service Report PDF for a completed ticket (Professional Layout)
          */
+        @Transactional(readOnly = true)
         public byte[] generateServiceReport(Long ticketId) {
                 ServiceTicket ticket = ticketRepository.findById(ticketId)
                                 .orElseThrow(() -> new RuntimeException("Ticket not found: " + ticketId));
@@ -154,6 +175,7 @@ public class ReportService {
                 logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
                 logoCell.setHorizontalAlignment(Element.ALIGN_LEFT);
 
+                boolean placedLogo = false;
                 if (company.getLogoPath() != null && !company.getLogoPath().isEmpty()) {
                         try {
                                 java.nio.file.Path path = java.nio.file.Paths.get("uploads", company.getLogoPath());
@@ -161,13 +183,14 @@ public class ReportService {
                                         Image logo = Image.getInstance(path.toAbsolutePath().toString());
                                         logo.scaleToFit(120, 60);
                                         logoCell.addElement(logo);
+                                        placedLogo = true;
                                 }
                         } catch (Exception e) {
                                 // Ignore if logo fails
                         }
-                } else {
-                        // Fallback text if no logo
-                        Paragraph p = new Paragraph(company.getName(), SECTION_FONT);
+                }
+                if (!placedLogo) {
+                        Paragraph p = new Paragraph(safePdfText(company.getName()), SECTION_FONT);
                         logoCell.addElement(p);
                 }
                 headerTable.addCell(logoCell);
@@ -178,7 +201,7 @@ public class ReportService {
                 infoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
                 infoCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
 
-                Paragraph nameP = new Paragraph(company.getName(), SECTION_FONT);
+                Paragraph nameP = new Paragraph(safePdfText(company.getName()), SECTION_FONT);
                 nameP.setAlignment(Element.ALIGN_RIGHT);
                 infoCell.addElement(nameP);
 
@@ -215,11 +238,12 @@ public class ReportService {
                 custTitle.setSpacingAfter(5);
                 customerCell.addElement(custTitle);
 
-                customerCell.addElement(new Paragraph("Ad Soyad: " + customer.getName(), NORMAL_FONT));
+                customerCell.addElement(new Paragraph("Ad Soyad: " + safePdfText(customer.getName()), NORMAL_FONT));
                 if (customer.getAddress() != null && !customer.getAddress().isEmpty()) {
                         customerCell.addElement(new Paragraph("Adres: " + customer.getAddress(), SMALL_FONT));
                 }
-                customerCell.addElement(new Paragraph("Telefon: " + customer.getPhone(), SMALL_FONT));
+                String phone = customer.getPhone() != null ? customer.getPhone() : "-";
+                customerCell.addElement(new Paragraph("Telefon: " + phone, SMALL_FONT));
                 table.addCell(customerCell);
 
                 // Right: Dates
@@ -283,13 +307,17 @@ public class ReportService {
                 // 1. List Used Parts
                 List<ServiceUsedPart> usedParts = serviceUsedPartRepository.findByServiceTicketId(ticket.getId());
                 for (ServiceUsedPart part : usedParts) {
-                        String partName = part.getInventory() != null ? part.getInventory().getPartName()
-                                        : "Yedek Parça";
-                        BigDecimal price = part.getSellingPriceSnapshot()
-                                        .multiply(new BigDecimal(part.getQuantityUsed()));
+                        String partName = "Yedek Parça";
+                        if (part.getInventory() != null && part.getInventory().getPartName() != null) {
+                                partName = part.getInventory().getPartName();
+                        }
+                        BigDecimal unitPrice = part.getSellingPriceSnapshot() != null ? part.getSellingPriceSnapshot()
+                                        : BigDecimal.ZERO;
+                        int qty = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
+                        BigDecimal price = unitPrice.multiply(BigDecimal.valueOf(qty));
                         subTotal = subTotal.add(price);
 
-                        String desc = String.format("%s (x%d)", partName, part.getQuantityUsed());
+                        String desc = String.format("%s (x%d)", partName, qty);
                         addCellToTable(table, desc, false, Element.ALIGN_LEFT);
                         addCellToTable(table, String.format("%.2f ₺", price), false, Element.ALIGN_RIGHT);
                 }

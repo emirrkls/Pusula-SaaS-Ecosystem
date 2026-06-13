@@ -5,10 +5,16 @@ import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.ServiceTicketRepository;
 import com.pusula.backend.repository.UserRepository;
 import com.pusula.backend.service.ReportService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -18,6 +24,8 @@ import java.util.*;
 @RequestMapping("/api/reports")
 @CrossOrigin(origins = "*")
 public class ReportController {
+
+    private static final Logger log = LoggerFactory.getLogger(ReportController.class);
 
     private final ServiceTicketRepository ticketRepository;
     private final UserRepository userRepository;
@@ -31,11 +39,39 @@ public class ReportController {
         this.reportService = reportService;
     }
 
+    private Long getCompanyId() {
+        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return user.getCompanyId();
+    }
+
+    /**
+     * Same rules as {@link com.pusula.backend.service.ServiceTicketService#getTicketById}: company scope;
+     * technicians only for tickets assigned to them.
+     */
+    private void assertCanAccessServiceReportPdf(Long ticketId) {
+        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String role = user.getRole();
+        boolean allowedRole = "COMPANY_ADMIN".equals(role) || "SUPER_ADMIN".equals(role) || "TECHNICIAN".equals(role);
+        if (!allowedRole) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+        }
+        ServiceTicket ticket = ticketRepository.findById(ticketId)
+                .filter(t -> t.getCompanyId().equals(user.getCompanyId()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ticket not found"));
+        if ("TECHNICIAN".equals(role)) {
+            if (ticket.getAssignedTechnicianId() == null
+                    || !ticket.getAssignedTechnicianId().equals(user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+            }
+        }
+    }
+
     /**
      * Get technician performance for the last 7 days
      * Returns a map of technician name -> daily completion counts
      */
     @GetMapping("/technician-performance")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, Map<String, Integer>>> getTechnicianPerformance() {
         // Get completed tickets from last 7 days
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
@@ -79,6 +115,7 @@ public class ReportController {
     @GetMapping("/pdf/service/{ticketId}")
     public ResponseEntity<byte[]> downloadServiceReport(@PathVariable Long ticketId) {
         try {
+            assertCanAccessServiceReportPdf(ticketId);
             byte[] pdfBytes = reportService.generateServiceReport(ticketId);
 
             HttpHeaders headers = new HttpHeaders();
@@ -89,7 +126,10 @@ public class ReportController {
             return ResponseEntity.ok()
                     .headers(headers)
                     .body(pdfBytes);
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).build();
         } catch (Exception e) {
+            log.error("downloadServiceReport failed for ticketId={}", ticketId, e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -98,6 +138,7 @@ public class ReportController {
      * Download Proposal PDF
      */
     @GetMapping("/pdf/proposal/{proposalId}")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<byte[]> downloadProposal(@PathVariable Long proposalId) {
         try {
             byte[] pdfBytes = reportService.generateProposalForm(proposalId);
@@ -119,21 +160,21 @@ public class ReportController {
      * Get list of monthly financial archives
      */
     @GetMapping("/finance/archives")
-    public List<com.pusula.backend.dto.MonthlySummaryDTO> getMonthlyArchives(
-            @RequestParam(defaultValue = "1") Long companyId) {
-        return reportService.getMonthlyArchives(companyId);
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public List<com.pusula.backend.dto.MonthlySummaryDTO> getMonthlyArchives() {
+        return reportService.getMonthlyArchives(getCompanyId());
     }
 
     /**
      * Download monthly financial report as PDF
      */
     @GetMapping("/finance/pdf")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<byte[]> downloadMonthlyPDF(
-            @RequestParam String month, // Format: "2025-11"
-            @RequestParam(defaultValue = "1") Long companyId) {
+            @RequestParam String month) { // Format: "2025-11"
         try {
             java.time.YearMonth period = java.time.YearMonth.parse(month);
-            byte[] pdfBytes = reportService.generateMonthlyPDF(period, companyId);
+            byte[] pdfBytes = reportService.generateMonthlyPDF(period, getCompanyId());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);

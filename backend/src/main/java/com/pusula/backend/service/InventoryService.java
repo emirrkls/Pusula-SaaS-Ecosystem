@@ -1,5 +1,6 @@
 package com.pusula.backend.service;
 
+import com.pusula.backend.annotation.CheckQuota;
 import com.pusula.backend.dto.InventoryDTO;
 import com.pusula.backend.dto.VehicleStockInfo;
 import com.pusula.backend.entity.Inventory;
@@ -23,13 +24,16 @@ public class InventoryService {
     private final InventoryRepository repository;
     private final VehicleStockRepository vehicleStockRepository;
     private final AuditLogService auditLogService;
+    private final FeatureService featureService;
 
     public InventoryService(InventoryRepository repository,
             VehicleStockRepository vehicleStockRepository,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            FeatureService featureService) {
         this.repository = repository;
         this.vehicleStockRepository = vehicleStockRepository;
         this.auditLogService = auditLogService;
+        this.featureService = featureService;
     }
 
     private User getCurrentUser() {
@@ -43,6 +47,7 @@ public class InventoryService {
                 .collect(Collectors.toList());
     }
 
+    @CheckQuota("INVENTORY")
     public InventoryDTO createInventory(InventoryDTO dto) {
         User user = getCurrentUser();
         Inventory inventory = Inventory.builder()
@@ -56,6 +61,7 @@ public class InventoryService {
         inventory.setBrand(dto.getBrand());
         inventory.setCategory(dto.getCategory());
         Inventory saved = repository.save(inventory);
+        featureService.incrementUsage(user.getCompanyId(), "INVENTORY");
 
         // Log inventory creation
         auditLogService.log("CREATE", "INVENTORY", saved.getId(),

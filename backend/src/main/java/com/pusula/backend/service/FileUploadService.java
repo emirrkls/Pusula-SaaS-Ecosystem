@@ -43,6 +43,18 @@ public class FileUploadService {
         return "signatures/" + userId + "/" + fileName;
     }
 
+    public String uploadServicePhoto(Long companyId, Long ticketId, String type, MultipartFile file) throws IOException {
+        String fileName = type.toLowerCase() + "_" + UUID.randomUUID() + getFileExtension(file.getOriginalFilename());
+        Path uploadPath = Paths.get(UPLOAD_DIR, "service-photos", companyId.toString(), ticketId.toString());
+
+        Files.createDirectories(uploadPath);
+
+        Path filePath = uploadPath.resolve(fileName);
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+        return "service-photos/" + companyId + "/" + ticketId + "/" + fileName;
+    }
+
     private String getFileExtension(String filename) {
         if (filename == null || filename.lastIndexOf(".") == -1) {
             return "";
