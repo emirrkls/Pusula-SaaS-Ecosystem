@@ -505,7 +505,8 @@ public class UnifiedExpenseDialogController {
             if (row.getPayAmount() != null && !row.getPayAmount().trim().isEmpty()) {
                 try {
                     String amountStr = row.getPayAmount();
-                    customAmount = CurrencyTextField.parseTurkishCurrency(amountStr);
+                    String normalized = amountStr.replace(".", "").replace(",", ".");
+                    customAmount = new BigDecimal(normalized);
                 } catch (NumberFormatException e) {
                     AlertHelper.showAlert(Alert.AlertType.WARNING, null,
                             bundle.getString("unified_expense.error.invalid_amount"),

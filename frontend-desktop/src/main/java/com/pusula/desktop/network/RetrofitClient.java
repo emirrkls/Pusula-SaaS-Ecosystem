@@ -11,14 +11,20 @@ import java.io.IOException;
 
 public class RetrofitClient {
         private static Retrofit retrofit = null;
-        public static final String BASE_URL = "http://168.231.104.133:8080/";
+        public static final String BASE_URL = "https://api.pusulaiklimlendirme.com/";
 
         public static Retrofit getClient() {
                 if (retrofit == null) {
                         okhttp3.OkHttpClient client = new okhttp3.OkHttpClient.Builder()
                                         .addInterceptor(chain -> {
                                                 okhttp3.Request original = chain.request();
-                                                String token = com.pusula.desktop.util.SessionManager.getToken();
+                                                String path = original.url().encodedPath();
+                                                boolean publicAuth = "/api/auth/authenticate".equals(path)
+                                                                || "/api/auth/register-individual".equals(path)
+                                                                || "/api/auth/google".equals(path)
+                                                                || "/api/auth/register".equals(path);
+                                                String token = publicAuth ? null
+                                                                : com.pusula.desktop.util.SessionManager.getToken();
                                                 System.out.println("=== RetrofitClient Interceptor ===");
                                                 System.out.println("Request URL: " + original.url());
                                                 System.out.println("Token from SessionManager: " + (token != null
@@ -66,7 +72,9 @@ public class RetrofitClient {
                         if (response.code() == 403) {
                                 // Don't show alert for audit-logs endpoint or public endpoints
                                 String url = response.request().url().toString();
-                                if (!url.contains("/audit-logs/") && !url.contains("/public/")) {
+                                if (!url.contains("/audit-logs/")
+                                                && !url.contains("/public/")
+                                                && !url.contains("/api/auth/")) {
                                         Platform.runLater(() -> {
                                                 Alert alert = new Alert(Alert.AlertType.ERROR);
                                                 alert.setTitle("Erişim Reddedildi");

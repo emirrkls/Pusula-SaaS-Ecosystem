@@ -416,6 +416,9 @@ public class DashboardController {
     }
 
     private void loadPerformanceChart() {
+        if (!com.pusula.desktop.util.SessionManager.isAdmin()) {
+            return;
+        }
         ReportsApi reportsApi = RetrofitClient.getClient().create(ReportsApi.class);
         reportsApi.getTechnicianPerformance().enqueue(new retrofit2.Callback<>() {
             @Override

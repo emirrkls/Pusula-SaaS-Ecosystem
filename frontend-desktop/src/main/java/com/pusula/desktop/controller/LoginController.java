@@ -143,6 +143,8 @@ public class LoginController {
             return;
         }
 
+        SessionManager.clearSession();
+
         AuthApi authApi = RetrofitClient.getClient().create(AuthApi.class);
         AuthRequest request = new AuthRequest(username, password);
 
@@ -186,9 +188,14 @@ public class LoginController {
                         e.printStackTrace();
                     }
                     Platform.runLater(() -> {
-                        // Shake the login form on failed login
                         AnimationHelper.shake(usernameField.getParent());
-                        NotificationHelper.showError("Giriş başarısız! Kullanıcı adı veya şifre hatalı.");
+                        String message = switch (response.code()) {
+                            case 401 -> "Giriş başarısız! Kullanıcı adı veya şifre hatalı.";
+                            case 403 -> "Giriş reddedildi. Hesabınızın yetkisi yok veya oturum çakışması oluştu. Tekrar deneyin.";
+                            case 429 -> "Çok fazla başarısız deneme. Lütfen bir süre sonra tekrar deneyin.";
+                            default -> "Giriş başarısız! Sunucu yanıtı: " + response.code();
+                        };
+                        NotificationHelper.showError(message);
                     });
                 }
             }

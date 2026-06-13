@@ -1081,7 +1081,7 @@ public class TicketDetailsController {
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == ButtonType.OK) {
                 java.util.Map<String, Object> result = new java.util.HashMap<>();
-                result.put("amount", amountField.getText());
+                result.put("amount", amountField.getRawValue());
                 result.put("paymentMethod", paymentCombo.getValue());
                 return result;
             }
@@ -1090,7 +1090,7 @@ public class TicketDetailsController {
 
         dialog.showAndWait().ifPresent(result -> {
             try {
-                BigDecimal amount = CurrencyTextField.parseTurkishCurrency(result.get("amount").toString().trim());
+                BigDecimal amount = (BigDecimal) result.get("amount");
                 String paymentMethodDisplay = result.get("paymentMethod").toString();
 
                 // Map display text to backend enum value
