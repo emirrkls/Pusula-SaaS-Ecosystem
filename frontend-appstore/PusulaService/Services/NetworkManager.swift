@@ -5,7 +5,7 @@ import Foundation
 actor NetworkManager {
     static let shared = NetworkManager()
     
-    private let baseURL = "http://168.231.104.133:8080"
+    private let baseURL = "https://api.pusulaiklimlendirme.com"
     
     private var authToken: String?
     
