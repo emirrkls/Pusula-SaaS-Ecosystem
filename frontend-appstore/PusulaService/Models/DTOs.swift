@@ -95,6 +95,7 @@ struct ServiceTicketDTO: Codable, Identifiable {
 
 enum TicketStatus: String, Codable, CaseIterable {
     case pending = "PENDING"
+    case assigned = "ASSIGNED"
     case inProgress = "IN_PROGRESS"
     case completed = "COMPLETED"
     case cancelled = "CANCELLED"
@@ -102,6 +103,7 @@ enum TicketStatus: String, Codable, CaseIterable {
     var displayName: String {
         switch self {
         case .pending: return "Bekliyor"
+        case .assigned: return "Atandı"
         case .inProgress: return "Devam Ediyor"
         case .completed: return "Tamamlandı"
         case .cancelled: return "İptal"
@@ -111,11 +113,20 @@ enum TicketStatus: String, Codable, CaseIterable {
     var iconName: String {
         switch self {
         case .pending: return "clock"
+        case .assigned: return "person.badge.clock"
         case .inProgress: return "wrench.and.screwdriver"
         case .completed: return "checkmark.circle.fill"
         case .cancelled: return "xmark.circle"
         }
     }
+}
+
+struct SubscriptionContextDTO: Codable {
+    let planType: String?
+    let features: [String: Bool]?
+    let quota: QuotaDTO?
+    let isReadOnly: Bool?
+    let trialDaysRemaining: Int?
 }
 
 // MARK: - Inventory DTO (Technician — buyPrice excluded for DTO isolation)
@@ -124,9 +135,11 @@ struct InventoryItemDTO: Codable, Identifiable {
     let id: Int
     let partName: String
     let quantity: Int
+    let buyPrice: Double?
     let sellPrice: Double?
     let brand: String?
     let category: String?
+    let barcode: String?
 }
 
 // MARK: - Finance DTOs (Admin Only)

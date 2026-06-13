@@ -1,29 +1,27 @@
 import Foundation
 
-/// Service layer for technician field operations.
 enum TicketService {
     
-    /// Fetch tickets assigned to the current technician
     static func getMyAssignedTickets() async throws -> [FieldTicketDTO] {
         try await NetworkManager.shared.get("/api/tickets/my-assigned")
     }
     
-    /// Fetch all tickets (admin view)
     static func getAllTickets() async throws -> [FieldTicketDTO] {
         try await NetworkManager.shared.get("/api/tickets")
     }
     
-    /// Get used parts for a ticket
+    static func createTicket(_ request: CreateTicketRequest) async throws -> FieldTicketDTO {
+        try await NetworkManager.shared.post("/api/tickets", body: request)
+    }
+    
     static func getUsedParts(ticketId: Int) async throws -> [UsedPartDTO] {
         try await NetworkManager.shared.get("/api/tickets/\(ticketId)/parts")
     }
     
-    /// Add a used part to a ticket (from barcode scan)
     static func addUsedPart(ticketId: Int, part: UsedPartDTO) async throws -> UsedPartDTO {
         try await NetworkManager.shared.post("/api/tickets/\(ticketId)/parts", body: part)
     }
     
-    /// Complete a service with payment (waterfall model)
     static func completeService(ticketId: Int, amount: Double, paymentMethod: String) async throws -> FieldTicketDTO {
         let body = CollectionRequest(collectedAmount: amount, paymentMethod: paymentMethod)
         return try await NetworkManager.shared.request(
@@ -31,19 +29,87 @@ enum TicketService {
         )
     }
     
-    /// Upload signature image
-    static func uploadSignature(ticketId: Int, signatureBase64: String) async throws -> [String: String] {
+    static func assignTechnician(ticketId: Int, technicianId: Int) async throws -> FieldTicketDTO {
+        try await NetworkManager.shared.request(
+            .PATCH,
+            path: "/api/tickets/\(ticketId)/assign?technicianId=\(technicianId)"
+        )
+    }
+    
+    static func assignTechnicianBulk(ticketIds: [Int], technicianId: Int) async throws -> [FieldTicketDTO] {
+        var results: [FieldTicketDTO] = []
+        for ticketId in ticketIds {
+            let updated = try await assignTechnician(ticketId: ticketId, technicianId: technicianId)
+            results.append(updated)
+        }
+        return results
+    }
+    
+    static func uploadSignature(ticketId: Int, signatureBase64: String) async throws {
         let body = SignatureRequest(signature: signatureBase64)
-        return try await NetworkManager.shared.post("/api/tickets/\(ticketId)/signature", body: body)
+        let _: EmptyResponse = try await NetworkManager.shared.post("/api/tickets/\(ticketId)/signature", body: body)
     }
     
-    /// Lookup inventory by barcode
     static func lookupBarcode(_ code: String) async throws -> InventoryItemDTO {
-        try await NetworkManager.shared.get("/api/inventory/barcode/\(code)")
+        try await NetworkManager.shared.get("/api/inventory/barcode/\(code.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? code)")
     }
     
-    /// Get technician's inventory (sell prices only)
     static func getInventory() async throws -> [InventoryItemDTO] {
         try await NetworkManager.shared.get("/api/inventory")
+    }
+    
+    static func createInventory(_ item: InventoryItemDTO) async throws -> InventoryItemDTO {
+        try await NetworkManager.shared.post("/api/inventory", body: item)
+    }
+    
+    static func updateInventory(id: Int, item: InventoryItemDTO) async throws -> InventoryItemDTO {
+        try await NetworkManager.shared.put("/api/inventory/\(id)", body: item)
+    }
+    
+    static func deleteInventory(id: Int) async throws {
+        try await NetworkManager.shared.delete("/api/inventory/\(id)")
+    }
+    
+    static func getServicePhotos(ticketId: Int) async throws -> [ServicePhotoDTO] {
+        try await NetworkManager.shared.get("/api/tickets/\(ticketId)/photos")
+    }
+    
+    static func uploadServicePhoto(ticketId: Int, type: String, imageData: Data) async throws -> ServicePhotoDTO {
+        try await NetworkManager.shared.uploadMultipart(
+            path: "/api/tickets/\(ticketId)/photos",
+            fileData: imageData,
+            fileName: "photo.jpg",
+            mimeType: "image/jpeg",
+            textFields: ["type": type]
+        )
+    }
+    
+    static func deleteServicePhoto(ticketId: Int, photoId: Int) async throws {
+        try await NetworkManager.shared.delete("/api/tickets/\(ticketId)/photos/\(photoId)")
+    }
+    
+    static func getCompanyServicePhotos(
+        type: String? = nil,
+        ticketId: Int? = nil,
+        startDate: String? = nil,
+        endDate: String? = nil,
+        limit: Int? = 200
+    ) async throws -> [ServicePhotoDTO] {
+        var query: [String] = []
+        if let type { query.append("type=\(type)") }
+        if let ticketId { query.append("ticketId=\(ticketId)") }
+        if let startDate { query.append("startDate=\(startDate)") }
+        if let endDate { query.append("endDate=\(endDate)") }
+        if let limit { query.append("limit=\(limit)") }
+        let suffix = query.isEmpty ? "" : "?" + query.joined(separator: "&")
+        return try await NetworkManager.shared.get("/api/tickets/photos\(suffix)")
+    }
+    
+    static func downloadServiceReportPDF(ticketId: Int) async throws -> Data {
+        try await NetworkManager.shared.downloadData("/api/reports/pdf/service/\(ticketId)")
+    }
+    
+    static func getTechnicians() async throws -> [TechnicianDTO] {
+        try await NetworkManager.shared.get("/api/users/technicians")
     }
 }

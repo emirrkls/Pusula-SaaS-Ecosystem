@@ -3,6 +3,7 @@ import SwiftUI
 /// Root content view — routes between login and the role-based dashboard.
 struct ContentView: View {
     let session = SessionManager.shared
+    @State private var showPlanUpgrade = false
     
     var body: some View {
         Group {
@@ -13,24 +14,24 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: session.isAuthenticated)
+        .sheet(isPresented: $showPlanUpgrade) {
+            NavigationStack { PlanUpgradeView() }
+        }
     }
     
     @ViewBuilder
     private var mainView: some View {
         ZStack(alignment: .top) {
-            // Role-based dashboard
             if session.isTechnician {
                 TechnicianTabView()
             } else {
                 AdminTabView()
             }
             
-            // Trial expiry banner
             if session.showTrialBanner {
                 trialBanner
             }
             
-            // Read-only banner
             if session.isReadOnly {
                 readOnlyBanner
             }
@@ -43,20 +44,19 @@ struct ContentView: View {
             Text("Deneme süreniz \(session.trialDaysRemaining ?? 0) gün sonra bitiyor")
                 .font(.caption.weight(.medium))
             Spacer()
-            Button("Yükselt") {
-                // Navigate to upgrade screen
-            }
-            .font(.caption.weight(.bold))
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 4)
-            .background(.orange)
-            .clipShape(Capsule())
+            Button("Yükselt") { showPlanUpgrade = true }
+                .font(.caption.weight(.bold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .background(.orange)
+                .clipShape(Capsule())
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(.orange.opacity(0.15))
         .foregroundColor(.orange)
+        .padding(.top, session.isReadOnly ? 36 : 0)
     }
     
     private var readOnlyBanner: some View {
@@ -73,12 +73,11 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Technician Tab View
+// MARK: - Technician Tab View (Android: İşlerim + Hesap)
 
 struct TechnicianTabView: View {
     var body: some View {
         TabView {
-            // My Jobs — real ticket list (Sprint 4)
             NavigationStack {
                 TicketListView()
             }
@@ -86,202 +85,111 @@ struct TechnicianTabView: View {
                 Label("İşlerim", systemImage: "wrench.and.screwdriver")
             }
             
-            // Inventory (sell price only)
             NavigationStack {
-                Text("Stok")
-                    .navigationTitle("Stok")
+                ProfileView()
             }
             .tabItem {
-                Label("Stok", systemImage: "shippingbox")
-            }
-            .featureGated("BASIC_INVENTORY")
-            
-            // Profile
-            NavigationStack {
-                ProfilePlaceholder()
-            }
-            .tabItem {
-                Label("Profil", systemImage: "person.circle")
+                Label("Hesap", systemImage: "person.circle")
             }
         }
         .tint(.cyan)
     }
 }
 
-// MARK: - Admin Tab View
+// MARK: - Admin Tab View (Android: Özet, Operasyon, Diğer, Finans, Hesap)
 
 struct AdminTabView: View {
     let session = SessionManager.shared
+    @State private var navigation = AppNavigation.shared
+    @State private var selectedTab: AdminTab = .overview
+    @State private var lastRealTab: AdminTab = .overview
+    @State private var showQuickActions = false
+    @State private var quickActionDestination: QuickAction?
     
     var body: some View {
-        TabView {
-            // Dashboard — real KPI view (Sprint 5)
+        TabView(selection: $selectedTab) {
             NavigationStack {
                 AdminDashboardView()
             }
-            .tabItem {
-                Label("Özet", systemImage: "chart.bar")
-            }
+            .tabItem { Label("Özet", systemImage: "chart.bar") }
+            .tag(AdminTab.overview)
             
-            // Tickets — admin sees all company tickets
             NavigationStack {
-                TicketListView()
+                TicketListView(
+                    requestedFilter: navigation.operationFilter,
+                    onRequestedFilterApplied: { navigation.operationFilter = nil }
+                )
             }
-            .tabItem {
-                Label("İş Emirleri", systemImage: "list.clipboard")
-            }
+            .tabItem { Label("Operasyon", systemImage: "list.clipboard") }
+            .tag(AdminTab.operations)
             
-            // Finance — profit analysis (feature-gated)
+            Color.clear
+                .tabItem { Label("Diğer", systemImage: "plus.circle.fill") }
+                .tag(AdminTab.more)
+            
             NavigationStack {
-                ProfitAnalysisView()
+                FinanceView()
             }
-            .tabItem {
-                Label("Finans", systemImage: "turkishlirasign.circle")
-            }
+            .tabItem { Label("Finans", systemImage: "turkishlirasign.circle") }
+            .tag(AdminTab.finance)
             .featureGated("FINANCE_MODULE")
             
-            // Catalog — admin sees buy+sell prices
             NavigationStack {
-                CatalogView()
+                SettingsView()
             }
-            .tabItem {
-                Label("Stok", systemImage: "shippingbox")
-            }
-            
-            // Settings
-            NavigationStack {
-                ProfilePlaceholder()
-            }
-            .tabItem {
-                Label("Ayarlar", systemImage: "gearshape")
-            }
+            .tabItem { Label("Hesap", systemImage: "gearshape") }
+            .tag(AdminTab.account)
         }
         .tint(.cyan)
-    }
-}
-
-// MARK: - Placeholders (Sprint 4/5 will replace these)
-
-struct TechnicianJobsPlaceholder: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "wrench.and.screwdriver")
-                .font(.system(size: 64))
-                .foregroundStyle(.cyan.gradient)
-            Text("İşlerim")
-                .font(.title2.weight(.bold))
-            Text("Atanan işleriniz burada görünecek")
-                .foregroundStyle(.secondary)
-        }
-        .navigationTitle("İşlerim")
-    }
-}
-
-struct AdminDashboardPlaceholder: View {
-    let session = SessionManager.shared
-    
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                // Welcome header
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Merhaba, \(session.fullName)")
-                            .font(.title2.weight(.bold))
-                        HStack(spacing: 6) {
-                            Image(systemName: "building.2")
-                            Text(session.companyName ?? "")
-                            Text("•")
-                            Text(session.planType)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 2)
-                                .background(.cyan.opacity(0.2))
-                                .clipShape(Capsule())
-                        }
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    
-                    Button(action: { session.logout() }) {
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
-                            .font(.title3)
-                            .foregroundColor(.red)
-                    }
-                }
-                .padding()
-                
-                // Placeholder cards
-                Text("Dashboard kartları Sprint 5'te eklenecek")
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 80)
+        .onChange(of: selectedTab) { oldValue, newValue in
+            if newValue == .more {
+                showQuickActions = true
+                selectedTab = lastRealTab
+            } else {
+                lastRealTab = newValue
+                navigation.adminSelectedTab = newValue
             }
         }
-        .navigationTitle("Müdür Paneli")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-struct ProfilePlaceholder: View {
-    let session = SessionManager.shared
-    @State private var showDeleteAlert = false
-    
-    var body: some View {
-        List {
-            Section("Hesap") {
-                LabeledContent("İsim", value: session.fullName)
-                LabeledContent("Rol", value: session.role)
-                LabeledContent("Paket", value: session.planType)
-            }
-            
-            Section("Şirket") {
-                LabeledContent("Şirket", value: session.companyName ?? "-")
-                if let days = session.trialDaysRemaining {
-                    LabeledContent("Deneme Süresi", value: "\(days) gün kaldı")
-                }
-            }
-            
-            Section {
-                Button(role: .destructive) {
-                    session.logout()
-                } label: {
-                    HStack {
-                        Spacer()
-                        Text("Çıkış Yap")
-                        Spacer()
-                    }
-                }
-            }
-            
-            Section {
-                Button(role: .destructive) {
-                    showDeleteAlert = true
-                } label: {
-                    HStack {
-                        Spacer()
-                        Text("Hesabımı Sil")
-                        Spacer()
-                    }
-                }
+        .onChange(of: navigation.adminSelectedTab) { _, newValue in
+            if newValue != .more {
+                selectedTab = newValue
             }
         }
-        .navigationTitle("Profil")
-        .alert("Hesabı Sil", isPresented: $showDeleteAlert) {
+        .confirmationDialog("Diğer Modüller", isPresented: $showQuickActions, titleVisibility: .visible) {
+            Button("Müşteriler") { quickActionDestination = .customers }
+            Button("Teklifler") { quickActionDestination = .proposals }
+            if session.isFeatureEnabled("BASIC_INVENTORY") {
+                Button("Stok") { quickActionDestination = .catalog }
+            }
+            Button("Servis Kalite") { quickActionDestination = .serviceQuality }
             Button("İptal", role: .cancel) { }
-            Button("Sil", role: .destructive) {
-                Task {
-                    do {
-                        try await session.deleteAccount()
-                    } catch {
-                        // Handle error in a real app, e.g., show an error alert
-                        print("Failed to delete account: \(error)")
+        }
+        .sheet(item: $quickActionDestination) { destination in
+            NavigationStack {
+                quickActionView(for: destination)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Kapat") { quickActionDestination = nil }
+                        }
                     }
-                }
             }
-        } message: {
-            Text("Hesabınızı ve tüm verilerinizi kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.")
         }
     }
+    
+    @ViewBuilder
+    private func quickActionView(for destination: QuickAction) -> some View {
+        switch destination {
+        case .customers: CustomerView()
+        case .proposals: ProposalView()
+        case .catalog: CatalogView()
+        case .serviceQuality: ServiceQualityView()
+        }
+    }
+}
+
+enum QuickAction: String, Identifiable {
+    case customers, proposals, catalog, serviceQuality
+    var id: String { rawValue }
 }
 
 #Preview {

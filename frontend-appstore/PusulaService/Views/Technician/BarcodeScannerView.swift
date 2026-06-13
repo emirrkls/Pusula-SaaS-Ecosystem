@@ -11,7 +11,7 @@ struct BarcodeScannerView: View {
     @State private var errorMessage: String?
     @State private var quantity = 1
     
-    let onItemSelected: (InventoryItemDTO) -> Void
+    let onItemSelected: (InventoryItemDTO, Int) -> Void
     
     var body: some View {
         NavigationStack {
@@ -104,7 +104,7 @@ struct BarcodeScannerView: View {
             }
             
             Button(action: {
-                onItemSelected(item)
+                onItemSelected(item, quantity)
                 dismiss()
             }) {
                 HStack {

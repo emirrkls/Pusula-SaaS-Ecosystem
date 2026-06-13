@@ -52,11 +52,7 @@ struct ReadOnlyModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .disabled(session.isReadOnly)
-            .overlay {
-                if session.isReadOnly {
-                    Color.clear // Transparent overlay to block interaction
-                }
-            }
+            .opacity(session.isReadOnly ? 0.45 : 1)
     }
 }
 

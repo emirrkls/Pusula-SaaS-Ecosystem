@@ -107,6 +107,21 @@ final class SessionManager {
         
         Task {
             await NetworkManager.shared.setToken(savedToken)
+            await refreshSubscriptionContext()
+        }
+    }
+    
+    @MainActor
+    func refreshSubscriptionContext() async {
+        do {
+            let context = try await AuthService.refreshFeatureContext()
+            if let plan = context.planType { self.planType = plan }
+            if let features = context.features { self.features = features }
+            if let quota = context.quota { self.quota = quota }
+            if let readOnly = context.isReadOnly { self.isReadOnly = readOnly }
+            self.trialDaysRemaining = context.trialDaysRemaining
+        } catch {
+            // Keep cached session if refresh fails
         }
     }
 }

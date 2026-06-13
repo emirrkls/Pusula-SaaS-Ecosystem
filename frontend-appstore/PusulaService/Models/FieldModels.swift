@@ -20,6 +20,7 @@ struct FieldTicketDTO: Codable, Identifiable {
     let paymentMethod: String?
     let isWarrantyCall: Bool?
     let parentTicketId: Int?
+    let createdAt: String?
     
     var statusEnum: TicketStatus {
         TicketStatus(rawValue: status ?? "") ?? .pending
@@ -58,4 +59,43 @@ struct CollectionRequest: Codable {
 
 struct SignatureRequest: Codable {
     let signature: String // Base64 PNG
+}
+
+struct CreateTicketRequest: Codable {
+    let customerId: Int
+    let description: String
+    let notes: String?
+    let status: String
+    let assignedTechnicianId: Int?
+    
+    init(customerId: Int, description: String, notes: String? = nil, assignedTechnicianId: Int? = nil) {
+        self.customerId = customerId
+        self.description = description
+        self.notes = notes
+        self.status = "PENDING"
+        self.assignedTechnicianId = assignedTechnicianId
+    }
+}
+
+struct TechnicianDTO: Codable, Identifiable {
+    let id: Int
+    let fullName: String?
+    let role: String?
+}
+
+struct ServicePhotoDTO: Codable, Identifiable {
+    let id: Int
+    let ticketId: Int
+    let url: String
+    let type: String
+    let uploadedAt: String?
+    
+    var typeLabel: String {
+        type == "BEFORE" ? "Öncesi" : "Sonrası"
+    }
+    
+    var fullURL: URL? {
+        if url.hasPrefix("http") { return URL(string: url) }
+        return URL(string: "https://api.pusulaiklimlendirme.com" + url)
+    }
 }

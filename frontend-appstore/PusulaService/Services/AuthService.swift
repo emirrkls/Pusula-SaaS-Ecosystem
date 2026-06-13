@@ -34,8 +34,8 @@ enum AuthService {
         return response
     }
     
-    /// Refresh feature context (called on app foreground)
-    static func refreshFeatureContext() async throws -> [String: Any] {
+    /// Refresh feature context (called on app foreground / session restore)
+    static func refreshFeatureContext() async throws -> SubscriptionContextDTO {
         try await NetworkManager.shared.get("/api/subscription/my-context")
     }
     

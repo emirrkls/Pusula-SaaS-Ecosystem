@@ -91,6 +91,81 @@ actor NetworkManager {
     func delete(_ path: String) async throws {
         let _: EmptyResponse = try await request(.DELETE, path: path)
     }
+    
+    func downloadData(_ path: String, requiresAuth: Bool = true) async throws -> Data {
+        guard let url = URL(string: baseURL + path) else {
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = HTTPMethod.GET.rawValue
+        request.timeoutInterval = 60
+        
+        if requiresAuth, let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+        
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw NetworkError.serverError(httpResponse.statusCode)
+        }
+        
+        return data
+    }
+    
+    func uploadMultipart<T: Decodable>(
+        path: String,
+        fileData: Data,
+        fileName: String,
+        mimeType: String,
+        fieldName: String = "file",
+        textFields: [String: String] = [:]
+    ) async throws -> T {
+        guard let url = URL(string: baseURL + path) else {
+            throw NetworkError.invalidURL
+        }
+        
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var request = URLRequest(url: url)
+        request.httpMethod = HTTPMethod.POST.rawValue
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 120
+        
+        if let token = authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        var body = Data()
+        for (key, value) in textFields {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        body.append(fileData)
+        body.append("\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+        
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw NetworkError.serverError(httpResponse.statusCode)
+        }
+        
+        return try JSONDecoder().decode(T.self, from: data)
+    }
 }
 
 // MARK: - Supporting Types

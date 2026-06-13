@@ -25,7 +25,10 @@ struct AdminDashboardView: View {
                 
                 // Technician performance
                 if !techStats.isEmpty {
-                    technicianSection
+                    NavigationLink(destination: FieldRadarView()) {
+                        technicianSection
+                    }
+                    .buttonStyle(.plain)
                 }
                 
                 // Quick Actions
@@ -80,15 +83,21 @@ struct AdminDashboardView: View {
     private func kpiCardsSection(_ kpis: DashboardKPIs) -> some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                kpiCard("Aylık Ciro",
-                        value: "₺\(formatAmount(kpis.monthlyRevenue))",
-                        icon: "chart.line.uptrend.xyaxis",
-                        gradient: [.cyan, .blue])
+                Button(action: { AppNavigation.shared.openOperations(with: "Atama Bekleyen") }) {
+                    kpiCard("Aylık Ciro",
+                            value: "₺\(formatAmount(kpis.monthlyRevenue))",
+                            icon: "chart.line.uptrend.xyaxis",
+                            gradient: [.cyan, .blue])
+                }
+                .buttonStyle(.plain)
                 
-                kpiCard("Bekleyen Alacak",
-                        value: "₺\(formatAmount(kpis.outstandingDebt))",
-                        icon: "exclamationmark.triangle",
-                        gradient: [.orange, .red])
+                Button(action: { AppNavigation.shared.openOperations(with: "Kapanan") }) {
+                    kpiCard("Bekleyen Alacak",
+                            value: "₺\(formatAmount(kpis.outstandingDebt))",
+                            icon: "exclamationmark.triangle",
+                            gradient: [.orange, .red])
+                }
+                .buttonStyle(.plain)
             }
             
             HStack(spacing: 12) {
@@ -264,13 +273,14 @@ struct AdminDashboardView: View {
                     actionCard("Saha Radarı", icon: "map", color: .blue)
                 }
                 
+                Button(action: { AppNavigation.shared.openOperations(with: "Devam Eden") }) {
+                    actionCard("Aktif İşler", icon: "wrench.and.screwdriver", color: .blue)
+                }
+                
                 NavigationLink(destination: ProfitAnalysisView()) {
                     actionCard("Kâr Analizi", icon: "chart.pie", color: .green)
                 }
-                
-                NavigationLink(destination: CatalogView()) {
-                    actionCard("Katalog", icon: "shippingbox", color: .purple)
-                }
+                .featureGated("FINANCE_MODULE")
                 
                 NavigationLink(destination: PlanUpgradeView()) {
                     actionCard("Paket Yükselt", icon: "arrow.up.circle", color: .orange)
