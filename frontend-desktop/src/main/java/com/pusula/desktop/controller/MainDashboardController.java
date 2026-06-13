@@ -9,6 +9,8 @@ import com.pusula.desktop.util.UTF8Control;
 import com.pusula.desktop.util.KeyboardShortcutHelper;
 import com.pusula.desktop.util.PreferencesHelper;
 import com.pusula.desktop.util.SessionManager;
+import com.pusula.desktop.util.ThemeHelper;
+import com.pusula.desktop.util.ViewTransitionHelper;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -20,8 +22,17 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import org.kordamp.ikonli.javafx.FontIcon;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignA;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignH;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignV;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignW;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -35,21 +46,41 @@ public class MainDashboardController {
     @FXML
     private Label userLabel;
     @FXML
+    private Label userRoleLabel;
+    @FXML
+    private Label userAvatarLabel;
+    @FXML
+    private Label pageTitleLabel;
+    @FXML
+    private Label pageSubtitleLabel;
+    @FXML
+    private Button btnThemeToggle;
+    @FXML
+    private Button navDashboard;
+    @FXML
+    private Button navTickets;
+    @FXML
+    private Button navInventory;
+    @FXML
+    private Button navCustomers;
+    @FXML
     private Button btnFinance;
     @FXML
     private Button btnSettings;
     @FXML
     private Button btnActivityLog;
+    @FXML
+    private Button btnCommercial;
+    @FXML
+    private Button btnProposals;
 
     private boolean isDark = false;
+    private Button activeNavButton;
 
     // Load saved theme preference
     {
         isDark = PreferencesHelper.isDarkMode();
-        if (isDark) {
-            javafx.application.Application.setUserAgentStylesheet(
-                    new atlantafx.base.theme.PrimerDark().getUserAgentStylesheet());
-        }
+        ThemeHelper.applyGlobalTheme(isDark);
     }
 
     // Screensaver fields
@@ -60,33 +91,102 @@ public class MainDashboardController {
 
     @FXML
     public void initialize() {
-        if (SessionManager.getUsername() != null) {
-            userLabel.setText("Welcome, " + SessionManager.getUsername());
-        }
+        setupUserProfile();
+        setupNavigationIcons();
+        setupThemeToggleIcon();
 
         // Hide Finance, Settings and Activity Log for Technicians
         if (SessionManager.isTechnician()) {
-            if (btnFinance != null) {
-                btnFinance.setVisible(false);
-                btnFinance.setManaged(false);
-            }
-            if (btnSettings != null) {
-                btnSettings.setVisible(false);
-                btnSettings.setManaged(false);
-            }
-            if (btnActivityLog != null) {
-                btnActivityLog.setVisible(false);
-                btnActivityLog.setManaged(false);
-            }
+            hideButton(btnFinance);
+            hideButton(btnSettings);
+            hideButton(btnActivityLog);
         }
 
-        // Setup screensaver idle detection
+        contentArea.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                ThemeHelper.applyToScene(newScene, isDark);
+            }
+        });
+
         setupIdleTimer();
-
         showDashboard();
+        Platform.runLater(this::registerKeyboardShortcuts);
+    }
 
-        // Register global keyboard shortcuts after scene is ready
-        javafx.application.Platform.runLater(this::registerKeyboardShortcuts);
+    private void hideButton(Button button) {
+        if (button != null) {
+            button.setVisible(false);
+            button.setManaged(false);
+        }
+    }
+
+    private void setupUserProfile() {
+        String username = SessionManager.getUsername();
+        if (username != null) {
+            userLabel.setText(username);
+            userAvatarLabel.setText(username.substring(0, 1).toUpperCase());
+        }
+        String role = SessionManager.getUserRole();
+        if (role != null) {
+            userRoleLabel.setText(switch (role) {
+                case "ADMIN" -> "Yönetici";
+                case "TECHNICIAN" -> "Teknisyen";
+                default -> role;
+            });
+        }
+    }
+
+    private void setupNavigationIcons() {
+        setNavIcon(navDashboard, MaterialDesignV.VIEW_DASHBOARD);
+        setNavIcon(navTickets, MaterialDesignC.CLIPBOARD_TEXT);
+        setNavIcon(navInventory, MaterialDesignP.PACKAGE_VARIANT);
+        setNavIcon(navCustomers, MaterialDesignA.ACCOUNT_MULTIPLE);
+        setNavIcon(btnCommercial, MaterialDesignA.AIR_CONDITIONER);
+        setNavIcon(btnProposals, MaterialDesignF.FILE_DOCUMENT);
+        setNavIcon(btnFinance, MaterialDesignC.CASH_MULTIPLE);
+        setNavIcon(btnSettings, MaterialDesignC.COG);
+        setNavIcon(btnActivityLog, MaterialDesignH.HISTORY);
+    }
+
+    private void setNavIcon(Button button, org.kordamp.ikonli.Ikon icon) {
+        if (button == null) {
+            return;
+        }
+        FontIcon fontIcon = FontIcon.of(icon, 18);
+        button.setGraphic(fontIcon);
+    }
+
+    private void setupThemeToggleIcon() {
+        updateThemeToggleIcon();
+    }
+
+    private void updateThemeToggleIcon() {
+        org.kordamp.ikonli.Ikon iconCode = isDark ? MaterialDesignW.WEATHER_SUNNY : MaterialDesignW.WEATHER_NIGHT;
+        FontIcon icon = FontIcon.of(iconCode, 18);
+        btnThemeToggle.setGraphic(icon);
+        btnThemeToggle.setTooltip(new Tooltip(isDark ? "Açık tema" : "Koyu tema"));
+    }
+
+    private void setActiveNav(Button button) {
+        if (activeNavButton != null) {
+            activeNavButton.getStyleClass().remove("active");
+        }
+        activeNavButton = button;
+        if (activeNavButton != null && !activeNavButton.getStyleClass().contains("active")) {
+            activeNavButton.getStyleClass().add("active");
+        }
+    }
+
+    private void loadContent(Parent view, String title, String subtitle, Button navButton) {
+        setActiveNav(navButton);
+        pageTitleLabel.setText(title);
+        pageSubtitleLabel.setText(subtitle != null ? subtitle : "");
+        ViewTransitionHelper.swapContent(contentArea, view);
+    }
+
+    private java.util.ResourceBundle bundle() {
+        return java.util.ResourceBundle.getBundle("i18n.messages",
+                new java.util.Locale("tr", "TR"), new UTF8Control());
     }
 
     /**
@@ -165,21 +265,11 @@ public class MainDashboardController {
         fadeOut.setToValue(0.0);
 
         fadeOut.setOnFinished(event -> {
-            // SWAP THEME while screen is black
-            if (isDark) {
-                javafx.application.Application.setUserAgentStylesheet(
-                        new atlantafx.base.theme.PrimerLight().getUserAgentStylesheet());
-                isDark = false;
-            } else {
-                javafx.application.Application.setUserAgentStylesheet(
-                        new atlantafx.base.theme.PrimerDark().getUserAgentStylesheet());
-                isDark = true;
-            }
-
-            // Save theme preference
+            isDark = !isDark;
+            ThemeHelper.applyToScene(scene, isDark);
             PreferencesHelper.setDarkMode(isDark);
+            updateThemeToggleIcon();
 
-            // Phase 2: Fade In (250ms)
             javafx.animation.FadeTransition fadeIn = new javafx.animation.FadeTransition(
                     javafx.util.Duration.millis(250), root);
             fadeIn.setFromValue(0.0);
@@ -194,14 +284,11 @@ public class MainDashboardController {
     @FXML
     public void showDashboard() {
         try {
-            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
-                    new java.util.Locale("tr", "TR"), new UTF8Control());
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/dashboard.fxml"), bundle);
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/dashboard.fxml"), bundle());
             Parent view = loader.load();
             DashboardController controller = loader.getController();
             controller.setMainController(this);
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(view);
+            loadContent(view, bundle().getString("menu.dashboard"), "Operasyon özeti", navDashboard);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -210,12 +297,9 @@ public class MainDashboardController {
     @FXML
     public void showServiceManagement() {
         try {
-            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
-                    new java.util.Locale("tr", "TR"), new UTF8Control());
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/service_tickets.fxml"), bundle);
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/service_tickets.fxml"), bundle());
             Parent view = loader.load();
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(view);
+            loadContent(view, bundle().getString("tickets.title"), "Servis fişlerini yönetin", navTickets);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -228,19 +312,13 @@ public class MainDashboardController {
 
     public void showInventory(boolean filterCritical) {
         try {
-            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
-                    new java.util.Locale("tr", "TR"), new UTF8Control());
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/inventory.fxml"), bundle);
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/inventory.fxml"), bundle());
             Parent view = loader.load();
-
-            // Get controller and apply filter if requested
             if (filterCritical) {
                 InventoryController controller = loader.getController();
                 controller.filterCriticalStocks();
             }
-
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(view);
+            loadContent(view, bundle().getString("menu.inventory"), "Stok ve araç envanteri", navInventory);
         } catch (Exception e) {
             e.printStackTrace();
             AlertHelper.showAlert(Alert.AlertType.ERROR, contentArea.getScene().getWindow(),
@@ -251,13 +329,9 @@ public class MainDashboardController {
     @FXML
     public void showCustomers() {
         try {
-            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
-                    new java.util.Locale("tr", "TR"), new UTF8Control());
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/customers.fxml"), bundle);
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/customers.fxml"), bundle());
             Parent view = loader.load();
-
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(view);
+            loadContent(view, bundle().getString("menu.customers"), "Müşteri kayıtları", navCustomers);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -266,13 +340,9 @@ public class MainDashboardController {
     @FXML
     public void showCommercialDevices() {
         try {
-            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
-                    new java.util.Locale("tr", "TR"), new UTF8Control());
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/commercial_device_view.fxml"), bundle);
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/commercial_device_view.fxml"), bundle());
             Parent view = loader.load();
-
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(view);
+            loadContent(view, bundle().getString("menu.commercial"), "Ticari cihaz satışları", btnCommercial);
         } catch (Exception e) {
             e.printStackTrace();
             AlertHelper.showAlert(Alert.AlertType.ERROR, contentArea.getScene().getWindow(),
@@ -291,10 +361,9 @@ public class MainDashboardController {
     @FXML
     public void showProposals() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/proposal_view.fxml"));
-            loader.setResources(java.util.ResourceBundle.getBundle("i18n.messages_tr"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/proposal_view.fxml"), bundle());
             Parent content = loader.load();
-            contentArea.getChildren().setAll(content);
+            loadContent(content, "Teklifler", "Teklif yönetimi", btnProposals);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -321,13 +390,9 @@ public class MainDashboardController {
 
     private void navigateToFinance() {
         try {
-            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
-                    new java.util.Locale("tr", "TR"), new UTF8Control());
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/finance_view.fxml"), bundle);
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/finance_view.fxml"), bundle());
             Parent view = loader.load();
-
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(view);
+            loadContent(view, bundle().getString("menu.finance"), "Gelir, gider ve raporlar", btnFinance);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -335,13 +400,9 @@ public class MainDashboardController {
 
     private void navigateToSettings() {
         try {
-            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
-                    new java.util.Locale("tr", "TR"), new UTF8Control());
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/settings_view.fxml"), bundle);
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/settings_view.fxml"), bundle());
             Parent view = loader.load();
-
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(view);
+            loadContent(view, bundle().getString("menu.settings"), "Uygulama ayarları", btnSettings);
         } catch (Exception e) {
             e.printStackTrace();
             AlertHelper.showAlert(Alert.AlertType.ERROR, contentArea.getScene().getWindow(),
@@ -351,13 +412,9 @@ public class MainDashboardController {
 
     private void navigateToActivityLog() {
         try {
-            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
-                    new java.util.Locale("tr", "TR"), new UTF8Control());
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/activity_log.fxml"), bundle);
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/activity_log.fxml"), bundle());
             Parent view = loader.load();
-
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(view);
+            loadContent(view, bundle().getString("menu.activity_log"), "Sistem aktivite kayıtları", btnActivityLog);
         } catch (Exception e) {
             e.printStackTrace();
             AlertHelper.showAlert(Alert.AlertType.ERROR, contentArea.getScene().getWindow(),
@@ -443,8 +500,11 @@ public class MainDashboardController {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/login.fxml"), bundle);
             Parent root = loader.load();
             Stage stage = (Stage) userLabel.getScene().getWindow();
-            stage.setScene(new Scene(root));
-            stage.setTitle("Pusula - Login");
+            Scene scene = new Scene(root, 960, 640);
+            ThemeHelper.applyToScene(scene, ThemeHelper.isDarkMode());
+            stage.setScene(scene);
+            stage.setMaximized(false);
+            stage.setTitle(bundle.getString("app.title"));
         } catch (IOException e) {
             e.printStackTrace();
         }

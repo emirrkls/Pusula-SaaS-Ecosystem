@@ -169,7 +169,7 @@ public class NotificationHelper {
         SUCCESS("#10B981", "✓"), // Green
         ERROR("#EF4444", "✕"), // Red
         WARNING("#F59E0B", "⚠"), // Orange
-        INFO("#3B82F6", "ℹ"); // Blue
+        INFO("#00B6EB", "ℹ"); // Brand cyan
 
         final String bgColor;
         final String icon;

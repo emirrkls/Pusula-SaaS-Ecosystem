@@ -1,5 +1,7 @@
 package com.pusula.desktop.controller;
 
+import com.pusula.desktop.util.TableUiHelper;
+import com.pusula.desktop.util.ThemeHelper;
 import com.pusula.desktop.util.UTF8Control;
 import com.pusula.desktop.util.AnimationHelper;
 
@@ -14,14 +16,16 @@ import com.pusula.desktop.dto.CustomerDTO;
 import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 import java.time.LocalDate;
@@ -68,22 +72,16 @@ public class DashboardController {
     }
 
     @FXML
-    private TableView<ServiceTicketDTO> agendaTable;
+    private ListView<ServiceTicketDTO> agendaListView;
 
     @FXML
-    private TableColumn<ServiceTicketDTO, String> colCustomer;
+    private Label agendaCountLabel;
 
     @FXML
-    private TableColumn<ServiceTicketDTO, String> colTime;
+    private VBox agendaEmptyBox;
 
-    @FXML
-    private TableColumn<ServiceTicketDTO, String> colStatus;
-
-    @FXML
-    private TableColumn<ServiceTicketDTO, String> colTechnician;
-
-    @FXML
-    private TableColumn<ServiceTicketDTO, Void> colActions;
+    private ResourceBundle resourceBundle;
+    private final ObservableList<ServiceTicketDTO> agendaItems = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
@@ -95,8 +93,10 @@ public class DashboardController {
             dateLabel.setText(java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd MMMM yyyy, EEEE", new java.util.Locale("tr"))));
         }
 
-        setupTable();
-        setupActionColumn();
+        resourceBundle = ResourceBundle.getBundle("i18n.messages",
+                Locale.of("tr", "TR"), new UTF8Control());
+
+        setupAgendaList();
         loadDashboardData();
         loadPerformanceChart();
 
@@ -133,213 +133,114 @@ public class DashboardController {
         }
     }
 
-    private void setupTable() {
-        colCustomer.setCellValueFactory(cellData -> {
-            Long customerId = cellData.getValue().getCustomerId();
-            if (customerId != null) {
-                // Fetch customer name
-                CustomerApi customerApi = RetrofitClient.getClient().create(CustomerApi.class);
-                try {
-                    var response = customerApi.getCustomerById(customerId).execute();
-                    if (response.isSuccessful() && response.body() != null) {
-                        return new SimpleStringProperty(response.body().getName());
-                    }
-                } catch (Exception e) {
-                    // Fallback to ID
-                }
-            }
-            return new SimpleStringProperty("Müşteri " + customerId);
-        });
-
-        colTime.setCellValueFactory(cellData -> {
-            LocalDateTime date = cellData.getValue().getScheduledDate();
-            return new SimpleStringProperty(date != null ? date.format(DateTimeFormatter.ofPattern("HH:mm")) : "-");
-        });
-
-        colStatus.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getStatus()));
-
-        // Load resource bundle
-        java.util.ResourceBundle resourceBundle = java.util.ResourceBundle.getBundle("i18n.messages",
-                java.util.Locale.of("tr", "TR"), new UTF8Control());
-
-        // Set custom cell factory for Status column
-        colStatus.setCellFactory(column -> new TableCell<ServiceTicketDTO, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-
-                if (empty || getIndex() >= getTableView().getItems().size()) {
-                    setText(null);
-                    setStyle("");
-                    return;
-                }
-
-                ServiceTicketDTO ticket = getTableView().getItems().get(getIndex());
-                String status = ticket.getStatus();
-
-                if (status == null) {
-                    setText("");
-                    setStyle("");
-                    return;
-                }
-
-                // Translate the status
-                String translatedStatus = switch (status) {
-                    case "PENDING" -> resourceBundle.getString("status.pending");
-                    case "IN_PROGRESS" -> resourceBundle.getString("status.in_progress");
-                    case "COMPLETED" -> resourceBundle.getString("status.completed");
-                    case "CANCELLED" -> resourceBundle.getString("status.cancelled");
-                    case "ASSIGNED" -> resourceBundle.getString("status.assigned");
-                    default -> status;
-                };
-
-                setText(translatedStatus);
-
-                // Set color based on status
-                switch (status) {
-                    case "COMPLETED":
-                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                        break;
-                    case "IN_PROGRESS":
-                        setStyle("-fx-text-fill: #2980b9; -fx-font-weight: bold;");
-                        break;
-                    case "CANCELLED":
-                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                        break;
-                    case "PENDING":
-                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
-                        break;
-                    case "ASSIGNED":
-                        setStyle("-fx-text-fill: #8e44ad; -fx-font-weight: bold;");
-                        break;
-                    default:
-                        setStyle("");
-                }
-            }
-        });
-
-        // Set custom cell factory for Technician column
-        colTechnician.setCellFactory(column -> new TableCell<ServiceTicketDTO, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-
-                if (empty || getIndex() >= getTableView().getItems().size()) {
-                    setText(null);
-                    setStyle("");
-                    return;
-                }
-
-                ServiceTicketDTO ticket = getTableView().getItems().get(getIndex());
-                Long technicianId = ticket.getAssignedTechnicianId();
-
-                if (technicianId == null) {
-                    setText(resourceBundle.getString("dashboard.unassigned"));
-                    setStyle("-fx-background-color: #fff3cd; -fx-text-fill: #856404;");
-                } else {
-                    UserApi userApi = RetrofitClient.getClient().create(UserApi.class);
-                    userApi.getTechnicians().enqueue(new retrofit2.Callback<java.util.List<UserDTO>>() {
-                        @Override
-                        public void onResponse(retrofit2.Call<java.util.List<UserDTO>> call,
-                                retrofit2.Response<java.util.List<UserDTO>> response) {
-                            if (response.isSuccessful() && response.body() != null) {
-                                UserDTO tech = response.body().stream()
-                                        .filter(u -> u.getId().equals(technicianId))
-                                        .findFirst()
-                                        .orElse(null);
-
-                                Platform.runLater(() -> {
-                                    if (tech != null) {
-                                        setText(tech.getFullName());
-                                    } else {
-                                        setText("Teknisyen " + technicianId);
-                                    }
-                                    setStyle("");
-                                });
-                            }
-                        }
-
-                        @Override
-                        public void onFailure(retrofit2.Call<java.util.List<UserDTO>> call, Throwable t) {
-                            Platform.runLater(() -> {
-                                setText("Teknisyen " + technicianId);
-                                setStyle("");
-                            });
-                        }
-                    });
-                }
-            }
-        });
-
-        colTechnician.setCellValueFactory(
-                cellData -> new SimpleStringProperty(cellData.getValue().getAssignedTechnicianId() != null
-                        ? cellData.getValue().getAssignedTechnicianId().toString()
-                        : ""));
-
-        // Add double-click handler to open ticket details
-        agendaTable.setRowFactory(tv -> {
-            TableRow<ServiceTicketDTO> row = new TableRow<>();
-            row.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && (!row.isEmpty())) {
-                    ServiceTicketDTO ticket = row.getItem();
-                    openTicketDetails(ticket);
-                }
-            });
-            return row;
-        });
+    private void setupAgendaList() {
+        agendaListView.setItems(agendaItems);
+        agendaListView.setCellFactory(lv -> new AgendaCardCell());
+        agendaItems.addListener((javafx.collections.ListChangeListener<ServiceTicketDTO>) c -> updateAgendaEmptyState());
     }
 
-    private void setupActionColumn() {
-        colActions.setCellFactory(param -> new TableCell<>() {
-            private final Button startBtn = new Button("▶");
-            private final Button callBtn = new Button("📞");
-            private final Button completeBtn = new Button("✓");
-            private final HBox actionBox = new HBox(5);
+    private void updateAgendaEmptyState() {
+        boolean empty = agendaItems.isEmpty();
+        agendaEmptyBox.setVisible(empty);
+        agendaEmptyBox.setManaged(empty);
+        agendaListView.setVisible(!empty);
+        agendaCountLabel.setText(agendaItems.size() + " randevu");
+    }
 
-            {
-                startBtn.setStyle(
-                        "-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-size: 10px; -fx-padding: 2 6;");
-                callBtn.setStyle(
-                        "-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 10px; -fx-padding: 2 6;");
-                completeBtn.setStyle(
-                        "-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 10px; -fx-padding: 2 6;");
+    private void setAgendaItems(List<ServiceTicketDTO> tickets) {
+        agendaItems.setAll(tickets);
+        updateAgendaEmptyState();
+    }
 
-                actionBox.setAlignment(Pos.CENTER);
-                actionBox.getChildren().addAll(startBtn, callBtn, completeBtn);
+    private class AgendaCardCell extends ListCell<ServiceTicketDTO> {
+        private final HBox card = new HBox(10);
+        private final Label timeLabel = new Label();
+        private final VBox content = new VBox(4);
+        private final HBox headerRow = new HBox(8);
+        private final Label customerLabel = new Label();
+        private final Label statusBadge = new Label();
+        private final Label techLabel = new Label();
+        private final HBox actions = new HBox(4);
+        private final Button startBtn = new Button("▶");
+        private final Button callBtn = new Button("📞");
+        private final Button openBtn = new Button("✓");
 
-                startBtn.setOnAction(event -> {
-                    ServiceTicketDTO ticket = getTableView().getItems().get(getIndex());
-                    handleStartTicket(ticket);
-                });
+        AgendaCardCell() {
+            timeLabel.getStyleClass().add("agenda-card-time");
+            customerLabel.getStyleClass().add("agenda-card-customer");
+            techLabel.getStyleClass().add("customer-card-meta");
+            card.getStyleClass().add("agenda-card");
+            card.setAlignment(Pos.CENTER_LEFT);
 
-                callBtn.setOnAction(event -> {
-                    ServiceTicketDTO ticket = getTableView().getItems().get(getIndex());
-                    handleCallCustomer(ticket);
-                });
+            startBtn.getStyleClass().addAll("btn-icon-sm", "btn-icon-success");
+            callBtn.getStyleClass().addAll("btn-icon-sm", "btn-icon-primary");
+            openBtn.getStyleClass().addAll("btn-icon-sm", "btn-icon-danger");
+            actions.setAlignment(Pos.CENTER_RIGHT);
+            actions.getChildren().addAll(startBtn, callBtn, openBtn);
 
-                completeBtn.setOnAction(event -> {
-                    ServiceTicketDTO ticket = getTableView().getItems().get(getIndex());
-                    handleCompleteTicket(ticket);
-                });
-            }
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+            headerRow.setAlignment(Pos.CENTER_LEFT);
+            headerRow.getChildren().addAll(customerLabel, spacer, statusBadge);
 
-            @Override
-            protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || getIndex() >= getTableView().getItems().size()) {
-                    setGraphic(null);
-                } else {
-                    ServiceTicketDTO ticket = getTableView().getItems().get(getIndex());
-                    String status = ticket.getStatus();
+            content.getChildren().addAll(headerRow, techLabel);
+            HBox.setHgrow(content, Priority.ALWAYS);
+            card.getChildren().addAll(timeLabel, content, actions);
 
-                    // Show start button only for PENDING/ASSIGNED tickets
-                    startBtn.setVisible("PENDING".equals(status) || "ASSIGNED".equals(status));
-                    startBtn.setManaged(startBtn.isVisible());
-
-                    setGraphic(actionBox);
+            card.setOnMouseClicked(e -> {
+                if (isEmpty() || getItem() == null || e.getTarget() instanceof Button) {
+                    return;
                 }
+                openTicketDetails(getItem());
+            });
+
+            startBtn.setOnAction(e -> {
+                if (getItem() != null) handleStartTicket(getItem());
+                e.consume();
+            });
+            callBtn.setOnAction(e -> {
+                if (getItem() != null) handleCallCustomer(getItem());
+                e.consume();
+            });
+            openBtn.setOnAction(e -> {
+                if (getItem() != null) handleCompleteTicket(getItem());
+                e.consume();
+            });
+
+            AnimationHelper.applyCardHover(card);
+        }
+
+        @Override
+        protected void updateItem(ServiceTicketDTO ticket, boolean empty) {
+            super.updateItem(ticket, empty);
+            if (empty || ticket == null) {
+                setGraphic(null);
+                return;
             }
-        });
+
+            LocalDateTime scheduled = ticket.getScheduledDate();
+            timeLabel.setText(scheduled != null ? scheduled.format(DateTimeFormatter.ofPattern("HH:mm")) : "—");
+
+            String customer = ticket.getCustomerName();
+            customerLabel.setText(customer != null && !customer.isBlank()
+                    ? TableUiHelper.toTitleCase(customer)
+                    : "Müşteri #" + ticket.getCustomerId());
+
+            TableUiHelper.applyStatusBadge(statusBadge, ticket.getStatus(), resourceBundle);
+
+            if (ticket.getAssignedTechnicianId() == null) {
+                techLabel.setText(resourceBundle.getString("dashboard.unassigned"));
+            } else {
+                String tech = ticket.getAssignedTechnicianName();
+                techLabel.setText(tech != null && !tech.isBlank() ? tech : "Teknisyen #" + ticket.getAssignedTechnicianId());
+            }
+
+            String status = ticket.getStatus() != null ? ticket.getStatus() : "";
+            startBtn.setVisible("PENDING".equals(status) || "ASSIGNED".equals(status));
+            startBtn.setManaged(startBtn.isVisible());
+
+            setGraphic(card);
+        }
     }
 
     private void handleStartTicket(ServiceTicketDTO ticket) {
@@ -400,7 +301,7 @@ public class DashboardController {
             javafx.stage.Stage stage = new javafx.stage.Stage();
             com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.setTitle("Ticket Details - " + ticket.getId());
-            stage.setScene(new javafx.scene.Scene(root));
+            stage.setScene(ThemeHelper.createDialogScene(root));
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             stage.showAndWait();
 
@@ -522,7 +423,7 @@ public class DashboardController {
                                     t.getScheduledDate().toLocalDate().isEqual(java.time.LocalDate.now()))
                             .collect(java.util.stream.Collectors.toList());
 
-                    Platform.runLater(() -> agendaTable.setItems(FXCollections.observableArrayList(todayTickets)));
+                    Platform.runLater(() -> setAgendaItems(todayTickets));
                 }
             }
 

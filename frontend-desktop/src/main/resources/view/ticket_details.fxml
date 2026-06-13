@@ -15,65 +15,53 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox prefHeight="600.0" prefWidth="800.0" spacing="20.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.TicketDetailsController">
+<VBox prefHeight="600.0" prefWidth="800.0" spacing="16.0" styleClass="dialog-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.TicketDetailsController">
    <padding>
       <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
    </padding>
    <children>
       <HBox alignment="CENTER_LEFT" spacing="20.0">
          <children>
-            <Label text="%ticket.details.title">
-               <font>
-                  <Font name="System Bold" size="24.0" />
-               </font>
-            </Label>
-            <Label fx:id="lblStatus" text="STATUS" textFill="#7f8c8d">
-               <font>
-                  <Font name="System Bold" size="18.0" />
-               </font>
-            </Label>
+            <Label styleClass="dialog-title" text="%ticket.details.title" />
+            <Label fx:id="lblStatus" styleClass="page-subtitle" text="STATUS" />
             <Region HBox.hgrow="ALWAYS" />
-            <Button fx:id="btnChangeStatus" mnemonicParsing="false" onAction="#handleChangeStatus" style="-fx-background-color: #3498db; -fx-text-fill: white;" text="%ticket.change.status" visible="false" managed="false"/>
+            <Button fx:id="btnChangeStatus" mnemonicParsing="false" onAction="#handleChangeStatus" styleClass="btn-primary" text="%ticket.change.status" visible="false" managed="false"/>
          </children>
       </HBox>
       
       <!-- Parent Ticket Link -->
-      <Label fx:id="lblParentLink" managed="false" style="-fx-font-weight: bold; -fx-cursor: hand;" text="" textFill="#3498db" underline="true" visible="false" />
+      <Label fx:id="lblParentLink" managed="false" styleClass="link-label" text="" underline="true" visible="false" />
       
       <!-- Customer Information Card -->
-      <VBox spacing="8.0" style="-fx-background-color: #ecf0f1; -fx-background-radius: 8; -fx-border-color: #bdc3c7; -fx-border-radius: 8; -fx-border-width: 1;">
+      <VBox spacing="8.0" styleClass="ticket-details-panel">
          <padding>
             <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
          </padding>
          <children>
-            <Label text="%ticket.customer_info" textFill="#2c3e50">
-               <font>
-                  <Font name="System Bold" size="14.0" />
-               </font>
-            </Label>
+            <Label styleClass="section-title" text="%ticket.customer_info" />
             <HBox spacing="40.0">
                <children>
                   <VBox spacing="5.0">
                      <children>
-                        <Label text="%customer.name" textFill="#7f8c8d" style="-fx-font-size: 11px;" />
-                        <Label fx:id="lblCustomerName" text="-" style="-fx-font-weight: bold; -fx-font-size: 13px;" />
+                        <Label styleClass="field-label" text="%customer.name" />
+                        <Label fx:id="lblCustomerName" styleClass="field-value" text="-" />
                      </children>
                   </VBox>
                   <VBox spacing="5.0">
                      <children>
-                        <Label text="%ticket.customer_phone" textFill="#7f8c8d" style="-fx-font-size: 11px;" />
+                        <Label styleClass="field-label" text="%ticket.customer_phone" />
                         <HBox alignment="CENTER_LEFT" spacing="5.0">
                            <children>
-                              <Label fx:id="lblCustomerPhone" text="-" style="-fx-font-weight: bold; -fx-font-size: 13px;" />
-                              <Button fx:id="btnWhatsApp" mnemonicParsing="false" onAction="#handleWhatsAppClick" style="-fx-background-color: #25D366; -fx-text-fill: white; -fx-font-size: 10px; -fx-padding: 2 6; -fx-background-radius: 4; -fx-cursor: hand;" text="💬" />
+                              <Label fx:id="lblCustomerPhone" styleClass="field-value" text="-" />
+                              <Button fx:id="btnWhatsApp" mnemonicParsing="false" onAction="#handleWhatsAppClick" styleClass="btn-whatsapp" text="💬" />
                            </children>
                         </HBox>
                      </children>
                   </VBox>
                   <VBox spacing="5.0" HBox.hgrow="ALWAYS">
                      <children>
-                        <Label text="%ticket.customer_address" textFill="#7f8c8d" style="-fx-font-size: 11px;" />
-                        <Label fx:id="lblCustomerAddress" text="-" style="-fx-font-weight: bold; -fx-font-size: 13px;" wrapText="true" />
+                        <Label styleClass="field-label" text="%ticket.customer_address" />
+                        <Label fx:id="lblCustomerAddress" styleClass="field-value" text="-" wrapText="true" />
                      </children>
                   </VBox>
                </children>
@@ -85,7 +73,7 @@
          <tabs>
             <Tab text="%ticket.tab.details">
                <content>
-                  <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
+                  <ScrollPane fitToWidth="true" styleClass="scroll-pane-transparent">
                      <content>
                         <VBox spacing="15.0">
                            <padding>
@@ -96,21 +84,21 @@
                                  <children>
                                     <VBox spacing="10.0" HBox.hgrow="ALWAYS">
                                        <children>
-                                          <Label text="%ticket.description" textFill="#7f8c8d" />
+                                          <Label styleClass="muted-label" text="%ticket.description" />
                                           <TextArea fx:id="txtDescription" editable="false" prefHeight="70.0" wrapText="true" />
-                                          <Label text="%ticket.notes" textFill="#7f8c8d" />
+                                          <Label styleClass="muted-label" text="%ticket.notes" />
                                           <TextArea fx:id="txtNotes" prefHeight="70.0" wrapText="true" />
-                                          <Button mnemonicParsing="false" onAction="#handleSaveNotes" text="%ticket.save.notes" />
+                                          <Button mnemonicParsing="false" onAction="#handleSaveNotes" styleClass="btn-secondary" text="%ticket.save.notes" />
                                        </children>
                                     </VBox>
                                     
                                     <VBox prefWidth="280.0" spacing="10.0">
                                        <children>
-                                          <Label text="%ticket.assign.technician" textFill="#7f8c8d" />
+                                          <Label styleClass="muted-label" text="%ticket.assign.technician" />
                                           <HBox spacing="10.0">
                                              <children>
                                                 <ComboBox fx:id="comboTechnician" prefWidth="180.0" promptText="%ticket.select.technician" />
-                                                <Button minWidth="70.0" mnemonicParsing="false" onAction="#handleAssign" prefWidth="80.0" style="-fx-background-color: #3498db; -fx-text-fill: white;" text="%btn.assign" />
+                                                <Button minWidth="70.0" mnemonicParsing="false" onAction="#handleAssign" prefWidth="80.0" styleClass="btn-primary" text="%btn.assign" />
                                              </children>
                                           </HBox>
                                        </children>
@@ -127,10 +115,10 @@
                                                 <Font name="System Bold" size="16.0" />
                                              </font>
                                           </Label>
-                                          <Button fx:id="btnAddPart" mnemonicParsing="false" onAction="#handleAddPart" style="-fx-background-color: #2ecc71; -fx-text-fill: white;" text="%ticket.add.part" />
+                                          <Button fx:id="btnAddPart" mnemonicParsing="false" onAction="#handleAddPart" styleClass="btn-success" text="%ticket.add.part" />
                                        </children>
                                     </HBox>
-                                    <TableView fx:id="partsTable" prefHeight="120.0" minHeight="100.0" style="-fx-border-color: #bdc3c7; -fx-border-width: 1;">
+                                    <TableView fx:id="partsTable" minHeight="100.0" prefHeight="120.0" styleClass="premium-table bordered-table">
                                        <columns>
                                           <TableColumn fx:id="colPartName" prefWidth="250.0" text="%ticket.part.name" />
                                           <TableColumn fx:id="colQuantity" prefWidth="80.0" text="%ticket.quantity" />
@@ -153,10 +141,10 @@
                                                 <Font name="System Bold" size="16.0" />
                                              </font>
                                           </Label>
-                                          <Button fx:id="btnAddExpense" mnemonicParsing="false" onAction="#handleAddExpense" style="-fx-background-color: #e67e22; -fx-text-fill: white;" text="+ Dış Gider Ekle" />
+                                          <Button fx:id="btnAddExpense" mnemonicParsing="false" onAction="#handleAddExpense" styleClass="btn-warning" text="+ Dış Gider Ekle" />
                                        </children>
                                     </HBox>
-                                    <TableView fx:id="expensesTable" prefHeight="120.0" minHeight="100.0" style="-fx-border-color: #bdc3c7; -fx-border-width: 1;">
+                                    <TableView fx:id="expensesTable" minHeight="100.0" prefHeight="120.0" styleClass="premium-table bordered-table">
                                        <columns>
                                           <TableColumn fx:id="colExpenseDescription" prefWidth="200.0" text="Açıklama" />
                                           <TableColumn fx:id="colExpenseSupplier" prefWidth="150.0" text="Tedarikçi" />
@@ -177,9 +165,9 @@
             </Tab>
             <Tab text="%ticket.tab.history">
                <content>
-                  <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
+                  <ScrollPane fitToWidth="true" styleClass="scroll-pane-transparent">
                      <content>
-                        <VBox fx:id="timelineContainer" spacing="15.0" style="-fx-background-color: #f5f5f5;">
+                        <VBox fx:id="timelineContainer" spacing="15.0" styleClass="timeline-container">
                            <padding>
                               <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
                            </padding>
@@ -193,12 +181,12 @@
       
       <HBox alignment="CENTER_RIGHT" spacing="10.0">
          <children>
-            <Button fx:id="btnPrintPdf" onAction="#handlePrintPdf" prefWidth="120.0" style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-weight: bold;" text="%btn.print" />
-            <Button fx:id="btnCreateRecall" managed="false" onAction="#handleCreateRecall" prefWidth="180.0" style="-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-weight: bold;" text="%ticket.recall" visible="false" />
-            <Button fx:id="btnEditCompleted" managed="false" onAction="#handleEditCompleted" prefWidth="220.0" style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-weight: bold;" text="%btn.edit_completed" visible="false" />
+            <Button fx:id="btnPrintPdf" onAction="#handlePrintPdf" prefWidth="120.0" styleClass="btn-purple" text="%btn.print" />
+            <Button fx:id="btnCreateRecall" managed="false" onAction="#handleCreateRecall" prefWidth="180.0" styleClass="btn-warning" text="%ticket.recall" visible="false" />
+            <Button fx:id="btnEditCompleted" managed="false" onAction="#handleEditCompleted" prefWidth="220.0" styleClass="btn-purple" text="%btn.edit_completed" visible="false" />
             <Region HBox.hgrow="ALWAYS" />
-            <Button fx:id="btnCancelService" mnemonicParsing="false" onAction="#handleCancelService" prefWidth="150.0" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold;" text="%ticket.cancel" />
-            <Button fx:id="btnCompleteService" mnemonicParsing="false" onAction="#handleCompleteService" prefWidth="150.0" style="-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold;" text="%ticket.complete" />
+            <Button fx:id="btnCancelService" mnemonicParsing="false" onAction="#handleCancelService" prefWidth="150.0" styleClass="btn-danger" text="%ticket.cancel" />
+            <Button fx:id="btnCompleteService" mnemonicParsing="false" onAction="#handleCompleteService" prefWidth="150.0" styleClass="btn-success" text="%ticket.complete" />
          </children>
       </HBox>
    </children>

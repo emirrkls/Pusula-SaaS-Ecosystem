@@ -3,50 +3,36 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.text.Font?>
 
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" 
-      fx:controller="com.pusula.desktop.controller.CommercialDeviceViewController"
-      spacing="15.0" style="-fx-background-color: #ecf0f1;">
+<VBox fx:controller="com.pusula.desktop.controller.CommercialDeviceViewController"
+      spacing="16.0" styleClass="page-view" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
     <padding>
-        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+        <Insets bottom="8.0" left="0.0" right="0.0" top="8.0" />
     </padding>
 
-    <!-- Header -->
-    <HBox alignment="CENTER_LEFT" spacing="20.0">
-        <Label text="%commercial.title">
-            <font>
-                <Font name="System Bold" size="24.0" />
-            </font>
-        </Label>
-        <Region HBox.hgrow="ALWAYS" />
-        <Button fx:id="btnAdd" onAction="#handleAdd" style="-fx-background-color: #27ae60; -fx-text-fill: white;" text="%commercial.add">
-            <font>
-                <Font size="14.0" />
-            </font>
-        </Button>
+    <HBox alignment="CENTER_LEFT" spacing="16.0" styleClass="page-header">
+        <Label styleClass="page-header-title" text="%commercial.title" HBox.hgrow="ALWAYS" />
+        <Button fx:id="btnAdd" onAction="#handleAdd" styleClass="btn-success" text="%commercial.add" />
     </HBox>
 
-    <!-- Filter Bar -->
-    <HBox alignment="CENTER_LEFT" spacing="15.0" style="-fx-background-color: white; -fx-padding: 15; -fx-background-radius: 8;">
+    <HBox alignment="CENTER_LEFT" spacing="15.0" styleClass="filter-bar">
         <VBox spacing="5.0">
-            <Label text="%commercial.device_type" textFill="#7f8c8d" />
+            <Label styleClass="field-label" text="%commercial.device_type" />
             <ComboBox fx:id="cmbDeviceType" prefWidth="150.0" promptText="Tümü" />
         </VBox>
         <VBox spacing="5.0">
-            <Label text="%commercial.brand" textFill="#7f8c8d" />
+            <Label styleClass="field-label" text="%commercial.brand" />
             <ComboBox fx:id="cmbBrand" prefWidth="150.0" promptText="Tümü" />
         </VBox>
         <VBox spacing="5.0">
-            <Label text="%commercial.btu" textFill="#7f8c8d" />
+            <Label styleClass="field-label" text="%commercial.btu" />
             <ComboBox fx:id="cmbBtu" prefWidth="120.0" promptText="Tümü" />
         </VBox>
         <Region HBox.hgrow="ALWAYS" />
-        <Button onAction="#handleClearFilters" text="Filtreleri Temizle" />
+        <Button onAction="#handleClearFilters" styleClass="btn-secondary" text="Filtreleri Temizle" />
     </HBox>
 
-    <!-- Table -->
-    <TableView fx:id="devicesTable" VBox.vgrow="ALWAYS" style="-fx-background-color: white;">
+    <TableView fx:id="devicesTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
         <columns>
             <TableColumn fx:id="colBrand" prefWidth="120.0" text="%commercial.brand" />
             <TableColumn fx:id="colModel" prefWidth="150.0" text="%commercial.model" />
@@ -63,11 +49,10 @@
         </columnResizePolicy>
     </TableView>
 
-    <!-- Action Buttons -->
     <HBox alignment="CENTER_LEFT" spacing="10.0">
-        <Button fx:id="btnEdit" onAction="#handleEdit" style="-fx-background-color: #3498db; -fx-text-fill: white;" text="%commercial.edit" />
-        <Button fx:id="btnDelete" onAction="#handleDelete" style="-fx-background-color: #e74c3c; -fx-text-fill: white;" text="%commercial.delete" />
+        <Button fx:id="btnEdit" onAction="#handleEdit" styleClass="btn-primary" text="%commercial.edit" />
+        <Button fx:id="btnDelete" onAction="#handleDelete" styleClass="btn-danger" text="%commercial.delete" />
         <Region HBox.hgrow="ALWAYS" />
-        <Button fx:id="btnSell" onAction="#handleSell" style="-fx-background-color: #9b59b6; -fx-text-fill: white;" text="%commercial.sell" />
+        <Button fx:id="btnSell" onAction="#handleSell" styleClass="btn-purple" text="%commercial.sell" />
     </HBox>
 </VBox>

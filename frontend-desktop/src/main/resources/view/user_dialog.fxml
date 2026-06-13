@@ -1,46 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<VBox xmlns="http://javafx.com/javafx"
-      xmlns:fx="http://javafx.com/fxml"
-      fx:controller="com.pusula.desktop.controller.UserDialogController"
-      spacing="15" prefWidth="400" prefHeight="400">
-    
+<VBox fx:controller="com.pusula.desktop.controller.UserDialogController"
+      prefHeight="400" prefWidth="400" spacing="15" styleClass="dialog-root"
+      xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
     <padding>
-        <Insets top="20" right="20" bottom="20" left="20"/>
+        <Insets bottom="20" left="20" right="20" top="20"/>
     </padding>
-    
+
+    <Label styleClass="dialog-title" text="%settings.add_user"/>
+
     <GridPane hgap="10" vgap="12">
         <columnConstraints>
-            <ColumnConstraints hgrow="NEVER" minWidth="100" />
-            <ColumnConstraints hgrow="ALWAYS" />
+            <ColumnConstraints hgrow="NEVER" minWidth="100"/>
+            <ColumnConstraints hgrow="ALWAYS"/>
         </columnConstraints>
-        
-        <Label text="%settings.username" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-        <TextField fx:id="txtUsername" GridPane.columnIndex="1" GridPane.rowIndex="0" />
-        
-        <Label text="%settings.full_name" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-        <TextField fx:id="txtFullName" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-        
-        <Label fx:id="lblPassword" text="%settings.password" GridPane.columnIndex="0" GridPane.rowIndex="2" />
-        <PasswordField fx:id="txtPassword" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-        
-        <Label text="%settings.role" GridPane.columnIndex="0" GridPane.rowIndex="3" />
-        <ComboBox fx:id="cmbRole" GridPane.columnIndex="1" GridPane.rowIndex="3" />
-        
-        <Label text="%settings.signature" GridPane.columnIndex="0" GridPane.rowIndex="4" />
-        <HBox spacing="10" GridPane.columnIndex="1" GridPane.rowIndex="4">
-            <Button fx:id="btnSelectSignature" text="%settings.select_signature" onAction="#handleSelectSignature" />
-            <Label fx:id="lblSignatureFilename" text="" style="-fx-text-fill: gray;" />
+        <Label GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="field-label" text="%settings.username"/>
+        <TextField fx:id="txtUsername" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+        <Label GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="field-label" text="%settings.full_name"/>
+        <TextField fx:id="txtFullName" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+        <Label fx:id="lblPassword" GridPane.columnIndex="0" GridPane.rowIndex="2" styleClass="field-label" text="%settings.password"/>
+        <PasswordField fx:id="txtPassword" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+        <Label GridPane.columnIndex="0" GridPane.rowIndex="3" styleClass="field-label" text="%settings.role"/>
+        <ComboBox fx:id="cmbRole" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+        <Label GridPane.columnIndex="0" GridPane.rowIndex="4" styleClass="field-label" text="%settings.signature"/>
+        <HBox GridPane.columnIndex="1" GridPane.rowIndex="4" spacing="10">
+            <Button fx:id="btnSelectSignature" onAction="#handleSelectSignature" styleClass="btn-secondary" text="%settings.select_signature"/>
+            <Label fx:id="lblSignatureFilename" styleClass="label-filename" text=""/>
         </HBox>
     </GridPane>
-    
-    <HBox spacing="10" alignment="CENTER_RIGHT">
-        <Button text="%dialog.save" onAction="#handleSave"
-                style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-padding: 10 20;" />
-        <Button text="%dialog.cancel" onAction="#handleCancel"
-                style="-fx-padding: 10 20;" />
+
+    <HBox alignment="CENTER_RIGHT" spacing="10">
+        <Button onAction="#handleCancel" styleClass="btn-secondary" text="%dialog.cancel"/>
+        <Button onAction="#handleSave" styleClass="btn-success" text="%dialog.save"/>
     </HBox>
 </VBox>

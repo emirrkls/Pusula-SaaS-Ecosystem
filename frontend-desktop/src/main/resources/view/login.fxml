@@ -5,28 +5,62 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.PasswordField?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
 
-<VBox fx:id="loginForm" alignment="CENTER" spacing="20.0" xmlns:fx="http://javafx.com/fxml"
-      fx:controller="com.pusula.desktop.controller.LoginController">
-    <padding>
-        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
-    </padding>
+<BorderPane fx:id="loginRoot" prefHeight="640.0" prefWidth="960.0" styleClass="login-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.LoginController">
+   <left>
+      <VBox prefWidth="420.0" styleClass="login-brand-panel" BorderPane.alignment="CENTER">
+         <children>
+            <Label styleClass="login-brand-logo" text="Pusula" />
+            <Label styleClass="login-brand-tagline" text="Servis operasyonlarınızı tek platformdan yönetin. İş emirleri, stok, finans ve müşteri takibi bir arada." wrapText="true" />
+            <VBox styleClass="login-brand-features">
+               <children>
+                  <Label styleClass="login-feature-item" text="✓  Gerçek zamanlı servis fişi takibi" />
+                  <Label styleClass="login-feature-item" text="✓  Stok ve teknisyen yönetimi" />
+                  <Label styleClass="login-feature-item" text="✓  Finans ve raporlama modülleri" />
+               </children>
+            </VBox>
+         </children>
+      </VBox>
+   </left>
+   <center>
+      <VBox alignment="CENTER" styleClass="login-form-panel" BorderPane.alignment="CENTER">
+         <children>
+            <VBox fx:id="loginForm" alignment="CENTER_LEFT" spacing="18.0" styleClass="login-form-card">
+               <children>
+                  <VBox fx:id="alertContainer" managed="false" spacing="10.0" visible="false" styleClass="alert-banner" />
 
-    <!-- Update Alert Container -->
-    <VBox fx:id="alertContainer" spacing="10" visible="false" managed="false" styleClass="alert-banner">
-    </VBox>
+                  <VBox spacing="6.0">
+                     <children>
+                        <Label styleClass="login-form-title" text="%login.title" />
+                        <Label styleClass="login-form-subtitle" text="Hesabınıza giriş yapın" />
+                     </children>
+                  </VBox>
 
-    <Label text="%login.title">
-        <font>
-            <Font size="24.0"/>
-        </font>
-    </Label>
-    
-    <TextField fx:id="usernameField" promptText="%login.username" maxWidth="300"/>
-    <PasswordField fx:id="passwordField" promptText="%login.password" maxWidth="300"/>
-    
-    <Button fx:id="loginButton" text="%login.button" onAction="#handleLogin"/>
-    <Label fx:id="messageLabel"/>
-</VBox>
+                  <VBox spacing="14.0">
+                     <children>
+                        <VBox spacing="6.0">
+                           <children>
+                              <Label text="%login.username" />
+                              <TextField fx:id="usernameField" maxWidth="1.7976931348623157E308" promptText="%login.username" />
+                           </children>
+                        </VBox>
+                        <VBox spacing="6.0">
+                           <children>
+                              <Label text="%login.password" />
+                              <PasswordField fx:id="passwordField" maxWidth="1.7976931348623157E308" promptText="%login.password" />
+                           </children>
+                        </VBox>
+                     </children>
+                  </VBox>
+
+                  <Button fx:id="loginButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleLogin" styleClass="login-primary-button" text="%login.button" />
+                  <Label fx:id="messageLabel" styleClass="label-muted" />
+               </children>
+            </VBox>
+         </children>
+      </VBox>
+   </center>
+</BorderPane>

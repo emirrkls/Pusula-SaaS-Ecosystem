@@ -11,242 +11,305 @@ import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.dto.UserDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.AnimationHelper;
+import com.pusula.desktop.util.NotificationHelper;
+import com.pusula.desktop.util.ThemeHelper;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import org.controlsfx.control.textfield.TextFields;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.ResourceBundle;
 
 public class ServiceTicketController {
+
+    enum TicketFilter {
+        PENDING_ASSIGNMENT,
+        OPENED_TODAY,
+        ASSIGNED,
+        IN_PROGRESS,
+        CLOSED,
+        ALL
+    }
+
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Europe/Istanbul");
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
 
     @FXML
     private TextField txtSearch;
     @FXML
-    private TableView<ServiceTicketDTO> activeTicketsTable;
+    private HBox filterChipContainer;
     @FXML
-    private TableColumn<ServiceTicketDTO, Long> colActiveId;
+    private ListView<ServiceTicketDTO> ticketsListView;
     @FXML
-    private TableColumn<ServiceTicketDTO, String> colActiveCustomer;
+    private Label resultCountLabel;
     @FXML
-    private TableColumn<ServiceTicketDTO, String> colActiveDescription;
+    private VBox emptyStateBox;
     @FXML
-    private TableColumn<ServiceTicketDTO, String> colActiveStatus;
-    @FXML
-    private TableColumn<ServiceTicketDTO, LocalDateTime> colActiveDate;
-
-    @FXML
-    private TableView<ServiceTicketDTO> historyTicketsTable;
-    @FXML
-    private TableColumn<ServiceTicketDTO, Long> colHistoryId;
-    @FXML
-    private TableColumn<ServiceTicketDTO, String> colHistoryCustomer;
-    @FXML
-    private TableColumn<ServiceTicketDTO, String> colHistoryDescription;
-    @FXML
-    private TableColumn<ServiceTicketDTO, String> colHistoryStatus;
-    @FXML
-    private TableColumn<ServiceTicketDTO, LocalDateTime> colHistoryDate;
+    private StackPane loadingOverlay;
 
     private final ObservableList<ServiceTicketDTO> allTicketsList = FXCollections.observableArrayList();
-    private FilteredList<ServiceTicketDTO> activeFilteredList;
-    private FilteredList<ServiceTicketDTO> historyFilteredList;
+    private FilteredList<ServiceTicketDTO> filteredList;
+    private SortedList<ServiceTicketDTO> sortedList;
+    private ResourceBundle resourceBundle;
 
     private SearchSuggestion selectedSuggestion = null;
     private org.controlsfx.control.textfield.AutoCompletionBinding<SearchSuggestion> autoCompletionBinding;
-    private boolean isAutoCompleting = false;
+    private TicketFilter currentFilter = TicketFilter.PENDING_ASSIGNMENT;
+    private final ToggleGroup filterToggleGroup = new ToggleGroup();
 
     @FXML
     public void initialize() {
-        // Setup Active Table
-        colActiveId.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colActiveCustomer.setCellValueFactory(new PropertyValueFactory<>("customerName"));
-        colActiveDescription.setCellValueFactory(new PropertyValueFactory<>("description"));
-        colActiveStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-        colActiveDate.setCellValueFactory(new PropertyValueFactory<>("scheduledDate"));
-
-        // Setup History Table
-        colHistoryId.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colHistoryCustomer.setCellValueFactory(new PropertyValueFactory<>("customerName"));
-        colHistoryDescription.setCellValueFactory(new PropertyValueFactory<>("description"));
-        colHistoryStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
-        colHistoryDate.setCellValueFactory(new PropertyValueFactory<>("scheduledDate"));
-
-        // Load resource bundle for translations
-        java.util.ResourceBundle resourceBundle = java.util.ResourceBundle.getBundle("i18n.messages",
+        resourceBundle = ResourceBundle.getBundle("i18n.messages",
                 java.util.Locale.of("tr", "TR"), new UTF8Control());
 
-        // Set custom cell factory for Active Status column
-        colActiveStatus.setCellFactory(column -> new TableCell<ServiceTicketDTO, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-
-                if (empty || item == null) {
-                    setText(null);
-                    setStyle("");
-                    return;
-                }
-
-                // Translate the status
-                String translatedStatus = switch (item) {
-                    case "PENDING" -> resourceBundle.getString("status.pending");
-                    case "IN_PROGRESS" -> resourceBundle.getString("status.in_progress");
-                    case "COMPLETED" -> resourceBundle.getString("status.completed");
-                    case "CANCELLED" -> resourceBundle.getString("status.cancelled");
-                    case "ASSIGNED" -> resourceBundle.getString("status.assigned");
-                    default -> item;
-                };
-
-                setText(translatedStatus);
-
-                // Set color based on status
-                switch (item) {
-                    case "COMPLETED":
-                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                        break;
-                    case "IN_PROGRESS":
-                        setStyle("-fx-text-fill: #2980b9; -fx-font-weight: bold;");
-                        break;
-                    case "CANCELLED":
-                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                        break;
-                    case "PENDING":
-                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
-                        break;
-                    case "ASSIGNED":
-                        setStyle("-fx-text-fill: #8e44ad; -fx-font-weight: bold;");
-                        break;
-                    default:
-                        setStyle("");
-                }
-            }
-        });
-
-        // Set custom cell factory for History Status column
-        colHistoryStatus.setCellFactory(column -> new TableCell<ServiceTicketDTO, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-
-                if (empty || item == null) {
-                    setText(null);
-                    setStyle("");
-                    return;
-                }
-
-                // Translate the status
-                String translatedStatus = switch (item) {
-                    case "PENDING" -> resourceBundle.getString("status.pending");
-                    case "IN_PROGRESS" -> resourceBundle.getString("status.in_progress");
-                    case "COMPLETED" -> resourceBundle.getString("status.completed");
-                    case "CANCELLED" -> resourceBundle.getString("status.cancelled");
-                    case "ASSIGNED" -> resourceBundle.getString("status.assigned");
-                    default -> item;
-                };
-
-                setText(translatedStatus);
-
-                // Set color based on status
-                switch (item) {
-                    case "COMPLETED":
-                        setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                        break;
-                    case "IN_PROGRESS":
-                        setStyle("-fx-text-fill: #2980b9; -fx-font-weight: bold;");
-                        break;
-                    case "CANCELLED":
-                        setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                        break;
-                    case "PENDING":
-                        setStyle("-fx-text-fill: #f39c12; -fx-font-weight: bold;");
-                        break;
-                    case "ASSIGNED":
-                        setStyle("-fx-text-fill: #8e44ad; -fx-font-weight: bold;");
-                        break;
-                    default:
-                        setStyle("");
-                }
-            }
-        });
-
-        // Create filtered lists
-        activeFilteredList = new FilteredList<>(allTicketsList, ticket -> "PENDING".equals(ticket.getStatus())
-                || "IN_PROGRESS".equals(ticket.getStatus()) || "ASSIGNED".equals(ticket.getStatus()));
-
-        historyFilteredList = new FilteredList<>(allTicketsList,
-                ticket -> "COMPLETED".equals(ticket.getStatus()) || "CANCELLED".equals(ticket.getStatus()));
-
-        activeTicketsTable.setItems(activeFilteredList);
-        historyTicketsTable.setItems(historyFilteredList);
-
-        // Setup auto-complete search
+        setupTicketList();
+        setupFilterChips();
         setupSmartSearch();
-
-        // Setup double click listeners
-        setupDoubleClickListener(activeTicketsTable);
-        setupDoubleClickListener(historyTicketsTable);
-
-        // Setup row factories for conditional styling
-        activeTicketsTable.setRowFactory(tv -> createStyledRow());
-        historyTicketsTable.setRowFactory(tv -> createStyledRow());
-
         loadTickets();
     }
 
-    private void setupSmartSearch() {
-        // Load search suggestions
-        refreshSearchData();
+    private void setupFilterChips() {
+        filterChipContainer.getChildren().clear();
+        for (TicketFilter filter : TicketFilter.values()) {
+            ToggleButton chip = new ToggleButton(filterLabel(filter));
+            chip.getStyleClass().add("filter-chip");
+            chip.setUserData(filter);
+            chip.setToggleGroup(filterToggleGroup);
+            chip.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+                if (isSelected) {
+                    currentFilter = filter;
+                    applySortOrder();
+                    updateFilters();
+                }
+            });
+            filterChipContainer.getChildren().add(chip);
+        }
 
-        // Listen for manual text changes to clear filters
+        if (filterChipContainer.getChildren().getFirst() instanceof ToggleButton firstChip) {
+            firstChip.setSelected(true);
+        }
+    }
+
+    private void setupTicketList() {
+        filteredList = new FilteredList<>(allTicketsList, this::matchesCurrentFilter);
+        sortedList = new SortedList<>(filteredList);
+        applySortOrder();
+
+        ticketsListView.setItems(sortedList);
+        ticketsListView.setCellFactory(listView -> new TicketCardCell());
+
+        sortedList.addListener((javafx.collections.ListChangeListener<ServiceTicketDTO>) change -> updateEmptyState());
+        updateEmptyState();
+    }
+
+    private void updateEmptyState() {
+        boolean empty = sortedList.isEmpty();
+        emptyStateBox.setVisible(empty);
+        emptyStateBox.setManaged(empty);
+        ticketsListView.setVisible(!empty);
+        resultCountLabel.setText(sortedList.size() + " sonuç");
+    }
+
+    private class TicketCardCell extends ListCell<ServiceTicketDTO> {
+        private final HBox card = new HBox(14);
+        private final Region accent = new Region();
+        private final VBox content = new VBox(6);
+        private final HBox headerRow = new HBox(10);
+        private final Label customerLabel = new Label();
+        private final Label statusBadge = new Label();
+        private final Label metaLabel = new Label();
+        private final Label descriptionLabel = new Label();
+
+        TicketCardCell() {
+            accent.getStyleClass().add("ticket-card-accent");
+            customerLabel.getStyleClass().add("ticket-card-customer");
+            metaLabel.getStyleClass().add("ticket-card-meta");
+            descriptionLabel.getStyleClass().add("ticket-card-description");
+            descriptionLabel.setWrapText(true);
+
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+            headerRow.setAlignment(Pos.CENTER_LEFT);
+            headerRow.getChildren().addAll(customerLabel, spacer, statusBadge);
+
+            content.getChildren().addAll(headerRow, descriptionLabel, metaLabel);
+            card.getStyleClass().add("ticket-card");
+            card.setAlignment(Pos.CENTER_LEFT);
+            card.getChildren().addAll(accent, content);
+            HBox.setHgrow(content, Priority.ALWAYS);
+
+            card.setOnMouseClicked(e -> {
+                if (isEmpty() || getItem() == null) {
+                    return;
+                }
+                ticketsListView.getSelectionModel().select(getItem());
+                openTicketDetails(getItem());
+                e.consume();
+            });
+
+            AnimationHelper.applyCardHover(card);
+        }
+
+        @Override
+        protected void updateItem(ServiceTicketDTO ticket, boolean empty) {
+            super.updateItem(ticket, empty);
+            if (empty || ticket == null) {
+                setGraphic(null);
+                setText(null);
+                return;
+            }
+
+            customerLabel.setText(ticket.getCustomerName() != null ? ticket.getCustomerName() : "Müşteri #" + ticket.getId());
+            descriptionLabel.setText(ticket.getDescription() != null && !ticket.getDescription().isBlank()
+                    ? ticket.getDescription()
+                    : "—");
+
+            String tech = ticket.getAssignedTechnicianName();
+            String techLine = tech != null && !tech.isBlank() ? tech : "Atanmadı";
+            String dateLine = ticket.getScheduledDate() != null
+                    ? ticket.getScheduledDate().format(DATE_FMT)
+                    : "Tarih yok";
+            metaLabel.setText("#" + ticket.getId() + "  ·  " + dateLine + "  ·  " + techLine);
+
+            applyStatusBadge(statusBadge, ticket.getStatus());
+            applyAccentColor(accent, ticket.getStatus());
+            setGraphic(card);
+        }
+
+        private void applyStatusBadge(Label badge, String status) {
+            badge.getStyleClass().removeIf(c -> c.startsWith("status-badge"));
+            badge.getStyleClass().add("status-badge");
+            String normalized = status != null ? status.trim().toUpperCase() : "";
+            switch (normalized) {
+                case "PENDING" -> badge.getStyleClass().add("status-badge-pending");
+                case "ASSIGNED" -> badge.getStyleClass().add("status-badge-assigned");
+                case "IN_PROGRESS" -> badge.getStyleClass().add("status-badge-in-progress");
+                case "COMPLETED" -> badge.getStyleClass().add("status-badge-completed");
+                case "CANCELLED" -> badge.getStyleClass().add("status-badge-cancelled");
+                default -> badge.getStyleClass().add("status-badge-pending");
+            }
+            badge.setText(translateStatus(normalized));
+        }
+
+        private void applyAccentColor(Region region, String status) {
+            String color = switch (status != null ? status.trim().toUpperCase() : "") {
+                case "COMPLETED" -> "#0F766E";
+                case "IN_PROGRESS" -> "#00B6EB";
+                case "CANCELLED" -> "#B91C1C";
+                case "ASSIGNED" -> "#6D28D9";
+                default -> "#B45309";
+            };
+            region.setStyle("-fx-background-color: " + color + ";");
+        }
+    }
+
+    private String translateStatus(String status) {
+        return switch (status) {
+            case "PENDING" -> resourceBundle.getString("status.pending");
+            case "IN_PROGRESS" -> resourceBundle.getString("status.in_progress");
+            case "COMPLETED" -> resourceBundle.getString("status.completed");
+            case "CANCELLED" -> resourceBundle.getString("status.cancelled");
+            case "ASSIGNED" -> resourceBundle.getString("status.assigned");
+            default -> status != null && !status.isBlank() ? status : "—";
+        };
+    }
+
+    private String filterLabel(TicketFilter filter) {
+        return switch (filter) {
+            case PENDING_ASSIGNMENT -> resourceBundle.getString("filter.pending_assignment");
+            case OPENED_TODAY -> resourceBundle.getString("filter.opened_today");
+            case ASSIGNED -> resourceBundle.getString("filter.assigned");
+            case IN_PROGRESS -> resourceBundle.getString("filter.in_progress");
+            case CLOSED -> resourceBundle.getString("filter.closed");
+            case ALL -> resourceBundle.getString("filter.all");
+        };
+    }
+
+    private boolean matchesCurrentFilter(ServiceTicketDTO ticket) {
+        if (!matchesStatusFilter(ticket, currentFilter)) {
+            return false;
+        }
+        if (selectedSuggestion == null) {
+            return true;
+        }
+        Long searchId = selectedSuggestion.getId();
+        if (selectedSuggestion.getType() == SearchSuggestion.Type.CUSTOMER) {
+            return searchId.equals(ticket.getCustomerId());
+        }
+        return searchId.equals(ticket.getAssignedTechnicianId());
+    }
+
+    private boolean matchesStatusFilter(ServiceTicketDTO ticket, TicketFilter filter) {
+        String status = ticket.getStatus() != null ? ticket.getStatus().trim().toUpperCase() : "";
+        return switch (filter) {
+            case PENDING_ASSIGNMENT -> ticket.getAssignedTechnicianId() == null && "PENDING".equals(status);
+            case OPENED_TODAY -> isTodayInBusinessZone(ticket.getCreatedAt());
+            case ASSIGNED -> "ASSIGNED".equals(status);
+            case IN_PROGRESS -> "IN_PROGRESS".equals(status);
+            case CLOSED -> "COMPLETED".equals(status) || "CANCELLED".equals(status);
+            case ALL -> true;
+        };
+    }
+
+    private boolean isTodayInBusinessZone(LocalDateTime dateTime) {
+        if (dateTime == null) {
+            return false;
+        }
+        LocalDate businessToday = LocalDate.now(BUSINESS_ZONE);
+        LocalDate ticketDate = dateTime.atZone(ZoneId.systemDefault())
+                .withZoneSameInstant(BUSINESS_ZONE)
+                .toLocalDate();
+        return ticketDate.equals(businessToday);
+    }
+
+    private void applySortOrder() {
+        if (currentFilter == TicketFilter.CLOSED) {
+            sortedList.setComparator(
+                    Comparator.comparing(ServiceTicketDTO::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                            .thenComparing(ServiceTicketDTO::getId, Comparator.nullsLast(Comparator.reverseOrder())));
+        } else {
+            sortedList.setComparator(
+                    Comparator.comparing(ServiceTicketDTO::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                            .thenComparing(ServiceTicketDTO::getId, Comparator.nullsLast(Comparator.reverseOrder())));
+        }
+    }
+
+    private void setupSmartSearch() {
+        refreshSearchData();
         txtSearch.textProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue == null || newValue.isEmpty()) {
                 selectedSuggestion = null;
-                isAutoCompleting = false;
                 updateFilters();
             }
-            // Don't filter tickets while typing - only when selecting from dropdown
-        });
-    }
-
-    private void applyTextSearch(String searchText) {
-        activeFilteredList.setPredicate(ticket -> {
-            boolean matchesStatus = "PENDING".equals(ticket.getStatus()) ||
-                    "IN_PROGRESS".equals(ticket.getStatus()) ||
-                    "ASSIGNED".equals(ticket.getStatus());
-            if (!matchesStatus)
-                return false;
-
-            // Search in description or status
-            return ticket.getDescription().toLowerCase().contains(searchText) ||
-                    ticket.getStatus().toLowerCase().contains(searchText);
-        });
-
-        historyFilteredList.setPredicate(ticket -> {
-            boolean matchesStatus = "COMPLETED".equals(ticket.getStatus()) || "CANCELLED".equals(ticket.getStatus());
-            if (!matchesStatus)
-                return false;
-
-            return ticket.getDescription().toLowerCase().contains(searchText) ||
-                    ticket.getStatus().toLowerCase().contains(searchText);
         });
     }
 
     public void refreshSearchData() {
         List<SearchSuggestion> suggestions = new ArrayList<>();
-
-        // Load customers
         CustomerApi customerApi = RetrofitClient.getClient().create(CustomerApi.class);
-        customerApi.getAllCustomers().enqueue(new Callback<List<CustomerDTO>>() {
+        customerApi.getAllCustomers().enqueue(new Callback<>() {
             @Override
             public void onResponse(Call<List<CustomerDTO>> call, Response<List<CustomerDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -254,7 +317,7 @@ public class ServiceTicketController {
                         suggestions.add(new SearchSuggestion(
                                 customer.getId(),
                                 customer.getName(),
-                                customer.getPhone(), // Include phone number
+                                customer.getPhone(),
                                 SearchSuggestion.Type.CUSTOMER));
                     }
                     loadTechniciansAndBind(suggestions);
@@ -263,7 +326,6 @@ public class ServiceTicketController {
 
             @Override
             public void onFailure(Call<List<CustomerDTO>> call, Throwable t) {
-                // Continue with what we have
                 loadTechniciansAndBind(suggestions);
             }
         });
@@ -271,7 +333,7 @@ public class ServiceTicketController {
 
     private void loadTechniciansAndBind(List<SearchSuggestion> suggestions) {
         UserApi userApi = RetrofitClient.getClient().create(UserApi.class);
-        userApi.getAllUsers().enqueue(new Callback<List<UserDTO>>() {
+        userApi.getAllUsers().enqueue(new Callback<>() {
             @Override
             public void onResponse(Call<List<UserDTO>> call, Response<List<UserDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
@@ -280,7 +342,7 @@ public class ServiceTicketController {
                             suggestions.add(new SearchSuggestion(
                                     user.getId(),
                                     user.getFullName(),
-                                    null, // Technicians don't have phone in suggestions
+                                    null,
                                     SearchSuggestion.Type.TECHNICIAN));
                         }
                     }
@@ -300,135 +362,37 @@ public class ServiceTicketController {
             autoCompletionBinding.dispose();
         }
 
-        // Custom callback to filter suggestions by name OR phone
         javafx.util.Callback<org.controlsfx.control.textfield.AutoCompletionBinding.ISuggestionRequest, java.util.Collection<SearchSuggestion>> suggestionProvider = param -> {
             String userText = param.getUserText().toLowerCase();
             if (userText.isEmpty()) {
                 return suggestions;
             }
-
             return suggestions.stream()
                     .filter(s -> s.getName().toLowerCase().contains(userText) ||
                             (s.getPhone() != null && s.getPhone().toLowerCase().contains(userText)))
-                    .collect(java.util.stream.Collectors.toList());
+                    .toList();
         };
 
         autoCompletionBinding = TextFields.bindAutoCompletion(txtSearch, suggestionProvider);
         autoCompletionBinding.setOnAutoCompleted(event -> {
-            isAutoCompleting = true;
             selectedSuggestion = event.getCompletion();
             updateFilters();
-            // Reset flag after a short delay
-            Platform.runLater(() -> isAutoCompleting = false);
         });
     }
 
     private void updateFilters() {
-        if (selectedSuggestion == null) {
-            // Show all tickets
-            activeFilteredList.setPredicate(ticket -> "PENDING".equals(ticket.getStatus())
-                    || "IN_PROGRESS".equals(ticket.getStatus()) || "ASSIGNED".equals(ticket.getStatus()));
-
-            historyFilteredList.setPredicate(
-                    ticket -> "COMPLETED".equals(ticket.getStatus()) || "CANCELLED".equals(ticket.getStatus()));
-        } else {
-            // Filter by selected customer or technician
-            Long searchId = selectedSuggestion.getId();
-            SearchSuggestion.Type searchType = selectedSuggestion.getType();
-
-            activeFilteredList.setPredicate(ticket -> {
-                boolean matchesStatus = "PENDING".equals(ticket.getStatus()) ||
-                        "IN_PROGRESS".equals(ticket.getStatus()) ||
-                        "ASSIGNED".equals(ticket.getStatus());
-
-                if (!matchesStatus)
-                    return false;
-
-                if (searchType == SearchSuggestion.Type.CUSTOMER) {
-                    return searchId.equals(ticket.getCustomerId());
-                } else {
-                    return searchId.equals(ticket.getAssignedTechnicianId());
-                }
-            });
-
-            historyFilteredList.setPredicate(ticket -> {
-                boolean matchesStatus = "COMPLETED".equals(ticket.getStatus())
-                        || "CANCELLED".equals(ticket.getStatus());
-
-                if (!matchesStatus)
-                    return false;
-
-                if (searchType == SearchSuggestion.Type.CUSTOMER) {
-                    return searchId.equals(ticket.getCustomerId());
-                } else {
-                    return searchId.equals(ticket.getAssignedTechnicianId());
-                }
-            });
-        }
+        filteredList.setPredicate(this::matchesCurrentFilter);
+        updateEmptyState();
     }
 
-    private TableRow<ServiceTicketDTO> createStyledRow() {
-        TableRow<ServiceTicketDTO> row = new TableRow<ServiceTicketDTO>() {
-            {
-                // Add listener for selection changes
-                selectedProperty().addListener((obs, wasSelected, isNowSelected) -> {
-                    updateRowStyle(getItem(), isNowSelected);
-                });
-            }
-
-            @Override
-            protected void updateItem(ServiceTicketDTO ticket, boolean empty) {
-                super.updateItem(ticket, empty);
-                updateRowStyle(ticket, isSelected());
-            }
-
-            private void updateRowStyle(ServiceTicketDTO ticket, boolean selected) {
-                if (ticket == null) {
-                    setStyle("");
-                    return;
-                }
-
-                if (selected) {
-                    // Force dark blue background with white text when selected
-                    setStyle("-fx-background-color: #334155; -fx-text-fill: white;");
-                } else {
-                    String status = ticket.getStatus();
-                    switch (status) {
-                        case "COMPLETED":
-                            setStyle("-fx-background-color: #d5f4e6; -fx-text-fill: #27ae60;");
-                            break;
-                        case "IN_PROGRESS":
-                            setStyle("-fx-background-color: #d6eaf8; -fx-text-fill: #2980b9;");
-                            break;
-                        case "PENDING":
-                            setStyle("-fx-background-color: #fef5e7; -fx-text-fill: #f39c12;");
-                            break;
-                        case "ASSIGNED":
-                            setStyle("-fx-background-color: #e8daef; -fx-text-fill: #8e44ad;");
-                            break;
-                        case "CANCELLED":
-                            setStyle("-fx-background-color: #fadbd8; -fx-text-fill: #e74c3c;");
-                            break;
-                        default:
-                            setStyle("");
-                    }
-                }
-            }
-        };
-        return row;
-    }
-
-    private void setupDoubleClickListener(TableView<ServiceTicketDTO> table) {
-        table.setOnMouseClicked(event -> {
-            if (event.getClickCount() == 2 && table.getSelectionModel().getSelectedItem() != null) {
-                openTicketDetails(table.getSelectionModel().getSelectedItem());
-            }
-        });
+    private void setLoading(boolean loading) {
+        loadingOverlay.setVisible(loading);
+        loadingOverlay.setManaged(loading);
     }
 
     private void openTicketDetails(ServiceTicketDTO ticket) {
         try {
-            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
+            ResourceBundle bundle = ResourceBundle.getBundle("i18n.messages",
                     new java.util.Locale("tr", "TR"), new UTF8Control());
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
                     getClass().getResource("/view/ticket_details.fxml"), bundle);
@@ -438,17 +402,19 @@ public class ServiceTicketController {
             controller.setTicket(ticket);
 
             javafx.stage.Stage stage = new javafx.stage.Stage();
-            stage.setTitle("Ticket Details - " + ticket.getId());
-            stage.setScene(new javafx.scene.Scene(root));
+            stage.setTitle("Servis Fişi - " + ticket.getId());
+            javafx.scene.Scene scene = ThemeHelper.createDialogScene(root, 900, 700);
+            stage.setScene(scene);
+            if (ticketsListView.getScene() != null) {
+                stage.initOwner(ticketsListView.getScene().getWindow());
+            }
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             stage.showAndWait();
 
-            // Refresh list after closing details
             loadTickets();
         } catch (Exception e) {
             e.printStackTrace();
-            AlertHelper.showAlert(Alert.AlertType.ERROR, activeTicketsTable.getScene().getWindow(),
-                    "Error", "Could not open details: " + e.getMessage());
+            NotificationHelper.showError("Detay açılamadı: " + e.getMessage());
         }
     }
 
@@ -456,12 +422,13 @@ public class ServiceTicketController {
     private void handleRefresh() {
         loadTickets();
         refreshSearchData();
+        NotificationHelper.showInfo("Liste yenilendi");
     }
 
     @FXML
     private void handleCreateTicket() {
         try {
-            java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
+            ResourceBundle bundle = ResourceBundle.getBundle("i18n.messages",
                     new java.util.Locale("tr", "TR"), new UTF8Control());
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
                     getClass().getResource("/view/ticket_dialog.fxml"), bundle);
@@ -471,49 +438,38 @@ public class ServiceTicketController {
             controller.setOnSaveSuccess(this::loadTickets);
 
             javafx.stage.Stage stage = new javafx.stage.Stage();
-            stage.setTitle("Create New Ticket");
-            stage.setScene(new javafx.scene.Scene(root));
+            stage.setTitle("Yeni Servis Fişi");
+            stage.setScene(ThemeHelper.createDialogScene(root));
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
-            javafx.stage.Window window = activeTicketsTable.getScene() != null
-                    ? activeTicketsTable.getScene().getWindow()
-                    : null;
-            AlertHelper.showAlert(Alert.AlertType.ERROR, window,
-                    "Error", "Could not open dialog: " + e.getMessage());
+            NotificationHelper.showError("Dialog açılamadı: " + e.getMessage());
         }
     }
 
     private void loadTickets() {
+        setLoading(true);
         ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
-        api.getAllTickets().enqueue(new Callback<List<ServiceTicketDTO>>() {
+        api.getAllTickets().enqueue(new Callback<>() {
             @Override
             public void onResponse(Call<List<ServiceTicketDTO>> call, Response<List<ServiceTicketDTO>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    Platform.runLater(() -> {
-                        allTicketsList.clear();
-                        allTicketsList.addAll(response.body());
-                    });
-                } else {
-                    Platform.runLater(() -> {
-                        javafx.stage.Window window = activeTicketsTable.getScene() != null
-                                ? activeTicketsTable.getScene().getWindow()
-                                : null;
-                        AlertHelper.showAlert(Alert.AlertType.ERROR, window,
-                                "Error", "Failed to load tickets: " + response.code());
-                    });
-                }
+                Platform.runLater(() -> {
+                    setLoading(false);
+                    if (response.isSuccessful() && response.body() != null) {
+                        allTicketsList.setAll(response.body());
+                        AnimationHelper.fadeInUp(ticketsListView, 0);
+                    } else {
+                        NotificationHelper.showError("Fişler yüklenemedi: " + response.code());
+                    }
+                });
             }
 
             @Override
             public void onFailure(Call<List<ServiceTicketDTO>> call, Throwable t) {
                 Platform.runLater(() -> {
-                    javafx.stage.Window window = activeTicketsTable.getScene() != null
-                            ? activeTicketsTable.getScene().getWindow()
-                            : null;
-                    AlertHelper.showAlert(Alert.AlertType.ERROR, window,
-                            "Network Error", "Could not connect to server: " + t.getMessage());
+                    setLoading(false);
+                    NotificationHelper.showError("Sunucuya bağlanılamadı: " + t.getMessage());
                 });
             }
         });

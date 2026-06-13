@@ -5,20 +5,13 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" 
+<VBox spacing="12.0" styleClass="page-view" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" 
             fx:controller="com.pusula.desktop.controller.SettingsController">
-    <top>
-        <Label text="%settings.title" BorderPane.alignment="CENTER_LEFT">
-            <font>
-                <Font name="System Bold" size="24.0" />
-            </font>
-            <BorderPane.margin>
-                <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-            </BorderPane.margin>
-        </Label>
-    </top>
-    <center>
-        <TabPane tabClosingPolicy="UNAVAILABLE" BorderPane.alignment="CENTER">
+    <padding>
+        <Insets bottom="8.0" left="0.0" right="0.0" top="8.0" />
+    </padding>
+    <children>
+        <TabPane tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
             <tabs>
                 <!-- User Management Tab -->
                 <Tab text="%settings.users">
@@ -37,17 +30,17 @@
                                 <HBox spacing="10.0" alignment="CENTER_LEFT">
                                     <children>
                                         <Button text="%settings.add_user" onAction="#handleAddUser"
-                                                style="-fx-background-color: #27ae60; -fx-text-fill: white;" />
+                                                styleClass="btn-success" />
                                         <Button text="%settings.edit_user" onAction="#handleEditUser"
-                                                style="-fx-background-color: #3498db; -fx-text-fill: white;" />
+                                                styleClass="btn-primary" />
                                         <Button text="%settings.reset_password" onAction="#handleResetPassword"
-                                                style="-fx-background-color: #f39c12; -fx-text-fill: white;" />
+                                                styleClass="btn-warning" />
                                         <Button text="%settings.delete_user" onAction="#handleDeleteUser"
-                                                style="-fx-background-color: #e74c3c; -fx-text-fill: white;" />
+                                                styleClass="btn-danger" />
                                     </children>
                                 </HBox>
                                 
-                                <TableView fx:id="usersTable" VBox.vgrow="ALWAYS">
+                                <TableView fx:id="usersTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
                                     <columns>
                                         <TableColumn fx:id="colUsername" prefWidth="150.0" text="%settings.username" />
                                         <TableColumn fx:id="colFullName" prefWidth="200.0" text="%settings.full_name" />
@@ -103,12 +96,12 @@
                                     <Label text="%settings.company_logo" GridPane.columnIndex="0" GridPane.rowIndex="4" />
                                     <HBox spacing="10.0" alignment="CENTER_LEFT" GridPane.columnIndex="1" GridPane.rowIndex="4">
                                        <children>
-                                          <VBox style="-fx-border-color: #bdc3c7; -fx-border-style: dashed; -fx-border-width: 1; -fx-background-color: #f9f9f9;" 
+                                          <VBox styleClass="logo-upload-preview"
                                                 minWidth="150" minHeight="60" alignment="CENTER">
                                               <javafx.scene.image.ImageView fx:id="imgCompanyLogo" fitHeight="50.0" fitWidth="140.0" pickOnBounds="true" preserveRatio="true" />
                                           </VBox>
                                           <Button text="%settings.upload_logo" onAction="#handleUploadLogo"
-                                                  style="-fx-background-color: #3498db; -fx-text-fill: white;" />
+                                                  styleClass="btn-primary" />
                                        </children>
                                     </HBox>
                                 </GridPane>
@@ -116,7 +109,7 @@
                                 <HBox spacing="10.0">
                                     <children>
                                         <Button text="%settings.save_company" onAction="#handleSaveCompany"
-                                                style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 30;" />
+                                                styleClass="btn-success" />
                                     </children>
                                 </HBox>
                             </children>
@@ -141,15 +134,15 @@
                                 <HBox spacing="10.0" alignment="CENTER_LEFT">
                                     <children>
                                         <Button text="%vehicle.add" onAction="#handleAddVehicle"
-                                                style="-fx-background-color: #27ae60; -fx-text-fill: white;" />
+                                                styleClass="btn-success" />
                                         <Button text="%vehicle.edit" onAction="#handleEditVehicle"
-                                                style="-fx-background-color: #3498db; -fx-text-fill: white;" />
+                                                styleClass="btn-primary" />
                                         <Button text="%button.delete" onAction="#handleDeleteVehicle"
-                                                style="-fx-background-color: #e74c3c; -fx-text-fill: white;" />
+                                                styleClass="btn-danger" />
                                     </children>
                                 </HBox>
                                 
-                                <TableView fx:id="vehiclesTable" VBox.vgrow="ALWAYS">
+                                <TableView fx:id="vehiclesTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
                                     <columns>
                                         <TableColumn fx:id="colVehicleId" prefWidth="60.0" text="ID" />
                                         <TableColumn fx:id="colLicensePlate" prefWidth="150.0" text="%vehicle.license_plate" />
@@ -182,15 +175,15 @@
                                 <HBox spacing="10.0" alignment="CENTER_LEFT">
                                     <children>
                                         <Button text="%settings.add_fixed_expense" onAction="#handleAddFixedExpense"
-                                                style="-fx-background-color: #27ae60; -fx-text-fill: white;" />
+                                                styleClass="btn-success" />
                                         <Button text="%settings.edit_fixed_expense" onAction="#handleEditFixedExpense"
-                                                style="-fx-background-color: #3498db; -fx-text-fill: white;" />
+                                                styleClass="btn-primary" />
                                         <Button text="%settings.delete_fixed_expense" onAction="#handleDeleteFixedExpense"
-                                                style="-fx-background-color: #e74c3c; -fx-text-fill: white;" />
+                                                styleClass="btn-danger" />
                                     </children>
                                 </HBox>
                                 
-                                <TableView fx:id="fixedExpensesTable" VBox.vgrow="ALWAYS">
+                                <TableView fx:id="fixedExpensesTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
                                     <columns>
                                         <TableColumn fx:id="colName" prefWidth="200.0" text="%settings.name" />
                                         <TableColumn fx:id="colAmount" prefWidth="120.0" text="%settings.default_amount" />
@@ -208,5 +201,5 @@
                 </Tab>
             </tabs>
         </TabPane>
-    </center>
-</BorderPane>
+    </children>
+</VBox>

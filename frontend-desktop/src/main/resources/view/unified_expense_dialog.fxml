@@ -3,144 +3,81 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.text.Font?>
 <?import com.pusula.desktop.util.CurrencyTextField?>
 
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.pusula.desktop.controller.UnifiedExpenseDialogController"
-      spacing="0" prefWidth="920" prefHeight="580"
-      stylesheets="@../css/styles.css">
+<VBox fx:controller="com.pusula.desktop.controller.UnifiedExpenseDialogController"
+      prefHeight="580" prefWidth="920" spacing="0" styleClass="dialog-root"
+      xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
 
-    <!-- Header -->
-    <HBox alignment="CENTER_LEFT" spacing="10"
-          style="-fx-background-color: linear-gradient(to right, #2c3e50, #3498db); -fx-padding: 18 24;">
-        <children>
-            <Label text="%unified_expense.title"
-                   style="-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold;" />
-        </children>
+    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="dialog-header-bar">
+        <Label styleClass="dialog-header-title" text="%unified_expense.title"/>
     </HBox>
 
-    <!-- TabPane for switching modes -->
-    <TabPane fx:id="modeTabPane" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS"
-             style="-fx-tab-min-height: 40; -fx-tab-max-height: 40;">
+    <TabPane fx:id="modeTabPane" styleClass="dialog-tab-pane" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
         <tabs>
-            <!-- TAB 1: Daily Expense -->
             <Tab text="%unified_expense.tab.daily">
-                <VBox spacing="18" style="-fx-padding: 24;">
-                    <children>
-                        <!-- Category and Linked Expense -->
-                        <HBox spacing="16">
-                            <children>
-                                <VBox spacing="6" HBox.hgrow="ALWAYS" prefWidth="250">
-                                    <Label text="%unified_expense.daily.category"
-                                           style="-fx-font-weight: bold; -fx-font-size: 13px;" />
-                                    <ComboBox fx:id="comboCategory" maxWidth="Infinity"
-                                              style="-fx-min-height: 38; -fx-font-size: 13px;" />
-                                </VBox>
-                                <VBox spacing="6" HBox.hgrow="ALWAYS">
-                                    <Label text="Bağlı Sabit Gider (Opsiyonel)"
-                                           style="-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #7f8c8d;" />
-                                    <ComboBox fx:id="comboLinkedFixedExpense" maxWidth="Infinity"
-                                              promptText="Sabit gidere bağla..."
-                                              style="-fx-min-height: 38; -fx-font-size: 13px;" />
-                                </VBox>
-                            </children>
-                        </HBox>
-
-                        <!-- Amount and Date side by side -->
-                        <HBox spacing="16">
-                            <children>
-                                <VBox spacing="6" HBox.hgrow="ALWAYS">
-                                    <Label text="%unified_expense.daily.amount"
-                                           style="-fx-font-weight: bold; -fx-font-size: 13px;" />
-                                    <CurrencyTextField fx:id="txtAmount" promptText="0,00"
-                                               style="-fx-min-height: 38; -fx-font-size: 14px;" />
-                                </VBox>
-                                <VBox spacing="6" HBox.hgrow="ALWAYS">
-                                    <Label text="%unified_expense.daily.date"
-                                           style="-fx-font-weight: bold; -fx-font-size: 13px;" />
-                                    <DatePicker fx:id="datePicker" maxWidth="Infinity"
-                                                style="-fx-min-height: 38; -fx-font-size: 13px;" />
-                                </VBox>
-                            </children>
-                        </HBox>
-
-                        <!-- Description -->
-                        <VBox spacing="6" VBox.vgrow="ALWAYS">
-                            <Label text="%unified_expense.daily.description"
-                                   style="-fx-font-weight: bold; -fx-font-size: 13px;" />
-                            <TextArea fx:id="txtDescription" promptText="%unified_expense.daily.description_prompt"
-                                      prefRowCount="4" VBox.vgrow="ALWAYS"
-                                      style="-fx-font-size: 13px;" />
+                <VBox spacing="18" styleClass="dialog-body">
+                    <HBox spacing="16">
+                        <VBox HBox.hgrow="ALWAYS" prefWidth="250" spacing="6">
+                            <Label styleClass="field-label" text="%unified_expense.daily.category"/>
+                            <ComboBox fx:id="comboCategory" maxWidth="Infinity" styleClass="form-control-tall"/>
                         </VBox>
-
-                        <!-- Buttons -->
-                        <HBox spacing="12" alignment="CENTER_RIGHT" style="-fx-padding: 8 0 0 0;">
-                            <children>
-                                <Button onAction="#handleDailyCancel" text="%unified_expense.daily.cancel"
-                                        style="-fx-min-width: 100; -fx-min-height: 38; -fx-font-size: 13px;
-                                               -fx-background-color: #ecf0f1; -fx-text-fill: #2c3e50;
-                                               -fx-background-radius: 6; -fx-cursor: hand;" />
-                                <Button onAction="#handleDailySave" text="%unified_expense.daily.save"
-                                        style="-fx-min-width: 120; -fx-min-height: 38; -fx-font-size: 13px;
-                                               -fx-background-color: #27ae60; -fx-text-fill: white;
-                                               -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand;" />
-                            </children>
-                        </HBox>
-                    </children>
+                        <VBox HBox.hgrow="ALWAYS" spacing="6">
+                            <Label styleClass="muted-label" text="Bağlı Sabit Gider (Opsiyonel)"/>
+                            <ComboBox fx:id="comboLinkedFixedExpense" maxWidth="Infinity"
+                                      promptText="Sabit gidere bağla..." styleClass="form-control-tall"/>
+                        </VBox>
+                    </HBox>
+                    <HBox spacing="16">
+                        <VBox HBox.hgrow="ALWAYS" spacing="6">
+                            <Label styleClass="field-label" text="%unified_expense.daily.amount"/>
+                            <CurrencyTextField fx:id="txtAmount" promptText="0,00" styleClass="form-control-tall"/>
+                        </VBox>
+                        <VBox HBox.hgrow="ALWAYS" spacing="6">
+                            <Label styleClass="field-label" text="%unified_expense.daily.date"/>
+                            <DatePicker fx:id="datePicker" maxWidth="Infinity" styleClass="form-control-tall"/>
+                        </VBox>
+                    </HBox>
+                    <VBox spacing="6" VBox.vgrow="ALWAYS">
+                        <Label styleClass="field-label" text="%unified_expense.daily.description"/>
+                        <TextArea fx:id="txtDescription" prefRowCount="4" promptText="%unified_expense.daily.description_prompt"
+                                  VBox.vgrow="ALWAYS"/>
+                    </VBox>
+                    <HBox alignment="CENTER_RIGHT" spacing="12">
+                        <Button onAction="#handleDailyCancel" styleClass="btn-secondary" text="%unified_expense.daily.cancel"/>
+                        <Button onAction="#handleDailySave" styleClass="btn-success" text="%unified_expense.daily.save"/>
+                    </HBox>
                 </VBox>
             </Tab>
-
-            <!-- TAB 2: Fixed Expense Payment -->
             <Tab text="%unified_expense.tab.fixed">
-                <VBox spacing="12" style="-fx-padding: 16;">
-                    <children>
-                        <!-- Info and Date row -->
-                        <HBox spacing="12" alignment="CENTER_LEFT">
-                            <children>
-                                <Label text="%unified_expense.fixed.select_info"
-                                       style="-fx-font-size: 13px; -fx-text-fill: #7f8c8d;" />
-                                <Region HBox.hgrow="ALWAYS" />
-                                <Label text="%unified_expense.fixed.payment_date"
-                                       style="-fx-font-weight: bold; -fx-font-size: 13px;" />
-                                <DatePicker fx:id="dtFixedPaymentDate" prefWidth="150"
-                                            style="-fx-font-size: 12px;" />
-                            </children>
-                        </HBox>
-
-                        <!-- Fixed Expenses Table -->
-                        <TableView fx:id="fixedExpensesTable" VBox.vgrow="ALWAYS">
-                            <columns>
-                                <TableColumn fx:id="colFixedSelect" text="" prefWidth="50.0" />
-                                <TableColumn fx:id="colFixedName" text="%finance.pay_fixed_expense_dialog.name" prefWidth="160.0" />
-                                <TableColumn fx:id="colFixedCategory" text="%fixed_expense.category" prefWidth="100.0" />
-                                <TableColumn fx:id="colFixedFrequency" text="Sıklık" prefWidth="80.0" />
-                                <TableColumn fx:id="colFixedAmount" text="Varsayılan" prefWidth="90.0" />
-                                <TableColumn fx:id="colFixedPayAmount" text="Ödeme Tutarı" prefWidth="100.0" />
-                                <TableColumn fx:id="colFixedLinkedInfo" text="Bağlı Ödeme" prefWidth="180.0" />
-                                <TableColumn fx:id="colFixedDayOfMonth" text="%fixed_expense.day_of_month" prefWidth="60.0" />
-                                <TableColumn fx:id="colFixedDaysUntil" text="%finance.pay_fixed_expense_dialog.days_until" prefWidth="80.0" />
-                                <TableColumn fx:id="colFixedStatus" text="%finance.pay_fixed_expense_dialog.status" prefWidth="80.0" />
-                            </columns>
-                            <columnResizePolicy>
-                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                            </columnResizePolicy>
-                        </TableView>
-
-                        <!-- Buttons -->
-                        <HBox spacing="12" alignment="CENTER_RIGHT">
-                            <children>
-                                <Button onAction="#handleFixedCancel" text="%unified_expense.fixed.cancel"
-                                        style="-fx-min-width: 100; -fx-min-height: 38; -fx-font-size: 13px;
-                                               -fx-background-color: #ecf0f1; -fx-text-fill: #2c3e50;
-                                               -fx-background-radius: 6; -fx-cursor: hand;" />
-                                <Button onAction="#handleFixedPay" text="%unified_expense.fixed.pay_selected"
-                                        style="-fx-min-width: 150; -fx-min-height: 38; -fx-font-size: 13px;
-                                               -fx-background-color: #27ae60; -fx-text-fill: white;
-                                               -fx-font-weight: bold; -fx-background-radius: 6; -fx-cursor: hand;" />
-                            </children>
-                        </HBox>
-                    </children>
+                <VBox spacing="12" styleClass="dialog-body-compact">
+                    <HBox alignment="CENTER_LEFT" spacing="12">
+                        <Label styleClass="muted-label" text="%unified_expense.fixed.select_info"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label styleClass="field-label" text="%unified_expense.fixed.payment_date"/>
+                        <DatePicker fx:id="dtFixedPaymentDate" prefWidth="150"/>
+                    </HBox>
+                    <TableView fx:id="fixedExpensesTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="colFixedSelect" prefWidth="50.0" text=""/>
+                            <TableColumn fx:id="colFixedName" prefWidth="160.0" text="%finance.pay_fixed_expense_dialog.name"/>
+                            <TableColumn fx:id="colFixedCategory" prefWidth="100.0" text="%fixed_expense.category"/>
+                            <TableColumn fx:id="colFixedFrequency" prefWidth="80.0" text="Sıklık"/>
+                            <TableColumn fx:id="colFixedAmount" prefWidth="90.0" text="Varsayılan"/>
+                            <TableColumn fx:id="colFixedPayAmount" prefWidth="100.0" text="Ödeme Tutarı"/>
+                            <TableColumn fx:id="colFixedLinkedInfo" prefWidth="180.0" text="Bağlı Ödeme"/>
+                            <TableColumn fx:id="colFixedDayOfMonth" prefWidth="60.0" text="%fixed_expense.day_of_month"/>
+                            <TableColumn fx:id="colFixedDaysUntil" prefWidth="80.0" text="%finance.pay_fixed_expense_dialog.days_until"/>
+                            <TableColumn fx:id="colFixedStatus" prefWidth="80.0" text="%finance.pay_fixed_expense_dialog.status"/>
+                        </columns>
+                        <columnResizePolicy>
+                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                        </columnResizePolicy>
+                    </TableView>
+                    <HBox alignment="CENTER_RIGHT" spacing="12">
+                        <Button onAction="#handleFixedCancel" styleClass="btn-secondary" text="%unified_expense.fixed.cancel"/>
+                        <Button onAction="#handleFixedPay" styleClass="btn-success" text="%unified_expense.fixed.pay_selected"/>
+                    </HBox>
                 </VBox>
             </Tab>
         </tabs>

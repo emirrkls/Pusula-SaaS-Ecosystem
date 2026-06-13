@@ -438,7 +438,7 @@ public class FinanceController {
             com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("unified_expense.title"));
-            stage.setScene(new Scene(root));
+            stage.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root));
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
@@ -471,7 +471,7 @@ public class FinanceController {
             com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("unified_expense.title"));
-            stage.setScene(new Scene(root));
+            stage.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root));
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();

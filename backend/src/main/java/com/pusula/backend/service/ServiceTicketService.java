@@ -594,6 +594,7 @@ public class ServiceTicketService {
                 .notes(ticket.getNotes())
                 .collectedAmount(ticket.getCollectedAmount())
                 .createdAt(ticket.getCreatedAt())
+                .updatedAt(ticket.getUpdatedAt())
                 .parentTicketId(ticket.getParentTicketId())
                 .isWarrantyCall(ticket.isWarrantyCall())
                 .paymentMethod(ticket.getPaymentMethod())

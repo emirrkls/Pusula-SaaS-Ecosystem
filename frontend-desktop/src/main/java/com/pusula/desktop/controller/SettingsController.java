@@ -10,6 +10,7 @@ import com.pusula.desktop.dto.VehicleDTO;
 import com.pusula.desktop.entity.Company;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.ThemeHelper;
 import com.pusula.desktop.util.UTF8Control;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -213,7 +214,7 @@ public class SettingsController {
             com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("settings.add_fixed_expense"));
-            stage.setScene(new Scene(root));
+            stage.setScene(ThemeHelper.createDialogScene(root));
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
@@ -251,7 +252,7 @@ public class SettingsController {
             com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("settings.edit_fixed_expense"));
-            stage.setScene(new Scene(root));
+            stage.setScene(ThemeHelper.createDialogScene(root));
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
@@ -394,7 +395,7 @@ public class SettingsController {
             com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("settings.add_user"));
-            stage.setScene(new Scene(root));
+            stage.setScene(ThemeHelper.createDialogScene(root));
             stage.showAndWait();
 
             UserDTO result = dialogController.getResult();
@@ -428,7 +429,7 @@ public class SettingsController {
             com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("settings.edit_user"));
-            stage.setScene(new Scene(root));
+            stage.setScene(ThemeHelper.createDialogScene(root));
             stage.showAndWait();
 
             UserDTO result = dialogController.getResult();
@@ -624,7 +625,7 @@ public class SettingsController {
             com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("reassign.title"));
-            stage.setScene(new Scene(root));
+            stage.setScene(ThemeHelper.createDialogScene(root));
             stage.showAndWait();
 
             Long newTechId = dialogController.getSelectedTechnicianId();
@@ -716,7 +717,7 @@ public class SettingsController {
             com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("vehicle.add"));
-            stage.setScene(new Scene(root));
+            stage.setScene(ThemeHelper.createDialogScene(root));
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
@@ -747,7 +748,7 @@ public class SettingsController {
             com.pusula.desktop.util.StageHelper.setIcon(stage);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("vehicle.edit"));
-            stage.setScene(new Scene(root));
+            stage.setScene(ThemeHelper.createDialogScene(root));
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();

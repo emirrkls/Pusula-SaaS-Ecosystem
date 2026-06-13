@@ -279,7 +279,7 @@ public class CommercialDeviceViewController {
             Stage stage = new Stage();
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("commercial.sale.title"));
-            stage.setScene(new Scene(root));
+            stage.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root));
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
@@ -303,7 +303,7 @@ public class CommercialDeviceViewController {
             Stage stage = new Stage();
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(device == null ? "Cihaz Ekle" : "Cihaz Düzenle");
-            stage.setScene(new Scene(root));
+            stage.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root));
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();

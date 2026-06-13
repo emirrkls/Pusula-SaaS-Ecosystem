@@ -815,7 +815,7 @@ public class TicketDetailsController {
             // Create a new stage for the dialog
             javafx.stage.Stage dialogStage = new javafx.stage.Stage();
             dialogStage.setTitle(resourceBundle.getString("part.selection.title"));
-            dialogStage.setScene(new javafx.scene.Scene(root));
+            dialogStage.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root));
             dialogStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             dialogStage.initOwner(lblStatus.getScene().getWindow());
 

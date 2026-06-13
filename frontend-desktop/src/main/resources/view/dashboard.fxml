@@ -2,17 +2,17 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.ListView?>
 <?import javafx.scene.chart.LineChart?>
 <?import javafx.scene.chart.CategoryAxis?>
 <?import javafx.scene.chart.NumberAxis?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.text.Font?>
 
-<VBox spacing="20.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.DashboardController" style="-fx-background-color: #F3F4F6;">
+<VBox spacing="20.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.DashboardController">
    <padding>
       <Insets bottom="20.0" left="24.0" right="24.0" top="20.0" />
    </padding>
@@ -24,12 +24,12 @@
    <!-- 1. Welcome Banner -->
    <HBox styleClass="welcome-banner" alignment="CENTER_LEFT">
        <VBox>
-           <Label fx:id="welcomeLabel" text="Hoş Geldiniz!" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #1E293B;"/>
-           <Label text="%menu.dashboard" style="-fx-font-size: 14px; -fx-text-fill: #64748B;"/>
+           <Label fx:id="welcomeLabel" styleClass="page-header-title" text="Hoş Geldiniz!"/>
+           <Label text="%menu.dashboard" styleClass="page-subtitle"/>
        </VBox>
        <Region HBox.hgrow="ALWAYS" />
        <!-- Optional right side elements like Date -->
-       <Label fx:id="dateLabel" style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #3B82F6;"/>
+       <Label fx:id="dateLabel" styleClass="page-subtitle"/>
    </HBox>
 
    <!-- 2. Summary Cards -->
@@ -37,8 +37,8 @@
       <children>
          <HBox fx:id="activeTicketsCard" onMouseClicked="#handleActiveTicketsClick" alignment="CENTER_LEFT" prefHeight="120.0" styleClass="card-modern, card-accent-blue" HBox.hgrow="ALWAYS">
             <padding><Insets left="20" right="20"/></padding>
-            <VBox alignment="CENTER" style="-fx-background-radius: 12; -fx-background-color: rgba(59, 130, 246, 0.1); -fx-padding: 15;">
-                <Label text="🔧" style="-fx-font-size: 28px;" />
+            <VBox alignment="CENTER" styleClass="dashboard-stat-icon, dashboard-stat-icon-blue">
+                <Label styleClass="dashboard-stat-emoji" text="🔧" />
             </VBox>
             <VBox alignment="CENTER_LEFT" spacing="5" HBox.hgrow="ALWAYS">
                <padding><Insets left="15"/></padding>
@@ -49,8 +49,8 @@
 
          <HBox fx:id="criticalStockCard" onMouseClicked="#handleCriticalStockClick" alignment="CENTER_LEFT" prefHeight="120.0" styleClass="card-modern, card-accent-red" HBox.hgrow="ALWAYS">
             <padding><Insets left="20" right="20"/></padding>
-            <VBox alignment="CENTER" style="-fx-background-radius: 12; -fx-background-color: rgba(239, 68, 68, 0.1); -fx-padding: 15;">
-                <Label text="⚠️" style="-fx-font-size: 28px;" />
+            <VBox alignment="CENTER" styleClass="dashboard-stat-icon, dashboard-stat-icon-red">
+                <Label styleClass="dashboard-stat-emoji" text="⚠️" />
             </VBox>
             <VBox alignment="CENTER_LEFT" spacing="5" HBox.hgrow="ALWAYS">
                <padding><Insets left="15"/></padding>
@@ -61,8 +61,8 @@
 
          <HBox fx:id="pendingProposalsCard" onMouseClicked="#handlePendingProposalsClick" alignment="CENTER_LEFT" prefHeight="120.0" styleClass="card-modern, card-accent-green" HBox.hgrow="ALWAYS">
             <padding><Insets left="20" right="20"/></padding>
-            <VBox alignment="CENTER" style="-fx-background-radius: 12; -fx-background-color: rgba(16, 185, 129, 0.1); -fx-padding: 15;">
-                <Label text="📄" style="-fx-font-size: 28px;" />
+            <VBox alignment="CENTER" styleClass="dashboard-stat-icon, dashboard-stat-icon-green">
+                <Label styleClass="dashboard-stat-emoji" text="📄" />
             </VBox>
             <VBox alignment="CENTER_LEFT" spacing="5" HBox.hgrow="ALWAYS">
                <padding><Insets left="15"/></padding>
@@ -88,21 +88,19 @@
            </LineChart>
        </VBox>
 
-       <!-- Right: Today's Agenda inside a beautiful Card -->
+       <!-- Right: Today's Agenda -->
        <VBox styleClass="card-container" HBox.hgrow="ALWAYS" prefWidth="400">
-           <Label text="Bugünkü Randevular" styleClass="section-title" />
-           <TableView fx:id="agendaTable" VBox.vgrow="ALWAYS" styleClass="premium-table">
-             <columns>
-               <TableColumn fx:id="colCustomer" text="%dashboard.table.customer" prefWidth="120.0" />
-               <TableColumn fx:id="colTime" text="%dashboard.table.time" prefWidth="60.0" />
-               <TableColumn fx:id="colStatus" text="%dashboard.table.status" prefWidth="100.0" />
-               <TableColumn fx:id="colTechnician" text="%dashboard.table.technician" prefWidth="100.0" />
-               <TableColumn fx:id="colActions" text="İşlemler" prefWidth="100.0" />
-             </columns>
-             <columnResizePolicy>
-                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-             </columnResizePolicy>
-           </TableView>
+           <HBox alignment="CENTER_LEFT" spacing="8">
+               <Label text="Bugünkü Randevular" styleClass="section-title" HBox.hgrow="ALWAYS"/>
+               <Label fx:id="agendaCountLabel" styleClass="page-subtitle" text=""/>
+           </HBox>
+           <StackPane VBox.vgrow="ALWAYS">
+               <ListView fx:id="agendaListView" styleClass="tickets-list" VBox.vgrow="ALWAYS"/>
+               <VBox fx:id="agendaEmptyBox" alignment="CENTER" managed="false" spacing="8" styleClass="empty-state" visible="false">
+                   <Label styleClass="empty-state-title" text="Bugün randevu yok"/>
+                   <Label styleClass="empty-state-subtitle" text="Yeni servis fişi oluşturabilirsiniz."/>
+               </VBox>
+           </StackPane>
        </VBox>
    </HBox>
 </VBox>

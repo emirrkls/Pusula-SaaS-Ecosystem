@@ -14,9 +14,11 @@ public class ServiceTicketDTO {
     private String notes;
     private BigDecimal collectedAmount;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private Long parentTicketId;
     private boolean isWarrantyCall;
     private String customerName; // Display field for table
+    private String assignedTechnicianName;
 
     // Getters and Setters
     public Long getId() {
@@ -91,6 +93,14 @@ public class ServiceTicketDTO {
         this.createdAt = createdAt;
     }
 
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
     public BigDecimal getCollectedAmount() {
         return collectedAmount;
     }
@@ -121,5 +131,13 @@ public class ServiceTicketDTO {
 
     public void setCustomerName(String customerName) {
         this.customerName = customerName;
+    }
+
+    public String getAssignedTechnicianName() {
+        return assignedTechnicianName;
+    }
+
+    public void setAssignedTechnicianName(String assignedTechnicianName) {
+        this.assignedTechnicianName = assignedTechnicianName;
     }
 }

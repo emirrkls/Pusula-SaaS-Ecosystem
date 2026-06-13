@@ -191,7 +191,7 @@ public class CommercialDeviceSalesDialogController {
             dialogStage.setTitle(bundle.getString("customer.dialog.title"));
             dialogStage.initModality(Modality.APPLICATION_MODAL);
             dialogStage.initOwner(customerComboBox.getScene().getWindow());
-            dialogStage.setScene(new Scene(root));
+            dialogStage.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root));
             dialogStage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();

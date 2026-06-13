@@ -259,7 +259,7 @@ public class CompanyDebtController {
             Stage dialog = new Stage();
             dialog.setTitle("Borç Ekle");
             dialog.initModality(Modality.APPLICATION_MODAL);
-            dialog.setScene(new Scene(root));
+            dialog.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root));
             dialog.showAndWait();
         } catch (Exception e) {
             showError("Dialog açılamadı: " + e.getMessage());

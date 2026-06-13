@@ -1,55 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 
-<VBox spacing="15.0" prefWidth="450" prefHeight="400" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.CustomerDialogController">
+<VBox fx:controller="com.pusula.desktop.controller.CustomerDialogController"
+      prefHeight="400" prefWidth="450" spacing="15.0" styleClass="dialog-root"
+      xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
    <padding>
       <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
    </padding>
-   <children>
-      <Label text="%customer.dialog.title">
-         <font>
-            <Font name="System Bold" size="18.0" />
-         </font>
-      </Label>
-      <VBox spacing="5.0">
-         <children>
-            <Label text="%customer.dialog.name" />
-            <TextField fx:id="nameField" promptText="%customer.dialog.name.prompt" prefHeight="35" />
-         </children>
-      </VBox>
-      <VBox spacing="5.0">
-         <children>
-            <Label text="%customer.dialog.phone" />
-            <TextField fx:id="phoneField" promptText="%customer.dialog.phone.prompt" prefHeight="35" />
-         </children>
-      </VBox>
-      <VBox spacing="5.0">
-         <children>
-            <Label text="%customer.dialog.address" />
-            <TextField fx:id="addressField" promptText="%customer.dialog.address.prompt" prefHeight="35" />
-         </children>
-      </VBox>
-      <VBox spacing="5.0">
-         <children>
-            <Label text="%customer.dialog.coordinates" />
-            <TextField fx:id="coordinatesField" promptText="%customer.dialog.coordinates.prompt" prefHeight="35" />
-         </children>
-      </VBox>
-      <HBox alignment="CENTER_RIGHT" spacing="10.0">
-         <children>
-            <Button mnemonicParsing="false" onAction="#handleCancel" text="%button.cancel" prefWidth="100" prefHeight="35" />
-            <Button defaultButton="true" mnemonicParsing="false" onAction="#handleSave" style="-fx-background-color: #2ecc71; -fx-text-fill: white;" text="%customer.dialog.save" prefWidth="130" prefHeight="35" />
-         </children>
-         <VBox.margin>
-            <Insets top="10.0" />
-         </VBox.margin>
-      </HBox>
-   </children>
+   <Label styleClass="dialog-title" text="%customer.dialog.title" />
+   <VBox spacing="5.0">
+      <Label styleClass="field-label" text="%customer.dialog.name" />
+      <TextField fx:id="nameField" prefHeight="35" promptText="%customer.dialog.name.prompt" />
+   </VBox>
+   <VBox spacing="5.0">
+      <Label styleClass="field-label" text="%customer.dialog.phone" />
+      <TextField fx:id="phoneField" prefHeight="35" promptText="%customer.dialog.phone.prompt" />
+   </VBox>
+   <VBox spacing="5.0">
+      <Label styleClass="field-label" text="%customer.dialog.address" />
+      <TextField fx:id="addressField" prefHeight="35" promptText="%customer.dialog.address.prompt" />
+   </VBox>
+   <VBox spacing="5.0">
+      <Label styleClass="field-label" text="%customer.dialog.coordinates" />
+      <TextField fx:id="coordinatesField" prefHeight="35" promptText="%customer.dialog.coordinates.prompt" />
+   </VBox>
+   <HBox alignment="CENTER_RIGHT" spacing="10.0">
+      <VBox.margin>
+         <Insets top="10.0" />
+      </VBox.margin>
+      <Button mnemonicParsing="false" onAction="#handleCancel" prefHeight="35" prefWidth="100" styleClass="btn-secondary" text="%button.cancel" />
+      <Button defaultButton="true" mnemonicParsing="false" onAction="#handleSave" prefHeight="35" prefWidth="130" styleClass="btn-success" text="%customer.dialog.save" />
+   </HBox>
 </VBox>

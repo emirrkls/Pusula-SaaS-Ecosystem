@@ -9,25 +9,17 @@
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
 
-<VBox spacing="15.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.TicketDialogController">
-   <padding>
-      <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-   </padding>
+<VBox spacing="16.0" styleClass="dialog-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.TicketDialogController">
    <children>
-      <Label text="%ticket.create.title">
-         <font>
-            <Font name="System Bold" size="18.0" />
-         </font>
-      </Label>
+      <Label styleClass="dialog-title" text="%ticket.create.title" />
       <VBox spacing="5.0">
          <children>
             <Label text="%ticket.create.customer" />
-            <HBox spacing="5.0">
+            <HBox spacing="8.0">
                <children>
                   <ComboBox fx:id="customerComboBox" maxWidth="1.7976931348623157E308" promptText="%ticket.create.customer" HBox.hgrow="ALWAYS" />
-                  <Button mnemonicParsing="false" onAction="#handleAddCustomer" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-weight: bold;" text="+" prefWidth="35.0" />
+                  <Button mnemonicParsing="false" onAction="#handleAddCustomer" prefWidth="40.0" styleClass="btn-primary" text="+" />
                </children>
             </HBox>
          </children>
@@ -52,8 +44,8 @@
       </VBox>
       <HBox alignment="CENTER_RIGHT" spacing="10.0">
          <children>
-            <Button mnemonicParsing="false" onAction="#handleCancel" text="%button.cancel" />
-            <Button defaultButton="true" mnemonicParsing="false" onAction="#handleSave" style="-fx-background-color: #2ecc71; -fx-text-fill: white;" text="%button.save" />
+            <Button mnemonicParsing="false" onAction="#handleCancel" styleClass="btn-secondary" text="%button.cancel" />
+            <Button defaultButton="true" mnemonicParsing="false" onAction="#handleSave" styleClass="btn-success" text="%button.save" />
          </children>
          <VBox.margin>
             <Insets top="10.0" />

@@ -271,7 +271,7 @@ public class ProposalViewController {
             Stage stage = new Stage();
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(proposal == null ? "Yeni Teklif" : "Teklif Düzenle");
-            stage.setScene(new Scene(root));
+            stage.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root));
             stage.showAndWait();
         } catch (IOException e) {
             showError("Editor açılamadı: " + e.getMessage());

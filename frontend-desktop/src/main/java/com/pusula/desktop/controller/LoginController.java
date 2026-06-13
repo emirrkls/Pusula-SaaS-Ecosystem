@@ -9,6 +9,7 @@ import com.pusula.desktop.util.AnimationHelper;
 import com.pusula.desktop.util.KeyboardShortcutHelper;
 import com.pusula.desktop.util.NotificationHelper;
 import com.pusula.desktop.util.SessionManager;
+import com.pusula.desktop.util.ThemeHelper;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
@@ -165,10 +166,8 @@ public class LoginController {
                                     bundle);
                             Parent root = loader.load();
                             Stage stage = (Stage) usernameField.getScene().getWindow();
-                            Scene scene = new Scene(root);
-                            scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
-                            scene.getStylesheets()
-                                    .add(getClass().getResource("/css/table-override.css").toExternalForm());
+                            Scene scene = new Scene(root, 1200, 720);
+                            ThemeHelper.applyToScene(scene, ThemeHelper.isDarkMode());
                             stage.setScene(scene);
                             stage.setTitle(bundle.getString("app.title"));
                             stage.setMaximized(true);

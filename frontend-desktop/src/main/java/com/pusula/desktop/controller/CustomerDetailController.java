@@ -15,10 +15,15 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import org.kordamp.ikonli.javafx.FontIcon;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignW;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -36,6 +41,9 @@ public class CustomerDetailController {
 
     @FXML
     private TextField addressField;
+
+    @FXML
+    private Button btnWhatsApp;
 
     @FXML
     private TableView<ServiceTicketDTO> historyTable;
@@ -62,8 +70,16 @@ public class CustomerDetailController {
         // Load resource bundle
         resourceBundle = java.util.ResourceBundle.getBundle("i18n.messages",
                 java.util.Locale.of("tr", "TR"), new com.pusula.desktop.util.UTF8Control());
+        setupWhatsAppButton();
         setupTable();
         loadTechnicians();
+    }
+
+    private void setupWhatsAppButton() {
+        FontIcon icon = FontIcon.of(MaterialDesignW.WHATSAPP, 16);
+        icon.setIconColor(Color.WHITE);
+        btnWhatsApp.setGraphic(icon);
+        btnWhatsApp.setTooltip(new Tooltip("WhatsApp"));
     }
 
     private void setupTable() {

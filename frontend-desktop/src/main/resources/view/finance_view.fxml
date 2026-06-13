@@ -8,25 +8,13 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" 
+<VBox spacing="12.0" styleClass="page-view" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" 
             fx:controller="com.pusula.desktop.controller.FinanceController">
-   <top>
-      <Label text="%finance.title" BorderPane.alignment="CENTER_LEFT">
-         <font>
-            <Font name="System Bold" size="24.0" />
-         </font>
-         <BorderPane.margin>
-            <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-         </BorderPane.margin>
-      </Label>
-   </top>
-   <center>
-      <VBox spacing="15.0">
-         <padding>
-            <Insets bottom="10.0" left="20.0" right="20.0" top="0.0" />
-         </padding>
-         <children>
-      <TabPane BorderPane.alignment="CENTER" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
+   <padding>
+      <Insets bottom="8.0" left="0.0" right="0.0" top="8.0" />
+   </padding>
+   <children>
+      <TabPane tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
          <tabs>
             <!-- TAB 1: OPERASYON (DAILY OPERATIONS) -->
             <Tab text="%finance.tab.operations">
@@ -56,29 +44,27 @@
 
                      <!-- Overdue Alert (compact red bar) -->
                      <HBox fx:id="overduePaymentBox" alignment="CENTER_LEFT" spacing="8.0"
-                           style="-fx-background-color: #fee2e2; -fx-border-color: #ef4444; -fx-border-width: 0 0 0 4; -fx-padding: 8 12; -fx-background-radius: 4; -fx-border-radius: 4;"
+                           styleClass="finance-alert-overdue"
                            visible="false" managed="false">
                         <children>
-                           <Label text="🚨" style="-fx-font-size: 14px;"/>
+                           <Label text="🚨"/>
                            <Label fx:id="overdueMessageLabel"
-                                  style="-fx-font-weight: bold; -fx-text-fill: #991b1b; -fx-font-size: 12px;"
+                                  styleClass="label-danger"
                                   wrapText="true" HBox.hgrow="ALWAYS"/>
-                           <Button text="Öde" onAction="#handleAddExpenseUnified"
-                                   style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-padding: 4 12; -fx-background-radius: 4; -fx-cursor: hand;"/>
+                           <Button text="Öde" onAction="#handleAddExpenseUnified" styleClass="btn-danger"/>
                         </children>
                      </HBox>
 
                      <!-- Upcoming Alert (compact yellow bar) -->
                      <HBox fx:id="paymentAlertBox" alignment="CENTER_LEFT" spacing="8.0"
-                           style="-fx-background-color: #fef3c7; -fx-border-color: #f59e0b; -fx-border-width: 0 0 0 4; -fx-padding: 8 12; -fx-background-radius: 4; -fx-border-radius: 4;"
+                           styleClass="finance-alert-upcoming"
                            visible="false" managed="false">
                         <children>
-                           <Label text="⚠️" style="-fx-font-size: 14px;"/>
+                           <Label text="⚠️"/>
                            <Label fx:id="alertMessageLabel"
-                                  style="-fx-font-weight: bold; -fx-text-fill: #92400e; -fx-font-size: 12px;"
+                                  styleClass="label-warning"
                                   wrapText="true" HBox.hgrow="ALWAYS"/>
-                           <Button text="Öde" onAction="#handleAddExpenseUnified"
-                                   style="-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold; -fx-padding: 4 12; -fx-background-radius: 4; -fx-cursor: hand;"/>
+                           <Button text="Öde" onAction="#handleAddExpenseUnified" styleClass="btn-warning"/>
                         </children>
                      </HBox>
 
@@ -97,11 +83,11 @@
                                        </Label>
                                        <Region HBox.hgrow="ALWAYS" />
                                        <Button mnemonicParsing="false" onAction="#handleAddExpenseUnified"
-                                               style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; -fx-padding: 6 16; -fx-background-radius: 6; -fx-cursor: hand;"
+                                               styleClass="btn-success"
                                                text="%unified_expense.btn.add_expense" />
                                     </children>
                                  </HBox>
-                                 <TableView fx:id="todayExpensesTable" VBox.vgrow="ALWAYS">
+                                 <TableView fx:id="todayExpensesTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
                                     <columns>
                                        <TableColumn fx:id="colTodayCategory" prefWidth="90.0" text="%table.category" />
                                        <TableColumn fx:id="colTodayDescription" prefWidth="120.0" text="%table.description" />
@@ -115,8 +101,7 @@
                                  <HBox alignment="CENTER_RIGHT" spacing="10.0">
                                     <children>
                                        <Label text="%finance.total_expense" styleClass="total-label" />
-                                       <Label fx:id="todayExpenseLabel" text="0 ₺" styleClass="total-value" 
-                                              style="-fx-text-fill: #e74c3c;">
+                                       <Label fx:id="todayExpenseLabel" styleClass="total-value-expense" text="0 ₺">
                                           <font>
                                              <Font name="System Bold" size="14.0" />
                                           </font>
@@ -142,7 +127,7 @@
                                        <Region prefHeight="29.0" />
                                     </children>
                                  </HBox>
-                                 <TableView fx:id="todayIncomesTable" VBox.vgrow="ALWAYS">
+                                 <TableView fx:id="todayIncomesTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
                                     <columns>
                                        <TableColumn fx:id="colIncomeCustomer" prefWidth="120.0" text="%table.customer" />
                                        <TableColumn fx:id="colIncomeTicket" prefWidth="80.0" text="%finance.ticket_id" />
@@ -155,8 +140,7 @@
                                  <HBox alignment="CENTER_RIGHT" spacing="10.0">
                                     <children>
                                        <Label text="%finance.total_income" styleClass="total-label" />
-                                       <Label fx:id="todayIncomeLabel" text="0 ₺" styleClass="total-value" 
-                                              style="-fx-text-fill: #27ae60;">
+                                       <Label fx:id="todayIncomeLabel" styleClass="total-value-income" text="0 ₺">
                                           <font>
                                              <Font name="System Bold" size="14.0" />
                                           </font>
@@ -173,7 +157,7 @@
                      <!-- Net Cash and Close Day Button -->
                      <VBox spacing="12.0">
                         <children>
-                           <HBox alignment="CENTER" spacing="15.0" style="-fx-background-color: #ecf0f1; -fx-padding: 12;">
+                           <HBox alignment="CENTER" spacing="15.0" styleClass="finance-net-cash-bar">
                               <children>
                                  <Label text="%finance.net_cash">
                                     <font>
@@ -187,9 +171,8 @@
                                  </Label>
                               </children>
                            </HBox>
-                           <Button fx:id="closeDayButton" mnemonicParsing="false" maxWidth="Infinity" 
-                                   onAction="#handleCloseDay" 
-                                   style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 12;" 
+                           <Button fx:id="closeDayButton" maxWidth="Infinity" mnemonicParsing="false"
+                                   onAction="#handleCloseDay" styleClass="btn-danger btn-block"
                                    text="%finance.close_day" />
                         </children>
                      </VBox>
@@ -266,7 +249,7 @@
                      <Separator />
 
                                            <!-- Monthly Reports Table -->
-                        <TableView fx:id="reportsTable" VBox.vgrow="ALWAYS">
+                        <TableView fx:id="reportsTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
                          <columns>
                             <TableColumn fx:id="colReportPeriod" text="%reports.period" prefWidth="150.0" />
                             <TableColumn fx:id="colReportCarryOver" text="Devir" prefWidth="120.0" />
@@ -298,7 +281,7 @@
                      
                      <Separator />
                      
-                     <TableView fx:id="currentAccountsTable" VBox.vgrow="ALWAYS">
+                     <TableView fx:id="currentAccountsTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
                         <columns>
                            <TableColumn fx:id="colAccountCustomer" text="%current_account.customer" prefWidth="200.0" />
                            <TableColumn fx:id="colAccountBalance" text="%current_account.balance" prefWidth="150.0" />
@@ -334,32 +317,22 @@
                      <HBox alignment="CENTER" spacing="80.0">
                         <children>
                            <!-- Left Card: Total Inventory Value -->
-                           <VBox alignment="CENTER" spacing="20.0" styleClass="square-card" 
-                                 style="-fx-background-color: #3498db; -fx-background-radius: 12; -fx-min-width: 300; -fx-min-height: 300; -fx-pref-width: 300; -fx-pref-height: 300; -fx-max-width: 300; -fx-max-height: 300;">
-                              <padding>
-                                 <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
-                              </padding>
+                           <VBox alignment="CENTER" spacing="20.0"
+                                 styleClass="finance-asset-card finance-asset-card-inventory">
                               <children>
-                                 <Label text="%finance.card.inventory_value" 
-                                        style="-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;" 
+                                 <Label styleClass="finance-asset-card-title" text="%finance.card.inventory_value"
                                         wrapText="true" textAlignment="CENTER" />
-                                 <Label fx:id="assetInventoryValueLabel" text="₺0.00" 
-                                        style="-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 32px;" />
+                                 <Label fx:id="assetInventoryValueLabel" styleClass="finance-asset-card-value" text="₺0.00" />
                               </children>
                            </VBox>
                            
                            <!-- Right Card: Net Cash -->
-                           <VBox alignment="CENTER" spacing="20.0" styleClass="square-card" 
-                                 style="-fx-background-color: #27ae60; -fx-background-radius: 12; -fx-min-width: 300; -fx-min-height: 300; -fx-pref-width: 300; -fx-pref-height: 300; -fx-max-width: 300; -fx-max-height: 300;">
-                              <padding>
-                                 <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
-                              </padding>
+                           <VBox alignment="CENTER" spacing="20.0"
+                                 styleClass="finance-asset-card finance-asset-card-cash">
                               <children>
-                                 <Label text="%finance.card.net_cash" 
-                                        style="-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;" 
+                                 <Label styleClass="finance-asset-card-title" text="%finance.card.net_cash"
                                         wrapText="true" textAlignment="CENTER" />
-                                 <Label fx:id="assetNetCashLabel" text="₺0.00" 
-                                        style="-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 32px;" />
+                                 <Label fx:id="assetNetCashLabel" styleClass="finance-asset-card-value" text="₺0.00" />
                               </children>
                            </VBox>
                         </children>
@@ -369,7 +342,5 @@
             </Tab>
          </tabs>
       </TabPane>
-         </children>
-      </VBox>
-   </center>
-</BorderPane>
+   </children>
+</VBox>

@@ -3,55 +3,45 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.text.Font?>
 <?import com.pusula.desktop.util.CurrencyTextField?>
 
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.pusula.desktop.controller.BalanceEditDialogController"
-      spacing="15" style="-fx-padding: 20;">
+<VBox fx:controller="com.pusula.desktop.controller.BalanceEditDialogController"
+      spacing="15" styleClass="dialog-root"
+      xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+    <padding>
+        <Insets bottom="20" left="20" right="20" top="20"/>
+    </padding>
 
-    <Label text="%currentaccount.balance.edit.title" styleClass="dialog-title">
-        <font>
-            <Font name="System Bold" size="18.0" />
-        </font>
-    </Label>
-
+    <Label styleClass="dialog-title" text="%currentaccount.balance.edit.title"/>
     <Separator />
 
-    <!-- Current Balance Display -->
     <HBox alignment="CENTER_LEFT" spacing="10">
-        <Label text="%currentaccount.balance.current" />
-        <Label fx:id="currentBalanceLabel" text="₺0.00" style="-fx-font-weight: bold; -fx-font-size: 16px;" />
+        <Label text="%currentaccount.balance.current"/>
+        <Label fx:id="currentBalanceLabel" styleClass="field-value" text="₺0.00"/>
     </HBox>
 
-    <!-- Operation Type Selection -->
     <VBox spacing="8">
-        <Label text="%currentaccount.balance.operation" />
-        <ComboBox fx:id="operationCombo" maxWidth="Infinity" promptText="Seçiniz..." />
+        <Label styleClass="field-label" text="%currentaccount.balance.operation"/>
+        <ComboBox fx:id="operationCombo" maxWidth="Infinity" promptText="Seçiniz..."/>
     </VBox>
 
-    <!-- Amount Input -->
     <VBox spacing="8">
-        <Label text="%currentaccount.balance.amount" />
-        <CurrencyTextField fx:id="amountField" promptText="0,00" />
+        <Label styleClass="field-label" text="%currentaccount.balance.amount"/>
+        <CurrencyTextField fx:id="amountField" promptText="0,00"/>
     </VBox>
 
-    <!-- Note/Description -->
     <VBox spacing="8">
-        <Label text="%table.notes" />
-        <TextArea fx:id="noteField" prefRowCount="3" promptText="İşlem açıklaması (opsiyonel)" />
+        <Label styleClass="field-label" text="%table.notes"/>
+        <TextArea fx:id="noteField" prefRowCount="3" promptText="İşlem açıklaması (opsiyonel)"/>
     </VBox>
 
-    <!-- New Balance Preview -->
-    <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: #f0f0f0; -fx-padding: 10; -fx-border-radius: 5; -fx-background-radius: 5;">
-        <Label text="%currentaccount.balance.new" />
-        <Label fx:id="newBalanceLabel" text="₺0.00" style="-fx-font-weight: bold; -fx-font-size: 16px; -fx-text-fill: #2196F3;" />
+    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="stats-bar">
+        <Label text="%currentaccount.balance.new"/>
+        <Label fx:id="newBalanceLabel" styleClass="stat-value-cyan" text="₺0.00"/>
     </HBox>
 
-    <!-- Action Buttons -->
-    <HBox spacing="10" alignment="CENTER_RIGHT">
-        <Button text="%button.cancel" onAction="#handleCancel" styleClass="secondary-button" />
-        <Button text="%button.save" onAction="#handleSave" styleClass="primary-button" />
+    <HBox alignment="CENTER_RIGHT" spacing="10">
+        <Button onAction="#handleCancel" styleClass="btn-secondary" text="%button.cancel"/>
+        <Button onAction="#handleSave" styleClass="btn-primary" text="%button.save"/>
     </HBox>
-
 </VBox>

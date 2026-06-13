@@ -16,6 +16,7 @@ public class ServiceTicketDTO {
     private String notes;
     private BigDecimal collectedAmount;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private Long parentTicketId;
     private boolean isWarrantyCall;
     private String customerName; // Customer full name for frontend display
@@ -125,6 +126,14 @@ public class ServiceTicketDTO {
         this.createdAt = createdAt;
     }
 
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
     public Long getParentTicketId() {
         return parentTicketId;
     }
@@ -182,6 +191,7 @@ public class ServiceTicketDTO {
         private String notes;
         private BigDecimal collectedAmount;
         private LocalDateTime createdAt;
+        private LocalDateTime updatedAt;
         private Long parentTicketId;
         private boolean isWarrantyCall;
         private String customerName;
@@ -235,6 +245,11 @@ public class ServiceTicketDTO {
             return this;
         }
 
+        public ServiceTicketDTOBuilder updatedAt(LocalDateTime updatedAt) {
+            this.updatedAt = updatedAt;
+            return this;
+        }
+
         public ServiceTicketDTOBuilder parentTicketId(Long parentTicketId) {
             this.parentTicketId = parentTicketId;
             return this;
@@ -256,8 +271,10 @@ public class ServiceTicketDTO {
         }
 
         public ServiceTicketDTO build() {
-            return new ServiceTicketDTO(id, customerId, assignedTechnicianId, status, scheduledDate, description, notes,
+            ServiceTicketDTO dto = new ServiceTicketDTO(id, customerId, assignedTechnicianId, status, scheduledDate, description, notes,
                     collectedAmount, createdAt, parentTicketId, isWarrantyCall, customerName, paymentMethod);
+            dto.setUpdatedAt(updatedAt);
+            return dto;
         }
     }
 }
