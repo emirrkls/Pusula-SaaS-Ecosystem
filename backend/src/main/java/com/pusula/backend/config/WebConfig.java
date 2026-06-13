@@ -64,6 +64,11 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:uploads/")
                 .resourceChain(false);
+
+        // Desktop MSI installers (VPS: /var/www/pusula/downloads/)
+        registry.addResourceHandler("/downloads/**")
+                .addResourceLocations("file:/var/www/pusula/downloads/")
+                .resourceChain(false);
     }
 
     @Override

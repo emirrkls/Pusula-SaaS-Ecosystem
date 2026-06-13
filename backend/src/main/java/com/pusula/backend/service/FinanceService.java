@@ -119,6 +119,8 @@ public class FinanceService {
         @Builder
         public static class CumulativeSummary {
                 private BigDecimal totalCash; // All-time income - expenses
+                private BigDecimal totalIncome; // All-time liquid service income
+                private BigDecimal totalExpenses; // All-time paid expenses
                 private BigDecimal totalInventoryValue; // Will be calculated separately
         }
 
@@ -149,6 +151,8 @@ public class FinanceService {
 
                 return CumulativeSummary.builder()
                                 .totalCash(netCash)
+                                .totalIncome(totalIncome)
+                                .totalExpenses(totalExpenses)
                                 .totalInventoryValue(BigDecimal.ZERO) // Will be set by controller
                                 .build();
         }

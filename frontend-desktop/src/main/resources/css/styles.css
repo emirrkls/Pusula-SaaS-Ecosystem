@@ -879,26 +879,114 @@
 /* =========================================================================
    AUTO-UPDATE BANNER STYLES
    ========================================================================= */
+.update-banner-container {
+    -fx-background-color: transparent;
+    -fx-padding: 0 0 20 0;
+    -fx-max-width: infinity;
+    -fx-alignment: TOP_CENTER;
+}
+
 .update-banner-modern {
     -fx-background-color: linear-gradient(to right, #3B82F6, #1D4ED8);
-    -fx-background-radius: 8px;
-    -fx-padding: 10px 15px;
+    -fx-background-radius: 10px;
+    -fx-padding: 16px;
+    -fx-spacing: 14;
+    -fx-max-width: 440;
+    -fx-pref-width: 440;
     -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.4), 10, 0, 0, 4);
 }
 
-.update-btn {
+.update-banner-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-font-size: 15px;
+    -fx-wrap-text: true;
+}
+
+.update-banner-desc {
+    -fx-text-fill: rgba(255, 255, 255, 0.92);
+    -fx-font-size: 12px;
+    -fx-line-spacing: 2px;
+    -fx-wrap-text: true;
+}
+
+.update-banner-actions {
+    -fx-spacing: 8;
+    -fx-fill-width: true;
+}
+
+.update-btn,
+.update-btn-primary {
     -fx-background-color: white;
     -fx-text-fill: #1D4ED8;
     -fx-font-weight: bold;
     -fx-font-size: 13px;
-    -fx-padding: 6px 14px;
-    -fx-background-radius: 20px;
+    -fx-padding: 10 16px;
+    -fx-background-radius: 8px;
+    -fx-min-height: 38px;
+    -fx-max-width: infinity;
     -fx-cursor: hand;
 }
 
-.update-btn:hover {
+.update-btn:hover,
+.update-btn-primary:hover {
     -fx-background-color: #F8FAFC;
     -fx-effect: dropshadow(gaussian, rgba(255,255,255,0.5), 5, 0, 0, 0);
+}
+
+.update-btn-secondary {
+    -fx-background-color: rgba(255, 255, 255, 0.12);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-padding: 10 16px;
+    -fx-background-radius: 8px;
+    -fx-border-color: rgba(255, 255, 255, 0.85);
+    -fx-border-radius: 8px;
+    -fx-border-width: 1;
+    -fx-min-height: 38px;
+    -fx-max-width: infinity;
+    -fx-cursor: hand;
+}
+
+.update-btn-secondary:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.22);
+}
+
+.update-dialog-pane {
+    -fx-min-width: 500px;
+}
+
+.update-dialog-content {
+    -fx-spacing: 14;
+    -fx-min-width: 420px;
+}
+
+.update-dialog-lead {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1C3461;
+    -fx-wrap-text: true;
+}
+
+.update-dialog-bullet {
+    -fx-font-size: 13px;
+    -fx-text-fill: #475569;
+    -fx-wrap-text: true;
+    -fx-line-spacing: 2px;
+}
+
+.update-dialog-question {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1C3461;
+    -fx-padding: 4 0 0 0;
+}
+
+.update-dialog-pane .button-bar .button {
+    -fx-min-width: 120px;
+    -fx-padding: 10 24;
+    -fx-font-size: 13px;
 }
 
 /* =========================================================================
@@ -1118,11 +1206,27 @@
     -fx-font-size: 14px;
 }
 
+.login-brand-contact {
+    -fx-spacing: 6;
+    -fx-padding: 32 0 0 0;
+}
+
+.login-brand-contact-title {
+    -fx-text-fill: rgba(255, 255, 255, 0.75);
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+.login-brand-contact-email {
+    -fx-text-fill: #FFFFFF;
+    -fx-font-size: 14px;
+}
+
 .login-form-panel {
     -fx-background-color: #FFFFFF;
     -fx-padding: 48;
     -fx-spacing: 20;
-    -fx-alignment: CENTER;
+    -fx-alignment: TOP_CENTER;
 }
 
 .login-form-card {
@@ -1159,6 +1263,17 @@
 
 .login-primary-button:hover {
     -fx-background-color: #0095C4;
+}
+
+.login-version-tag {
+    -fx-text-fill: #94A3B8;
+    -fx-font-size: 11px;
+    -fx-padding: 8 0 0 0;
+    -fx-alignment: CENTER_RIGHT;
+}
+
+.dark-theme .login-version-tag {
+    -fx-text-fill: #64748B;
 }
 
 /* Page headers */
@@ -1640,6 +1755,140 @@
     -fx-text-fill: white;
     -fx-font-weight: bold;
     -fx-font-size: 32px;
+}
+
+.finance-scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.finance-scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.finance-ownership-root {
+    -fx-max-width: 920;
+}
+
+.finance-ownership-hero {
+    -fx-spacing: 8;
+    -fx-padding: 24;
+    -fx-background-color: linear-gradient(to bottom right, #1C3461, #0F2447);
+    -fx-border-color: transparent;
+}
+
+.finance-ownership-hero-label {
+    -fx-text-fill: rgba(255, 255, 255, 0.85);
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+.finance-ownership-hero-value {
+    -fx-text-fill: white;
+    -fx-font-size: 36px;
+    -fx-font-weight: bold;
+}
+
+.finance-ownership-formula {
+    -fx-text-fill: rgba(255, 255, 255, 0.75);
+    -fx-font-size: 12px;
+}
+
+.finance-ownership-metric {
+    -fx-spacing: 8;
+    -fx-padding: 20;
+    -fx-min-width: 220;
+}
+
+.finance-ownership-metric-label {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1C3461;
+}
+
+.finance-ownership-metric-value {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1C3461;
+}
+
+.finance-ownership-metric-hint {
+    -fx-font-size: 11px;
+}
+
+.finance-ownership-breakdown {
+    -fx-spacing: 12;
+    -fx-padding: 20;
+}
+
+.finance-ownership-breakdown-list {
+    -fx-spacing: 10;
+}
+
+.finance-ownership-row {
+    -fx-alignment: CENTER_LEFT;
+    -fx-spacing: 16;
+}
+
+.finance-ownership-row-label {
+    -fx-text-fill: #64748B;
+    -fx-font-size: 13px;
+}
+
+.finance-ownership-row-label-strong {
+    -fx-text-fill: #1C3461;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+
+.finance-ownership-row-value {
+    -fx-text-fill: #1C3461;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-min-width: 120;
+    -fx-alignment: CENTER_RIGHT;
+}
+
+.finance-ownership-row-value-strong {
+    -fx-font-size: 16px;
+}
+
+.finance-ownership-row-subtotal {
+    -fx-padding: 4 0 0 0;
+}
+
+.finance-ownership-row-total {
+    -fx-padding: 4 0 0 0;
+}
+
+.finance-ownership-divider {
+    -fx-min-height: 1;
+    -fx-pref-height: 1;
+    -fx-max-height: 1;
+    -fx-background-color: #E2E8F0;
+}
+
+.finance-value-positive {
+    -fx-text-fill: #10B981;
+}
+
+.finance-value-negative {
+    -fx-text-fill: #EF4444;
+}
+
+.dark-theme .finance-ownership-metric-label,
+.dark-theme .finance-ownership-metric-value,
+.dark-theme .finance-ownership-row-value,
+.dark-theme .finance-ownership-row-label-strong {
+    -fx-text-fill: #E2E8F0;
+}
+
+.dark-theme .finance-ownership-row-label {
+    -fx-text-fill: #94A3B8;
+}
+
+.dark-theme .finance-ownership-divider {
+    -fx-background-color: #334155;
 }
 
 /* Settings & uploads */

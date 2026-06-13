@@ -114,10 +114,26 @@ public class FinanceController {
 
     // Business Assets Tab Labels
     @FXML
+    private Label assetTotalEquityLabel;
+    @FXML
     private Label assetInventoryValueLabel;
-
     @FXML
     private Label assetNetCashLabel;
+    @FXML
+    private Label assetBreakdownInventoryLabel;
+    @FXML
+    private Label assetBreakdownIncomeLabel;
+    @FXML
+    private Label assetBreakdownExpensesLabel;
+    @FXML
+    private Label assetBreakdownNetCashLabel;
+    @FXML
+    private Label assetBreakdownTotalLabel;
+
+    private BigDecimal assetInventoryValue = BigDecimal.ZERO;
+    private BigDecimal assetNetCashValue = BigDecimal.ZERO;
+    private BigDecimal assetTotalIncome = BigDecimal.ZERO;
+    private BigDecimal assetTotalExpenses = BigDecimal.ZERO;
 
     private FinanceApi financeApi;
     private ResourceBundle bundle;
@@ -884,69 +900,102 @@ public class FinanceController {
     // ========== BUSINESS ASSETS TAB ==========
 
     private void loadBusinessAssets() {
-        // Load inventory value for assets tab
         financeApi.getInventoryValue().enqueue(new Callback<Map<String, BigDecimal>>() {
             @Override
             public void onResponse(Call<Map<String, BigDecimal>> call, Response<Map<String, BigDecimal>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    BigDecimal totalValue = response.body().getOrDefault("totalValue", BigDecimal.ZERO);
-                    Platform.runLater(() -> {
-                        if (assetInventoryValueLabel != null) {
-                            assetInventoryValueLabel.setText(formatCurrency(totalValue));
-                        }
-                    });
+                    assetInventoryValue = response.body().getOrDefault("totalValue", BigDecimal.ZERO);
+                } else {
+                    assetInventoryValue = BigDecimal.ZERO;
                 }
+                Platform.runLater(() -> refreshBusinessAssetsUi());
             }
 
             @Override
             public void onFailure(Call<Map<String, BigDecimal>> call, Throwable t) {
                 System.err.println("Failed to load asset inventory value: " + t.getMessage());
-                Platform.runLater(() -> {
-                    if (assetInventoryValueLabel != null) {
-                        assetInventoryValueLabel.setText("₺0.00");
-                    }
-                });
+                assetInventoryValue = BigDecimal.ZERO;
+                Platform.runLater(() -> refreshBusinessAssetsUi());
             }
         });
 
-        // Load net cash value for assets tab (CUMULATIVE, not just today)
         financeApi.getCumulativeSummary().enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    Object totalCashObj = response.body().get("totalCash");
-                    BigDecimal totalCash = totalCashObj != null
-                            ? new BigDecimal(totalCashObj.toString())
-                            : BigDecimal.ZERO;
-                    Platform.runLater(() -> {
-                        if (assetNetCashLabel != null) {
-                            assetNetCashLabel.setText(formatCurrency(totalCash));
-                            // Color code: green for positive, red for negative
-                            // Preserve the 32px font size from FXML
-                            if (totalCash.compareTo(BigDecimal.ZERO) > 0) {
-                                assetNetCashLabel.setStyle(
-                                        "-fx-text-fill: #27ae60; -fx-font-weight: bold; -fx-font-size: 32px;");
-                            } else if (totalCash.compareTo(BigDecimal.ZERO) < 0) {
-                                assetNetCashLabel.setStyle(
-                                        "-fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-font-size: 32px;");
-                            } else {
-                                assetNetCashLabel
-                                        .setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 32px;");
-                            }
-                        }
-                    });
+                    Map<String, Object> body = response.body();
+                    assetNetCashValue = toBigDecimal(body.get("totalCash"));
+                    assetTotalIncome = toBigDecimal(body.get("totalIncome"));
+                    assetTotalExpenses = toBigDecimal(body.get("totalExpenses"));
+                } else {
+                    assetNetCashValue = BigDecimal.ZERO;
+                    assetTotalIncome = BigDecimal.ZERO;
+                    assetTotalExpenses = BigDecimal.ZERO;
                 }
+                Platform.runLater(() -> refreshBusinessAssetsUi());
             }
 
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                 System.err.println("Failed to load cumulative net cash: " + t.getMessage());
-                Platform.runLater(() -> {
-                    if (assetNetCashLabel != null) {
-                        assetNetCashLabel.setText("₺0.00");
-                    }
-                });
+                assetNetCashValue = BigDecimal.ZERO;
+                assetTotalIncome = BigDecimal.ZERO;
+                assetTotalExpenses = BigDecimal.ZERO;
+                Platform.runLater(() -> refreshBusinessAssetsUi());
             }
         });
+    }
+
+    private void refreshBusinessAssetsUi() {
+        BigDecimal inventory = assetInventoryValue != null ? assetInventoryValue : BigDecimal.ZERO;
+        BigDecimal netCash = assetNetCashValue != null ? assetNetCashValue : BigDecimal.ZERO;
+        BigDecimal income = assetTotalIncome != null ? assetTotalIncome : BigDecimal.ZERO;
+        BigDecimal expenses = assetTotalExpenses != null ? assetTotalExpenses : BigDecimal.ZERO;
+        BigDecimal totalEquity = inventory.add(netCash);
+
+        if (assetTotalEquityLabel != null) {
+            applySignedCurrencyLabel(assetTotalEquityLabel, totalEquity, "finance-ownership-hero-value");
+        }
+        if (assetInventoryValueLabel != null) {
+            assetInventoryValueLabel.setText(formatCurrency(inventory));
+        }
+        if (assetNetCashLabel != null) {
+            applySignedCurrencyLabel(assetNetCashLabel, netCash, "finance-ownership-metric-value");
+        }
+        if (assetBreakdownInventoryLabel != null) {
+            assetBreakdownInventoryLabel.setText(formatCurrency(inventory));
+        }
+        if (assetBreakdownIncomeLabel != null) {
+            assetBreakdownIncomeLabel.setText(formatCurrency(income));
+        }
+        if (assetBreakdownExpensesLabel != null) {
+            assetBreakdownExpensesLabel.setText(formatCurrency(expenses));
+        }
+        if (assetBreakdownNetCashLabel != null) {
+            applySignedCurrencyLabel(assetBreakdownNetCashLabel, netCash, "finance-ownership-row-value");
+        }
+        if (assetBreakdownTotalLabel != null) {
+            applySignedCurrencyLabel(assetBreakdownTotalLabel, totalEquity, "finance-ownership-row-value-strong");
+        }
+    }
+
+    private BigDecimal toBigDecimal(Object value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        return new BigDecimal(value.toString());
+    }
+
+    private void applySignedCurrencyLabel(Label label, BigDecimal amount, String baseStyleClass) {
+        label.setText(formatCurrency(amount));
+        label.getStyleClass().removeAll("finance-value-positive", "finance-value-negative");
+        if (amount.compareTo(BigDecimal.ZERO) > 0) {
+            label.getStyleClass().add("finance-value-positive");
+        } else if (amount.compareTo(BigDecimal.ZERO) < 0) {
+            label.getStyleClass().add("finance-value-negative");
+        }
+        if (!label.getStyleClass().contains(baseStyleClass)) {
+            label.getStyleClass().add(baseStyleClass);
+        }
     }
 }

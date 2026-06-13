@@ -303,42 +303,67 @@
             
             <!-- TAB 6: İŞLETME MÜLKİYETİ (BUSINESS ASSETS) -->
             <Tab text="%finance.tab.assets">
-               <VBox alignment="CENTER" spacing="50.0" styleClass="finance-panel">
-                  <padding>
-                     <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
-                  </padding>
-                  <children>
-                     <Label text="%finance.tab.assets" styleClass="section-title">
-                        <font>
-                           <Font name="System Bold" size="20.0" />
-                        </font>
-                     </Label>
-                     
-                     <HBox alignment="CENTER" spacing="80.0">
+               <ScrollPane fitToWidth="true" styleClass="finance-scroll-pane">
+                  <content>
+                     <VBox spacing="20.0" styleClass="finance-ownership-root">
+                        <padding>
+                           <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
+                        </padding>
                         <children>
-                           <!-- Left Card: Total Inventory Value -->
-                           <VBox alignment="CENTER" spacing="20.0"
-                                 styleClass="finance-asset-card finance-asset-card-inventory">
-                              <children>
-                                 <Label styleClass="finance-asset-card-title" text="%finance.card.inventory_value"
-                                        wrapText="true" textAlignment="CENTER" />
-                                 <Label fx:id="assetInventoryValueLabel" styleClass="finance-asset-card-value" text="₺0.00" />
-                              </children>
+                           <VBox spacing="6.0">
+                              <Label styleClass="section-title" text="%finance.tab.assets" />
+                              <Label styleClass="label-muted" text="%finance.assets.subtitle" wrapText="true" />
                            </VBox>
-                           
-                           <!-- Right Card: Net Cash -->
-                           <VBox alignment="CENTER" spacing="20.0"
-                                 styleClass="finance-asset-card finance-asset-card-cash">
-                              <children>
-                                 <Label styleClass="finance-asset-card-title" text="%finance.card.net_cash"
-                                        wrapText="true" textAlignment="CENTER" />
-                                 <Label fx:id="assetNetCashLabel" styleClass="finance-asset-card-value" text="₺0.00" />
-                              </children>
+
+                           <VBox spacing="8.0" styleClass="finance-ownership-hero card-container">
+                              <Label styleClass="finance-ownership-hero-label" text="%finance.assets.total_equity" />
+                              <Label fx:id="assetTotalEquityLabel" styleClass="finance-ownership-hero-value" text="₺0,00" />
+                              <Label styleClass="label-muted finance-ownership-formula" text="%finance.assets.formula" wrapText="true" />
+                           </VBox>
+
+                           <HBox spacing="16.0">
+                              <VBox spacing="8.0" styleClass="finance-ownership-metric card-container" HBox.hgrow="ALWAYS">
+                                 <Label styleClass="finance-ownership-metric-label" text="%finance.card.inventory_value" wrapText="true" />
+                                 <Label fx:id="assetInventoryValueLabel" styleClass="finance-ownership-metric-value finance-value-positive" text="₺0,00" />
+                                 <Label styleClass="label-muted finance-ownership-metric-hint" text="%finance.assets.inventory_hint" wrapText="true" />
+                              </VBox>
+                              <VBox spacing="8.0" styleClass="finance-ownership-metric card-container" HBox.hgrow="ALWAYS">
+                                 <Label styleClass="finance-ownership-metric-label" text="%finance.card.net_cash" wrapText="true" />
+                                 <Label fx:id="assetNetCashLabel" styleClass="finance-ownership-metric-value" text="₺0,00" />
+                                 <Label styleClass="label-muted finance-ownership-metric-hint" text="%finance.assets.cash_hint" wrapText="true" />
+                              </VBox>
+                           </HBox>
+
+                           <VBox spacing="12.0" styleClass="card-container finance-ownership-breakdown">
+                              <Label styleClass="card-title" text="%finance.assets.breakdown_title" />
+                              <VBox spacing="10.0" styleClass="finance-ownership-breakdown-list">
+                                 <HBox styleClass="finance-ownership-row">
+                                    <Label styleClass="finance-ownership-row-label" text="%finance.assets.row.inventory" HBox.hgrow="ALWAYS" />
+                                    <Label fx:id="assetBreakdownInventoryLabel" styleClass="finance-ownership-row-value" text="₺0,00" />
+                                 </HBox>
+                                 <HBox styleClass="finance-ownership-row">
+                                    <Label styleClass="finance-ownership-row-label" text="%finance.assets.row.income" HBox.hgrow="ALWAYS" />
+                                    <Label fx:id="assetBreakdownIncomeLabel" styleClass="finance-ownership-row-value finance-value-positive" text="₺0,00" />
+                                 </HBox>
+                                 <HBox styleClass="finance-ownership-row">
+                                    <Label styleClass="finance-ownership-row-label" text="%finance.assets.row.expenses" HBox.hgrow="ALWAYS" />
+                                    <Label fx:id="assetBreakdownExpensesLabel" styleClass="finance-ownership-row-value finance-value-negative" text="₺0,00" />
+                                 </HBox>
+                                 <HBox styleClass="finance-ownership-row finance-ownership-row-subtotal">
+                                    <Label styleClass="finance-ownership-row-label" text="%finance.assets.row.net_cash" HBox.hgrow="ALWAYS" />
+                                    <Label fx:id="assetBreakdownNetCashLabel" styleClass="finance-ownership-row-value" text="₺0,00" />
+                                 </HBox>
+                                 <Region styleClass="finance-ownership-divider" />
+                                 <HBox styleClass="finance-ownership-row finance-ownership-row-total">
+                                    <Label styleClass="finance-ownership-row-label finance-ownership-row-label-strong" text="%finance.assets.row.total" HBox.hgrow="ALWAYS" />
+                                    <Label fx:id="assetBreakdownTotalLabel" styleClass="finance-ownership-row-value finance-ownership-row-value-strong" text="₺0,00" />
+                                 </HBox>
+                              </VBox>
                            </VBox>
                         </children>
-                     </HBox>
-                  </children>
-               </VBox>
+                     </VBox>
+                  </content>
+               </ScrollPane>
             </Tab>
          </tabs>
       </TabPane>

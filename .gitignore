@@ -96,3 +96,6 @@ frontend-desktop/installer/PusulaServiceManagerSetup.exe
 
 # Local dev scripts, mock data, and one-off generators
 backend/scripts/
+
+# Local deploy guide (personal, not committed)
+PUSULA-DEPLOY.local.md

@@ -11,11 +11,14 @@ import com.pusula.desktop.util.NotificationHelper;
 import com.pusula.desktop.util.SessionManager;
 import com.pusula.desktop.util.ThemeHelper;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -23,14 +26,16 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 import com.pusula.desktop.api.UpdateApi;
 import com.pusula.desktop.dto.UpdateInfoDTO;
+import com.pusula.desktop.update.UpdateService;
+import com.pusula.desktop.update.UpdateUiHelper;
+import com.pusula.desktop.util.AppVersion;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import javafx.scene.layout.HBox;
-import javafx.scene.control.Label;
-import javafx.geometry.Pos;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
+import javafx.scene.control.ProgressBar;
+import javafx.stage.StageStyle;
+import java.nio.file.Path;
+import java.util.Optional;
 
 public class LoginController {
     @FXML
@@ -47,6 +52,12 @@ public class LoginController {
 
     @FXML
     private VBox alertContainer;
+
+    @FXML
+    private BorderPane loginRoot;
+
+    @FXML
+    private Label appVersionLabel;
 
     @FXML
     public void initialize() {
@@ -67,6 +78,10 @@ public class LoginController {
             KeyboardShortcutHelper.enterToSubmit(passwordField, loginButton);
         }
 
+        if (appVersionLabel != null) {
+            appVersionLabel.setText("v" + AppVersion.get());
+        }
+
         checkForUpdates();
     }
 
@@ -77,8 +92,7 @@ public class LoginController {
             public void onResponse(Call<UpdateInfoDTO> call, Response<UpdateInfoDTO> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     UpdateInfoDTO dto = response.body();
-                    String currentVersion = "3.0.0"; // Placeholder for current app version
-                    if (dto.getLatestVersion() != null && dto.getLatestVersion().compareTo(currentVersion) > 0) {
+                    if (dto.getLatestVersion() != null && AppVersion.isRemoteNewer(dto.getLatestVersion())) {
                         Platform.runLater(() -> showUpdateBanner(dto));
                     }
                 }
@@ -94,42 +108,112 @@ public class LoginController {
     private void showUpdateBanner(UpdateInfoDTO dto) {
         if (alertContainer == null) return;
         alertContainer.getChildren().clear();
+        alertContainer.setMaxWidth(Double.MAX_VALUE);
 
-        HBox banner = new HBox(15);
-        banner.getStyleClass().add("update-banner-modern");
-        banner.setAlignment(Pos.CENTER_LEFT);
+        VBox banner = UpdateUiHelper.createUpdateBanner(
+                dto,
+                () -> startInAppUpdate(dto),
+                () -> openBrowserDownload(dto));
 
-        Label iconLabel = new Label("✨");
-        iconLabel.setStyle("-fx-font-size: 24px;");
+        banner.maxWidthProperty().bind(
+                Bindings.min(440, alertContainer.widthProperty()));
+        banner.prefWidthProperty().bind(banner.maxWidthProperty());
 
-        VBox textVBox = new VBox(2);
-        Label titleLabel = new Label("Yeni Güncelleme Mevcut! (" + dto.getLatestVersion() + ")");
-        titleLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: white; -fx-font-size: 14px;");
-        Label descLabel = new Label(dto.getReleaseNotes() != null ? dto.getReleaseNotes() : "Daha iyi bir deneyim için uygulamayı güncelleyin.");
-        descLabel.setStyle("-fx-text-fill: rgba(255,255,255,0.9); -fx-font-size: 12px;");
-        textVBox.getChildren().addAll(titleLabel, descLabel);
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Button downloadBtn = new Button("Hemen İndir");
-        downloadBtn.getStyleClass().add("update-btn");
-        downloadBtn.setOnAction(e -> {
-            try {
-                if (dto.getDownloadUrl() != null) {
-                    java.awt.Desktop.getDesktop().browse(new java.net.URI(dto.getDownloadUrl()));
-                }
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        });
-
-        banner.getChildren().addAll(iconLabel, textVBox, spacer, downloadBtn);
         alertContainer.getChildren().add(banner);
         alertContainer.setVisible(true);
         alertContainer.setManaged(true);
 
         AnimationHelper.fadeInUp(alertContainer, 300);
+    }
+
+    private void openBrowserDownload(UpdateInfoDTO dto) {
+        try {
+            if (dto.getDownloadUrl() != null) {
+                java.awt.Desktop.getDesktop().browse(new java.net.URI(dto.getDownloadUrl()));
+            }
+        } catch (Exception ex) {
+            NotificationHelper.showError("İndirme bağlantısı açılamadı: " + ex.getMessage());
+        }
+    }
+
+    private void startInAppUpdate(UpdateInfoDTO dto) {
+        if (dto.getDownloadUrl() == null || dto.getDownloadUrl().isBlank()) {
+            NotificationHelper.showError("Güncelleme adresi tanımlı değil.");
+            return;
+        }
+
+        if (!UpdateService.isRunningFromNativePackage()) {
+            NotificationHelper.showError("Uygulama içi güncelleme yalnızca kurulu MSI sürümünde çalışır.");
+            openBrowserDownload(dto);
+            return;
+        }
+
+        Optional<Path> exePath = UpdateService.resolveInstalledExePath();
+        if (exePath.isEmpty()) {
+            NotificationHelper.showError("Kurulum yolu bulunamadı.");
+            return;
+        }
+
+        if (!UpdateUiHelper.showUpdateConfirmation(
+                usernameField != null && usernameField.getScene() != null
+                        ? (Stage) usernameField.getScene().getWindow()
+                        : null,
+                dto.getLatestVersion())) {
+            return;
+        }
+
+        Stage progressStage = new Stage(StageStyle.UTILITY);
+        Stage owner = usernameField != null && usernameField.getScene() != null
+                ? (Stage) usernameField.getScene().getWindow()
+                : null;
+        if (owner != null) {
+            progressStage.initOwner(owner);
+        }
+        progressStage.setTitle("Güncelleniyor");
+        progressStage.setResizable(false);
+
+        Label statusLabel = new Label("Güncelleme indiriliyor...");
+        ProgressBar progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(360);
+        progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+
+        VBox progressRoot = new VBox(12, statusLabel, progressBar);
+        progressRoot.setStyle("-fx-padding: 20;");
+        progressStage.setScene(ThemeHelper.createDialogScene(progressRoot, 420, 120));
+        progressStage.show();
+
+        Thread downloadThread = new Thread(() -> {
+            try {
+                Path msiPath = UpdateService.downloadMsi(dto.getDownloadUrl(), (downloaded, total) ->
+                        Platform.runLater(() -> {
+                            if (total > 0) {
+                                progressBar.setProgress((double) downloaded / total);
+                                statusLabel.setText("İndiriliyor… %d%%".formatted(Math.min(100, (int) ((downloaded * 100) / total))));
+                            } else {
+                                progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
+                            }
+                        }));
+
+                Platform.runLater(() -> {
+                    statusLabel.setText("Kurulum başlatılıyor…");
+                    progressBar.setProgress(1);
+                });
+
+                UpdateService.launchInstallerAndExit(msiPath, exePath.get());
+
+                Platform.runLater(() -> {
+                    progressStage.close();
+                    Platform.exit();
+                });
+            } catch (Exception ex) {
+                Platform.runLater(() -> {
+                    progressStage.close();
+                    NotificationHelper.showError("Güncelleme başarısız: " + ex.getMessage());
+                });
+            }
+        }, "pusula-update-download");
+        downloadThread.setDaemon(true);
+        downloadThread.start();
     }
 
     @FXML

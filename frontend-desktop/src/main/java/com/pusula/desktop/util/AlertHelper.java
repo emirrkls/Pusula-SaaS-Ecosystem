@@ -16,10 +16,17 @@ public class AlertHelper {
     }
 
     public static boolean showConfirmation(String title, String message) {
+        return showConfirmation(null, title, message);
+    }
+
+    public static boolean showConfirmation(Window owner, String title, String message) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
+        if (owner != null) {
+            alert.initOwner(owner);
+        }
         return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
     }
 }

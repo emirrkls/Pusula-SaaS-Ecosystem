@@ -22,15 +22,21 @@
                   <Label styleClass="login-feature-item" text="✓  Finans ve raporlama modülleri" />
                </children>
             </VBox>
+            <VBox styleClass="login-brand-contact">
+               <children>
+                  <Label styleClass="login-brand-contact-title" text="İletişim" />
+                  <Label styleClass="login-brand-contact-email" text="emirrkeles@gmail.com" />
+               </children>
+            </VBox>
          </children>
       </VBox>
    </left>
    <center>
-      <VBox alignment="CENTER" styleClass="login-form-panel" BorderPane.alignment="CENTER">
+      <VBox alignment="TOP_CENTER" styleClass="login-form-panel" BorderPane.alignment="CENTER">
          <children>
+            <VBox fx:id="alertContainer" managed="false" spacing="0.0" visible="false" styleClass="update-banner-container" />
             <VBox fx:id="loginForm" alignment="CENTER_LEFT" spacing="18.0" styleClass="login-form-card">
                <children>
-                  <VBox fx:id="alertContainer" managed="false" spacing="10.0" visible="false" styleClass="alert-banner" />
 
                   <VBox spacing="6.0">
                      <children>
@@ -58,6 +64,7 @@
 
                   <Button fx:id="loginButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleLogin" styleClass="login-primary-button" text="%login.button" />
                   <Label fx:id="messageLabel" styleClass="label-muted" />
+                  <Label fx:id="appVersionLabel" styleClass="login-version-tag" text="v0.0.0" />
                </children>
             </VBox>
          </children>
