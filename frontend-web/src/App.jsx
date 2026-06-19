@@ -10,6 +10,7 @@ import Contact from './pages/Contact';
 import Support from './pages/Support';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfUse from './pages/TermsOfUse';
+import ServiceLandingPage from './pages/landings/ServiceLandingPage';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -29,6 +30,9 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/hizmetler" element={<Services />} />
+            <Route path="/didim-klima-tamiri" element={<ServiceLandingPage pageKey="tamiri" />} />
+            <Route path="/didim-klima-bakimi" element={<ServiceLandingPage pageKey="bakimi" />} />
+            <Route path="/didim-klima-montaji" element={<ServiceLandingPage pageKey="montaji" />} />
             <Route path="/hakkimizda" element={<About />} />
             <Route path="/iletisim" element={<Contact />} />
             <Route path="/destek" element={<Support />} />

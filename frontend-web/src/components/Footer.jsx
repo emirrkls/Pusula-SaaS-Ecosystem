@@ -49,10 +49,10 @@ const Footer = () => {
                     <div>
                         <h3 className="text-lg font-semibold mb-6 border-l-4 border-brand-cyan pl-3">Hizmetler</h3>
                         <ul className="space-y-3 text-gray-400">
-                            <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">Klima Bakım & Onarım</Link></li>
-                            <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">VRF Sistemleri</Link></li>
-                            <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">Isı Pompası</Link></li>
-                            <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">Güneş Enerjisi</Link></li>
+                            <li><Link to="/didim-klima-tamiri" className="hover:text-brand-cyan transition-colors">Didim Klima Tamiri</Link></li>
+                            <li><Link to="/didim-klima-bakimi" className="hover:text-brand-cyan transition-colors">Didim Klima Bakımı</Link></li>
+                            <li><Link to="/didim-klima-montaji" className="hover:text-brand-cyan transition-colors">Didim Klima Montajı</Link></li>
+                            <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">VRF & Isı Pompası</Link></li>
                         </ul>
                     </div>
 
