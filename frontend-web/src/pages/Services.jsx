@@ -90,7 +90,7 @@ const Services = () => {
                 <div className="container mx-auto px-4">
                     <h1 className="text-4xl font-bold mb-4">Hizmetlerimiz</h1>
                     <p className="text-gray-300 max-w-2xl mx-auto">
-                        İhtiyacınıza uygun, profesyonel ve garantili iklimlendirme çözümleri.
+                        Didim ve Aydın'da klima tamiri, bakımı ve montajında güvenilir çözüm ortağınız.
                     </p>
                 </div>
             </div>

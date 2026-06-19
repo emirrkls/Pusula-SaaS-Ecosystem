@@ -5,7 +5,7 @@ import { ArrowRight, ShieldCheck, Clock, Wallet, ChevronRight } from 'lucide-rea
 
 const Home = () => {
     useEffect(() => {
-        document.title = 'Pusula İklimlendirme - Didim Klima Servisi, Montaj ve Bakım | Aydın';
+        document.title = 'Pusula İklimlendirme - Didim\'de Klima Tamiri, Bakım ve Montaj | Aydın';
     }, []);
     const features = [
         {
@@ -37,32 +37,32 @@ const Home = () => {
         {
             title: "Split Klima",
             image: "/assets/img/service-1.jpg",
-            desc: "Ev ve ofisleriniz için en verimli split klima çözümleri."
+            desc: "Didim'de ev ve ofisler için split klima montajı, tamiri ve gaz dolumu."
         },
         {
             title: "VRF Sistemleri",
             image: "/assets/img/service-2.jpg",
-            desc: "Büyük ölçekli binalar için merkezi iklimlendirme sistemleri."
+            desc: "Otel ve plaza projelerinde VRF klima kurulumu ve bakım hizmeti."
         },
         {
             title: "Isı Pompası",
             image: "/assets/img/service-3.jpg",
-            desc: "Yenilenebilir enerji ile ekonomik ısıtma ve soğutma çözümleri."
+            desc: "Aydın genelinde ısı pompası montajı ve arıza onarımı."
         },
         {
             title: "Montaj & Keşif",
             image: "/assets/img/service-4.jpg",
-            desc: "Profesyonel ekiplerimizle ücretsiz keşif ve güvenli montaj."
+            desc: "Ücretsiz keşif ile güvenli klima montajı ve borulama."
         },
         {
             title: "Güneş Enerjisi",
             image: "/assets/img/service-5.jpg",
-            desc: "Fotovoltaik panel sistemleri ile temiz ve ücretsiz enerji."
+            desc: "Fotovoltaik panel kurulumu ile enerji maliyetlerinizi düşürün."
         },
         {
             title: "Soğuk Hava Deposu",
             image: "/assets/img/service-6.jpg",
-            desc: "Ticari soğuk hava depoları için bakım, onarım ve montaj."
+            desc: "Ticari soğutma sistemlerinde bakım, tamir ve montaj."
         }
     ];
 
@@ -93,9 +93,10 @@ const Home = () => {
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.2 }}
-                        className="text-xl md:text-2xl text-gray-200 mb-10 max-w-2xl mx-auto font-light"
+                        className="text-xl md:text-2xl text-gray-200 mb-10 max-w-3xl mx-auto font-light"
                     >
-                        İklimlendirme çözümlerinde uzman kadro, son teknoloji ve güvenilir hizmet.
+                        Didim ve Aydın'da klima tamiri, periyodik bakım ve profesyonel montaj.
+                        Split klima, VRF ve ısı pompasında 7/24 güvenilir teknik servis.
                     </motion.p>
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
@@ -140,7 +141,7 @@ const Home = () => {
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-16">
                         <span className="text-brand-cyan font-bold tracking-wider uppercase text-sm">Hizmetlerimiz</span>
-                        <h2 className="text-4xl font-bold text-brand-dark mt-2">Neler Yapıyoruz?</h2>
+                        <h2 className="text-4xl font-bold text-brand-dark mt-2">Didim ve Aydın'da İklimlendirme Hizmetleri</h2>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

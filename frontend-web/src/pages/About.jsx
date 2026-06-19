@@ -39,7 +39,7 @@ const About = () => {
                     <div>
                         <h2 className="text-3xl font-bold text-brand-dark mb-6">Hikayemiz</h2>
                         <p className="text-gray-600 leading-relaxed mb-4">
-                            Pusula İklimlendirme olarak, 10 yılı aşkın süredir İstanbul genelinde kurumsal ve bireysel müşterilerimize hizmet vermekteyiz. Küçük bir teknik servis olarak başladığımız bu yolculukta, bugün geniş araç filomuz ve uzman kadromuzla sektörün öncü firmalarından biri haline geldik.
+                            Pusula İklimlendirme olarak, 10 yılı aşkın süredir Didim, Aydın ve çevre ilçelerde kurumsal ve bireysel müşterilerimize hizmet vermekteyiz. Küçük bir teknik servis olarak başladığımız bu yolculukta, bugün geniş araç filomuz ve uzman kadromuzla bölgenin güvenilir iklimlendirme firmalarından biri haline geldik.
                         </p>
                         <p className="text-gray-600 leading-relaxed">
                             Amacımız sadece arızaları gidermek değil, yaşam alanlarınızın konforunu artıracak kalıcı çözümler üretmektir. Teknolojiyi yakından takip ediyor, ekibimizi sürekli eğitiyoruz.
