@@ -148,7 +148,7 @@ const ServiceLandingPage = ({ pageKey }) => {
             <div className="bg-brand-cyan py-16">
                 <div className="container mx-auto px-4 text-center">
                     <h2 className="text-3xl font-bold text-white mb-4">
-                        Didim'de Klimanız İçin Yanınızdayız
+                        {page.ctaHeading || "Didim'de Klimanız İçin Yanınızdayız"}
                     </h2>
                     <p className="text-white/90 mb-6 max-w-xl mx-auto">
                         Diğer hizmetlerimizi de inceleyin veya hemen randevu oluşturun.

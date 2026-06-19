@@ -6,7 +6,7 @@ const Footer = () => {
     return (
         <footer className="bg-brand-dark text-white pt-16 pb-8">
             <div className="container mx-auto px-4 md:px-8">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
                     {/* Brand Info */}
                     <div className="space-y-4">
                         <div className="flex items-center">
@@ -53,6 +53,16 @@ const Footer = () => {
                             <li><Link to="/didim-klima-bakimi" className="hover:text-brand-cyan transition-colors">Didim Klima Bakımı</Link></li>
                             <li><Link to="/didim-klima-montaji" className="hover:text-brand-cyan transition-colors">Didim Klima Montajı</Link></li>
                             <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">VRF & Isı Pompası</Link></li>
+                        </ul>
+                    </div>
+
+                    {/* Service Areas */}
+                    <div>
+                        <h3 className="text-lg font-semibold mb-6 border-l-4 border-brand-cyan pl-3">Hizmet Bölgeleri</h3>
+                        <ul className="space-y-3 text-gray-400">
+                            <li><Link to="/altinkum-klima-servisi" className="hover:text-brand-cyan transition-colors">Altınkum Klima Servisi</Link></li>
+                            <li><Link to="/akbuk-klima-servisi" className="hover:text-brand-cyan transition-colors">Akbük Klima Servisi</Link></li>
+                            <li><Link to="/bozbuk-klima-servisi" className="hover:text-brand-cyan transition-colors">Bozbük Klima Servisi</Link></li>
                         </ul>
                     </div>
 

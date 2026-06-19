@@ -116,6 +116,126 @@ export const landingPages = {
         ],
         related: ['tamiri', 'bakimi'],
     },
+    altinkum: {
+        slug: 'altinkum-klima-servisi',
+        title: 'Altınkum Klima Servisi | Tamiri, Bakım & Montaj | Pusula Didim',
+        h1: 'Altınkum Klima Servisi',
+        subtitle: 'Altınkum ve sahil bölgesinde klima tamiri, bakımı ve montajı — aynı gün servis.',
+        ctaHeading: 'Altınkum\'da Klimanız İçin Yanınızdayız',
+        intro: [
+            'Altınkum, Didim\'in en yoğun konut ve tatil bölgelerinden biri. Yazlık daireler, apart oteller ve sahil şeridindeki işletmelerde split klima sistemleri yıl boyunca yoğun kullanılıyor. Pusula İklimlendirme olarak Altınkum\'da klima tamiri, periyodik bakım ve yeni cihaz montajı hizmeti sunuyoruz.',
+            'Didim merkezdeki atölyemizden hareket eden mobil servis ekibimiz Altınkum\'a düzenli olarak çıkış yapıyor. Sezon öncesi bakım, acil arıza müdahalesi veya yeni klima kurulumu için bizi aramanız yeterli.',
+        ],
+        features: [
+            'Altınkum\'da aynı gün klima tamiri',
+            'Yazlık ve apart daire bakım paketleri',
+            'Split klima montajı ve gaz dolumu',
+            'Otel ve restoran VRF servisi',
+            'Sezon öncesi toplu bakım anlaşmaları',
+            '7/24 acil arıza hattı',
+        ],
+        steps: [
+            { title: 'Bize ulaşın', desc: 'Altınkum adresinizi ve arıza/bakım ihtiyacınızı telefon veya form ile bildirin.' },
+            { title: 'Randevu planlama', desc: 'Altınkum hattımıza uygun gün ve saatte randevu oluşturulur.' },
+            { title: 'Yerinde servis', desc: 'Teknisyenimiz adresinize gelir, işlemi yerinde tamamlar.' },
+            { title: 'Garantili teslim', desc: 'Cihaz test edilir, parça ve işçilik garantisi verilir.' },
+        ],
+        faqs: [
+            {
+                q: 'Altınkum\'a servis ne kadar sürede gelir?',
+                a: 'Altınkum Didim merkeze yakın olduğu için çoğu talebe aynı gün müdahale ediyoruz. Acil arızalarda öncelikli yönlendirme yapılır.',
+            },
+            {
+                q: 'Yazlık dairem için sezonluk bakım yapıyor musunuz?',
+                a: 'Evet. Yaz sezonu öncesi Altınkum\'daki yazlıklar için filtre temizliği, gaz kontrolü ve genel bakım paketi sunuyoruz.',
+            },
+            {
+                q: 'Hangi hizmetleri veriyorsunuz?',
+                a: 'Klima tamiri, periyodik bakım, montaj, gaz dolumu ve VRF sistem servisi. Detaylar için Didim hizmet sayfalarımıza göz atabilirsiniz.',
+            },
+        ],
+        related: ['tamiri', 'bakimi', 'montaji', 'akbuk', 'bozbuk'],
+    },
+    akbuk: {
+        slug: 'akbuk-klima-servisi',
+        title: 'Akbük Klima Servisi | Didim Merkeze Uzak Bölgeler | Pusula',
+        h1: 'Akbük Klima Servisi',
+        subtitle: 'Didim merkeze uzak Akbük\'te klima tamiri, bakımı ve montajı — adresinize geliyoruz.',
+        ctaHeading: 'Akbük\'te Klimanız İçin Yanınızdayız',
+        intro: [
+            'Akbük, Didim merkeze yaklaşık 20 km mesafede, sakin koyları ve yazlık siteleriyle bilinen bir bölge. Merkeze uzaklık nedeniyle birçok tüketici Akbük\'te güvenilir klima servisi bulmakta zorlanıyor — Pusula İklimlendirme bu boşluğu dolduruyor.',
+            'Mobil servis araçlarımızla Akbük\'e düzenli çıkış yapıyoruz. Yazlık siteleri, villalar ve apart konutlarda split klima tamiri, bakımı ve montajı gerçekleştiriyoruz. Didim merkezdeki firmaların çoğu Akbük\'e servis vermezken biz bölgeyi aktif hizmet alanımız olarak kapsıyoruz.',
+        ],
+        features: [
+            'Akbük\'e mobil servis — adresinize geliyoruz',
+            'Didim merkeze uzak bölgelerde aktif hizmet',
+            'Yazlık site ve villa klima bakımı',
+            'Acil arıza müdahalesi',
+            'Split klima montajı ve gaz dolumu',
+            'Randevulu ve planlı servis çıkışları',
+        ],
+        steps: [
+            { title: 'Talep oluşturun', desc: 'Akbük\'teki adresinizi ve ihtiyacınızı bize iletin.' },
+            { title: 'Randevu onayı', desc: 'Akbük servis planımıza göre size en yakın gün belirlenir.' },
+            { title: 'Mobil ekip yönlendirme', desc: 'Didim\'den hareket eden teknisyen ekibimiz Akbük\'e gelir.' },
+            { title: 'Yerinde çözüm', desc: 'Tamir, bakım veya montaj adresinizde tamamlanır.' },
+        ],
+        faqs: [
+            {
+                q: 'Akbük\'e gerçekten servis geliyor mu?',
+                a: 'Evet. Akbük, aktif hizmet verdiğimiz mahallelerden biridir. Haftalık planlı çıkışlarımız ve acil talepler için ayrı yönlendirmelerimiz vardır.',
+            },
+            {
+                q: 'Didim merkezdeki servisler Akbük\'e neden gelmiyor?',
+                a: 'Mesafe ve lojistik maliyet nedeniyle birçok firma yalnızca merkezde hizmet verir. Pusula olarak Akbük ve Bozbük dahil tüm Didim yarımadasını kapsıyoruz.',
+            },
+            {
+                q: 'Akbük\'te montaj da yapıyor musunuz?',
+                a: 'Evet. Yeni split klima montajı için ücretsiz keşif sonrası Akbük\'te kurulum gerçekleştiriyoruz.',
+            },
+        ],
+        related: ['tamiri', 'bakimi', 'montaji', 'altinkum', 'bozbuk'],
+    },
+    bozbuk: {
+        slug: 'bozbuk-klima-servisi',
+        title: 'Bozbük Klima Servisi | Uzak Mahallelerde Mobil Servis | Pusula',
+        h1: 'Bozbük Klima Servisi',
+        subtitle: 'Didim\'in en uzak mahallelerinden Bozbük\'te klima tamiri, bakımı ve montajı.',
+        ctaHeading: 'Bozbük\'te Klimanız İçin Yanınızdayız',
+        intro: [
+            'Bozbük, Didim merkeze en uzak mahallelerden biri. Sakin yapısı ve doğayla iç içe konumuyla tercih edilen bu bölgede klima servisi bulmak özellikle zor — en yakın servis genellikle Didim merkezde kalıyor.',
+            'Pusula İklimlendirme olarak Bozbük\'e mobil servis hizmeti sunuyoruz. Yazlık evler, villalar ve küçük işletmelerde klima arızası, sezonluk bakım ve yeni cihaz montajı için adresinize geliyoruz. Uzak mahalle olmanız servis almanıza engel değil.',
+        ],
+        features: [
+            'Bozbük\'e özel mobil servis çıkışları',
+            'Uzak mahallelerde yerinde tamir ve bakım',
+            'Villa ve yazlık klima montajı',
+            'Sezon öncesi bakım randevusu',
+            'Acil arıza desteği',
+            'Didim genelinde tek muhatap — merkeze gitmenize gerek yok',
+        ],
+        steps: [
+            { title: 'İletişime geçin', desc: 'Bozbük\'teki konumunuzu ve talebinizi paylaşın.' },
+            { title: 'Planlı randevu', desc: 'Bozbük servis rotamıza göre uygun tarih belirlenir.' },
+            { title: 'Adresinize geliyoruz', desc: 'Mobil ekibimiz Bozbük\'e gelerek işlemi yerinde yapar.' },
+            { title: 'Garantili hizmet', desc: 'Tüm onarım ve bakım işlemleri garanti kapsamındadır.' },
+        ],
+        faqs: [
+            {
+                q: 'Bozbük\'e servis ücreti daha mı pahalı?',
+                a: 'Mesafe farkı nedeniyle bazı işlemlerde lojistik ücreti uygulanabilir. Arama sırasında net fiyat bilgisi verilir, sürpriz maliyet olmaz.',
+            },
+            {
+                q: 'Bozbük\'te ne sıklıkla servis çıkışı yapıyorsunuz?',
+                a: 'Talep yoğunluğuna göre haftalık planlı çıkışlarımız vardır. Acil arızalarda mümkün olan en kısa sürede yönlendirme yapılır.',
+            },
+            {
+                q: 'Hangi klima markalarına bakıyorsunuz?',
+                a: 'Daikin, Mitsubishi, Arçelik, Vestel, Bosch ve diğer tüm marka split, salon ve ticari klimalara Bozbük\'te yerinde servis veriyoruz.',
+            },
+        ],
+        related: ['tamiri', 'bakimi', 'montaji', 'altinkum', 'akbuk'],
+    },
 };
 
 export const getLandingBySlug = (slug) =>
