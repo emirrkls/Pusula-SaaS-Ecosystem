@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, ShieldCheck, Clock, Wallet, ChevronRight } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
 import { DEFAULT_DESCRIPTION } from '../seo/constants';
+import { AuthorizedBrandsSection } from '../components/AuthorizedBrandsSection';
 
 const Home = () => {
     const features = [
@@ -100,8 +101,8 @@ const Home = () => {
                         transition={{ duration: 0.8, delay: 0.2 }}
                         className="text-xl md:text-2xl text-gray-200 mb-10 max-w-3xl mx-auto font-light"
                     >
-                        Didim ve Aydın'da klima tamiri, periyodik bakım ve profesyonel montaj.
-                        Split klima, VRF ve ısı pompasında 7/24 güvenilir teknik servis.
+                        Didim ve Aydın'da klima tamiri, bakım ve montaj.
+                        Hisense, Üntes, Nibe, LG ve Solimpeks yetkili bayi & servis — 7/24 teknik destek.
                     </motion.p>
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
@@ -140,6 +141,8 @@ const Home = () => {
                     ))}
                 </div>
             </section>
+
+            <AuthorizedBrandsSection />
 
             {/* Services Preview */}
             <section className="py-20 bg-white">

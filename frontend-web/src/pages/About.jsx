@@ -2,13 +2,15 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Users, Target, Award } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
+import { AuthorizedBrandsSection } from '../components/AuthorizedBrandsSection';
+import { AUTHORIZED_BRANDS_SUMMARY } from '../data/authorizedBrands';
 
 const About = () => {
     return (
         <>
             <PageSeo
                 title="Hakkımızda - Didim'in Güvenilir İklimlendirme Firması | Pusula İklimlendirme"
-                description="2010'dan beri Didim ve Aydın'da iklimlendirme hizmeti. Pusula İklimlendirme — uzman kadro, garantili işçilik, split klima, VRF ve ısı pompası servisi."
+                description="2010'dan beri Didim ve Aydın'da iklimlendirme hizmeti. Hisense, Üntes yetkili bayi; Nibe, LG monoblok ve Solimpeks ısı pompası yetkili servis."
                 path="/hakkimizda"
                 breadcrumbs={[
                     { name: 'Ana Sayfa', path: '/' },
@@ -48,8 +50,12 @@ const About = () => {
                         <p className="text-gray-600 leading-relaxed mb-4">
                             Pusula İklimlendirme olarak, 10 yılı aşkın süredir Didim, Aydın ve çevre ilçelerde kurumsal ve bireysel müşterilerimize hizmet vermekteyiz. Küçük bir teknik servis olarak başladığımız bu yolculukta, bugün geniş araç filomuz ve uzman kadromuzla bölgenin güvenilir iklimlendirme firmalarından biri haline geldik.
                         </p>
-                        <p className="text-gray-600 leading-relaxed">
+                        <p className="text-gray-600 leading-relaxed mb-4">
                             Amacımız sadece arızaları gidermek değil, yaşam alanlarınızın konforunu artıracak kalıcı çözümler üretmektir. Teknolojiyi yakından takip ediyor, ekibimizi sürekli eğitiyoruz.
+                        </p>
+                        <p className="text-gray-600 leading-relaxed">
+                            {AUTHORIZED_BRANDS_SUMMARY} Yetkili bayi ve servis statümüz sayesinde satış, montaj
+                            ve arıza müdahalelerinde orijinal parça ve üretici standartlarında hizmet sunuyoruz.
                         </p>
                     </div>
                     {/* ABOUT US IMAGES - Place your images in: public/assets/img/ */}
@@ -96,6 +102,8 @@ const About = () => {
                         </p>
                     </div>
                 </div>
+
+                <AuthorizedBrandsSection variant="dark" />
 
                 {/* Team Section */}
                 {/* TEAM MEMBER PHOTOS - Place images at: public/assets/img/team-1.jpg, team-2.jpg, etc. */}

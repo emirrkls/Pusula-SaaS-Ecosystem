@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, CheckCircle } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
+import { AUTHORIZED_BRANDS_FAQ_ANSWER } from '../data/authorizedBrands';
 
 const Services = () => {
     /**
@@ -16,8 +17,8 @@ const Services = () => {
         {
             id: "split-klima",
             title: "Split Klima Sistemleri",
-            desc: "Ev ve küçük ofisler için ideal iklimlendirme çözümü. Enerji tasarruflu, sessiz ve yüksek performanslı split klimaların satışı, montajı ve bakımı konusunda uzmanız.",
-            features: ["Yüksek Enerji Verimliliği (A++)", "Sessiz Çalışma Modu", "Hızlı Soğutma/Isıtma", "5 Yıl Garanti"],
+            desc: "Ev ve küçük ofisler için split klima satışı, montajı ve bakımı. Hisense ve Üntes yetkili bayi ve servis olarak orijinal parça ve garanti kapsamında hizmet veriyoruz.",
+            features: ["Hisense & Üntes Yetkili Bayi", "Yetkili Servis", "Montaj ve Periyodik Bakım", "Tüm Marka Arıza Servisi"],
             image: "/assets/img/service-1.jpg"
         },
         {
@@ -30,8 +31,8 @@ const Services = () => {
         {
             id: "isi-pompasi",
             title: "Isı Pompası Sistemleri",
-            desc: "Yenilenebilir enerji ile ısıtma ve soğutma. Isı pompası sistemleri ile hem çevre dostu hem de ekonomik iklimlendirme çözümleri sunuyoruz.",
-            features: ["Yüksek Enerji Verimliliği", "Düşük Karbon Ayak İzi", "4 Mevsim Kullanım", "Devlet Teşvikleri"],
+            desc: "Nibe, LG monoblok (LG Grubu) ve Solimpeks Grubu ısı pompalarında yetkili bayi ve servis. Satış, montaj, bakım ve arıza onarımında üretici standartlarında çözüm sunuyoruz.",
+            features: ["Nibe Yetkili Bayi & Servis", "LG Monoblok Isı Pompası", "Solimpeks Grubu", "Devlet Teşvikleri"],
             image: "/assets/img/service-3.jpg"
         },
         {
@@ -74,8 +75,8 @@ const Services = () => {
             a: "Yaptığımız tüm parça değişimleri ve işçilik hizmetleri 1 yıl firmamız garantisi altındadır."
         },
         {
-            q: "Hangi markalara hizmet veriyorsunuz?",
-            a: "Daikin, Mitsubishi, Arçelik, Vestel, Bosch başta olmak üzere piyasadaki tüm marka ve modellere teknik servis hizmeti vermekteyiz."
+            q: "Hangi markalarda yetkili bayi veya servissiniz?",
+            a: AUTHORIZED_BRANDS_FAQ_ANSWER
         }
     ];
 
@@ -85,7 +86,7 @@ const Services = () => {
         <>
             <PageSeo
                 title="Hizmetlerimiz - Klima, VRF, Isı Pompası, Güneş Enerjisi | Pusula İklimlendirme Didim"
-                description="Didim'de split klima, VRF, ısı pompası, güneş enerjisi ve soğuk hava deposu hizmetleri. Montaj, bakım, tamir ve periyodik servis — Pusula İklimlendirme."
+                description="Didim'de split klima, ısı pompası, VRF ve montaj hizmetleri. Hisense, Üntes yetkili bayi; Nibe, LG monoblok ve Solimpeks yetkili servis — Pusula İklimlendirme."
                 path="/hizmetler"
                 breadcrumbs={[
                     { name: 'Ana Sayfa', path: '/' },
