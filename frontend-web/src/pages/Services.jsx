@@ -1,18 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, CheckCircle } from 'lucide-react';
-import { usePageSeo } from '../seo/usePageSeo';
+import { PageSeo } from '../seo/PageSeo';
 
 const Services = () => {
-    usePageSeo({
-        title: 'Hizmetlerimiz - Klima, VRF, Isı Pompası, Güneş Enerjisi | Pusula İklimlendirme Didim',
-        description: 'Didim\'de split klima, VRF, ısı pompası, güneş enerjisi ve soğuk hava deposu hizmetleri. Montaj, bakım, tamir ve periyodik servis — Pusula İklimlendirme.',
-        path: '/hizmetler',
-        breadcrumbs: [
-            { name: 'Ana Sayfa', path: '/' },
-            { name: 'Hizmetler', path: '/hizmetler' },
-        ],
-    });
     /**
      * SERVICE DETAIL IMAGES - Place your images in: public/assets/img/
      * These are the same as Home page services:
@@ -91,6 +82,16 @@ const Services = () => {
     const [activeAccordion, setActiveAccordion] = useState(null);
 
     return (
+        <>
+            <PageSeo
+                title="Hizmetlerimiz - Klima, VRF, Isı Pompası, Güneş Enerjisi | Pusula İklimlendirme Didim"
+                description="Didim'de split klima, VRF, ısı pompası, güneş enerjisi ve soğuk hava deposu hizmetleri. Montaj, bakım, tamir ve periyodik servis — Pusula İklimlendirme."
+                path="/hizmetler"
+                breadcrumbs={[
+                    { name: 'Ana Sayfa', path: '/' },
+                    { name: 'Hizmetler', path: '/hizmetler' },
+                ]}
+            />
         <div className="pt-20 bg-gray-50 min-h-screen">
             {/* Header */}
             <div className="bg-brand-dark text-white py-16 text-center">
@@ -177,6 +178,7 @@ const Services = () => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
 

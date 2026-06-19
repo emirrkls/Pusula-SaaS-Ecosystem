@@ -1,20 +1,20 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Users, Target, Award } from 'lucide-react';
-import { usePageSeo } from '../seo/usePageSeo';
+import { PageSeo } from '../seo/PageSeo';
 
 const About = () => {
-    usePageSeo({
-        title: 'Hakkımızda - Didim\'in Güvenilir İklimlendirme Firması | Pusula İklimlendirme',
-        description: '2010\'dan beri Didim ve Aydın\'da iklimlendirme hizmeti. Pusula İklimlendirme — uzman kadro, garantili işçilik, split klima, VRF ve ısı pompası servisi.',
-        path: '/hakkimizda',
-        breadcrumbs: [
-            { name: 'Ana Sayfa', path: '/' },
-            { name: 'Hakkımızda', path: '/hakkimizda' },
-        ],
-    });
-
     return (
+        <>
+            <PageSeo
+                title="Hakkımızda - Didim'in Güvenilir İklimlendirme Firması | Pusula İklimlendirme"
+                description="2010'dan beri Didim ve Aydın'da iklimlendirme hizmeti. Pusula İklimlendirme — uzman kadro, garantili işçilik, split klima, VRF ve ısı pompası servisi."
+                path="/hakkimizda"
+                breadcrumbs={[
+                    { name: 'Ana Sayfa', path: '/' },
+                    { name: 'Hakkımızda', path: '/hakkimizda' },
+                ]}
+            />
         <div className="pt-20 bg-white min-h-screen">
             {/* Hero */}
             {/* ABOUT PAGE HERO BACKGROUND - Place image at: public/assets/img/about-hero-bg.jpg */}
@@ -119,6 +119,7 @@ const About = () => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Phone, Mail, Send, CheckCircle, AlertCircle, Loader2, XCircle } from 'lucide-react';
-import { usePageSeo } from '../seo/usePageSeo';
+import { PageSeo } from '../seo/PageSeo';
 
 // ===== i18n — Türkçe UI Metinleri =====
 const i18n = {
@@ -222,16 +222,6 @@ const Toast = ({ type, title, message, onClose }) => {
 
 // ===== Ana Contact Bileşeni =====
 const Contact = () => {
-    usePageSeo({
-        title: i18n.pageTitle,
-        description: i18n.pageDescription,
-        path: '/iletisim',
-        breadcrumbs: [
-            { name: 'Ana Sayfa', path: '/' },
-            { name: 'İletişim', path: '/iletisim' },
-        ],
-    });
-
     // Form durumu
     const [formData, setFormData] = useState({
         name: '',
@@ -385,6 +375,16 @@ const Contact = () => {
     }
 
     return (
+        <>
+            <PageSeo
+                title={i18n.pageTitle}
+                description={i18n.pageDescription}
+                path="/iletisim"
+                breadcrumbs={[
+                    { name: 'Ana Sayfa', path: '/' },
+                    { name: 'İletişim', path: '/iletisim' },
+                ]}
+            />
         <div className="pt-20 bg-gray-50 min-h-screen">
             {/* Toast Notification */}
             <AnimatePresence>
@@ -621,6 +621,7 @@ const Contact = () => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
 

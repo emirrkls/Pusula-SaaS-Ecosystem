@@ -3,30 +3,28 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, Plus, Minus, Phone, ArrowRight } from 'lucide-react';
 import { landingPages } from './landingPages';
-import { usePageSeo } from '../../seo/usePageSeo';
+import { PageSeo } from '../../seo/PageSeo';
 
 const ServiceLandingPage = ({ pageKey }) => {
     const page = landingPages[pageKey];
     const [activeAccordion, setActiveAccordion] = useState(null);
-
-    usePageSeo({
-        title: page?.title,
-        description: page?.description,
-        path: page ? `/${page.slug}` : '/',
-        faqs: page?.faqs,
-        breadcrumbs: page
-            ? [
-                  { name: 'Ana Sayfa', path: '/' },
-                  { name: page.h1, path: `/${page.slug}` },
-              ]
-            : undefined,
-    });
 
     if (!page) {
         return null;
     }
 
     return (
+        <>
+            <PageSeo
+                title={page.title}
+                description={page.description}
+                path={`/${page.slug}`}
+                faqs={page.faqs}
+                breadcrumbs={[
+                    { name: 'Ana Sayfa', path: '/' },
+                    { name: page.h1, path: `/${page.slug}` },
+                ]}
+            />
         <div className="pt-20 bg-gray-50 min-h-screen">
             {/* Hero */}
             <div className="bg-brand-dark text-white py-16 md:py-20">
@@ -191,6 +189,7 @@ const ServiceLandingPage = ({ pageKey }) => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
 

@@ -1,17 +1,10 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, ShieldCheck, Clock, Wallet, ChevronRight } from 'lucide-react';
-import { usePageSeo } from '../seo/usePageSeo';
+import { PageSeo } from '../seo/PageSeo';
 import { DEFAULT_DESCRIPTION } from '../seo/constants';
 
 const Home = () => {
-    usePageSeo({
-        title: 'Pusula İklimlendirme - Didim\'de Klima Tamiri, Bakım ve Montaj | Aydın',
-        description: DEFAULT_DESCRIPTION,
-        path: '/',
-        breadcrumbs: [{ name: 'Ana Sayfa', path: '/' }],
-    });
     const features = [
         {
             icon: <Clock className="w-8 h-8 text-brand-cyan" />,
@@ -72,6 +65,13 @@ const Home = () => {
     ];
 
     return (
+        <>
+            <PageSeo
+                title="Pusula İklimlendirme - Didim'de Klima Tamiri, Bakım ve Montaj | Aydın"
+                description={DEFAULT_DESCRIPTION}
+                path="/"
+                breadcrumbs={[{ name: 'Ana Sayfa', path: '/' }]}
+            />
         <div className="bg-gray-50">
             {/* Hero Section */}
             {/* HERO BACKGROUND IMAGE - Place your image at: public/assets/img/hero-bg.jpg */}
@@ -195,6 +195,7 @@ const Home = () => {
                 </div>
             </section>
         </div>
+        </>
     );
 };
 

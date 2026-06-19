@@ -22,7 +22,7 @@ const ScrollToTop = () => {
 
 function App() {
   return (
-    <Router>
+    <>
       <ScrollToTop />
       <div className="flex flex-col min-h-screen font-sans text-gray-800 antialiased selection:bg-brand-cyan selection:text-white">
         <Navbar />
@@ -47,7 +47,7 @@ function App() {
         {/* Sticky Contact Buttons - Always visible */}
         <FloatingContactButtons />
       </div>
-    </Router>
+    </>
   );
 }
 
