@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Phone, Mail, Send, CheckCircle, AlertCircle, Loader2, XCircle } from 'lucide-react';
+import { usePageSeo } from '../seo/usePageSeo';
 
 // ===== i18n — Türkçe UI Metinleri =====
 const i18n = {
     pageTitle: 'İletişim - Pusula İklimlendirme Didim | Klima Servisi Randevu',
+    pageDescription: 'Didim ve Aydın\'da klima servisi randevusu ve iletişim. Pusula İklimlendirme — telefon, e-posta ve online servis talep formu. 7/24 acil destek hattı.',
     heading: 'İletişim & Randevu',
     subheading: 'Sorularınız için bize ulaşın veya hemen servis talebi oluşturun.',
     contactInfo: 'İletişim Bilgileri',
@@ -220,9 +222,15 @@ const Toast = ({ type, title, message, onClose }) => {
 
 // ===== Ana Contact Bileşeni =====
 const Contact = () => {
-    useEffect(() => {
-        document.title = i18n.pageTitle;
-    }, []);
+    usePageSeo({
+        title: i18n.pageTitle,
+        description: i18n.pageDescription,
+        path: '/iletisim',
+        breadcrumbs: [
+            { name: 'Ana Sayfa', path: '/' },
+            { name: 'İletişim', path: '/iletisim' },
+        ],
+    });
 
     // Form durumu
     const [formData, setFormData] = useState({

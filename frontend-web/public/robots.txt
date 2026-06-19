@@ -3,8 +3,4 @@
 User-agent: *
 Allow: /
 
-# Sitemap location
 Sitemap: https://www.pusulaiklimlendirme.com/sitemap.xml
-
-# Crawl delay for respectful crawling
-Crawl-delay: 1

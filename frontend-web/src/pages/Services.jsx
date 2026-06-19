@@ -1,11 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, CheckCircle } from 'lucide-react';
+import { usePageSeo } from '../seo/usePageSeo';
 
 const Services = () => {
-    useEffect(() => {
-        document.title = 'Hizmetlerimiz - Klima, VRF, Isı Pompası, Güneş Enerjisi | Pusula İklimlendirme Didim';
-    }, []);
+    usePageSeo({
+        title: 'Hizmetlerimiz - Klima, VRF, Isı Pompası, Güneş Enerjisi | Pusula İklimlendirme Didim',
+        description: 'Didim\'de split klima, VRF, ısı pompası, güneş enerjisi ve soğuk hava deposu hizmetleri. Montaj, bakım, tamir ve periyodik servis — Pusula İklimlendirme.',
+        path: '/hizmetler',
+        breadcrumbs: [
+            { name: 'Ana Sayfa', path: '/' },
+            { name: 'Hizmetler', path: '/hizmetler' },
+        ],
+    });
     /**
      * SERVICE DETAIL IMAGES - Place your images in: public/assets/img/
      * These are the same as Home page services:

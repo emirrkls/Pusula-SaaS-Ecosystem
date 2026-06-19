@@ -1,12 +1,17 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, ShieldCheck, Clock, Wallet, ChevronRight } from 'lucide-react';
+import { usePageSeo } from '../seo/usePageSeo';
+import { DEFAULT_DESCRIPTION } from '../seo/constants';
 
 const Home = () => {
-    useEffect(() => {
-        document.title = 'Pusula İklimlendirme - Didim\'de Klima Tamiri, Bakım ve Montaj | Aydın';
-    }, []);
+    usePageSeo({
+        title: 'Pusula İklimlendirme - Didim\'de Klima Tamiri, Bakım ve Montaj | Aydın',
+        description: DEFAULT_DESCRIPTION,
+        path: '/',
+        breadcrumbs: [{ name: 'Ana Sayfa', path: '/' }],
+    });
     const features = [
         {
             icon: <Clock className="w-8 h-8 text-brand-cyan" />,

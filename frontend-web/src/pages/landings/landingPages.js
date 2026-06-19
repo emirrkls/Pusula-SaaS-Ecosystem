@@ -2,6 +2,7 @@ export const landingPages = {
     tamiri: {
         slug: 'didim-klima-tamiri',
         title: 'Didim Klima Tamiri | 7/24 Arıza Servisi | Pusula İklimlendirme',
+        description: 'Didim ve Aydın\'da split, salon ve ticari klima tamiri. Aynı gün arıza servisi, gaz dolumu, 7/24 acil destek. Pusula İklimlendirme — garantili işçilik.',
         h1: 'Didim Klima Tamiri',
         subtitle: 'Split, salon ve ticari tip klimalarda hızlı arıza tespiti ve garantili onarım.',
         intro: [
@@ -41,6 +42,7 @@ export const landingPages = {
     bakimi: {
         slug: 'didim-klima-bakimi',
         title: 'Didim Klima Bakımı | Periyodik Bakım & Filtre Temizliği | Pusula',
+        description: 'Didim\'de klima bakımı, filtre temizliği ve sezon öncesi servis. Yaz/kış bakım paketleri, gaz kontrolü. Pusula İklimlendirme ile verimli iklimlendirme.',
         h1: 'Didim Klima Bakımı',
         subtitle: 'Yaz ve kış sezonu öncesi periyodik bakım ile verimli ve sağlıklı iklimlendirme.',
         intro: [
@@ -80,6 +82,7 @@ export const landingPages = {
     montaji: {
         slug: 'didim-klima-montaji',
         title: 'Didim Klima Montajı | Ücretsiz Keşif & Profesyonel Kurulum | Pusula',
+        description: 'Didim\'de klima montajı ve split kurulum. Ücretsiz keşif, vakumlu montaj, estetik borulama. Ev, yazlık ve iş yerleri için profesyonel kurulum.',
         h1: 'Didim Klima Montajı',
         subtitle: 'Ücretsiz keşif, vakumlu montaj ve estetik borulama ile güvenli klima kurulumu.',
         intro: [
@@ -119,6 +122,7 @@ export const landingPages = {
     altinkum: {
         slug: 'altinkum-klima-servisi',
         title: 'Altınkum Klima Servisi | Tamiri, Bakım & Montaj | Pusula Didim',
+        description: 'Altınkum\'da klima tamiri, bakımı ve montajı. Yazlık daireler ve sahil bölgesi için aynı gün servis. Pusula İklimlendirme Didim.',
         h1: 'Altınkum Klima Servisi',
         subtitle: 'Altınkum ve sahil bölgesinde klima tamiri, bakımı ve montajı — aynı gün servis.',
         ctaHeading: 'Altınkum\'da Klimanız İçin Yanınızdayız',
@@ -159,6 +163,7 @@ export const landingPages = {
     akbuk: {
         slug: 'akbuk-klima-servisi',
         title: 'Akbük Klima Servisi | Didim Merkeze Uzak Bölgeler | Pusula',
+        description: 'Akbük\'te klima tamiri, bakımı ve montajı. Didim merkeze uzak bölgelere mobil servis — adresinize geliyoruz. Pusula İklimlendirme.',
         h1: 'Akbük Klima Servisi',
         subtitle: 'Didim merkeze uzak Akbük\'te klima tamiri, bakımı ve montajı — adresinize geliyoruz.',
         ctaHeading: 'Akbük\'te Klimanız İçin Yanınızdayız',
@@ -199,6 +204,7 @@ export const landingPages = {
     bozbuk: {
         slug: 'bozbuk-klima-servisi',
         title: 'Bozbük Klima Servisi | Uzak Mahallelerde Mobil Servis | Pusula',
+        description: 'Bozbük\'te klima tamiri, bakımı ve montajı. Didim\'in uzak mahallelerine mobil servis. Villa ve yazlık klimalar için yerinde hizmet.',
         h1: 'Bozbük Klima Servisi',
         subtitle: 'Didim\'in en uzak mahallelerinden Bozbük\'te klima tamiri, bakımı ve montajı.',
         ctaHeading: 'Bozbük\'te Klimanız İçin Yanınızdayız',

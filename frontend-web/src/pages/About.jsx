@@ -1,11 +1,18 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Users, Target, Award } from 'lucide-react';
+import { usePageSeo } from '../seo/usePageSeo';
 
 const About = () => {
-    useEffect(() => {
-        document.title = 'Hakkımızda - Didim\'in Güvenilir İklimlendirme Firması | Pusula İklimlendirme';
-    }, []);
+    usePageSeo({
+        title: 'Hakkımızda - Didim\'in Güvenilir İklimlendirme Firması | Pusula İklimlendirme',
+        description: '2010\'dan beri Didim ve Aydın\'da iklimlendirme hizmeti. Pusula İklimlendirme — uzman kadro, garantili işçilik, split klima, VRF ve ısı pompası servisi.',
+        path: '/hakkimizda',
+        breadcrumbs: [
+            { name: 'Ana Sayfa', path: '/' },
+            { name: 'Hakkımızda', path: '/hakkimizda' },
+        ],
+    });
 
     return (
         <div className="pt-20 bg-white min-h-screen">
@@ -15,7 +22,7 @@ const About = () => {
                 <div className="absolute inset-0 opacity-10">
                     <img
                         src="/assets/img/about-hero-bg.jpg" // TODO: Office/company photo for hero
-                        alt="Office"
+                        alt="Pusula İklimlendirme Didim ofisi — klima servisi merkezi"
                         className="w-full h-full object-cover"
                     />
                 </div>
@@ -49,13 +56,12 @@ const About = () => {
                     <div className="grid grid-cols-2 gap-4">
                         <img
                             src="/assets/img/about-us-1.jpg" // TODO: Technician or team photo
-                            alt="Technician"
+                            alt="Didim'de klima tamiri yapan Pusula İklimlendirme teknisyeni"
                             className="rounded-xl shadow-lg w-full h-64 object-cover mt-8"
                         />
                         <img
                             src="/assets/img/about-us-2.jpg" // TODO: Office or workspace photo
-                            alt="Office"
-                            className="rounded-xl shadow-lg w-full h-64 object-cover"
+                            alt="Pusula İklimlendirme Didim servis merkezi ve atölye"
                         />
                     </div>
                 </div>
@@ -101,7 +107,7 @@ const About = () => {
                                 <div className="relative overflow-hidden rounded-xl mb-4 aspect-square">
                                     <img
                                         src={`/assets/img/team-${item}.jpg`} // TODO: Team member photo #${item}
-                                        alt="Team Member"
+                                        alt={`Pusula İklimlendirme klima servisi teknisyeni ${item}`}
                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                     />
                                 </div>

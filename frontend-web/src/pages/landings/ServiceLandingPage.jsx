@@ -1,18 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, Plus, Minus, Phone, ArrowRight } from 'lucide-react';
 import { landingPages } from './landingPages';
+import { usePageSeo } from '../../seo/usePageSeo';
 
 const ServiceLandingPage = ({ pageKey }) => {
     const page = landingPages[pageKey];
     const [activeAccordion, setActiveAccordion] = useState(null);
 
-    useEffect(() => {
-        if (page) {
-            document.title = page.title;
-        }
-    }, [page]);
+    usePageSeo({
+        title: page?.title,
+        description: page?.description,
+        path: page ? `/${page.slug}` : '/',
+        faqs: page?.faqs,
+        breadcrumbs: page
+            ? [
+                  { name: 'Ana Sayfa', path: '/' },
+                  { name: page.h1, path: `/${page.slug}` },
+              ]
+            : undefined,
+    });
 
     if (!page) {
         return null;
