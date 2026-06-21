@@ -31,14 +31,23 @@ export const AUTHORIZED_BRANDS = [
     {
         name: 'Solimpeks',
         logo: `${AUTHORIZED_BRAND_LOGOS}/solimpeks.webp`,
-        category: 'Isı pompası',
-        detail: 'Solimpeks Grubu ısı pompaları',
+        category: 'Isı pompası & Güneş enerjisi',
+        detail: 'Solimpeks Grubu ısı pompası ve fotovoltaik panel',
         roles: ['Yetkili bayi', 'Yetkili servis'],
     },
 ];
+
+export const SOLAR_ENERGY_BRANDS = {
+    panels: ['Solimpeks Grubu', 'Panasonic Grubu'],
+    inverters: ['Kopp Grubu'],
+    batteries: ['Kopp Grubu'],
+};
+
+export const SOLAR_ENERGY_SUMMARY =
+    'Solimpeks ve Panasonic Grubu fotovoltaik panel; Kopp Grubu inverter ve batarya sistemleri.';
 
 export const AUTHORIZED_BRANDS_SUMMARY =
     'Hisense klima; Üntes VRF ve ısı pompası; Nibe, LG monoblok ve Solimpeks ısı pompalarında yetkili bayi ve servis.';
 
 export const AUTHORIZED_BRANDS_FAQ_ANSWER =
-    'Hisense klima yetkili bayi ve servisimiz. Üntes Grubu VRF ve ısı pompalarında; Nibe, LG monoblok (LG Grubu) ve Solimpeks Grubu ısı pompalarında yetkili bayi ve servis hizmeti sunuyoruz. Diğer marka klimalara da genel teknik servis veriyoruz.';
+    'Hisense klima yetkili bayi ve servisimiz. Üntes Grubu VRF ve ısı pompalarında; Nibe, LG monoblok (LG Grubu) ve Solimpeks Grubu ısı pompalarında yetkili bayi ve servis hizmeti sunuyoruz. Güneş enerjisi sistemlerinde Solimpeks ve Panasonic Grubu fotovoltaik panel, Kopp Grubu inverter ve batarya kullanıyoruz. Diğer marka klimalara da genel teknik servis veriyoruz.';

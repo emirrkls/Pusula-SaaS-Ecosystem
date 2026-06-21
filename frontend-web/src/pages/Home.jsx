@@ -4,6 +4,7 @@ import { ArrowRight, ShieldCheck, Clock, Wallet, ChevronRight } from 'lucide-rea
 import { PageSeo } from '../seo/PageSeo';
 import { DEFAULT_DESCRIPTION } from '../seo/constants';
 import { AuthorizedBrandsSection } from '../components/AuthorizedBrandsSection';
+import { SOLAR_ENERGY_SUMMARY } from '../data/authorizedBrands';
 
 const Home = () => {
     const features = [
@@ -56,7 +57,7 @@ const Home = () => {
         {
             title: "Güneş Enerjisi",
             image: "/assets/img/service-5.jpg",
-            desc: "Fotovoltaik panel kurulumu ile enerji maliyetlerinizi düşürün."
+            desc: SOLAR_ENERGY_SUMMARY + ' Profesyonel kurulum ve servis.'
         },
         {
             title: "Soğuk Hava Deposu",

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, CheckCircle } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
-import { AUTHORIZED_BRANDS_FAQ_ANSWER } from '../data/authorizedBrands';
+import { AUTHORIZED_BRANDS_FAQ_ANSWER, SOLAR_ENERGY_SUMMARY } from '../data/authorizedBrands';
 
 const Services = () => {
     /**
@@ -46,8 +46,8 @@ const Services = () => {
         {
             id: "gunes-enerjisi",
             title: "Güneş Enerjisi Sistemleri",
-            desc: "Kopp marka fotovoltaik panel sistemleri ile elektrik faturalarınızı minimize edin. Profesyonel kurulum ve devlet teşviklerinden yararlanma desteği sunuyoruz.",
-            features: ["Yüksek Verimli Paneller", "25 Yıl Panel Garantisi", "Devlet Teşvikleri", "Hızlı Amortisman"],
+            desc: `Güneş enerjisi sistemlerinde ${SOLAR_ENERGY_SUMMARY} Profesyonel kurulum, bakım ve devlet teşviklerinden yararlanma desteği sunuyoruz.`,
+            features: ["Solimpeks & Panasonic Panel", "Kopp İnverter & Batarya", "Profesyonel Kurulum", "Devlet Teşvikleri"],
             image: "/assets/img/service-5.jpg",
             objectPosition: "top"
         },
