@@ -58,16 +58,17 @@ const About = () => {
                             ve arıza müdahalelerinde orijinal parça ve üretici standartlarında hizmet sunuyoruz.
                         </p>
                     </div>
-                    {/* ABOUT US IMAGES - Place your images in: public/assets/img/ */}
+                    {/* public/assets/img/about-us-1.jpeg · about-us-2.jpeg */}
                     <div className="grid grid-cols-2 gap-4">
                         <img
-                            src="/assets/img/about-us-1.jpg" // TODO: Technician or team photo
-                            alt="Didim'de klima tamiri yapan Pusula İklimlendirme teknisyeni"
+                            src="/assets/img/about-us-1.jpeg"
+                            alt="Didim'de klima montajı yapan Pusula İklimlendirme servis ekibi"
                             className="rounded-xl shadow-lg w-full h-64 object-cover mt-8"
                         />
                         <img
-                            src="/assets/img/about-us-2.jpg" // TODO: Office or workspace photo
-                            alt="Pusula İklimlendirme Didim servis merkezi ve atölye"
+                            src="/assets/img/about-us-2.jpeg"
+                            alt="Pusula İklimlendirme Didim — servis aracı ve iklimlendirme merkezi"
+                            className="rounded-xl shadow-lg w-full h-64 object-cover"
                         />
                     </div>
                 </div>
@@ -104,27 +105,6 @@ const About = () => {
                 </div>
 
                 <AuthorizedBrandsSection variant="dark" />
-
-                {/* Team Section */}
-                {/* TEAM MEMBER PHOTOS - Place images at: public/assets/img/team-1.jpg, team-2.jpg, etc. */}
-                <div className="text-center">
-                    <h2 className="text-3xl font-bold text-brand-dark mb-12">Uzman Kadromuz</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                        {[1, 2, 3, 4].map((item) => (
-                            <div key={item} className="group">
-                                <div className="relative overflow-hidden rounded-xl mb-4 aspect-square">
-                                    <img
-                                        src={`/assets/img/team-${item}.jpg`} // TODO: Team member photo #${item}
-                                        alt={`Pusula İklimlendirme klima servisi teknisyeni ${item}`}
-                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                    />
-                                </div>
-                                <h3 className="text-lg font-bold text-brand-dark">Ahmet Yılmaz</h3>
-                                <p className="text-brand-cyan text-sm">Baş Teknisyen</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </div>
         </div>
         </>

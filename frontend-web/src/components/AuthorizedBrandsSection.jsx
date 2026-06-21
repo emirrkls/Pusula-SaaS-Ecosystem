@@ -32,10 +32,21 @@ export function AuthorizedBrandsSection({ variant = 'light' }) {
                                     : 'border-gray-200 bg-white shadow-sm'
                             }`}
                         >
-                            <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-brand-cyan' : 'text-brand-cyan'}`}>
+                            <p className={`text-xs font-semibold uppercase tracking-wide mb-3 ${isDark ? 'text-brand-cyan' : 'text-brand-cyan'}`}>
                                 {brand.category}
                             </p>
-                            <h3 className={`text-xl font-bold mb-1 ${isDark ? 'text-white' : 'text-brand-dark'}`}>
+                            <div
+                                className={`flex items-center justify-center h-14 mb-4 rounded-lg px-3 ${
+                                    isDark ? 'bg-white' : 'bg-gray-50'
+                                }`}
+                            >
+                                <img
+                                    src={brand.logo}
+                                    alt={`${brand.name} yetkili bayi ve servis logosu`}
+                                    className="max-h-10 max-w-full object-contain"
+                                />
+                            </div>
+                            <h3 className={`text-lg font-bold mb-1 ${isDark ? 'text-white' : 'text-brand-dark'}`}>
                                 {brand.name}
                             </h3>
                             {brand.detail && (
