@@ -1,13 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Facebook, Instagram, Twitter, MapPin, Phone, Mail } from 'lucide-react';
+import { footerQuickLinks, klimaLandingLinks, serviceAreaLinks } from '../data/navigation';
 
 const Footer = () => {
     return (
         <footer className="bg-brand-dark text-white pt-16 pb-8">
             <div className="container mx-auto px-4 md:px-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
-                    {/* Brand Info */}
                     <div className="space-y-4">
                         <div className="flex items-center">
                             <img
@@ -33,40 +33,45 @@ const Footer = () => {
                         </div>
                     </div>
 
-                    {/* Quick Links */}
                     <div>
                         <h3 className="text-lg font-semibold mb-6 border-l-4 border-brand-cyan pl-3">Hızlı Erişim</h3>
                         <ul className="space-y-3 text-gray-400">
-                            <li><Link to="/" className="hover:text-brand-cyan transition-colors">Ana Sayfa</Link></li>
-                            <li><Link to="/hakkimizda" className="hover:text-brand-cyan transition-colors">Hakkımızda</Link></li>
-                            <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">Hizmetlerimiz</Link></li>
-                            <li><Link to="/iletisim" className="hover:text-brand-cyan transition-colors">İletişim</Link></li>
-                            <li><Link to="/destek" className="hover:text-brand-cyan transition-colors">Destek</Link></li>
+                            {footerQuickLinks.map((link) => (
+                                <li key={link.path}>
+                                    <Link to={link.path} className="hover:text-brand-cyan transition-colors">
+                                        {link.name}
+                                    </Link>
+                                </li>
+                            ))}
                         </ul>
                     </div>
 
-                    {/* Services */}
                     <div>
-                        <h3 className="text-lg font-semibold mb-6 border-l-4 border-brand-cyan pl-3">Hizmetler</h3>
+                        <h3 className="text-lg font-semibold mb-6 border-l-4 border-brand-cyan pl-3">Didim Klima Servisi</h3>
                         <ul className="space-y-3 text-gray-400">
-                            <li><Link to="/didim-klima-tamiri" className="hover:text-brand-cyan transition-colors">Didim Klima Tamiri</Link></li>
-                            <li><Link to="/didim-klima-bakimi" className="hover:text-brand-cyan transition-colors">Didim Klima Bakımı</Link></li>
-                            <li><Link to="/didim-klima-montaji" className="hover:text-brand-cyan transition-colors">Didim Klima Montajı</Link></li>
-                            <li><Link to="/hizmetler" className="hover:text-brand-cyan transition-colors">VRF & Isı Pompası</Link></li>
+                            {klimaLandingLinks.map((link) => (
+                                <li key={link.path}>
+                                    <Link to={link.path} className="hover:text-brand-cyan transition-colors">
+                                        {link.name}
+                                    </Link>
+                                </li>
+                            ))}
                         </ul>
                     </div>
 
-                    {/* Service Areas */}
                     <div>
                         <h3 className="text-lg font-semibold mb-6 border-l-4 border-brand-cyan pl-3">Hizmet Bölgeleri</h3>
                         <ul className="space-y-3 text-gray-400">
-                            <li><Link to="/altinkum-klima-servisi" className="hover:text-brand-cyan transition-colors">Altınkum Klima Servisi</Link></li>
-                            <li><Link to="/akbuk-klima-servisi" className="hover:text-brand-cyan transition-colors">Akbük Klima Servisi</Link></li>
-                            <li><Link to="/bozbuk-klima-servisi" className="hover:text-brand-cyan transition-colors">Bozbük Klima Servisi</Link></li>
+                            {serviceAreaLinks.map((link) => (
+                                <li key={link.path}>
+                                    <Link to={link.path} className="hover:text-brand-cyan transition-colors">
+                                        {link.name}
+                                    </Link>
+                                </li>
+                            ))}
                         </ul>
                     </div>
 
-                    {/* Contact */}
                     <div>
                         <h3 className="text-lg font-semibold mb-6 border-l-4 border-brand-cyan pl-3">İletişim</h3>
                         <ul className="space-y-4 text-gray-400">

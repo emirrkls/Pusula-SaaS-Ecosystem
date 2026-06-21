@@ -1,10 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, CheckCircle } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
 import { AUTHORIZED_BRANDS_FAQ_ANSWER, SOLAR_ENERGY_SUMMARY } from '../data/authorizedBrands';
 
 const Services = () => {
+    const location = useLocation();
+
+    useEffect(() => {
+        if (!location.hash) return;
+        const id = location.hash.slice(1);
+        const timer = window.setTimeout(() => {
+            document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+        return () => window.clearTimeout(timer);
+    }, [location.pathname, location.hash]);
     /**
      * SERVICE DETAIL IMAGES - Place your images in: public/assets/img/
      * These are the same as Home page services:
@@ -109,11 +120,12 @@ const Services = () => {
                 {servicesList.map((service, index) => (
                     <motion.div
                         key={service.id}
+                        id={service.id}
                         initial={{ opacity: 0, y: 30 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.5 }}
-                        className={`flex flex-col ${index % 2 === 1 ? 'md:flex-row-reverse' : 'md:flex-row'} gap-8 items-center`}
+                        className={`flex flex-col scroll-mt-28 ${index % 2 === 1 ? 'md:flex-row-reverse' : 'md:flex-row'} gap-8 items-center`}
                     >
                         <div className="w-full md:w-1/2 overflow-hidden rounded-2xl shadow-xl h-[400px]">
                             <img
