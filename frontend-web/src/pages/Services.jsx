@@ -17,22 +17,22 @@ const Services = () => {
         {
             id: "split-klima",
             title: "Split Klima Sistemleri",
-            desc: "Ev ve küçük ofisler için split klima satışı, montajı ve bakımı. Hisense ve Üntes yetkili bayi ve servis olarak orijinal parça ve garanti kapsamında hizmet veriyoruz.",
-            features: ["Hisense & Üntes Yetkili Bayi", "Yetkili Servis", "Montaj ve Periyodik Bakım", "Tüm Marka Arıza Servisi"],
+            desc: "Ev ve küçük ofisler için split klima satışı, montajı ve bakımı. Hisense yetkili bayi ve servis olarak orijinal parça ve garanti kapsamında hizmet veriyoruz.",
+            features: ["Hisense Yetkili Bayi & Servis", "Montaj ve Periyodik Bakım", "Gaz Dolumu", "Tüm Marka Arıza Servisi"],
             image: "/assets/img/service-1.jpg"
         },
         {
             id: "vrf",
             title: "VRF Sistemleri",
-            desc: "Oteller, plazalar ve büyük binalar için merkezi iklimlendirme. Tek bir dış ünite ile birden çok iç üniteyi kontrol edin. Maksimum enerji tasarrufu ve konfor sağlar.",
-            features: ["Merkezi Kontrol", "Bölgesel İklimlendirme", "Düşük İşletme Maliyeti", "Uzun Ömürlü Sistemler"],
+            desc: "Oteller, plazalar ve büyük binalar için merkezi iklimlendirme. Üntes Grubu VRF sistemlerinde yetkili bayi ve servis; satış, montaj, bakım ve arıza onarımı.",
+            features: ["Üntes VRF Yetkili Bayi & Servis", "Merkezi Kontrol", "Bölgesel İklimlendirme", "Tüm Marka VRF Servisi"],
             image: "/assets/img/service-2.jpg"
         },
         {
             id: "isi-pompasi",
             title: "Isı Pompası Sistemleri",
-            desc: "Nibe, LG monoblok (LG Grubu) ve Solimpeks Grubu ısı pompalarında yetkili bayi ve servis. Satış, montaj, bakım ve arıza onarımında üretici standartlarında çözüm sunuyoruz.",
-            features: ["Nibe Yetkili Bayi & Servis", "LG Monoblok Isı Pompası", "Solimpeks Grubu", "Devlet Teşvikleri"],
+            desc: "Üntes Grubu, Nibe, LG monoblok (LG Grubu) ve Solimpeks Grubu ısı pompalarında yetkili bayi ve servis. Satış, montaj, bakım ve arıza onarımında üretici standartlarında çözüm sunuyoruz.",
+            features: ["Üntes Isı Pompası", "Nibe Yetkili Bayi & Servis", "LG Monoblok", "Solimpeks Grubu"],
             image: "/assets/img/service-3.jpg"
         },
         {
@@ -86,7 +86,7 @@ const Services = () => {
         <>
             <PageSeo
                 title="Hizmetlerimiz - Klima, VRF, Isı Pompası, Güneş Enerjisi | Pusula İklimlendirme Didim"
-                description="Didim'de split klima, ısı pompası, VRF ve montaj hizmetleri. Hisense, Üntes yetkili bayi; Nibe, LG monoblok ve Solimpeks yetkili servis — Pusula İklimlendirme."
+                description="Didim'de split klima, VRF, ısı pompası ve montaj. Hisense klima; Üntes VRF ve ısı pompası; Nibe, LG monoblok ve Solimpeks yetkili servis — Pusula İklimlendirme."
                 path="/hizmetler"
                 breadcrumbs={[
                     { name: 'Ana Sayfa', path: '/' },

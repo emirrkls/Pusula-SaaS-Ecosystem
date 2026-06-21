@@ -11,7 +11,8 @@ export const AUTHORIZED_BRANDS = [
     {
         name: 'Üntes',
         logo: `${AUTHORIZED_BRAND_LOGOS}/untes.svg`,
-        category: 'Klima',
+        category: 'VRF & Isı pompası',
+        detail: 'Üntes Grubu VRF ve ısı pompası sistemleri',
         roles: ['Yetkili bayi', 'Yetkili servis'],
     },
     {
@@ -37,7 +38,7 @@ export const AUTHORIZED_BRANDS = [
 ];
 
 export const AUTHORIZED_BRANDS_SUMMARY =
-    'Hisense ve Üntes klima; Nibe, LG monoblok ve Solimpeks ısı pompalarında yetkili bayi ve servis.';
+    'Hisense klima; Üntes VRF ve ısı pompası; Nibe, LG monoblok ve Solimpeks ısı pompalarında yetkili bayi ve servis.';
 
 export const AUTHORIZED_BRANDS_FAQ_ANSWER =
-    'Hisense klima ve Üntes\'te yetkili bayi ve servisimiz. Nibe, LG monoblok (LG Grubu) ve Solimpeks Grubu ısı pompalarında yetkili bayi ve servis hizmeti sunuyoruz. Diğer marka klimalara da genel teknik servis veriyoruz.';
+    'Hisense klima yetkili bayi ve servisimiz. Üntes Grubu VRF ve ısı pompalarında; Nibe, LG monoblok (LG Grubu) ve Solimpeks Grubu ısı pompalarında yetkili bayi ve servis hizmeti sunuyoruz. Diğer marka klimalara da genel teknik servis veriyoruz.';

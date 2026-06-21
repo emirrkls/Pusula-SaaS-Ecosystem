@@ -10,7 +10,7 @@ const About = () => {
         <>
             <PageSeo
                 title="Hakkımızda - Didim'in Güvenilir İklimlendirme Firması | Pusula İklimlendirme"
-                description="2010'dan beri Didim ve Aydın'da iklimlendirme hizmeti. Hisense, Üntes yetkili bayi; Nibe, LG monoblok ve Solimpeks ısı pompası yetkili servis."
+                description="2010'dan beri Didim ve Aydın'da iklimlendirme hizmeti. Hisense klima; Üntes VRF ve ısı pompası; Nibe, LG monoblok ve Solimpeks yetkili servis."
                 path="/hakkimizda"
                 breadcrumbs={[
                     { name: 'Ana Sayfa', path: '/' },

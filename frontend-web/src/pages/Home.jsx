@@ -41,12 +41,12 @@ const Home = () => {
         {
             title: "VRF Sistemleri",
             image: "/assets/img/service-2.jpg",
-            desc: "Otel ve plaza projelerinde VRF klima kurulumu ve bakım hizmeti."
+            desc: "Üntes yetkili bayi ve servis; otel ve plaza VRF kurulumu ve bakımı."
         },
         {
             title: "Isı Pompası",
             image: "/assets/img/service-3.jpg",
-            desc: "Aydın genelinde ısı pompası montajı ve arıza onarımı."
+            desc: "Üntes, Nibe, LG monoblok ve Solimpeks ısı pompası montajı ve servisi."
         },
         {
             title: "Montaj & Keşif",
@@ -102,7 +102,7 @@ const Home = () => {
                         className="text-xl md:text-2xl text-gray-200 mb-10 max-w-3xl mx-auto font-light"
                     >
                         Didim ve Aydın'da klima tamiri, bakım ve montaj.
-                        Hisense, Üntes, Nibe, LG ve Solimpeks yetkili bayi & servis — 7/24 teknik destek.
+                        Hisense klima; Üntes VRF ve ısı pompası; Nibe, LG ve Solimpeks yetkili bayi & servis — 7/24 teknik destek.
                     </motion.p>
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
