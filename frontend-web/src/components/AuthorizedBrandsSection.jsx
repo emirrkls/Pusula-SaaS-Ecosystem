@@ -1,6 +1,6 @@
 import React from 'react';
 import { Award } from 'lucide-react';
-import { AUTHORIZED_BRANDS, AUTHORIZED_BRANDS_SUMMARY } from '../data/authorizedBrands';
+import { AUTHORIZED_BRANDS, AUTHORIZED_BRANDS_SUMMARY, OTHER_BRANDS_SERVICE_NOTE } from '../data/authorizedBrands';
 
 export function AuthorizedBrandsSection({ variant = 'light' }) {
     const isDark = variant === 'dark';
@@ -71,6 +71,12 @@ export function AuthorizedBrandsSection({ variant = 'light' }) {
                         </div>
                     ))}
                 </div>
+
+                <p className={`mt-10 max-w-3xl mx-auto text-center text-sm leading-relaxed ${
+                    isDark ? 'text-gray-300' : 'text-gray-600'
+                }`}>
+                    {OTHER_BRANDS_SERVICE_NOTE}
+                </p>
             </div>
         </section>
     );

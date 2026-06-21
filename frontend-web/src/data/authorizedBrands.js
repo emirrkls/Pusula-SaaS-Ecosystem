@@ -49,5 +49,8 @@ export const SOLAR_ENERGY_SUMMARY =
 export const AUTHORIZED_BRANDS_SUMMARY =
     'Hisense klima; Üntes VRF ve ısı pompası; Nibe, LG monoblok ve Solimpeks ısı pompalarında yetkili bayi ve servis.';
 
+export const OTHER_BRANDS_SERVICE_NOTE =
+    'Yetkili olmadığımız Daikin, Mitsubishi, Airfel, Bosch ve diğer tüm marka klimalarda da arıza, bakım ve montaj için profesyonel teknik servis sunuyoruz.';
+
 export const AUTHORIZED_BRANDS_FAQ_ANSWER =
-    'Hisense klima yetkili bayi ve servisimiz. Üntes Grubu VRF ve ısı pompalarında; Nibe, LG monoblok (LG Grubu) ve Solimpeks Grubu ısı pompalarında yetkili bayi ve servis hizmeti sunuyoruz. Güneş enerjisi sistemlerinde Solimpeks ve Panasonic Grubu fotovoltaik panel, Kopp Grubu inverter ve batarya kullanıyoruz. Diğer marka klimalara da genel teknik servis veriyoruz.';
+    `Hisense klima yetkili bayi ve servisimiz. Üntes Grubu VRF ve ısı pompalarında; Nibe, LG monoblok (LG Grubu) ve Solimpeks Grubu ısı pompalarında yetkili bayi ve servis hizmeti sunuyoruz. Güneş enerjisi sistemlerinde Solimpeks ve Panasonic Grubu fotovoltaik panel, Kopp Grubu inverter ve batarya kullanıyoruz. ${OTHER_BRANDS_SERVICE_NOTE}`;

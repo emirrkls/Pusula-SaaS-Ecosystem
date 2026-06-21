@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, CheckCircle } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
+import { AuthorizedBrandsSection } from '../components/AuthorizedBrandsSection';
 import { AUTHORIZED_BRANDS_FAQ_ANSWER, SOLAR_ENERGY_SUMMARY } from '../data/authorizedBrands';
 
 const Services = () => {
@@ -150,6 +151,8 @@ const Services = () => {
                     </motion.div>
                 ))}
             </div>
+
+            <AuthorizedBrandsSection />
 
             {/* FAQ Section */}
             <div className="bg-white py-20">
