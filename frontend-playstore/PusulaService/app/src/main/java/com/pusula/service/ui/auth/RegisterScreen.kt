@@ -134,19 +134,24 @@ fun RegisterScreen(
                     )
 
                     uiState.errorMessage?.let {
-                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            text = it,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
 
                     AppPrimaryButton(
                         text = if (uiState.isLoading) "Kaydediliyor…" else "Kayıt Ol",
                         onClick = { onRegister(email, username, password, fullName) },
-                        enabled = !uiState.isLoading &&
+                        enabled = !uiState.isLoading && !uiState.isGoogleLoading &&
                             fullName.isNotBlank() && email.isNotBlank() &&
                             username.isNotBlank() && password.isNotBlank(),
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    if (uiState.isLoading) {
+                    if (uiState.isLoading || uiState.isGoogleLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.align(Alignment.CenterHorizontally),
                             color = BrandCyan,
@@ -156,10 +161,14 @@ fun RegisterScreen(
 
                     TextButton(
                         onClick = { onGoogleRegister(username.ifBlank { null }) },
-                        enabled = !uiState.isLoading,
+                        enabled = !uiState.isLoading && !uiState.isGoogleLoading,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Google ile Kayıt Ol", color = BrandNavy, fontWeight = FontWeight.Medium)
+                        Text(
+                            if (uiState.isGoogleLoading) "Google ile bağlanılıyor…" else "Google ile Kayıt Ol",
+                            color = BrandNavy,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }

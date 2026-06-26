@@ -245,6 +245,14 @@ public class AuthenticationService {
                         GoogleIdToken.Payload payload = googleIdToken.getPayload();
                         String email = payload.getEmail();
                         String fullName = (String) payload.get("name");
+                        if (fullName == null || fullName.isBlank()) {
+                                String givenName = (String) payload.get("given_name");
+                                String familyName = (String) payload.get("family_name");
+                                fullName = String.join(" ",
+                                                givenName != null ? givenName.trim() : "",
+                                                familyName != null ? familyName.trim() : "")
+                                                .trim();
+                        }
 
                         if (email == null || email.isBlank()) {
                                 throw new BadCredentialsException("Google hesabından e-posta alınamadı");
@@ -291,6 +299,11 @@ public class AuthenticationService {
                                                 ipAddress);
                         } else {
                                 company = companyRepository.findById(user.getCompanyId()).orElse(null);
+                                if (fullName != null && !fullName.isBlank()
+                                                && !fullName.equals(user.getFullName())) {
+                                        user.setFullName(fullName);
+                                        userRepository.save(user);
+                                }
                         }
 
                         String jwtToken = jwtService.generateToken(user);

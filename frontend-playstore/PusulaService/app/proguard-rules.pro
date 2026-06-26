@@ -42,9 +42,11 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
-# Credential Manager / Google Sign-In tokens
+# Credential Manager / Google Sign-In
 -keep class androidx.credentials.** { *; }
 -keep class com.google.android.libraries.identity.googleid.** { *; }
+-keep class com.google.android.gms.auth.** { *; }
+-keep class com.google.android.gms.common.api.** { *; }
 
 # Play Billing / Play Services stubs
 -keep class com.android.billingclient.** { *; }

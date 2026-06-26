@@ -25,7 +25,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.pusula.service.BuildConfig
 import com.pusula.service.ui.auth.AuthViewModel
 import com.pusula.service.ui.auth.LoginScreen
@@ -108,13 +112,21 @@ fun PusulaNavGraph(authViewModel: AuthViewModel) {
     val navController = rememberNavController()
     val session by authViewModel.sessionManager.state.collectAsState()
     val uiState by authViewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        authViewModel.userMessages.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
+    }
 
     /**
      * Cold start: token restores before role — never navigate to Main until [SessionState.role]
      * is non-blank (prefs cache or /auth/feature-context). Early Main + popUpTo corrupted stacks
      * and triggered NavController "Login not on back stack" / emulator ART crashes.
      */
-    LaunchedEffect(session.isAuthenticated, session.role) {
+    LaunchedEffect(session.isAuthenticated, session.role, uiState.isGoogleLoading) {
+        if (uiState.isGoogleLoading) return@LaunchedEffect
         val readyForMain = session.isAuthenticated && session.role.isNotBlank()
         when {
             readyForMain -> {
@@ -145,7 +157,12 @@ fun PusulaNavGraph(authViewModel: AuthViewModel) {
         popExitTransition = { defaultPopExit() }
     ) {
         composable<Screen.Login> {
-            val context = LocalContext.current
+            val activity = LocalActivity.current as? ComponentActivity
+            val googleLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.StartActivityForResult()
+            ) { result ->
+                authViewModel.completeLegacyGoogleSignIn(result.data)
+            }
             val sessionForLogin by authViewModel.sessionManager.state.collectAsState()
             if (sessionForLogin.isAuthenticated && sessionForLogin.role.isBlank()) {
                 Box(
@@ -158,19 +175,36 @@ fun PusulaNavGraph(authViewModel: AuthViewModel) {
                 LoginScreen(
                     uiState = uiState,
                     onLogin = authViewModel::login,
-                    onGoogleLogin = { authViewModel.loginWithGoogle(context) },
+                    onGoogleLogin = {
+                        val currentActivity = activity
+                        if (currentActivity != null) {
+                            authViewModel.loginWithGoogle(currentActivity, googleLauncher::launch)
+                        } else {
+                            Toast.makeText(context, "Google girişi için etkin ekran bulunamadı.", Toast.LENGTH_LONG).show()
+                        }
+                    },
                     onNavigateRegister = { navController.navigate(Screen.Register) }
                 )
             }
         }
         composable<Screen.Register> {
-            val context = LocalContext.current
+            val activity = LocalActivity.current as? ComponentActivity
+            val googleLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.StartActivityForResult()
+            ) { result ->
+                authViewModel.completeLegacyGoogleSignIn(result.data)
+            }
             BackHandler { navController.popBackStack() }
             RegisterScreen(
                 uiState = uiState,
                 onRegister = authViewModel::register,
                 onGoogleRegister = { preferredUsername ->
-                    authViewModel.registerWithGoogle(context, preferredUsername)
+                    val currentActivity = activity
+                    if (currentActivity != null) {
+                        authViewModel.registerWithGoogle(currentActivity, preferredUsername, googleLauncher::launch)
+                    } else {
+                        Toast.makeText(context, "Google kaydı için etkin ekran bulunamadı.", Toast.LENGTH_LONG).show()
+                    }
                 },
                 onNavigateBack = { navController.popBackStack() }
             )

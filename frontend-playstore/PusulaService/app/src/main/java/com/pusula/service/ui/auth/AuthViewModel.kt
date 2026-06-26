@@ -1,34 +1,31 @@
 package com.pusula.service.ui.auth
 
-import android.content.Context
-import android.content.ContextWrapper
+import android.content.Intent
+import android.util.Log
 import androidx.activity.ComponentActivity
-import androidx.credentials.Credential
-import androidx.credentials.CredentialManager
-import androidx.credentials.CustomCredential
-import androidx.credentials.GetCredentialRequest
-import androidx.credentials.exceptions.GetCredentialCancellationException
-import androidx.credentials.exceptions.GetCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.pusula.service.BuildConfig
 import com.pusula.service.core.SessionManager
 import com.pusula.service.data.repository.AuthRepository
+import com.pusula.service.util.toAuthUserMessage
 import com.pusula.service.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 data class AuthUiState(
     val isLoading: Boolean = false,
+    val isGoogleLoading: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -40,6 +37,11 @@ class AuthViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+
+    private val _userMessages = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val userMessages: SharedFlow<String> = _userMessages.asSharedFlow()
+
+    private var pendingPreferredUsername: String? = null
 
     fun tryRestoreSession() = viewModelScope.launch {
         sessionManager.tryRestoreSession()
@@ -64,7 +66,7 @@ class AuthViewModel @Inject constructor(
                 authRepository.login(u, p)
             }
         }.onFailure {
-            _uiState.value = AuthUiState(errorMessage = it.toUserMessage("Giriş sırasında hata oluştu"))
+            _uiState.value = AuthUiState(errorMessage = it.toAuthUserMessage("Giriş sırasında hata oluştu"))
         }.onSuccess {
             _uiState.value = AuthUiState()
         }
@@ -81,92 +83,106 @@ class AuthViewModel @Inject constructor(
                 fullName.trim()
             )
         }.onFailure {
-            _uiState.value = AuthUiState(errorMessage = it.toUserMessage("Kayıt sırasında hata oluştu"))
+            _uiState.value = AuthUiState(errorMessage = it.toAuthUserMessage("Kayıt sırasında hata oluştu"))
         }.onSuccess {
             _uiState.value = AuthUiState()
         }
     }
 
-    fun registerWithGoogle(context: Context, preferredUsername: String?) = viewModelScope.launch {
-        _uiState.value = AuthUiState(isLoading = true)
-        if (BuildConfig.GOOGLE_WEB_CLIENT_ID.isBlank()) {
-            _uiState.value = AuthUiState(errorMessage = "Google OAuth client ID ayarlı değil.")
-            return@launch
-        }
+    fun loginWithGoogle(
+        activity: ComponentActivity,
+        launchSignIn: (Intent) -> Unit
+    ) {
+        pendingPreferredUsername = null
+        startLegacyGoogleSignIn(activity, launchSignIn)
+    }
 
-        val activity = context.findComponentActivity()
-        if (activity == null) {
-            _uiState.value = AuthUiState(errorMessage = "Google girişi için Activity gerekli.")
-            return@launch
-        }
+    fun registerWithGoogle(
+        activity: ComponentActivity,
+        preferredUsername: String?,
+        launchSignIn: (Intent) -> Unit
+    ) {
+        pendingPreferredUsername = preferredUsername?.trim()?.takeIf { it.isNotBlank() }
+        startLegacyGoogleSignIn(activity, launchSignIn)
+    }
 
-        val credentialManager = CredentialManager.create(activity)
-        val signInOption = GetSignInWithGoogleOption.Builder(BuildConfig.GOOGLE_WEB_CLIENT_ID)
-            .build()
-        val request = GetCredentialRequest.Builder()
-            .addCredentialOption(signInOption)
-            .build()
+    fun completeLegacyGoogleSignIn(data: Intent?) = viewModelScope.launch {
+        if (!_uiState.value.isGoogleLoading) return@launch
 
         runCatching {
-            val result = withContext(Dispatchers.Main) {
-                credentialManager.getCredential(
-                    context = activity,
-                    request = request
-                )
-            }
-            val idToken = extractGoogleIdToken(result.credential)
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account.idToken
+                ?: throw IllegalStateException("Google kimlik jetonu alınamadı")
+            Log.d(TAG, "Google idToken received, calling backend")
             authRepository.authenticateWithGoogle(
                 idToken = idToken,
-                preferredUsername = preferredUsername
+                preferredUsername = pendingPreferredUsername
             )
+            runCatching { authRepository.refreshFeatureContext() }
+                .onFailure { Log.w(TAG, "Feature context refresh failed after Google auth", it) }
+            pendingPreferredUsername = null
         }.onFailure { error ->
-            val msg = error.message.orEmpty()
-            val userCanceled =
-                error is GetCredentialCancellationException ||
-                    (error is GetCredentialException && (
-                        msg.contains("cancelled by the user", ignoreCase = true) ||
-                            msg.contains("canceled by the user", ignoreCase = true) ||
-                            msg.contains("TYPE_USER_CANCELED", ignoreCase = true)
-                        ))
-            if (userCanceled) {
-                _uiState.value = AuthUiState()
-                return@onFailure
-            }
-            val message = when (error) {
-                is GetCredentialException -> {
-                    val detail = error.message?.takeIf { it.isNotBlank() }
-                    if (detail != null) "Google girişi başarısız: $detail" else "Google hesabı seçilemedi"
-                }
-                is GoogleIdTokenParsingException -> "Google token okunamadı"
-                else -> error.toUserMessage("Google ile doğrulama sırasında hata oluştu")
-            }
-            _uiState.value = AuthUiState(errorMessage = message)
+            Log.e(TAG, "Google auth failed", error)
+            reportGoogleAuthFailure(error)
         }.onSuccess {
+            Log.d(TAG, "Google auth success")
             _uiState.value = AuthUiState()
+            _userMessages.emit("Google ile giriş başarılı")
         }
     }
 
-    fun loginWithGoogle(context: Context) = registerWithGoogle(context, preferredUsername = null)
+    private fun startLegacyGoogleSignIn(
+        activity: ComponentActivity,
+        launchSignIn: (Intent) -> Unit
+    ) {
+        val webClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID.trim()
+        if (webClientId.isBlank()) {
+            viewModelScope.launch { failGoogleAuth("Google OAuth client ID ayarlı değil.") }
+            return
+        }
 
-    private fun extractGoogleIdToken(credential: Credential): String {
-        if (credential is CustomCredential &&
-            credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-        ) {
-            val googleCredential = GoogleIdTokenCredential.createFrom(credential.data)
-            return googleCredential.idToken
+        _uiState.value = AuthUiState(isGoogleLoading = true, errorMessage = null)
+        Log.d(TAG, "Legacy Google auth started (clientId=${webClientId.take(12)}…)")
+
+        val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(webClientId)
+            .requestEmail()
+            .build()
+        val client = GoogleSignIn.getClient(activity, options)
+
+        viewModelScope.launch {
+            client.signOut().addOnCompleteListener {
+                launchSignIn(client.signInIntent)
+            }
         }
-        if (credential is GoogleIdTokenCredential) {
-            return credential.idToken
-        }
-        throw IllegalStateException("Beklenmeyen credential türü: ${credential::class.java.simpleName}")
     }
 
-    private tailrec fun Context.findComponentActivity(): ComponentActivity? {
-        return when (this) {
-            is ComponentActivity -> this
-            is ContextWrapper -> baseContext.findComponentActivity()
-            else -> null
+    private suspend fun failGoogleAuth(message: String) {
+        pendingPreferredUsername = null
+        _uiState.value = AuthUiState(errorMessage = message)
+        _userMessages.emit(message)
+    }
+
+    private suspend fun reportGoogleAuthFailure(error: Throwable) {
+        pendingPreferredUsername = null
+        val message = when (error) {
+            is ApiException -> when (error.statusCode) {
+                10 -> "Google OAuth yapılandırması hatalı. Google Cloud Console'da " +
+                    "com.pusula.service için Android istemcisine upload SHA-1 ekleyin: " +
+                    "43:17:6D:30:6E:9C:F5:16:BC:16:5E:8A:E0:55:11:7C:A8:30:F6:7F"
+                12501 -> "Google girişi iptal edildi."
+                7 -> "Ağ hatası. İnternet bağlantınızı kontrol edin."
+                else -> "Google girişi başarısız (kod ${error.statusCode})"
+            }
+            is IllegalStateException -> error.message ?: "Google ile doğrulama sırasında hata oluştu"
+            else -> error.toAuthUserMessage("Google ile doğrulama sırasında hata oluştu")
         }
+        failGoogleAuth(message)
+    }
+
+    private companion object {
+        const val TAG = "PusulaAuth"
     }
 
     fun deleteAccount() = viewModelScope.launch {

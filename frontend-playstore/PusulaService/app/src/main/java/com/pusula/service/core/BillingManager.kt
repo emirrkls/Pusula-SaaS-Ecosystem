@@ -8,6 +8,7 @@ import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.android.billingclient.api.BillingClient.ProductType
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
@@ -32,7 +33,7 @@ class BillingManager @Inject constructor(
 ) {
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var activityRef: WeakReference<Activity>? = null
-    private val productIds = listOf("com.pusula.cirak", "com.pusula.usta", "com.pusula.patron")
+    private val productIds = listOf("usta", "patron")
 
     private val _products = MutableStateFlow<List<ProductDetails>>(emptyList())
     val products: StateFlow<List<ProductDetails>> = _products.asStateFlow()
@@ -44,7 +45,11 @@ class BillingManager @Inject constructor(
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     private val billingClient = BillingClient.newBuilder(context)
-        .enablePendingPurchases()
+        .enablePendingPurchases(
+            PendingPurchasesParams.newBuilder()
+                .enableOneTimeProducts()
+                .build()
+        )
         .setListener(::onPurchasesUpdated)
         .build()
 
@@ -64,8 +69,9 @@ class BillingManager @Inject constructor(
                     }
                 )
                 .build()
-            billingClient.queryProductDetailsAsync(params) { result, details ->
+            billingClient.queryProductDetailsAsync(params) { result, queryResult ->
                 if (result.responseCode == BillingResponseCode.OK) {
+                    val details = queryResult.productDetailsList
                     _products.value = details
                     onComplete?.invoke(details)
                 } else {
@@ -221,16 +227,14 @@ class BillingManager @Inject constructor(
     }
 
     private fun planToProductId(planTier: String): String? = when (planTier.uppercase()) {
-        "CIRAK" -> "com.pusula.cirak"
-        "USTA" -> "com.pusula.usta"
-        "PATRON" -> "com.pusula.patron"
+        "USTA" -> "usta"
+        "PATRON" -> "patron"
         else -> null
     }
 
     private fun productIdToPlan(productId: String): String? = when (productId) {
-        "com.pusula.cirak" -> "CIRAK"
-        "com.pusula.usta" -> "USTA"
-        "com.pusula.patron" -> "PATRON"
+        "usta" -> "USTA"
+        "patron" -> "PATRON"
         else -> null
     }
 

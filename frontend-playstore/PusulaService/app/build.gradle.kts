@@ -40,6 +40,12 @@ val releaseApiBaseUrl = apiBaseUrl(
     localProperties.getProperty("release.api.base.url"),
     defaultVpsApiHost
 )
+val googleMapsApiKey = (
+    localProperties.getProperty("google.maps.api.key")
+        ?: localProperties.getProperty("GOOGLE_MAPS_API_KEY")
+        ?: providers.environmentVariable("GOOGLE_MAPS_API_KEY").orNull
+        ?: ""
+).trim()
 val googleWebClientId = (
     localProperties.getProperty("google.web.client.id")
         ?: localProperties.getProperty("GOOGLE_WEB_CLIENT_ID")
@@ -83,9 +89,10 @@ android {
         applicationId = "com.pusula.service"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.0.9"
+        versionCode = 26
+        versionName = "1.3.2"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
+        manifestPlaceholders["googleMapsApiKey"] = googleMapsApiKey
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -197,9 +204,10 @@ dependencies {
     implementation("com.google.accompanist:accompanist-permissions:0.37.2")
     implementation("com.google.android.gms:play-services-maps:19.1.0")
     implementation("com.google.maps.android:maps-compose:6.4.1")
-    implementation("com.android.billingclient:billing-ktx:6.2.1")
+    implementation("com.android.billingclient:billing-ktx:8.3.0")
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 
     testImplementation("junit:junit:4.13.2")

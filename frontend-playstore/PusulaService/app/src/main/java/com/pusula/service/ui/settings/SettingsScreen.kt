@@ -99,6 +99,7 @@ fun SettingsScreen(
     var deleteUserId by remember { mutableStateOf<Long?>(null) }
     var deleteVehicleId by remember { mutableStateOf<Long?>(null) }
     var signatureUploadUserId by remember { mutableStateOf<Long?>(null) }
+    var showDeleteAccountConfirmation by remember { mutableStateOf(false) }
 
     val userSignaturePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         val userId = signatureUploadUserId
@@ -298,7 +299,11 @@ fun SettingsScreen(
                             AppGhostCard {
                                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                                     AppPrimaryButton(text = "Çıkış Yap", onClick = onLogout, modifier = Modifier.fillMaxWidth())
-                                    AppDestructiveButton(text = "Hesabımı Sil", onClick = onDeleteAccount, modifier = Modifier.fillMaxWidth())
+                                    AppDestructiveButton(
+                                        text = "Hesabımı Sil",
+                                        onClick = { showDeleteAccountConfirmation = true },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
                             }
                         }
@@ -381,6 +386,18 @@ fun SettingsScreen(
             onSubmit = { password ->
                 viewModel.resetPassword(passwordResetUserId ?: return@PasswordResetDialog, password)
                 passwordResetUserId = null
+            }
+        )
+    }
+
+    if (showDeleteAccountConfirmation) {
+        ConfirmDialog(
+            title = "Hesabımı Sil",
+            message = "Hesabınızı silmek istediğinizden emin misiniz? Giriş yapamaz hale gelirsiniz. Bu işlem geri alınamaz.",
+            onDismiss = { showDeleteAccountConfirmation = false },
+            onConfirm = {
+                showDeleteAccountConfirmation = false
+                onDeleteAccount()
             }
         )
     }

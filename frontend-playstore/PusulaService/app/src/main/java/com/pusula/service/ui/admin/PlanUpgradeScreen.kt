@@ -73,13 +73,6 @@ fun PlanUpgradeScreen(
     }
     val plans = listOf(
         PlanCardData(
-            code = "CIRAK",
-            title = "Çırak",
-            tagline = "Başlangıç",
-            features = listOf("2 teknisyen", "200 müşteri", "Temel modüller"),
-            accent = listOf(BrandCyan, BrandNavy.copy(alpha = 0.85f))
-        ),
-        PlanCardData(
             code = "USTA",
             title = "Usta",
             tagline = "Büyüyen ekipler",

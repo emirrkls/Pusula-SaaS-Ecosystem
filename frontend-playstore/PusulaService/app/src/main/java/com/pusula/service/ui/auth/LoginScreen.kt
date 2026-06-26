@@ -181,19 +181,34 @@ fun LoginScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
+                    uiState.errorMessage?.let {
+                        Text(
+                            text = it,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     TextButton(
                         onClick = onGoogleLogin,
-                        enabled = !uiState.isLoading,
+                        enabled = !uiState.isLoading && !uiState.isGoogleLoading,
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(vertical = 14.dp)
                     ) {
                         Text(
-                            "Google ile Giriş Yap",
+                            if (uiState.isGoogleLoading) "Google ile bağlanılıyor…" else "Google ile Giriş Yap",
                             color = BrandNavy,
                             fontWeight = FontWeight.Medium
                         )
                     }
-                    TextButton(onClick = onNavigateRegister, enabled = !uiState.isLoading) {
+                    if (uiState.isGoogleLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                            color = BrandCyan,
+                            strokeWidth = 2.dp
+                        )
+                    }
+                    TextButton(onClick = onNavigateRegister, enabled = !uiState.isLoading && !uiState.isGoogleLoading) {
                         Text("Hesabınız yok mu? ", color = BrandGray)
                         Text("Ücretsiz Kayıt Ol", color = BrandCyan, fontWeight = FontWeight.SemiBold)
                     }
