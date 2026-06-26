@@ -102,3 +102,10 @@ PUSULA-DEPLOY.local.md
 
 # Separate repo — see DidimKlima/ (didimklima.net)
 DidimKlima/
+
+# Private admin panel repo (kept outside the public portfolio repo)
+.gitmodules
+Pusula-Super-Admin-Panel/
+
+# Local editor workspace files
+*.code-workspace
