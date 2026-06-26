@@ -61,6 +61,10 @@ fun FieldRadarScreen(
     val cameraState = rememberCameraPositionState()
     val selectedInfo = remember { mutableStateOf<FieldPinInfo?>(null) }
 
+    LaunchedEffect(Unit) {
+        viewModel.loadFieldRadar()
+    }
+
     val pins = uiState.fieldPins.mapNotNull { pin ->
         val parts = pin.coordinates?.split(",") ?: return@mapNotNull null
         val lat = parts.getOrNull(0)?.trim()?.toDoubleOrNull() ?: return@mapNotNull null
@@ -94,8 +98,12 @@ fun FieldRadarScreen(
                     verticalArrangement = Arrangement.Center
                 ) {
                     AppEmptyState(
-                        title = "Saha aktivitesi yok",
-                        subtitle = "Aktif teknisyen konumu görüntülenmiyor.",
+                        title = if (uiState.loading) "Saha radarı yükleniyor…" else "Konum verisi yok",
+                        subtitle = if (uiState.loading) {
+                            "Aktif iş emirleri haritaya getiriliyor."
+                        } else {
+                            "Haritada pin görmek için müşteri adreslerine konum bilgisi eklenmeli ve aktif iş emri olmalı."
+                        },
                         icon = Icons.Outlined.Map,
                         tint = Info
                     )

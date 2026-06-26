@@ -27,11 +27,15 @@ import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.RequestQuote
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import com.pusula.service.ui.components.AppPrimaryButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
@@ -308,6 +312,147 @@ fun TicketDetailScreen(
             }
 
             item {
+                AppDashboardSection(title = "Durum ve Kapatma") {
+                    AppGhostCard {
+                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                            Text(
+                                text = "Mevcut durum: ${ticket.status?.let { translateStatus(it) } ?: "-"}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            if (ticket.status != "COMPLETED" && ticket.status != "CANCELLED") {
+                                var statusExpanded by remember(ticketId, ticket.status) { mutableStateOf(false) }
+                                var selectedStatus by remember(ticketId, ticket.status) {
+                                    mutableStateOf(ticket.status ?: "IN_PROGRESS")
+                                }
+                                ExposedDropdownMenuBox(
+                                    expanded = statusExpanded,
+                                    onExpandedChange = { statusExpanded = it }
+                                ) {
+                                    OutlinedTextField(
+                                        value = translateStatus(selectedStatus),
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        label = { Text("Durumu güncelle") },
+                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusExpanded) },
+                                        modifier = Modifier
+                                            .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
+                                            .fillMaxWidth()
+                                    )
+                                    ExposedDropdownMenu(
+                                        expanded = statusExpanded,
+                                        onDismissRequest = { statusExpanded = false }
+                                    ) {
+                                        ticketStatusOptions.forEach { (code, label) ->
+                                            DropdownMenuItem(
+                                                text = { Text(label) },
+                                                onClick = {
+                                                    selectedStatus = code
+                                                    statusExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                                AppPrimaryButton(
+                                    text = if (uiState.statusUpdating) "Güncelleniyor…" else "Durumu Kaydet",
+                                    onClick = { viewModel.updateTicketStatus(ticketId, selectedStatus) },
+                                    enabled = !uiState.statusUpdating && selectedStatus != ticket.status,
+                                    modifier = Modifier.fillMaxWidth().readOnlyProtected(session.isReadOnly)
+                                )
+                                OutlinedButton(
+                                    onClick = { onOpenCollection(ticketId) },
+                                    modifier = Modifier.fillMaxWidth().readOnlyProtected(session.isReadOnly)
+                                ) {
+                                    Text("Tahsilat ile İşi Kapat")
+                                }
+                                var showCloseConfirm by remember { mutableStateOf(false) }
+                                OutlinedButton(
+                                    onClick = { showCloseConfirm = true },
+                                    modifier = Modifier.fillMaxWidth().readOnlyProtected(session.isReadOnly)
+                                ) {
+                                    Text("Tahsilat Olmadan Kapat")
+                                }
+                                if (showCloseConfirm) {
+                                    AlertDialog(
+                                        onDismissRequest = { showCloseConfirm = false },
+                                        title = { Text("İşi kapat") },
+                                        text = { Text("Bu fiş tahsilat kaydı olmadan tamamlanacak. Emin misiniz?") },
+                                        confirmButton = {
+                                            TextButton(onClick = {
+                                                showCloseConfirm = false
+                                                viewModel.closeTicketWithoutCollection(ticketId)
+                                            }) { Text("Kapat") }
+                                        },
+                                        dismissButton = {
+                                            TextButton(onClick = { showCloseConfirm = false }) { Text("Vazgeç") }
+                                        }
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "Bu fiş kapatılmış.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                AppDashboardSection(
+                    title = "Fiş Geçmişi",
+                    subtitle = if (uiState.ticketTimeline.isEmpty()) null else "${uiState.ticketTimeline.size} kayıt"
+                ) {
+                    if (uiState.timelineLoading) {
+                        CircularProgressIndicator(modifier = Modifier.padding(Spacing.md))
+                    } else if (uiState.ticketTimeline.isEmpty()) {
+                        AppEmptyState(
+                            title = "Henüz kayıt yok",
+                            subtitle = "Fiş üzerindeki işlemler burada listelenir.",
+                            icon = Icons.Outlined.Description,
+                            tint = AccentPurple
+                        )
+                    }
+                }
+            }
+            items(uiState.ticketTimeline, key = { it.id ?: it.timestamp ?: it.hashCode() }) { log ->
+                AppGhostCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = formatTimelineTimestamp(log.timestamp),
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                            Text(
+                                text = log.userName ?: "Sistem",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            text = log.description ?: timelineActionLabel(log.actionType),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        if (!log.oldValue.isNullOrBlank() || !log.newValue.isNullOrBlank()) {
+                            Text(
+                                text = listOfNotNull(
+                                    log.oldValue?.takeIf { it.isNotBlank() }?.let { "Önce: $it" },
+                                    log.newValue?.takeIf { it.isNotBlank() }?.let { "Sonra: $it" }
+                                ).joinToString("  →  "),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
                 AppDashboardSection(title = "İşlemler") {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                         Row(
@@ -475,4 +620,24 @@ private fun translateStatus(status: String): String = when (status.uppercase()) 
     "COMPLETED" -> "Tamamlandı"
     "CANCELLED" -> "İptal"
     else -> status
+}
+
+private val ticketStatusOptions = listOf(
+    "PENDING" to "Bekliyor",
+    "ASSIGNED" to "Atandı",
+    "IN_PROGRESS" to "Devam Ediyor",
+    "COMPLETED" to "Tamamlandı",
+    "CANCELLED" to "İptal"
+)
+
+private fun timelineActionLabel(actionType: String?): String = when (actionType?.uppercase()) {
+    "CREATE" -> "Kayıt oluşturuldu"
+    "UPDATE" -> "Güncelleme"
+    "DELETE" -> "Silme"
+    else -> actionType ?: "İşlem"
+}
+
+private fun formatTimelineTimestamp(raw: String?): String {
+    if (raw.isNullOrBlank()) return "-"
+    return raw.replace('T', ' ').take(16)
 }

@@ -3,4 +3,7 @@
     <cache-path
         name="shared_pdfs"
         path="shared/" />
+    <cache-path
+        name="camera_cache"
+        path="." />
 </paths>

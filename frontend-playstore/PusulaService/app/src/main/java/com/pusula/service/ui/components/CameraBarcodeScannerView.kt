@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,12 +48,17 @@ import java.util.concurrent.Executors
 @Composable
 fun CameraBarcodeScannerView(
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     onCodeDetected: (String) -> Unit
 ) {
     val permission = rememberPermissionState(Manifest.permission.CAMERA)
     val lifecycleOwner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
     var scanLocked by remember { mutableStateOf(false) }
+
+    LaunchedEffect(enabled) {
+        if (enabled) scanLocked = false
+    }
 
     if (!permission.status.isGranted) {
         AppEmptyState(
@@ -90,7 +96,7 @@ fun CameraBarcodeScannerView(
                     val scanner = BarcodeScanning.getClient()
                     val analysis = ImageAnalysis.Builder().build().also { imageAnalysis ->
                         imageAnalysis.setAnalyzer(executor) { imageProxy ->
-                            if (!scanLocked) {
+                            if (enabled && !scanLocked) {
                                 val mediaImage = imageProxy.image
                                 if (mediaImage != null) {
                                     val image = InputImage.fromMediaImage(

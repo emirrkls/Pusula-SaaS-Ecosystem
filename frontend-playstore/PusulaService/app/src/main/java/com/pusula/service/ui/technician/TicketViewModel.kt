@@ -31,6 +31,7 @@ data class TicketUiState(
     val usedParts: List<UsedPartDTO> = emptyList(),
     val inventory: List<InventoryItemDTO> = emptyList(),
     val barcodeItem: InventoryItemDTO? = null,
+    val barcodeLookupFailed: Boolean = false,
     val signatureSaved: Boolean = false,
     val assigningTicketId: Long? = null,
     val bulkAssigning: Boolean = false,
@@ -44,6 +45,9 @@ data class TicketUiState(
     val servicePhotos: List<ServicePhotoDTO> = emptyList(),
     val photosLoading: Boolean = false,
     val photoUploading: Boolean = false,
+    val ticketTimeline: List<com.pusula.service.data.model.AuditLogDTO> = emptyList(),
+    val timelineLoading: Boolean = false,
+    val statusUpdating: Boolean = false,
     /** Sunucu servis raporu PDF indirilirken (paylaşım öncesi). */
     val downloadingServicePdfTicketId: Long? = null
 )
@@ -195,6 +199,61 @@ class TicketViewModel @Inject constructor(
             loadTechnicians()
         }
         loadUsedParts(ticketId)
+        loadTicketTimeline(ticketId)
+    }
+
+    fun loadTicketTimeline(ticketId: Long) = viewModelScope.launch {
+        _uiState.update { it.copy(timelineLoading = true) }
+        runCatching { repository.getTicketTimeline(ticketId) }
+            .onSuccess { logs ->
+                _uiState.update { it.copy(timelineLoading = false, ticketTimeline = logs, error = null) }
+            }
+            .onFailure { throwable ->
+                _uiState.update {
+                    it.copy(
+                        timelineLoading = false,
+                        ticketTimeline = emptyList(),
+                        error = throwable.toUserMessage("Fiş geçmişi yüklenemedi")
+                    )
+                }
+            }
+    }
+
+    fun updateTicketStatus(ticketId: Long, status: String) = viewModelScope.launch {
+        _uiState.update { it.copy(statusUpdating = true, error = null) }
+        runCatching { repository.updateTicketStatus(ticketId, status) }
+            .onSuccess { updated ->
+                _uiState.update { state ->
+                    state.copy(
+                        statusUpdating = false,
+                        tickets = state.tickets.map { if (it.id == ticketId) updated else it },
+                        selectedTicket = if (state.selectedTicket?.id == ticketId) updated else state.selectedTicket
+                    )
+                }
+                loadTicketTimeline(ticketId)
+            }
+            .onFailure { throwable ->
+                _uiState.update {
+                    it.copy(statusUpdating = false, error = throwable.toUserMessage("Durum güncellenemedi"))
+                }
+            }
+    }
+
+    fun closeTicketWithoutCollection(ticketId: Long) = viewModelScope.launch {
+        runCatching { repository.completeService(ticketId, 0.0, "CASH") }
+            .onSuccess { updated ->
+                _uiState.update { state ->
+                    state.copy(
+                        tickets = state.tickets.map { if (it.id == ticketId) updated else it },
+                        selectedTicket = updated,
+                        serviceCompletedTicketId = ticketId
+                    )
+                }
+                loadTicketTimeline(ticketId)
+            }
+            .onFailure { throwable ->
+                _uiState.update { it.copy(error = throwable.toUserMessage("İş kapatılamadı")) }
+            }
     }
 
     fun loadUsedParts(ticketId: Long) = viewModelScope.launch {
@@ -220,7 +279,7 @@ class TicketViewModel @Inject constructor(
                 s -> s.copy(
                     barcodeItem = null,
                     error = null,
-                    usedPartAddedTicketId = ticketId
+                    usedPartAddedTicketId = null
                 )
             }
         }.onFailure {
@@ -229,17 +288,19 @@ class TicketViewModel @Inject constructor(
     }
 
     fun lookupBarcode(code: String) = viewModelScope.launch {
-        runCatching { repository.lookupBarcode(code) }
-            .onSuccess { _uiState.update { s -> s.copy(barcodeItem = it, error = null) } }
+        val normalized = code.trim()
+        if (normalized.isEmpty()) return@launch
+        runCatching { repository.lookupBarcode(normalized) }
+            .onSuccess { _uiState.update { s -> s.copy(barcodeItem = it, barcodeLookupFailed = false, error = null) } }
             .onFailure {
                 _uiState.update {
-                    s -> s.copy(barcodeItem = null, error = it.toUserMessage("Barkod bulunamadı"))
+                    s -> s.copy(barcodeItem = null, barcodeLookupFailed = true, error = it.toUserMessage("Barkod bulunamadı"))
                 }
             }
     }
 
     fun clearBarcodeResult() {
-        _uiState.update { it.copy(barcodeItem = null) }
+        _uiState.update { it.copy(barcodeItem = null, barcodeLookupFailed = false) }
     }
 
     fun completeService(ticketId: Long, amount: Double, method: String) = viewModelScope.launch {
@@ -284,8 +345,14 @@ class TicketViewModel @Inject constructor(
             }
     }
 
+    fun reportPhotoPrepareError() {
+        _uiState.update {
+            it.copy(error = "Görsel okunamadı. Lütfen başka bir fotoğraf deneyin.")
+        }
+    }
+
     fun uploadServicePhoto(ticketId: Long, type: String, filePart: MultipartBody.Part) = viewModelScope.launch {
-        _uiState.update { it.copy(photoUploading = true) }
+        _uiState.update { it.copy(photoUploading = true, error = null) }
         runCatching { repository.uploadServicePhoto(ticketId, type, filePart) }
             .onSuccess { created ->
                 _uiState.update { state ->

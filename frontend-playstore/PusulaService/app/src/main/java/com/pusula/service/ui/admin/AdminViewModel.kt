@@ -61,6 +61,19 @@ class AdminViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AdminUiState())
     val uiState: StateFlow<AdminUiState> = _uiState.asStateFlow()
 
+    fun loadFieldRadar() = viewModelScope.launch {
+        _uiState.update { it.copy(loading = true, error = null) }
+        runCatching { adminRepository.getFieldRadar() }
+            .onSuccess { pins ->
+                _uiState.update { it.copy(loading = false, fieldPins = pins, error = null) }
+            }
+            .onFailure { throwable ->
+                _uiState.update {
+                    it.copy(loading = false, error = throwable.toUserMessage("Saha radarı yüklenemedi"))
+                }
+            }
+    }
+
     fun loadDashboard(refresh: Boolean = false) = viewModelScope.launch {
         _uiState.update { it.copy(loading = !refresh, refreshing = refresh, error = null) }
         runCatching {

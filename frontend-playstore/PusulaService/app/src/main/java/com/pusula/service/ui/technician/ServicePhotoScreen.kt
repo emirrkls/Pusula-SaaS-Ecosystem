@@ -1,5 +1,6 @@
 package com.pusula.service.ui.technician
 
+import android.Manifest
 import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -29,7 +30,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.activity.compose.BackHandler
-import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,19 +41,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import com.pusula.service.BuildConfig
 import com.pusula.service.core.readOnlyProtected
+import com.pusula.service.ui.components.AppTopBar
 import com.pusula.service.ui.components.AppEmptyState
 import com.pusula.service.ui.components.AppGhostCard
+import com.pusula.service.ui.components.ImageSourcePickerDialog
 import com.pusula.service.ui.theme.AccentPurple
 import com.pusula.service.ui.theme.Spacing
+import com.pusula.service.util.ImageUploadHelper
 import java.io.File
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun ServicePhotoScreen(
     ticketId: Long,
@@ -65,18 +73,69 @@ fun ServicePhotoScreen(
     val session by viewModel.sessionManager.state.collectAsState()
     val context = LocalContext.current
     var pendingType by remember { mutableStateOf("BEFORE") }
+    var showSourcePicker by remember { mutableStateOf(false) }
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraFile by remember { mutableStateOf<File?>(null) }
+    val cameraPermission = rememberPermissionState(Manifest.permission.CAMERA)
 
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) {
-            createMultipartFromUri(context, uri, "file")?.let { part ->
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        val uri = cameraUri
+        val file = cameraFile
+        if (success && (file != null || uri != null)) {
+            createMultipartFromUri(context, uri, file, "file")?.let { part ->
                 viewModel.uploadServicePhoto(ticketId, pendingType, part)
-            }
+            } ?: viewModel.reportPhotoPrepareError()
+        }
+        cameraUri = null
+        cameraFile = null
+    }
+
+    val launchCameraCapture: () -> Unit = {
+        val photoFile = File.createTempFile("ticket_capture_", ".jpg", context.cacheDir)
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            photoFile
+        )
+        cameraFile = photoFile
+        cameraUri = uri
+        cameraLauncher.launch(uri)
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            launchCameraCapture()
+        }
+    }
+
+    val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            createMultipartFromUri(context, uri, sourceFile = null, partName = "file")?.let { part ->
+                viewModel.uploadServicePhoto(ticketId, pendingType, part)
+            } ?: viewModel.reportPhotoPrepareError()
         }
     }
 
     LaunchedEffect(ticketId) { viewModel.loadServicePhotos(ticketId) }
 
     BackHandler(onBack = onBack)
+
+    if (showSourcePicker) {
+        ImageSourcePickerDialog(
+            onDismiss = { showSourcePicker = false },
+            onCamera = {
+                showSourcePicker = false
+                if (cameraPermission.status.isGranted) {
+                    launchCameraCapture()
+                } else {
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            },
+            onGallery = { galleryPicker.launch("image/*") }
+        )
+    }
 
     Scaffold(topBar = { AppTopBar(title = "Servis Görselleri", onBack = onBack) }) { padding ->
         Column(
@@ -90,14 +149,14 @@ fun ServicePhotoScreen(
                 OutlinedButton(
                     onClick = {
                         pendingType = "BEFORE"
-                        picker.launch("image/*")
+                        showSourcePicker = true
                     },
                     modifier = Modifier.weight(1f).readOnlyProtected(session.isReadOnly)
                 ) { Text("Öncesi Ekle") }
                 Button(
                     onClick = {
                         pendingType = "AFTER"
-                        picker.launch("image/*")
+                        showSourcePicker = true
                     },
                     modifier = Modifier.weight(1f).readOnlyProtected(session.isReadOnly)
                 ) { Text("Sonrası Ekle") }
@@ -105,6 +164,14 @@ fun ServicePhotoScreen(
 
             if (uiState.photoUploading || uiState.photosLoading) {
                 CircularProgressIndicator()
+            }
+
+            uiState.error?.let { message ->
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             if (uiState.servicePhotos.isEmpty() && !uiState.photosLoading) {
@@ -171,12 +238,18 @@ private fun fullPhotoUrl(url: String): String {
     }
 }
 
-private fun createMultipartFromUri(context: Context, uri: Uri, partName: String): MultipartBody.Part? {
-    return runCatching {
-        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
-        val tempFile = File.createTempFile("ticket_photo_", ".jpg", context.cacheDir)
-        tempFile.outputStream().use { output -> inputStream.copyTo(output) }
-        val requestBody = tempFile.asRequestBody("image/*".toMediaTypeOrNull())
-        MultipartBody.Part.createFormData(partName, tempFile.name, requestBody)
-    }.getOrNull()
+private fun createMultipartFromUri(
+    context: Context,
+    uri: Uri?,
+    sourceFile: File?,
+    partName: String
+): MultipartBody.Part? {
+    val prepared = when {
+        sourceFile != null && sourceFile.exists() && sourceFile.length() > 0L ->
+            ImageUploadHelper.prepareForUpload(context, Uri.fromFile(sourceFile), sourceFile)
+        uri != null -> ImageUploadHelper.prepareForUpload(context, uri)
+        else -> null
+    } ?: return null
+    val requestBody = prepared.asRequestBody("image/jpeg".toMediaTypeOrNull())
+    return MultipartBody.Part.createFormData(partName, "photo.jpg", requestBody)
 }

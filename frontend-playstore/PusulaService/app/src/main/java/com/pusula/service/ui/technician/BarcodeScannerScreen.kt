@@ -1,8 +1,6 @@
 package com.pusula.service.ui.technician
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,6 +18,7 @@ import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -28,7 +28,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
-import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -44,6 +43,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.pusula.service.core.featureGated
 import com.pusula.service.core.featureLabelTr
 import com.pusula.service.core.readOnlyProtected
+import com.pusula.service.ui.components.AppTopBar
 import com.pusula.service.ui.components.CameraBarcodeScannerView
 import com.pusula.service.ui.components.AppDashboardSection
 import com.pusula.service.ui.components.AppEmptyState
@@ -69,13 +69,13 @@ fun BarcodeScannerScreen(
     val uiState by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
     var quantity by remember { mutableIntStateOf(1) }
-    var scanLocked by remember { mutableStateOf(false) }
     var showInventoryLockedDialog by remember { mutableStateOf(false) }
+    var partAddedMessage by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(uiState.usedPartAddedTicketId) {
-        if (uiState.usedPartAddedTicketId == ticketId) {
-            viewModel.consumeUsedPartAdded()
-            onDone()
+    LaunchedEffect(partAddedMessage) {
+        if (partAddedMessage != null) {
+            delay(2000)
+            partAddedMessage = null
         }
     }
 
@@ -114,14 +114,24 @@ fun BarcodeScannerScreen(
                 eyebrow = "Servis fişi #$ticketId",
                 title = "Parça tarat",
                 subtitle = "Kamerayı barkoda doğrultun, otomatik okunsun.",
-                badge = if (uiState.barcodeItem != null) "Ürün bulundu" else "Hazır"
+                badge = when {
+                    partAddedMessage != null -> "Kaydedildi"
+                    uiState.barcodeItem != null -> "Ürün bulundu"
+                    else -> "Hazır"
+                }
             )
 
             CameraBarcodeScannerView(
-                modifier = Modifier.fillMaxWidth().weight(1f)
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                enabled = uiState.barcodeItem == null && !uiState.loading
             ) { code ->
-                scanLocked = true
                 viewModel.lookupBarcode(code)
+            }
+
+            partAddedMessage?.let { msg ->
+                AppGhostCard {
+                    Text(text = msg, color = Success, style = MaterialTheme.typography.bodyMedium)
+                }
             }
 
             val item = uiState.barcodeItem
@@ -141,7 +151,10 @@ fun BarcodeScannerScreen(
                                     maxLines = 1
                                 )
                                 Text(
-                                    text = listOfNotNull(item.brand?.takeIf { it.isNotBlank() }, "Stok: ${item.quantity}").joinToString(" • "),
+                                    text = listOfNotNull(
+                                        item.brand?.takeIf { it.isNotBlank() },
+                                        "Stok: ${item.quantity}"
+                                    ).joinToString(" • "),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -181,6 +194,8 @@ fun BarcodeScannerScreen(
                             Button(
                                 onClick = {
                                     viewModel.addUsedPart(ticketId, item, quantity)
+                                    partAddedMessage = "${item.partName} fişe eklendi"
+                                    quantity = 1
                                 }
                             ) {
                                 Text("Sepete Ekle")
@@ -188,17 +203,18 @@ fun BarcodeScannerScreen(
                         }
                     }
                 }
-            } else if (scanLocked) {
+            } else if (uiState.barcodeLookupFailed) {
                 AppEmptyState(
                     title = "Ürün bulunamadı",
-                    subtitle = "Tekrar tarama için hazırlanılıyor...",
+                    subtitle = "Barkod stokta kayıtlı değil veya eşleşmiyor.",
                     icon = Icons.Outlined.QrCodeScanner,
-                    tint = AccentPurple
+                    tint = Warning
                 )
-                LaunchedEffect(uiState.error) {
-                    delay(2000)
-                    scanLocked = false
-                    viewModel.clearBarcodeResult()
+                OutlinedButton(
+                    onClick = { viewModel.clearBarcodeResult() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Tekrar tara")
                 }
             } else {
                 AppEmptyState(
@@ -207,6 +223,10 @@ fun BarcodeScannerScreen(
                     icon = Icons.Outlined.QrCodeScanner,
                     tint = Info
                 )
+            }
+
+            OutlinedButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+                Text("Geri Dön")
             }
         }
     }

@@ -53,3 +53,14 @@ data class ServicePhotoDTO(
     val type: String,
     val uploadedAt: String? = null
 )
+
+data class AuditLogDTO(
+    val id: Long? = null,
+    val userName: String? = null,
+    val actionType: String? = null,
+    val entityType: String? = null,
+    val description: String? = null,
+    val oldValue: String? = null,
+    val newValue: String? = null,
+    val timestamp: String? = null
+)

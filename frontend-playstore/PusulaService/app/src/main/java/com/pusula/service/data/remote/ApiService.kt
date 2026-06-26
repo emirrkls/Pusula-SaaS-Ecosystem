@@ -97,6 +97,15 @@ interface ApiService {
     @PATCH("/api/tickets/{id}/complete")
     suspend fun completeTicket(@Path("id") ticketId: Long, @Body request: CollectionRequest): FieldTicketDTO
 
+    @PUT("/api/tickets/{id}")
+    suspend fun updateTicket(
+        @Path("id") ticketId: Long,
+        @Body body: Map<String, @JvmSuppressWildcards Any?>
+    ): ServiceTicketDTO
+
+    @GET("/api/audit-logs/ticket/{ticketId}")
+    suspend fun ticketTimeline(@Path("ticketId") ticketId: Long): List<com.pusula.service.data.model.AuditLogDTO>
+
     @PATCH("/api/tickets/{id}/assign")
     suspend fun assignTechnician(
         @Path("id") ticketId: Long,

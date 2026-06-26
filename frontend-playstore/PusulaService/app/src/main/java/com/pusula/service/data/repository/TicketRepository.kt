@@ -1,5 +1,6 @@
 package com.pusula.service.data.repository
 
+import com.pusula.service.data.model.AuditLogDTO
 import com.pusula.service.data.model.CollectionRequest
 import com.pusula.service.data.model.CreateTicketRequest
 import com.pusula.service.data.model.CustomerDTO
@@ -76,7 +77,8 @@ class TicketRepository @Inject constructor(
     suspend fun deleteServicePhoto(ticketId: Long, photoId: Long) =
         apiService.deleteServicePhoto(ticketId, photoId)
 
-    suspend fun lookupBarcode(code: String): InventoryItemDTO = apiService.inventoryByBarcode(code)
+    suspend fun lookupBarcode(code: String): InventoryItemDTO =
+        apiService.inventoryByBarcode(code.trim())
 
     suspend fun getInventory(): List<InventoryItemDTO> = apiService.inventory()
 
@@ -104,6 +106,12 @@ class TicketRepository @Inject constructor(
             assignedTechnicianId = assignedTechnicianId
         )
     )
+
+    suspend fun getTicketTimeline(ticketId: Long): List<AuditLogDTO> =
+        apiService.ticketTimeline(ticketId)
+
+    suspend fun updateTicketStatus(ticketId: Long, status: String): FieldTicketDTO =
+        toFieldTicket(apiService.updateTicket(ticketId, mapOf("status" to status)))
 
     private fun toFieldTicket(dto: com.pusula.service.data.model.ServiceTicketDTO): FieldTicketDTO = FieldTicketDTO(
         id = dto.id,
