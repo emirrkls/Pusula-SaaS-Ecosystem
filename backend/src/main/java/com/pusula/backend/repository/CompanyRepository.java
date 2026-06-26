@@ -10,4 +10,6 @@ import java.util.Optional;
 public interface CompanyRepository extends JpaRepository<Company, Long> {
     Optional<Company> findByOrgCode(String orgCode);
     Optional<Company> findByOrgCodeIgnoreCase(String orgCode);
+    long countBySubscriptionStatus(String subscriptionStatus);
+    long countByIsReadOnlyTrue();
 }

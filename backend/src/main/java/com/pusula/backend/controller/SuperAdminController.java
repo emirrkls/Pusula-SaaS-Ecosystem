@@ -8,8 +8,9 @@ import com.pusula.backend.repository.AuditLogRepository;
 import com.pusula.backend.repository.UserRepository;
 import com.pusula.backend.repository.PaymentEventRepository;
 import com.pusula.backend.repository.WebhookEventRepository;
-import com.pusula.backend.entity.PaymentEvent;
+import com.pusula.backend.entity.PaymentEventStatus;
 import com.pusula.backend.entity.WebhookEvent;
+import com.pusula.backend.entity.WebhookEventStatus;
 import com.pusula.backend.dto.SystemStatusDTO;
 import com.pusula.backend.dto.CompanyQuotaStatusDTO;
 import com.pusula.backend.dto.QuotaDTO;
@@ -35,6 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -82,8 +84,11 @@ public class SuperAdminController {
      */
     @GetMapping("/companies")
     @PreAuthorize("hasAuthority('SUPERADMIN_READ_COMPANIES')")
-    public ResponseEntity<List<Company>> getAllCompanies() {
-        return ResponseEntity.ok(companyRepository.findAll());
+    public ResponseEntity<List<CompanySummaryResponse>> getAllCompanies() {
+        List<CompanySummaryResponse> companies = companyRepository.findAll().stream()
+                .map(this::toCompanySummary)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(companies);
     }
 
     @GetMapping("/companies/{id}/quota-status")
@@ -116,13 +121,23 @@ public class SuperAdminController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/admin-users")
+    @PreAuthorize("hasAuthority('SUPERADMIN_VIEW_SYSTEM')")
+    public ResponseEntity<List<SuperAdminUserResponse>> getSuperAdminUsers() {
+        List<String> roles = List.of("SUPER_ADMIN", "SUPER_ADMIN_OPS", "SUPER_ADMIN_READONLY");
+        List<SuperAdminUserResponse> users = userRepository.findByRoleIn(roles).stream()
+                .map(this::toSuperAdminUserResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(users);
+    }
+
     /**
      * Süper admin tarafından yeni şirket + ilk admin kullanıcı oluştur.
      */
     @PostMapping("/companies")
     @PreAuthorize("hasAuthority('SUPERADMIN_WRITE_COMPANY')")
     @Transactional
-    public ResponseEntity<Company> createCompany(@RequestBody CreateCompanyRequest request) {
+    public ResponseEntity<CompanySummaryResponse> createCompany(@RequestBody CreateCompanyRequest request) {
         if (request == null || request.name == null || request.name.isBlank()) {
             return badRequest("VALIDATION_ERROR", "Şirket adı zorunludur.");
         }
@@ -176,7 +191,7 @@ public class SuperAdminController {
                 null,
                 savedCompany);
 
-        return ResponseEntity.ok(savedCompany);
+        return ResponseEntity.ok(toCompanySummary(savedCompany, adminUser));
     }
 
     /**
@@ -184,7 +199,7 @@ public class SuperAdminController {
      */
     @PutMapping("/companies/{id}")
     @PreAuthorize("hasAuthority('SUPERADMIN_WRITE_COMPANY')")
-    public ResponseEntity<Company> updateCompany(@PathVariable Long id, @RequestBody UpdateCompanyRequest request) {
+    public ResponseEntity<CompanySummaryResponse> updateCompany(@PathVariable Long id, @RequestBody UpdateCompanyRequest request) {
         if (request == null || !hasReason(request.reason)) {
             return badRequest("REASON_REQUIRED", "En az 5 karakterlik işlem gerekçesi zorunludur.");
         }
@@ -220,7 +235,7 @@ public class SuperAdminController {
                 "Super admin şirket bilgilerini güncelledi. Sebep: " + request.reason.trim(),
                 before,
                 updated);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(toCompanySummary(updated));
     }
 
     /**
@@ -268,7 +283,7 @@ public class SuperAdminController {
      */
     @PutMapping("/companies/{id}/suspend")
     @PreAuthorize("hasAuthority('SUPERADMIN_SUSPEND_COMPANY')")
-    public ResponseEntity<Company> toggleSuspendCompany(
+    public ResponseEntity<CompanySummaryResponse> toggleSuspendCompany(
             @PathVariable Long id,
             @RequestBody(required = false) SuspendActionRequest request) {
         if (request == null || !hasReason(request.reason)) {
@@ -299,7 +314,7 @@ public class SuperAdminController {
                 before,
                 updated);
 
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(toCompanySummary(updated));
     }
 
     /**
@@ -411,20 +426,16 @@ public class SuperAdminController {
                         "timestamp", log.getTimestamp() != null ? log.getTimestamp().toString() : "",
                         "ipAddress", log.getIpAddress() != null ? log.getIpAddress() : "")));
 
-        long failedWebhooks24h = webhookEventRepository.findAll().stream()
-                .filter(e -> e.getCreatedAt() != null && e.getCreatedAt().isAfter(LocalDateTime.now().minusHours(24)))
-                .filter(e -> "FAILED".equals(String.valueOf(e.getStatus())))
-                .count();
+        LocalDateTime oneDayAgo = LocalDateTime.now().minusHours(24);
+        long failedWebhooks24h = webhookEventRepository
+                .countByStatusAndCreatedAtAfter(WebhookEventStatus.FAILED, oneDayAgo);
 
-        long failedPayments24h = paymentEventRepository.findAll().stream()
-                .filter(e -> e.getCreatedAt() != null && e.getCreatedAt().isAfter(LocalDateTime.now().minusHours(24)))
-                .filter(e -> "FAILED".equals(String.valueOf(e.getStatus())))
-                .count();
+        long failedPayments24h = paymentEventRepository
+                .countByStatusAndCreatedAtAfter(PaymentEventStatus.FAILED, oneDayAgo);
 
-        List<Map<String, Object>> recentWebhookEvents = webhookEventRepository.findAll().stream()
-                .filter(e -> e.getCreatedAt() != null && e.getCreatedAt().isAfter(LocalDateTime.now().minusDays(7)))
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .limit(5)
+        List<Map<String, Object>> recentWebhookEvents = webhookEventRepository
+                .findTop5ByCreatedAtAfterOrderByCreatedAtDesc(LocalDateTime.now().minusDays(7))
+                .stream()
                 .map(e -> {
                     Map<String, Object> event = new java.util.HashMap<>();
                     event.put("provider", e.getProvider());
@@ -523,34 +534,21 @@ public class SuperAdminController {
         LocalDateTime sevenDaysAgo = now.minusDays(7);
         LocalDateTime oneDayAgo = now.minusHours(24);
 
-        List<com.pusula.backend.entity.AuditLog> recentAuthLogs = auditLogRepository.findAll().stream()
-                .filter(log -> log.getTimestamp() != null && log.getTimestamp().isAfter(sevenDaysAgo))
-                .filter(log -> {
-                    String action = log.getActionType() != null ? log.getActionType() : "";
-                    return action.contains("LOGIN_FAILED") || action.contains("AUTH_FAILED");
-                })
-                .toList();
-
-        List<Map<String, Object>> authFailureTrend = recentAuthLogs.stream()
-                .collect(Collectors.groupingBy(log -> log.getTimestamp().toLocalDate()))
-                .entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(entry -> {
+        List<Map<String, Object>> authFailureTrend = auditLogRepository
+                .countAuthFailuresGroupedByDateSince(sevenDaysAgo)
+                .stream()
+                .map(row -> {
                     Map<String, Object> point = new java.util.HashMap<>();
-                    point.put("date", entry.getKey().toString());
-                    point.put("count", entry.getValue().size());
+                    point.put("date", toLocalDateString(row[0]));
+                    point.put("count", row[1]);
                     return point;
                 })
                 .toList();
 
-        long webhookFailedCount24h = webhookEventRepository.findAll().stream()
-                .filter(event -> event.getCreatedAt() != null && event.getCreatedAt().isAfter(oneDayAgo))
-                .filter(event -> "FAILED".equals(String.valueOf(event.getStatus())))
-                .count();
+        long webhookFailedCount24h = webhookEventRepository
+                .countByStatusAndCreatedAtAfter(WebhookEventStatus.FAILED, oneDayAgo);
 
-        long readOnlyTenantCount = companyRepository.findAll().stream()
-                .filter(company -> Boolean.TRUE.equals(company.getIsReadOnly()))
-                .count();
+        long readOnlyTenantCount = companyRepository.countByIsReadOnlyTrue();
 
         List<Map<String, String>> alerts = new ArrayList<>();
         if (webhookFailedCount24h >= 5) {
@@ -558,9 +556,7 @@ public class SuperAdminController {
                     "severity", "CRITICAL",
                     "message", "Son 24 saatte webhook başarısız sayısı kritik eşiği geçti"));
         }
-        long todayAuthFailures = recentAuthLogs.stream()
-                .filter(log -> log.getTimestamp() != null && log.getTimestamp().isAfter(oneDayAgo))
-                .count();
+        long todayAuthFailures = auditLogRepository.countAuthFailuresSince(oneDayAgo);
         if (todayAuthFailures >= 20) {
             alerts.add(Map.of(
                     "severity", "WARNING",
@@ -586,6 +582,60 @@ public class SuperAdminController {
             code = "PUS-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase(Locale.ROOT);
         } while (companyRepository.findByOrgCodeIgnoreCase(code).isPresent());
         return code;
+    }
+
+    private CompanySummaryResponse toCompanySummary(Company company) {
+        User admin = userRepository.findFirstByCompanyIdAndRoleOrderByIdAsc(company.getId(), "COMPANY_ADMIN")
+                .orElse(null);
+        return toCompanySummary(company, admin);
+    }
+
+    private CompanySummaryResponse toCompanySummary(Company company, User admin) {
+        CompanySummaryResponse response = new CompanySummaryResponse();
+        response.id = company.getId();
+        response.name = company.getName();
+        response.subscriptionStatus = company.getSubscriptionStatus();
+        response.phone = company.getPhone();
+        response.address = company.getAddress();
+        response.email = company.getEmail();
+        response.billingEmail = company.getBillingEmail();
+        response.planType = company.getPlanType().name();
+        response.orgCode = company.getOrgCode();
+        response.isReadOnly = company.getIsReadOnly();
+        response.trialEndsAt = company.getTrialEndsAt();
+        response.subscriptionExpiresAt = company.getSubscriptionExpiresAt();
+        response.createdAt = company.getCreatedAt();
+        response.adminUsername = admin != null ? admin.getUsername() : null;
+        response.adminFullName = admin != null ? admin.getFullName() : null;
+        return response;
+    }
+
+    private String toLocalDateString(Object value) {
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof LocalDate localDate) {
+            return localDate.toString();
+        }
+        if (value instanceof java.sql.Date sqlDate) {
+            return sqlDate.toLocalDate().toString();
+        }
+        return value.toString();
+    }
+
+    private SuperAdminUserResponse toSuperAdminUserResponse(User user) {
+        SuperAdminUserResponse response = new SuperAdminUserResponse();
+        response.id = user.getId();
+        response.username = user.getUsername();
+        response.fullName = user.getFullName();
+        response.role = user.getRole();
+        response.createdAt = user.getCreatedAt();
+        response.permissions = user.getAuthorities().stream()
+                .map(Object::toString)
+                .filter(authority -> !authority.startsWith("ROLE_"))
+                .sorted()
+                .toList();
+        return response;
     }
 
     private PlanType parsePlanType(String planType) {
@@ -668,6 +718,33 @@ public class SuperAdminController {
         public Long companyId;
         public String reason;
         public Boolean confirmAction;
+    }
+
+    public static class CompanySummaryResponse {
+        public Long id;
+        public String name;
+        public String subscriptionStatus;
+        public String phone;
+        public String address;
+        public String email;
+        public String billingEmail;
+        public String planType;
+        public String orgCode;
+        public Boolean isReadOnly;
+        public LocalDateTime trialEndsAt;
+        public LocalDateTime subscriptionExpiresAt;
+        public LocalDateTime createdAt;
+        public String adminUsername;
+        public String adminFullName;
+    }
+
+    public static class SuperAdminUserResponse {
+        public Long id;
+        public String username;
+        public String fullName;
+        public String role;
+        public LocalDateTime createdAt;
+        public List<String> permissions;
     }
 
     @SuppressWarnings("unchecked")
