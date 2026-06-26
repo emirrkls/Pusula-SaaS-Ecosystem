@@ -85,10 +85,22 @@ public class SuperAdminController {
     @GetMapping("/companies")
     @PreAuthorize("hasAuthority('SUPERADMIN_READ_COMPANIES')")
     public ResponseEntity<List<CompanySummaryResponse>> getAllCompanies() {
-        List<CompanySummaryResponse> companies = companyRepository.findAll().stream()
-                .map(this::toCompanySummary)
+        List<Company> companies = companyRepository.findAll();
+        List<Long> companyIds = companies.stream()
+                .map(Company::getId)
+                .toList();
+        Map<Long, User> adminsByCompanyId = userRepository
+                .findByCompanyIdInAndRoleOrderByIdAsc(companyIds, "COMPANY_ADMIN")
+                .stream()
+                .collect(Collectors.toMap(
+                        User::getCompanyId,
+                        user -> user,
+                        (first, ignored) -> first));
+
+        List<CompanySummaryResponse> response = companies.stream()
+                .map(company -> toCompanySummary(company, adminsByCompanyId.get(company.getId())))
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(companies);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/companies/{id}/quota-status")

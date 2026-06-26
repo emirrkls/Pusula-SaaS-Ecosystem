@@ -73,18 +73,20 @@ class SuperAdminControllerSuspendAuditTest {
 
         when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
         when(companyRepository.save(any(Company.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userRepository.findFirstByCompanyIdAndRoleOrderByIdAsc(10L, "COMPANY_ADMIN"))
+                .thenReturn(Optional.empty());
 
         SuperAdminController.SuspendActionRequest request = new SuperAdminController.SuspendActionRequest();
         request.reason = "Operasyonel inceleme";
         request.confirmAction = true;
 
-        ResponseEntity<Company> first = controller.toggleSuspendCompany(10L, request);
+        ResponseEntity<SuperAdminController.CompanySummaryResponse> first = controller.toggleSuspendCompany(10L, request);
         assertEquals(200, first.getStatusCode().value());
-        assertEquals("SUSPENDED", first.getBody().getSubscriptionStatus());
+        assertEquals("SUSPENDED", first.getBody().subscriptionStatus);
 
-        ResponseEntity<Company> second = controller.toggleSuspendCompany(10L, request);
+        ResponseEntity<SuperAdminController.CompanySummaryResponse> second = controller.toggleSuspendCompany(10L, request);
         assertEquals(200, second.getStatusCode().value());
-        assertEquals("ACTIVE", second.getBody().getSubscriptionStatus());
+        assertEquals("ACTIVE", second.getBody().subscriptionStatus);
 
         ArgumentCaptor<String> actionCaptor = ArgumentCaptor.forClass(String.class);
         verify(auditLogService, times(2)).logChange(
