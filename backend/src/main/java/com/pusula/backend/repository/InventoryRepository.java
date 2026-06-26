@@ -20,4 +20,9 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
             @Param("searchTerm") String searchTerm);
 
     java.util.Optional<Inventory> findByBarcodeAndCompanyId(String barcode, Long companyId);
+
+    @Query("SELECT i FROM Inventory i WHERE i.companyId = :companyId AND i.barcode IS NOT NULL " +
+            "AND LOWER(TRIM(i.barcode)) = LOWER(TRIM(:barcode))")
+    java.util.Optional<Inventory> findByBarcodeNormalized(@Param("barcode") String barcode,
+            @Param("companyId") Long companyId);
 }

@@ -2,6 +2,7 @@ package com.pusula.backend.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -43,9 +44,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleAuthenticationException(
             AuthenticationException ex,
             HttpServletRequest request) {
-        log.warn("Authentication failed: {}", ex.getMessage());
+        String detail = ex.getMessage();
+        String message = (detail != null && !detail.isBlank())
+                ? detail
+                : "Kimlik doğrulama başarısız";
+        log.warn("Authentication failed: {}", message);
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(errorBody(HttpStatus.UNAUTHORIZED, "AUTH_FAILED", "Kimlik doğrulama başarısız", request, null));
+                .body(errorBody(HttpStatus.UNAUTHORIZED, "AUTH_FAILED", message, request, null));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -66,6 +71,32 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(errorBody(HttpStatus.BAD_REQUEST, "MISSING_PARAMETER", ex.getMessage(), request, null));
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Map<String, Object>> handleRuntimeException(
+            RuntimeException ex,
+            HttpServletRequest request) {
+        String message = ex.getMessage();
+        if (message == null || message.isBlank()) {
+            message = "İşlem tamamlanamadı";
+        }
+        log.warn("Runtime error on {} {}: {}", request.getMethod(), request.getRequestURI(), message, ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(errorBody(HttpStatus.BAD_REQUEST, "REQUEST_FAILED", message, request, null));
+    }
+
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<Map<String, Object>> handleDataAccessException(
+            DataAccessException ex,
+            HttpServletRequest request) {
+        log.error("Database error on {} {}", request.getMethod(), request.getRequestURI(), ex);
+        String message = "Veritabanı hatası. Sunucuda eksik tablo olabilir (service_photos).";
+        if (ex.getMostSpecificCause() != null && ex.getMostSpecificCause().getMessage() != null) {
+            message = ex.getMostSpecificCause().getMessage();
+        }
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(errorBody(HttpStatus.INTERNAL_SERVER_ERROR, "DATABASE_ERROR", message, request, null));
     }
 
     @ExceptionHandler(Exception.class)

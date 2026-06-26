@@ -12,6 +12,7 @@ public class InventoryDTO {
     private Integer criticalLevel;
     private String brand;
     private String category;
+    private String barcode;
 
     // Stock distribution fields
     private Integer warehouseQuantity; // Parts in main warehouse (quantity - inVehicle)
@@ -101,6 +102,14 @@ public class InventoryDTO {
         this.category = category;
     }
 
+    public String getBarcode() {
+        return barcode;
+    }
+
+    public void setBarcode(String barcode) {
+        this.barcode = barcode;
+    }
+
     public Integer getWarehouseQuantity() {
         return warehouseQuantity;
     }
@@ -134,6 +143,7 @@ public class InventoryDTO {
         private Integer criticalLevel;
         private String brand;
         private String category;
+        private String barcode;
 
         InventoryDTOBuilder() {
         }
@@ -178,8 +188,15 @@ public class InventoryDTO {
             return this;
         }
 
+        public InventoryDTOBuilder barcode(String barcode) {
+            this.barcode = barcode;
+            return this;
+        }
+
         public InventoryDTO build() {
-            return new InventoryDTO(id, partName, quantity, buyPrice, sellPrice, criticalLevel, brand, category);
+            InventoryDTO dto = new InventoryDTO(id, partName, quantity, buyPrice, sellPrice, criticalLevel, brand, category);
+            dto.setBarcode(barcode);
+            return dto;
         }
     }
 }

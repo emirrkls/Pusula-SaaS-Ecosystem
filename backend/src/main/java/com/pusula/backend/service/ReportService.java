@@ -149,7 +149,7 @@ public class ReportService {
                         addFinancialSection(document, ticket);
 
                         // 6. SIGNATURES (Left: Tech, Right: Customer)
-                        addSignatureSection(document, technician, customer);
+                        addSignatureSection(document, technician, customer, ticket);
 
                         // 7. FOOTER (Warranty Info)
                         addFooterSection(document);
@@ -383,8 +383,8 @@ public class ReportService {
                 table.addCell(c2);
         }
 
-        private void addSignatureSection(Document document, User technician, Customer customer)
-                        throws DocumentException {
+        private void addSignatureSection(Document document, User technician, Customer customer,
+                        ServiceTicket ticket) throws DocumentException {
                 PdfPTable table = new PdfPTable(2);
                 table.setWidthPercentage(100);
                 table.setSpacingBefore(40);
@@ -436,22 +436,48 @@ public class ReportService {
                 techCell.addElement(techSigP);
                 table.addCell(techCell);
 
-                // Customer Signature (always text, no image)
+                // Customer Signature
                 PdfPCell custCell = new PdfPCell();
                 custCell.setBorder(Rectangle.NO_BORDER);
                 custCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                custCell.setMinimumHeight(70f);
-                String custName = customer != null && customer.getName() != null ? customer.getName()
-                                : "";
-                Paragraph pCust = new Paragraph(custName, NORMAL_FONT);
-                pCust.setAlignment(Element.ALIGN_RIGHT);
-                custCell.addElement(pCust);
+                custCell.setMinimumHeight(80f);
 
-                // Add signature line
-                Paragraph custLine = new Paragraph("_______________________", NORMAL_FONT);
-                custLine.setAlignment(Element.ALIGN_RIGHT);
-                custLine.setSpacingBefore(3);
-                custCell.addElement(custLine);
+                boolean customerSignatureLoaded = false;
+                if (ticket != null && ticket.getCompanyId() != null) {
+                        try {
+                                java.nio.file.Path customerSigPath = java.nio.file.Paths.get(
+                                                "uploads", "signatures",
+                                                ticket.getCompanyId().toString(),
+                                                ticket.getId() + ".png");
+                                if (java.nio.file.Files.exists(customerSigPath)) {
+                                        Image customerSigImg = Image.getInstance(
+                                                        customerSigPath.toAbsolutePath().toString());
+                                        customerSigImg.scaleToFit(150, 50);
+                                        customerSigImg.setAlignment(Element.ALIGN_RIGHT);
+                                        custCell.addElement(customerSigImg);
+                                        customerSignatureLoaded = true;
+                                }
+                        } catch (Exception e) {
+                                // fall back to signature line
+                        }
+                }
+
+                String custName = customer != null && customer.getName() != null ? customer.getName() : "";
+                if (!customerSignatureLoaded) {
+                        Paragraph pCust = new Paragraph(custName, NORMAL_FONT);
+                        pCust.setAlignment(Element.ALIGN_RIGHT);
+                        custCell.addElement(pCust);
+
+                        Paragraph custLine = new Paragraph("_______________________", NORMAL_FONT);
+                        custLine.setAlignment(Element.ALIGN_RIGHT);
+                        custLine.setSpacingBefore(3);
+                        custCell.addElement(custLine);
+                } else {
+                        Paragraph pCust = new Paragraph(custName, NORMAL_FONT);
+                        pCust.setAlignment(Element.ALIGN_RIGHT);
+                        pCust.setSpacingBefore(5);
+                        custCell.addElement(pCust);
+                }
 
                 Paragraph pSign = new Paragraph("Müşteri İmzası", SMALL_FONT);
                 pSign.setAlignment(Element.ALIGN_RIGHT);

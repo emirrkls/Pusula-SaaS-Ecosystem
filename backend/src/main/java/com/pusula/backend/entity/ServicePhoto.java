@@ -22,7 +22,7 @@ public class ServicePhoto {
     @Column(name = "ticket_id", nullable = false)
     private Long ticketId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String url;
 
     @Enumerated(EnumType.STRING)

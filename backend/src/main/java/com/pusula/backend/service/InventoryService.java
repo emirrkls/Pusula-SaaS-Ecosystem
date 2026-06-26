@@ -60,6 +60,7 @@ public class InventoryService {
                 .build();
         inventory.setBrand(dto.getBrand());
         inventory.setCategory(dto.getCategory());
+        inventory.setBarcode(normalizeBarcode(dto.getBarcode()));
         Inventory saved = repository.save(inventory);
         featureService.incrementUsage(user.getCompanyId(), "INVENTORY");
 
@@ -93,6 +94,7 @@ public class InventoryService {
         inventory.setCriticalLevel(dto.getCriticalLevel());
         inventory.setBrand(dto.getBrand());
         inventory.setCategory(dto.getCategory());
+        inventory.setBarcode(normalizeBarcode(dto.getBarcode()));
 
         Inventory saved = repository.save(inventory);
 
@@ -160,6 +162,7 @@ public class InventoryService {
                 .criticalLevel(inventory.getCriticalLevel())
                 .brand(inventory.getBrand())
                 .category(inventory.getCategory())
+                .barcode(inventory.getBarcode())
                 .build();
 
         // Set distribution fields
@@ -168,5 +171,13 @@ public class InventoryService {
         dto.setVehicleDistribution(distribution);
 
         return dto;
+    }
+
+    private static String normalizeBarcode(String barcode) {
+        if (barcode == null) {
+            return null;
+        }
+        String trimmed = barcode.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

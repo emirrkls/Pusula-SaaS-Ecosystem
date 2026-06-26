@@ -39,6 +39,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -383,6 +384,12 @@ public class ServiceTicketService {
 
         com.pusula.backend.entity.ServiceUsedPart saved = serviceUsedPartRepository.save(usedPart);
 
+        auditLogService.log(
+                "UPDATE",
+                "TICKET",
+                ticket.getId(),
+                "Parça eklendi: " + inventory.getPartName() + " x" + dto.getQuantityUsed());
+
         return new ServiceUsedPartDTO(
                 saved.getId(),
                 saved.getServiceTicket().getId(),
@@ -418,6 +425,7 @@ public class ServiceTicketService {
                 .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
 
+        String previousStatus = getStatusInTurkish(ticket.getStatus());
         ticket.setStatus(ServiceTicket.TicketStatus.COMPLETED);
         ticket.setCollectedAmount(collectedAmount);
         ticket.setPaymentMethod(paymentMethod != null ? paymentMethod : PaymentMethod.CASH);
@@ -445,6 +453,21 @@ public class ServiceTicketService {
         }
 
         ServiceTicket saved = repository.save(ticket);
+
+        auditLogService.log(
+                "UPDATE",
+                "TICKET",
+                saved.getId(),
+                "Servis tamamlandı",
+                previousStatus,
+                getStatusInTurkish(ServiceTicket.TicketStatus.COMPLETED));
+        auditLogService.log(
+                "UPDATE",
+                "TICKET",
+                saved.getId(),
+                String.format("Tahsilat kaydedildi: %.2f ₺ (%s)",
+                        collectedAmount,
+                        paymentMethod != null ? paymentMethod.name() : "CASH"));
 
         // WhatsApp notification — async fire-and-forget
         try {
@@ -630,6 +653,12 @@ public class ServiceTicketService {
                 os.write(imageBytes);
             }
 
+            auditLogService.log(
+                    "UPDATE",
+                    "TICKET",
+                    ticketId,
+                    "Müşteri imzası kaydedildi");
+
             return "/uploads/signatures/" + companyId + "/" + ticketId + ".png";
         } catch (IOException e) {
             throw new RuntimeException("İmza kaydedilemedi: " + e.getMessage(), e);
@@ -658,8 +687,14 @@ public class ServiceTicketService {
                     .type(type)
                     .build();
             ServicePhoto saved = servicePhotoRepository.save(photo);
+            auditLogService.log(
+                    "UPDATE",
+                    "TICKET",
+                    ticket.getId(),
+                    "Servis görseli yüklendi (" + type.name() + ")");
             return mapPhotoToDTO(saved);
         } catch (IOException e) {
+            log.error("Service photo upload failed for ticketId={}", ticketId, e);
             throw new RuntimeException("Servis görseli yüklenemedi: " + e.getMessage(), e);
         }
     }
@@ -743,7 +778,9 @@ public class ServiceTicketService {
         boolean allowed = contentType.equalsIgnoreCase("image/jpeg")
                 || contentType.equalsIgnoreCase("image/jpg")
                 || contentType.equalsIgnoreCase("image/png")
-                || contentType.equalsIgnoreCase("image/webp");
+                || contentType.equalsIgnoreCase("image/webp")
+                || contentType.equalsIgnoreCase("image/*")
+                || contentType.toLowerCase(Locale.ROOT).startsWith("image/");
         if (!allowed) {
             throw new RuntimeException("Sadece JPG, PNG veya WEBP formatı desteklenir.");
         }

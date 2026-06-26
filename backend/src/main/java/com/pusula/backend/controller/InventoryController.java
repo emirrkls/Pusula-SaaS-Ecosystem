@@ -52,7 +52,11 @@ public class InventoryController {
     @GetMapping("/barcode/{code}")
     public ResponseEntity<?> findByBarcode(@PathVariable String code) {
         User user = getCurrentUser();
-        Optional<Inventory> item = repository.findByBarcodeAndCompanyId(code, user.getCompanyId());
+        String normalized = code != null ? code.trim() : "";
+        if (normalized.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Optional<Inventory> item = lookupInventoryByBarcode(normalized, user.getCompanyId());
         if (item.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -97,5 +101,24 @@ public class InventoryController {
                 inv.getCategory(),
                 inv.getBarcode()
         );
+    }
+
+    private Optional<Inventory> lookupInventoryByBarcode(String code, Long companyId) {
+        Optional<Inventory> item = repository.findByBarcodeNormalized(code, companyId);
+        if (item.isPresent()) {
+            return item;
+        }
+        if (code.startsWith("0")) {
+            String withoutLeadingZeros = code.replaceFirst("^0+", "");
+            if (!withoutLeadingZeros.isEmpty() && !withoutLeadingZeros.equals(code)) {
+                item = repository.findByBarcodeNormalized(withoutLeadingZeros, companyId);
+                if (item.isPresent()) {
+                    return item;
+                }
+            }
+        } else {
+            item = repository.findByBarcodeNormalized("0" + code, companyId);
+        }
+        return item;
     }
 }
