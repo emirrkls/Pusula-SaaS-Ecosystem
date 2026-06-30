@@ -29,6 +29,7 @@ public interface ServiceTicketRepository extends JpaRepository<ServiceTicket, Lo
     Long countActiveTickets(@Param("companyId") Long companyId);
 
     // Get completed tickets for performance tracking
-    @Query("SELECT t FROM ServiceTicket t WHERE t.status = 'COMPLETED' AND t.updatedAt >= :since")
-    List<ServiceTicket> findCompletedTicketsSince(@Param("since") LocalDateTime since);
+    @Query("SELECT t FROM ServiceTicket t WHERE t.companyId = :companyId AND t.status = 'COMPLETED' AND t.updatedAt >= :since")
+    List<ServiceTicket> findCompletedTicketsSince(@Param("companyId") Long companyId,
+            @Param("since") LocalDateTime since);
 }

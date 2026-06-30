@@ -73,9 +73,11 @@ public class ReportController {
     @GetMapping("/technician-performance")
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, Map<String, Integer>>> getTechnicianPerformance() {
+        Long companyId = getCompanyId();
+
         // Get completed tickets from last 7 days
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
-        List<ServiceTicket> completedTickets = ticketRepository.findCompletedTicketsSince(sevenDaysAgo);
+        List<ServiceTicket> completedTickets = ticketRepository.findCompletedTicketsSince(companyId, sevenDaysAgo);
 
         // DateTimeFormatter for date keys
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -89,7 +91,9 @@ public class ReportController {
             }
 
             // Get technician name
-            User technician = userRepository.findById(ticket.getAssignedTechnicianId()).orElse(null);
+            User technician = userRepository.findByIdAndCompanyId(ticket.getAssignedTechnicianId(), companyId)
+                    .filter(u -> "TECHNICIAN".equals(u.getRole()))
+                    .orElse(null);
             if (technician == null) {
                 continue;
             }
