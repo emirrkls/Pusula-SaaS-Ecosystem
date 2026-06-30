@@ -5,4 +5,4 @@ export const GBP_MAPS_URL =
     'https://www.google.com/maps/place/Pusula+%C4%B0klimlendirme/@37.3594618,27.2684146,17z';
 
 export const DEFAULT_DESCRIPTION =
-    'Didim ve Aydın\'da klima tamiri, bakım ve montaj. Hisense klima; Üntes VRF ve ısı pompası; Nibe, LG monoblok ve Solimpeks yetkili servis. 7/24 teknik destek.';
+    'Didim ve Aydın\'da klima tamiri, bakım ve montaj. Hisense klima, Üntes VRF, ısı pompası ve güneş enerjisi için yetkili servis.';

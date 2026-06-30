@@ -94,28 +94,14 @@ const Home = () => {
                 </div>
 
                 <div className="relative z-10 container mx-auto px-4 text-center text-white">
-                    <motion.h1
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8 }}
-                        className="text-5xl md:text-7xl font-bold mb-6 tracking-tight"
-                    >
+                    <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
                         Konforunuzun Yönü <span className="text-brand-cyan">Pusula</span>
-                    </motion.h1>
-                    <motion.p
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, delay: 0.2 }}
-                        className="text-xl md:text-2xl text-gray-200 mb-10 max-w-3xl mx-auto font-light"
-                    >
+                    </h1>
+                    <p className="text-xl md:text-2xl text-gray-200 mb-10 max-w-3xl mx-auto font-light">
                         Didim ve Aydın'da klima tamiri, bakım ve montaj.
                         Hisense klima; Üntes VRF ve ısı pompası; Nibe, LG ve Solimpeks yetkili bayi & servis — 7/24 teknik destek.
-                    </motion.p>
-                    <motion.div
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, delay: 0.4 }}
-                    >
+                    </p>
+                    <div>
                         <Link
                             to="/iletisim"
                             className="bg-brand-cyan hover:bg-cyan-400 text-white px-8 py-4 rounded-full font-bold text-lg transition-all shadow-lg hover:shadow-cyan-500/40 inline-flex items-center gap-2"
@@ -123,7 +109,7 @@ const Home = () => {
                             Hemen Servis Çağır
                             <ArrowRight className="w-5 h-5" />
                         </Link>
-                    </motion.div>
+                    </div>
                 </div>
             </section>
 

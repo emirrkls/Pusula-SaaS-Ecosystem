@@ -63,27 +63,13 @@ const ServiceLandingPage = ({ pageKey }) => {
             {/* Hero */}
             <div className="bg-brand-dark text-white py-16 md:py-20">
                 <div className="container mx-auto px-4 text-center max-w-3xl">
-                    <motion.h1
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-4xl md:text-5xl font-bold mb-4"
-                    >
+                    <h1 className="text-4xl md:text-5xl font-bold mb-4">
                         {page.h1}
-                    </motion.h1>
-                    <motion.p
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="text-lg md:text-xl text-gray-300"
-                    >
+                    </h1>
+                    <p className="text-lg md:text-xl text-gray-300">
                         {page.subtitle}
-                    </motion.p>
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="flex flex-col sm:flex-row gap-4 justify-center mt-8"
-                    >
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
                         <Link
                             to="/iletisim"
                             className="bg-brand-cyan hover:bg-cyan-400 text-white px-8 py-3 rounded-full font-bold transition-all inline-flex items-center justify-center gap-2"
@@ -98,7 +84,7 @@ const ServiceLandingPage = ({ pageKey }) => {
                             <Phone className="w-5 h-5" />
                             0540 025 09 25
                         </a>
-                    </motion.div>
+                    </div>
                 </div>
             </div>
 
