@@ -2,5 +2,6 @@
 
 User-agent: *
 Allow: /
+Disallow: /fiyat-listesi
 
 Sitemap: https://www.pusulaiklimlendirme.com/sitemap.xml

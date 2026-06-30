@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useEffect } from 'react';
+import { useContext, useEffect, useMemo } from 'react';
 import { applySeoToDocument } from './buildHead';
-
-export const SeoCollectorContext = createContext(null);
+import { SeoCollectorContext } from './SeoCollectorContext';
 
 export function PageSeo({
     title,
@@ -10,18 +9,24 @@ export function PageSeo({
     faqs,
     breadcrumbs,
     ogImage,
+    noindex = false,
 }) {
     const collector = useContext(SeoCollectorContext);
-    const seo = { title, description, path, faqs, breadcrumbs, ogImage };
+    const seo = useMemo(
+        () => ({ title, description, path, faqs, breadcrumbs, ogImage, noindex }),
+        [title, description, path, faqs, breadcrumbs, ogImage, noindex]
+    );
+
+    useEffect(() => {
+        if (!collector) {
+            applySeoToDocument(seo);
+        }
+    }, [collector, seo]);
 
     if (collector) {
         Object.assign(collector, seo);
         return null;
     }
-
-    useEffect(() => {
-        applySeoToDocument(seo);
-    }, [title, description, path, faqs, breadcrumbs, ogImage]);
 
     return null;
 }

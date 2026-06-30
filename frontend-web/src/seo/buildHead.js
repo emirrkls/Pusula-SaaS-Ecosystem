@@ -8,6 +8,7 @@ export function buildHeadHtml({
     faqs,
     breadcrumbs,
     ogImage = DEFAULT_OG_IMAGE,
+    noindex = false,
 }) {
     const canonicalUrl = `${SITE_URL}${path === '/' ? '/' : path}`;
     const faqSchema = buildFaqSchema(faqs);
@@ -25,6 +26,10 @@ export function buildHeadHtml({
         `<meta name="twitter:description" content="${escapeAttr(description)}" />`,
         `<meta name="twitter:image" content="${escapeAttr(ogImage)}" />`,
     ];
+
+    if (noindex) {
+        tags.push('<meta name="robots" content="noindex, nofollow" />');
+    }
 
     if (faqSchema) {
         tags.push(`<script type="application/ld+json">${JSON.stringify(faqSchema)}</script>`);
@@ -63,6 +68,7 @@ export function applySeoToDocument(seo) {
     upsertMeta('name', 'twitter:title', seo.title);
     upsertMeta('name', 'twitter:description', seo.description);
     upsertMeta('name', 'twitter:image', seo.ogImage || DEFAULT_OG_IMAGE);
+    updateRobotsMeta(seo.noindex);
     upsertJsonLd('seo-faq-schema', buildFaqSchema(seo.faqs));
     upsertJsonLd('seo-breadcrumb-schema', buildBreadcrumbSchema(seo.breadcrumbs, SITE_URL));
 }
@@ -86,6 +92,24 @@ function setCanonical(href) {
         document.head.appendChild(element);
     }
     element.href = href;
+}
+
+function updateRobotsMeta(noindex) {
+    const selector = 'meta[name="robots"][data-page-seo="true"]';
+    let element = document.head.querySelector(selector);
+
+    if (!noindex) {
+        element?.remove();
+        return;
+    }
+
+    if (!element) {
+        element = document.createElement('meta');
+        element.name = 'robots';
+        element.dataset.pageSeo = 'true';
+        document.head.appendChild(element);
+    }
+    element.content = 'noindex, nofollow';
 }
 
 function upsertJsonLd(id, data) {

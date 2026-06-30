@@ -10,6 +10,7 @@ import Contact from './pages/Contact';
 import Support from './pages/Support';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfUse from './pages/TermsOfUse';
+import PriceList from './pages/PriceList';
 import ServiceLandingPage from './pages/landings/ServiceLandingPage';
 
 const ScrollToTop = () => {
@@ -41,6 +42,7 @@ function App() {
             <Route path="/destek" element={<Support />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfUse />} />
+            <Route path="/fiyat-listesi" element={<PriceList />} />
           </Routes>
         </main>
         <Footer />
@@ -52,4 +54,3 @@ function App() {
 }
 
 export default App;
-
