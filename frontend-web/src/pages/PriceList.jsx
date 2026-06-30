@@ -18,6 +18,7 @@ const priceGroups = [
         brand: 'Hisense',
         note: 'Peşin fiyatına 8 taksit imkanı',
         accent: 'from-indigo-500 to-blue-400',
+        image: '/assets/img/prices/hisense-klima.jpg',
         products: [
             { capacity: '9000 BTU', price: '32.000 TL' },
             { capacity: '12000 BTU', price: '35.500 TL' },
@@ -29,6 +30,7 @@ const priceGroups = [
         brand: 'Rota',
         note: '6 taksit imkanı',
         accent: 'from-emerald-500 to-teal-400',
+        image: '/assets/img/prices/rota-klima.jpeg',
         products: [
             { capacity: '9000 BTU', price: '35.900 TL' },
             { capacity: '12000 BTU', price: '38.100 TL' },
@@ -94,6 +96,16 @@ const PriceList = () => {
                                 className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
                             >
                                 <div className={`h-2 bg-gradient-to-r ${group.accent}`} />
+                                {group.image && (
+                                    <div className="aspect-[4/3] overflow-hidden bg-slate-100">
+                                        <img
+                                            src={group.image}
+                                            alt={`${group.brand} klima`}
+                                            className="h-full w-full object-contain p-4"
+                                            loading="lazy"
+                                        />
+                                    </div>
+                                )}
                                 <div className="p-6">
                                     <div className="flex items-start justify-between gap-4">
                                         <div>
