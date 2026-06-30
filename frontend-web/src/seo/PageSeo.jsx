@@ -10,11 +10,12 @@ export function PageSeo({
     breadcrumbs,
     ogImage,
     noindex = false,
+    structuredData,
 }) {
     const collector = useContext(SeoCollectorContext);
     const seo = useMemo(
-        () => ({ title, description, path, faqs, breadcrumbs, ogImage, noindex }),
-        [title, description, path, faqs, breadcrumbs, ogImage, noindex]
+        () => ({ title, description, path, faqs, breadcrumbs, ogImage, noindex, structuredData }),
+        [title, description, path, faqs, breadcrumbs, ogImage, noindex, structuredData]
     );
 
     useEffect(() => {

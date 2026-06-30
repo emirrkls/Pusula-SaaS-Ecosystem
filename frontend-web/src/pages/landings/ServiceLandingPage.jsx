@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, Plus, Minus, Phone, ArrowRight } from 'lucide-react';
 import { landingPages } from './landingPages';
 import { PageSeo } from '../../seo/PageSeo';
+import { SITE_URL } from '../../seo/constants';
 
 const ServiceLandingPage = ({ pageKey }) => {
     const page = landingPages[pageKey];
@@ -12,6 +13,38 @@ const ServiceLandingPage = ({ pageKey }) => {
     if (!page) {
         return null;
     }
+
+    const serviceSchema = page.serviceName
+        ? {
+            '@context': 'https://schema.org',
+            '@type': 'Service',
+            name: page.serviceName,
+            description: page.description,
+            provider: {
+                '@type': 'HVACBusiness',
+                name: 'Pusula İklimlendirme',
+                telephone: '+905400250925',
+                url: SITE_URL,
+                address: {
+                    '@type': 'PostalAddress',
+                    streetAddress: 'Çamlık Mah. Ege Cad. No76/B',
+                    addressLocality: 'Didim',
+                    addressRegion: 'Aydın',
+                    postalCode: '09270',
+                    addressCountry: 'TR',
+                },
+            },
+            areaServed: [
+                { '@type': 'City', name: 'Didim' },
+                { '@type': 'AdministrativeArea', name: 'Aydın' },
+                { '@type': 'Place', name: 'Altınkum' },
+                { '@type': 'Place', name: 'Akbük' },
+                { '@type': 'Place', name: 'Bozbük' },
+            ],
+            serviceType: page.serviceName,
+            url: `${SITE_URL}/${page.slug}`,
+        }
+        : null;
 
     return (
         <>
@@ -24,6 +57,7 @@ const ServiceLandingPage = ({ pageKey }) => {
                     { name: 'Ana Sayfa', path: '/' },
                     { name: page.h1, path: `/${page.slug}` },
                 ]}
+                structuredData={serviceSchema}
             />
         <div className="pt-20 bg-gray-50 min-h-screen">
             {/* Hero */}
@@ -70,6 +104,13 @@ const ServiceLandingPage = ({ pageKey }) => {
 
             {/* Intro */}
             <div className="container mx-auto px-4 py-16 max-w-4xl">
+                {page.answerBox && (
+                    <div className="mb-8 rounded-xl border-l-4 border-brand-cyan bg-white p-6 shadow-sm">
+                        <p className="text-lg font-semibold leading-relaxed text-brand-dark">
+                            {page.answerBox}
+                        </p>
+                    </div>
+                )}
                 <div className="space-y-4 text-gray-600 text-lg leading-relaxed">
                     {page.intro.map((paragraph, index) => (
                         <p key={index}>{paragraph}</p>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, CheckCircle } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
@@ -31,21 +31,24 @@ const Services = () => {
             title: "Split Klima Sistemleri",
             desc: "Ev ve küçük ofisler için split klima satışı, montajı ve bakımı. Hisense yetkili bayi ve servis olarak orijinal parça ve garanti kapsamında hizmet veriyoruz.",
             features: ["Hisense Yetkili Bayi & Servis", "Montaj ve Periyodik Bakım", "Gaz Dolumu", "Tüm Marka Arıza Servisi"],
-            image: "/assets/img/service-1.jpg"
+            image: "/assets/img/service-1.jpg",
+            path: "/didim-hisense-klima-servisi"
         },
         {
             id: "vrf",
             title: "VRF Sistemleri",
             desc: "Oteller, plazalar ve büyük binalar için merkezi iklimlendirme. Üntes Grubu VRF sistemlerinde yetkili bayi ve servis; satış, montaj, bakım ve arıza onarımı.",
             features: ["Üntes VRF Yetkili Bayi & Servis", "Merkezi Kontrol", "Bölgesel İklimlendirme", "Tüm Marka VRF Servisi"],
-            image: "/assets/img/service-2.jpg"
+            image: "/assets/img/service-2.jpg",
+            path: "/didim-vrf-servisi"
         },
         {
             id: "isi-pompasi",
             title: "Isı Pompası Sistemleri",
             desc: "Üntes Grubu, Nibe, LG monoblok (LG Grubu) ve Solimpeks Grubu ısı pompalarında yetkili bayi ve servis. Satış, montaj, bakım ve arıza onarımında üretici standartlarında çözüm sunuyoruz.",
             features: ["Üntes Isı Pompası", "Nibe Yetkili Bayi & Servis", "LG Monoblok", "Solimpeks Grubu"],
-            image: "/assets/img/service-3.jpg"
+            image: "/assets/img/service-3.jpg",
+            path: "/didim-isi-pompasi-servisi"
         },
         {
             id: "montaj",
@@ -53,7 +56,8 @@ const Services = () => {
             desc: "Klimanızın performansını doğrudan etkileyen en önemli faktör doğru montajdır. Uzman ekiplerimizle estetik ve güvenli montaj hizmeti sunuyoruz.",
             features: ["Ücretsiz Keşif", "Vakumla Montaj", "Estetik Borulama", "Temiz İşçilik"],
             image: "/assets/img/service-4.jpg",
-            objectPosition: "center 30%"
+            objectPosition: "center 30%",
+            path: "/didim-klima-montaji"
         },
         {
             id: "gunes-enerjisi",
@@ -61,7 +65,8 @@ const Services = () => {
             desc: `Güneş enerjisi sistemlerinde ${SOLAR_ENERGY_SUMMARY} Profesyonel kurulum, bakım ve devlet teşviklerinden yararlanma desteği sunuyoruz.`,
             features: ["Solimpeks & Panasonic Panel", "Kopp İnverter & Batarya", "Profesyonel Kurulum", "Devlet Teşvikleri"],
             image: "/assets/img/service-5.jpg",
-            objectPosition: "top"
+            objectPosition: "top",
+            path: "/didim-gunes-enerjisi-sistemleri"
         },
         {
             id: "soguk-hava",
@@ -69,7 +74,8 @@ const Services = () => {
             desc: "Ticari ve endüstriyel soğuk hava depoları için komple çözümler. Bakım, onarım, montaj ve yeni sistem kurulumu hizmetleri sunuyoruz.",
             features: ["Ticari Soğutma", "Endüstriyel Sistemler", "Periyodik Bakım", "7/24 Acil Servis"],
             image: "/assets/img/service-6.jpg",
-            objectPosition: "top"
+            objectPosition: "top",
+            path: "/didim-soguk-hava-deposu-servisi"
         }
     ];
 
@@ -104,6 +110,7 @@ const Services = () => {
                     { name: 'Ana Sayfa', path: '/' },
                     { name: 'Hizmetler', path: '/hizmetler' },
                 ]}
+                faqs={faqs}
             />
         <div className="pt-20 bg-gray-50 min-h-screen">
             {/* Header */}
@@ -147,6 +154,12 @@ const Services = () => {
                                     </li>
                                 ))}
                             </ul>
+                            <Link
+                                to={service.path}
+                                className="inline-flex items-center rounded-full bg-brand-cyan px-6 py-3 font-bold text-white transition-colors hover:bg-cyan-400"
+                            >
+                                Detaylı Bilgi
+                            </Link>
                         </div>
                     </motion.div>
                 ))}

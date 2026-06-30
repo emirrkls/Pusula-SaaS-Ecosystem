@@ -37,32 +37,38 @@ const Home = () => {
         {
             title: "Split Klima",
             image: "/assets/img/service-1.jpg",
-            desc: "Didim'de ev ve ofisler için split klima montajı, tamiri ve gaz dolumu."
+            desc: "Didim'de ev ve ofisler için split klima montajı, tamiri ve gaz dolumu.",
+            path: "/didim-hisense-klima-servisi"
         },
         {
             title: "VRF Sistemleri",
             image: "/assets/img/service-2.jpg",
-            desc: "Üntes yetkili bayi ve servis; otel ve plaza VRF kurulumu ve bakımı."
+            desc: "Üntes yetkili bayi ve servis; otel ve plaza VRF kurulumu ve bakımı.",
+            path: "/didim-vrf-servisi"
         },
         {
             title: "Isı Pompası",
             image: "/assets/img/service-3.jpg",
-            desc: "Üntes, Nibe, LG monoblok ve Solimpeks ısı pompası montajı ve servisi."
+            desc: "Üntes, Nibe, LG monoblok ve Solimpeks ısı pompası montajı ve servisi.",
+            path: "/didim-isi-pompasi-servisi"
         },
         {
             title: "Montaj & Keşif",
             image: "/assets/img/service-4.jpg",
-            desc: "Ücretsiz keşif ile güvenli klima montajı ve borulama."
+            desc: "Ücretsiz keşif ile güvenli klima montajı ve borulama.",
+            path: "/didim-klima-montaji"
         },
         {
             title: "Güneş Enerjisi",
             image: "/assets/img/service-5.jpg",
-            desc: SOLAR_ENERGY_SUMMARY + ' Profesyonel kurulum ve servis.'
+            desc: SOLAR_ENERGY_SUMMARY + ' Profesyonel kurulum ve servis.',
+            path: "/didim-gunes-enerjisi-sistemleri"
         },
         {
             title: "Soğuk Hava Deposu",
             image: "/assets/img/service-6.jpg",
-            desc: "Ticari soğutma sistemlerinde bakım, tamir ve montaj."
+            desc: "Ticari soğutma sistemlerinde bakım, tamir ve montaj.",
+            path: "/didim-soguk-hava-deposu-servisi"
         }
     ];
 
@@ -172,7 +178,7 @@ const Home = () => {
                                     <p className="text-gray-300 text-sm mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-4 group-hover:translate-y-0">
                                         {service.desc}
                                     </p>
-                                    <Link to="/hizmetler" className="text-brand-cyan font-semibold flex items-center gap-1 hover:gap-2 transition-all">
+                                    <Link to={service.path} className="text-brand-cyan font-semibold flex items-center gap-1 hover:gap-2 transition-all">
                                         Detaylı Bilgi <ChevronRight className="w-4 h-4" />
                                     </Link>
                                 </div>

@@ -9,6 +9,7 @@ export function buildHeadHtml({
     breadcrumbs,
     ogImage = DEFAULT_OG_IMAGE,
     noindex = false,
+    structuredData,
 }) {
     const canonicalUrl = `${SITE_URL}${path === '/' ? '/' : path}`;
     const faqSchema = buildFaqSchema(faqs);
@@ -37,6 +38,9 @@ export function buildHeadHtml({
     if (breadcrumbSchema) {
         tags.push(`<script type="application/ld+json">${JSON.stringify(breadcrumbSchema)}</script>`);
     }
+    normalizeStructuredData(structuredData).forEach((item) => {
+        tags.push(`<script type="application/ld+json">${JSON.stringify(item)}</script>`);
+    });
 
     return tags.join('\n  ');
 }
@@ -71,6 +75,12 @@ export function applySeoToDocument(seo) {
     updateRobotsMeta(seo.noindex);
     upsertJsonLd('seo-faq-schema', buildFaqSchema(seo.faqs));
     upsertJsonLd('seo-breadcrumb-schema', buildBreadcrumbSchema(seo.breadcrumbs, SITE_URL));
+    upsertJsonLdList('seo-extra-schema', normalizeStructuredData(seo.structuredData));
+}
+
+function normalizeStructuredData(data) {
+    if (!data) return [];
+    return Array.isArray(data) ? data.filter(Boolean) : [data];
 }
 
 function upsertMeta(attribute, key, content) {
@@ -120,4 +130,15 @@ function upsertJsonLd(id, data) {
     script.id = id;
     script.textContent = JSON.stringify(data);
     document.head.appendChild(script);
+}
+
+function upsertJsonLdList(idPrefix, items) {
+    document.head.querySelectorAll(`script[id^="${idPrefix}-"]`).forEach((element) => element.remove());
+    items.forEach((item, index) => {
+        const script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.id = `${idPrefix}-${index}`;
+        script.textContent = JSON.stringify(item);
+        document.head.appendChild(script);
+    });
 }

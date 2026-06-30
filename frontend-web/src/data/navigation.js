@@ -6,15 +6,17 @@ export const klimaLandingLinks = [
     { name: 'Didim Klima Tamiri', path: '/didim-klima-tamiri' },
     { name: 'Didim Klima Bakımı', path: '/didim-klima-bakimi' },
     { name: 'Didim Klima Montajı', path: '/didim-klima-montaji' },
+    { name: 'Klima Gaz Dolumu', path: '/didim-klima-gaz-dolumu' },
+    { name: 'Hisense Klima Servisi', path: '/didim-hisense-klima-servisi' },
 ];
 
 export const serviceSectionLinks = [
-    { name: 'Split Klima', path: `${SERVICES_PATH}#split-klima` },
-    { name: 'VRF Sistemleri', path: `${SERVICES_PATH}#vrf` },
-    { name: 'Isı Pompası', path: `${SERVICES_PATH}#isi-pompasi` },
-    { name: 'Montaj & Keşif', path: `${SERVICES_PATH}#montaj` },
-    { name: 'Güneş Enerjisi', path: `${SERVICES_PATH}#gunes-enerjisi` },
-    { name: 'Soğuk Hava Deposu', path: `${SERVICES_PATH}#soguk-hava` },
+    { name: 'Split Klima', path: '/didim-hisense-klima-servisi' },
+    { name: 'VRF Sistemleri', path: '/didim-vrf-servisi' },
+    { name: 'Isı Pompası', path: '/didim-isi-pompasi-servisi' },
+    { name: 'Montaj & Keşif', path: '/didim-klima-montaji' },
+    { name: 'Güneş Enerjisi', path: '/didim-gunes-enerjisi-sistemleri' },
+    { name: 'Soğuk Hava Deposu', path: '/didim-soguk-hava-deposu-servisi' },
 ];
 
 /** Header Hizmetler dropdown grupları */
@@ -24,7 +26,12 @@ export const serviceMenuGroups = [
     {
         label: 'Sistemler & Enerji',
         links: serviceSectionLinks.filter(({ path }) =>
-            ['#vrf', '#isi-pompasi', '#gunes-enerjisi'].some((hash) => path.endsWith(hash))
+            [
+                '/didim-vrf-servisi',
+                '/didim-isi-pompasi-servisi',
+                '/didim-gunes-enerjisi-sistemleri',
+                '/didim-soguk-hava-deposu-servisi',
+            ].includes(path)
         ),
     },
 ];

@@ -7,6 +7,12 @@ export const PRERENDER_ROUTES = [
     '/altinkum-klima-servisi',
     '/akbuk-klima-servisi',
     '/bozbuk-klima-servisi',
+    '/didim-hisense-klima-servisi',
+    '/didim-vrf-servisi',
+    '/didim-isi-pompasi-servisi',
+    '/didim-gunes-enerjisi-sistemleri',
+    '/didim-soguk-hava-deposu-servisi',
+    '/didim-klima-gaz-dolumu',
     '/hakkimizda',
     '/iletisim',
 ];
