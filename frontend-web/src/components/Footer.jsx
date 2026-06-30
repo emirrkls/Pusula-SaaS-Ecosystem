@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Twitter, MapPin, Phone, Mail } from 'lucide-react';
+import { Facebook, Instagram, MapPin, Phone, Mail } from 'lucide-react';
 import { footerQuickLinks, klimaLandingLinks, serviceAreaLinks } from '../data/navigation';
 
 const Footer = () => {
@@ -21,14 +21,23 @@ const Footer = () => {
                             Hisense klima; Üntes VRF ve ısı pompası; Nibe, LG monoblok ve Solimpeks yetkili bayi & servis.
                         </p>
                         <div className="flex gap-4 pt-2">
-                            <a href="#" className="bg-white/5 p-2 rounded-full hover:bg-brand-cyan transition-colors">
+                            <a
+                                href="https://www.facebook.com/profile.php?id=61584545361719#"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="Pusula İklimlendirme Facebook"
+                                className="bg-white/5 p-2 rounded-full hover:bg-brand-cyan transition-colors"
+                            >
                                 <Facebook className="w-5 h-5" />
                             </a>
-                            <a href="#" className="bg-white/5 p-2 rounded-full hover:bg-brand-cyan transition-colors">
+                            <a
+                                href="https://www.instagram.com/pusulaiklimlendirme.didim/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="Pusula İklimlendirme Instagram"
+                                className="bg-white/5 p-2 rounded-full hover:bg-brand-cyan transition-colors"
+                            >
                                 <Instagram className="w-5 h-5" />
-                            </a>
-                            <a href="#" className="bg-white/5 p-2 rounded-full hover:bg-brand-cyan transition-colors">
-                                <Twitter className="w-5 h-5" />
                             </a>
                         </div>
                     </div>
