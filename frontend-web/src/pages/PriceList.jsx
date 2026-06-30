@@ -15,6 +15,17 @@ const priceGroups = [
         ],
     },
     {
+        brand: 'Hisense',
+        note: 'Peşin fiyatına 8 taksit imkanı',
+        accent: 'from-indigo-500 to-blue-400',
+        products: [
+            { capacity: '9000 BTU', price: '32.000 TL' },
+            { capacity: '12000 BTU', price: '35.500 TL' },
+            { capacity: '18000 BTU', price: '51.000 TL' },
+            { capacity: '24000 BTU', price: '61.000 TL' },
+        ],
+    },
+    {
         brand: 'Rota',
         note: '6 taksit imkanı',
         accent: 'from-emerald-500 to-teal-400',
@@ -24,17 +35,6 @@ const priceGroups = [
             { capacity: '18000 BTU', price: '56.600 TL' },
             { capacity: '24000 BTU', price: '67.800 TL' },
             { capacity: '24-26 BTU Silindir', price: '75.000 TL' },
-        ],
-    },
-    {
-        brand: 'Hisense',
-        note: 'Peşin fiyatına 8 taksit imkanı',
-        accent: 'from-indigo-500 to-blue-400',
-        products: [
-            { capacity: '9000 BTU', price: '32.000 TL' },
-            { capacity: '12000 BTU', price: '35.500 TL' },
-            { capacity: '18000 BTU', price: '51.000 TL' },
-            { capacity: '24000 BTU', price: '61.000 TL' },
         ],
     },
 ];
@@ -70,7 +70,7 @@ const PriceList = () => {
                                 Pusula İklimlendirme Fiyat Listesi
                             </h1>
                             <p className="mt-5 max-w-2xl text-base leading-7 text-white/75 md:text-lg">
-                                Toshiba, Rota ve Hisense klima modelleri için güncel satış fiyatları ve taksit seçenekleri.
+                                Toshiba, Hisense ve Rota klima modelleri için güncel satış fiyatları ve taksit seçenekleri.
                             </p>
                             <div className="mt-8 flex flex-wrap gap-3 text-sm text-white/80">
                                 <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
@@ -127,8 +127,9 @@ const PriceList = () => {
                     </div>
 
                     <div className="mt-8 rounded-lg border border-slate-200 bg-white p-5 text-sm leading-6 text-slate-600">
-                        Fiyatlar klima satış bedelidir. Montaj, keşif, stok durumu ve kampanya koşulları için Pusula
-                        İklimlendirme ile iletişime geçebilirsiniz.
+                        Fiyat klima satış bedelidir, fiyatlamaya 4 metre borulama ve montaj ücreti dahildir. Stok
+                        durumu ve ücretsiz keşif imkanından faydalanmak için Pusula İklimlendirme ile iletişime
+                        geçebilirsiniz.
                     </div>
                 </section>
             </div>
