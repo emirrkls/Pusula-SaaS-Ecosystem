@@ -20,10 +20,10 @@ const priceGroups = [
         accent: 'from-indigo-500 to-blue-400',
         image: '/assets/img/prices/hisense-klima.jpg',
         products: [
-            { capacity: '9000 BTU', price: '32.000 TL' },
-            { capacity: '12000 BTU', price: '35.500 TL' },
-            { capacity: '18000 BTU', price: '51.000 TL' },
-            { capacity: '24000 BTU', price: '61.000 TL' },
+            { capacity: '9000 BTU', price: '33.000 TL' },
+            { capacity: '12000 BTU', price: '36.500 TL' },
+            { capacity: '18000 BTU', price: '52.000 TL' },
+            { capacity: '24000 BTU', price: '62.000 TL' },
         ],
     },
     {
@@ -77,7 +77,7 @@ const PriceList = () => {
                             <div className="mt-8 flex flex-wrap gap-3 text-sm text-white/80">
                                 <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
                                     <CalendarDays className="h-4 w-4 text-brand-cyan" />
-                                    Güncelleme: 30 Haziran 2026
+                                    Güncelleme: 4 Temmuz 2026
                                 </span>
                                 <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">
                                     <CreditCard className="h-4 w-4 text-brand-cyan" />
