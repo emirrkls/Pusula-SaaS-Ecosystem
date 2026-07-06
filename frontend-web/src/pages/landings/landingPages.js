@@ -7,7 +7,7 @@ export const landingPages = {
         subtitle: 'Split, salon ve ticari tip klimalarda hızlı arıza tespiti ve garantili onarım.',
         intro: [
             'Pusula İklimlendirme olarak Didim, Altınkum, Akbük ve Aydın genelinde klima tamiri hizmeti sunuyoruz. Soğutmama, su damlatma, anormal ses veya koku gibi arızalarda aynı gün müdahale hedefliyoruz.',
-            'Daikin, Mitsubishi, Arçelik, Vestel, Bosch ve diğer tüm marka ve modellerde uzman teknisyen kadromuzla hizmet veriyoruz. Parça değişimleri ve işçilik 1 yıl garantilidir.',
+            'Daikin, Mitsubishi, Arçelik, Vestel, Bosch ve diğer tüm marka ve modellerde uzman teknisyen kadromuzla hizmet veriyoruz. Orijinal yedek parça ve işçilik 1 yıl garantilidir.',
         ],
         features: [
             '7/24 acil klima arıza servisi',
@@ -26,7 +26,7 @@ export const landingPages = {
         faqs: [
             {
                 q: 'Didim\'de klima tamiri ne kadar sürer?',
-                a: 'Basit arızalar genellikle aynı gün içinde giderilir. Parça temini gerektiren durumlarda süre arıza tipine göre değişir; sizi önceden bilgilendiririz.',
+                a: 'Basit arızalar genellikle aynı gün içinde giderilir. Orijinal yedek parça temini gerektiren durumlarda süre arıza tipine göre değişir; sizi önceden bilgilendiririz.',
             },
             {
                 q: 'Hangi arızalarda servis çağırmalıyım?',
@@ -34,7 +34,7 @@ export const landingPages = {
             },
             {
                 q: 'Yedek parça garantisi var mı?',
-                a: 'Evet. Değiştirilen parçalar ve işçilik 1 yıl Pusula İklimlendirme garantisi kapsamındadır.',
+                a: 'Evet. Kullanılan orijinal yedek parçalar ve işçilik 1 yıl Pusula İklimlendirme garantisi kapsamındadır.',
             },
         ],
         related: ['bakimi', 'montaji'],
@@ -142,7 +142,7 @@ export const landingPages = {
             { title: 'Bize ulaşın', desc: 'Altınkum adresinizi ve arıza/bakım ihtiyacınızı telefon veya form ile bildirin.' },
             { title: 'Randevu planlama', desc: 'Altınkum hattımıza uygun gün ve saatte randevu oluşturulur.' },
             { title: 'Yerinde servis', desc: 'Teknisyenimiz adresinize gelir, işlemi yerinde tamamlar.' },
-            { title: 'Garantili teslim', desc: 'Cihaz test edilir, parça ve işçilik garantisi verilir.' },
+            { title: 'Garantili teslim', desc: 'Cihaz test edilir, orijinal yedek parça ve işçilik garantisi verilir.' },
         ],
         faqs: [
             {

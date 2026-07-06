@@ -55,7 +55,7 @@ const About = () => {
                         </p>
                         <p className="text-gray-600 leading-relaxed">
                             {AUTHORIZED_BRANDS_SUMMARY} Yetkili bayi ve servis statümüz sayesinde satış, montaj
-                            ve arıza müdahalelerinde orijinal parça ve üretici standartlarında hizmet sunuyoruz.
+                            ve arıza müdahalelerinde orijinal yedek parça ve üretici standartlarında hizmet sunuyoruz.
                         </p>
                     </div>
                     {/* public/assets/img/about-us-1.jpeg · about-us-2.jpeg */}

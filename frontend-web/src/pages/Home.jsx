@@ -16,7 +16,7 @@ const Home = () => {
         {
             icon: <ShieldCheck className="w-8 h-8 text-brand-cyan" />,
             title: "Garantili İşçilik",
-            desc: "Tüm bakım ve onarım işlemlerimiz 1 yıl parça ve işçilik garantilidir."
+            desc: "Tüm bakım ve onarım işlemlerimizde orijinal yedek parça ve 1 yıl işçilik garantisi sunuyoruz."
         },
         {
             icon: <Wallet className="w-8 h-8 text-brand-cyan" />,
@@ -179,8 +179,8 @@ const Home = () => {
                 <div className="absolute inset-0 opacity-10 pattern-dots"></div>
                 <div className="container mx-auto px-4 relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
                     <div>
-                        <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">Kış gelmeden kombi bakımınızı yaptırın!</h2>
-                        <p className="text-white/90 text-lg">Erken rezervasyon fırsatlarından yararlanın, kışı sıcak geçirin.</p>
+                        <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">Sezon öncesi klima bakımınızı planlayın!</h2>
+                        <p className="text-white/90 text-lg">Didim ve çevresinde klima, VRF ve ısı pompası için arıza, bakım ve montaj randevunuzu alın.</p>
                     </div>
                     <Link
                         to="/iletisim"

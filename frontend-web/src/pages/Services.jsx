@@ -29,7 +29,7 @@ const Services = () => {
         {
             id: "split-klima",
             title: "Split Klima Sistemleri",
-            desc: "Ev ve küçük ofisler için split klima satışı, montajı ve bakımı. Hisense yetkili bayi ve servis olarak orijinal parça ve garanti kapsamında hizmet veriyoruz.",
+            desc: "Ev ve küçük ofisler için split klima satışı, montajı ve bakımı. Hisense yetkili bayi ve servis olarak orijinal yedek parça ve garanti kapsamında hizmet veriyoruz.",
             features: ["Hisense Yetkili Bayi & Servis", "Montaj ve Periyodik Bakım", "Gaz Dolumu", "Tüm Marka Arıza Servisi"],
             image: "/assets/img/service-1.jpg",
             path: "/didim-hisense-klima-servisi"
@@ -90,7 +90,7 @@ const Services = () => {
         },
         {
             q: "Garanti süresi nedir?",
-            a: "Yaptığımız tüm parça değişimleri ve işçilik hizmetleri 1 yıl firmamız garantisi altındadır."
+            a: "Kullandığımız orijinal yedek parçalar ve işçilik hizmetleri 1 yıl firmamız garantisi altındadır."
         },
         {
             q: "Hangi markalarda yetkili bayi veya servissiniz?",

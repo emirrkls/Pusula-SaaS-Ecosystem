@@ -50,7 +50,7 @@ export const AUTHORIZED_BRANDS_SUMMARY =
     'Hisense klima; Üntes VRF ve ısı pompası; Nibe, LG monoblok ve Solimpeks ısı pompalarında yetkili bayi ve servis.';
 
 export const OTHER_BRANDS_SERVICE_NOTE =
-    'Yetkili olmadığımız Daikin, Mitsubishi, Airfel, Bosch ve diğer tüm marka klimalarda da arıza, bakım ve montaj için profesyonel teknik servis sunuyoruz.';
+    'Didim, Akbük, Altınkum ve çevresinde Daikin, Mitsubishi, Airfel, Bosch dahil tüm marka klimalarda geniş servis ağımızla arıza, bakım ve montaj hizmeti sunuyor; ihtiyaç halinde orijinal yedek parça ve profesyonel teknik servis desteği sağlıyoruz.';
 
 export const AUTHORIZED_BRANDS_FAQ_ANSWER =
     `Hisense klima yetkili bayi ve servisimiz. Üntes Grubu VRF ve ısı pompalarında; Nibe, LG monoblok (LG Grubu) ve Solimpeks Grubu ısı pompalarında yetkili bayi ve servis hizmeti sunuyoruz. Güneş enerjisi sistemlerinde Solimpeks ve Panasonic Grubu fotovoltaik panel, Kopp Grubu inverter ve batarya kullanıyoruz. ${OTHER_BRANDS_SERVICE_NOTE}`;
