@@ -7,6 +7,7 @@ const priceGroups = [
         brand: 'Toshiba',
         note: 'Bonus karta 6 taksit',
         accent: 'from-sky-500 to-cyan-400',
+        image: '/assets/img/prices/toshiba-klima.jpeg',
         products: [
             { capacity: '10000 BTU', price: '49.000 TL' },
             { capacity: '13000 BTU', price: '54.000 TL' },
