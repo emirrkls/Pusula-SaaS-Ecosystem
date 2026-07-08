@@ -1,5 +1,5 @@
 import React from 'react';
-import { BadgePercent, CalendarDays, CreditCard, Snowflake, Sparkles } from 'lucide-react';
+import { BadgePercent, CalendarDays, CreditCard, Leaf, Snowflake, Sparkles, Wifi } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
 
 const priceGroups = [
@@ -19,6 +19,10 @@ const priceGroups = [
         note: 'Peşin fiyatına 8 taksit imkanı',
         accent: 'from-indigo-500 to-blue-400',
         image: '/assets/img/prices/hisense-klima.jpg',
+        features: [
+            { text: 'Dahili Wi-Fi kiti', icon: Wifi },
+            { text: 'A+++ enerji tasarrufu', icon: Leaf },
+        ],
         products: [
             { capacity: '9000 BTU', price: '33.000 TL' },
             { capacity: '12000 BTU', price: '36.500 TL' },
@@ -114,6 +118,23 @@ const PriceList = () => {
                                                 <BadgePercent className="h-4 w-4 text-brand-cyan" />
                                                 {group.note}
                                             </p>
+                                            {group.features && (
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {group.features.map((feature) => {
+                                                        const FeatureIcon = feature.icon;
+
+                                                        return (
+                                                            <span
+                                                                key={feature.text}
+                                                                className="inline-flex items-center gap-1.5 rounded-full bg-cyan-50 px-3 py-1 text-xs font-bold text-brand-dark ring-1 ring-cyan-100"
+                                                            >
+                                                                <FeatureIcon className="h-3.5 w-3.5 text-brand-cyan" />
+                                                                {feature.text}
+                                                            </span>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100">
                                             <Sparkles className="h-5 w-5 text-brand-cyan" />
