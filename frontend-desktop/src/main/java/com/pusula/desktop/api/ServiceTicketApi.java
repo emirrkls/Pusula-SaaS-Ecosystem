@@ -11,6 +11,10 @@ public interface ServiceTicketApi {
     @GET("api/tickets")
     Call<List<ServiceTicketDTO>> getAllTickets();
 
+    @Headers("X-Pusula-Suppress-Forbidden-Alert: true")
+    @GET("api/tickets")
+    Call<List<ServiceTicketDTO>> getAllTicketsForDashboard();
+
     @POST("api/tickets")
     Call<ServiceTicketDTO> createTicket(@Body ServiceTicketDTO ticket);
 

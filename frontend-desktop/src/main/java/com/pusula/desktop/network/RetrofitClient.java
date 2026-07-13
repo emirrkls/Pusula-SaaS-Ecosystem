@@ -12,6 +12,7 @@ import java.io.IOException;
 public class RetrofitClient {
         private static Retrofit retrofit = null;
         public static final String BASE_URL = "https://api.pusulaiklimlendirme.com/";
+        public static final String SUPPRESS_FORBIDDEN_ALERT_HEADER = "X-Pusula-Suppress-Forbidden-Alert";
 
         public static Retrofit getClient() {
                 if (retrofit == null) {
@@ -62,32 +63,60 @@ public class RetrofitClient {
         }
 
         /**
-         * Interceptor to handle 403 Forbidden responses globally
+         * Interceptor to handle 403 Forbidden responses globally.
          */
         private static class ForbiddenInterceptor implements Interceptor {
+                private static boolean forbiddenAlertVisible = false;
+                private static long lastForbiddenAlertAt = 0L;
+                private static final long FORBIDDEN_ALERT_COOLDOWN_MS = 3000L;
+
                 @Override
                 public Response intercept(Chain chain) throws IOException {
                         Response response = chain.proceed(chain.request());
 
                         if (response.code() == 403) {
-                                // Don't show alert for audit-logs endpoint or public endpoints
+                                // Do not show alerts for audit logs, public endpoints, or background refreshes.
                                 String url = response.request().url().toString();
-                                if (!url.contains("/audit-logs/")
+                                boolean suppressAlert = "true".equalsIgnoreCase(response.request()
+                                                .header(SUPPRESS_FORBIDDEN_ALERT_HEADER));
+                                if (suppressAlert) {
+                                        System.err.println("Suppressed background 403 alert for URL: " + url);
+                                } else if (!url.contains("/audit-logs/")
                                                 && !url.contains("/public/")
-                                                && !url.contains("/api/auth/")) {
+                                                && !url.contains("/api/auth/")
+                                                && shouldShowForbiddenAlert()) {
                                         Platform.runLater(() -> {
-                                                Alert alert = new Alert(Alert.AlertType.ERROR);
-                                                alert.setTitle("Erişim Reddedildi");
-                                                alert.setHeaderText("Yetki Hatası");
-                                                alert.setContentText(
-                                                                "Erişim Reddedildi: Bu işlem için yetkiniz bulunmamaktadır.\nURL: "
-                                                                                + url);
-                                                alert.showAndWait();
+                                                try {
+                                                        Alert alert = new Alert(Alert.AlertType.ERROR);
+                                                        alert.setTitle("Eri\u015fim Reddedildi");
+                                                        alert.setHeaderText("Yetki Hatas\u0131");
+                                                        alert.setContentText(
+                                                                        "Eri\u015fim Reddedildi: Bu i\u015flem i\u00e7in yetkiniz bulunmamaktad\u0131r.\nURL: "
+                                                                                        + url);
+                                                        alert.showAndWait();
+                                                } finally {
+                                                        markForbiddenAlertClosed();
+                                                }
                                         });
                                 }
                         }
 
                         return response;
+                }
+
+                private static synchronized boolean shouldShowForbiddenAlert() {
+                        long now = System.currentTimeMillis();
+                        if (forbiddenAlertVisible || now - lastForbiddenAlertAt < FORBIDDEN_ALERT_COOLDOWN_MS) {
+                                return false;
+                        }
+                        forbiddenAlertVisible = true;
+                        lastForbiddenAlertAt = now;
+                        return true;
+                }
+
+                private static synchronized void markForbiddenAlertClosed() {
+                        forbiddenAlertVisible = false;
+                        lastForbiddenAlertAt = System.currentTimeMillis();
                 }
         }
 }

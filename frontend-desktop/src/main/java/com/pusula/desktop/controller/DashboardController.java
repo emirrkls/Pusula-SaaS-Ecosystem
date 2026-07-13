@@ -384,7 +384,7 @@ public class DashboardController {
     private void loadDashboardData() {
         // 1. Active Tickets
         ServiceTicketApi ticketApi = RetrofitClient.getClient().create(ServiceTicketApi.class);
-        ticketApi.getAllTickets().enqueue(new retrofit2.Callback<>() {
+        ticketApi.getAllTicketsForDashboard().enqueue(new retrofit2.Callback<>() {
             @Override
             public void onResponse(retrofit2.Call<java.util.List<ServiceTicketDTO>> call,
                     retrofit2.Response<java.util.List<ServiceTicketDTO>> response) {
@@ -424,6 +424,11 @@ public class DashboardController {
                             .collect(java.util.stream.Collectors.toList());
 
                     Platform.runLater(() -> setAgendaItems(todayTickets));
+                } else if (response.code() == 403) {
+                    Platform.runLater(() -> {
+                        activeTicketsLabel.setText("0");
+                        setAgendaItems(java.util.List.of());
+                    });
                 }
             }
 
