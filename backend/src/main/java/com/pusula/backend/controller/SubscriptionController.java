@@ -3,6 +3,7 @@ package com.pusula.backend.controller;
 import com.pusula.backend.entity.Plan;
 import com.pusula.backend.entity.PlanType;
 import com.pusula.backend.repository.PlanRepository;
+import com.pusula.backend.dto.AppleVerifyRequest;
 import com.pusula.backend.dto.GoogleVerifyRequest;
 import com.pusula.backend.dto.GoogleVerifyResponse;
 import com.pusula.backend.dto.PlanSummaryDTO;
@@ -82,6 +83,16 @@ public class SubscriptionController {
                 result.plan(),
                 result.subscriptionId(),
                 result.status()));
+    }
+
+    @PostMapping("/apple-verify")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<Void> verifyApplePurchase(@Valid @RequestBody AppleVerifyRequest request) {
+        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        subscriptionService.verifyAppleTransactionAndUpgradePlan(
+                user.getCompanyId(),
+                request.getSignedTransactionInfo());
+        return ResponseEntity.noContent().build();
     }
 
     private PlanSummaryDTO toPlanSummary(Plan plan) {

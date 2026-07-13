@@ -69,9 +69,13 @@ class SuperAdminOperationsDashboardTest {
 
     @Test
     void operationsDashboard_returnsExpectedShape() {
-        when(auditLogRepository.findAll()).thenReturn(List.of());
-        when(companyRepository.findAll()).thenReturn(List.of());
-        when(webhookEventRepository.findAll()).thenReturn(List.of());
+        when(auditLogRepository.countAuthFailuresGroupedByDateSince(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(List.of());
+        when(webhookEventRepository.countByStatusAndCreatedAtAfter(
+                org.mockito.ArgumentMatchers.eq(WebhookEventStatus.FAILED),
+                org.mockito.ArgumentMatchers.any())).thenReturn(0L);
+        when(companyRepository.countByIsReadOnlyTrue()).thenReturn(0L);
+        when(auditLogRepository.countAuthFailuresSince(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
 
         ResponseEntity<Map<String, Object>> response = controller.getOperationsDashboard();
         Map<String, Object> body = response.getBody();
@@ -87,25 +91,13 @@ class SuperAdminOperationsDashboardTest {
 
     @Test
     void operationsDashboard_whenThresholdsExceeded_generatesAlerts() {
-        AuditLog failedAuth = new AuditLog();
-        failedAuth.setActionType("LOGIN_FAILED");
-        failedAuth.setTimestamp(LocalDateTime.now().minusHours(1));
-
-        Company readOnlyCompany = new Company();
-        readOnlyCompany.setIsReadOnly(true);
-
-        WebhookEvent failedWebhook = new WebhookEvent();
-        failedWebhook.setStatus(WebhookEventStatus.FAILED);
-        failedWebhook.setCreatedAt(LocalDateTime.now().minusHours(2));
-
-        when(auditLogRepository.findAll()).thenReturn(
-                List.of(failedAuth, failedAuth, failedAuth, failedAuth, failedAuth,
-                        failedAuth, failedAuth, failedAuth, failedAuth, failedAuth,
-                        failedAuth, failedAuth, failedAuth, failedAuth, failedAuth,
-                        failedAuth, failedAuth, failedAuth, failedAuth, failedAuth));
-        when(companyRepository.findAll()).thenReturn(List.of(readOnlyCompany));
-        when(webhookEventRepository.findAll()).thenReturn(
-                List.of(failedWebhook, failedWebhook, failedWebhook, failedWebhook, failedWebhook));
+        when(auditLogRepository.countAuthFailuresGroupedByDateSince(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(List.of());
+        when(webhookEventRepository.countByStatusAndCreatedAtAfter(
+                org.mockito.ArgumentMatchers.eq(WebhookEventStatus.FAILED),
+                org.mockito.ArgumentMatchers.any())).thenReturn(5L);
+        when(companyRepository.countByIsReadOnlyTrue()).thenReturn(1L);
+        when(auditLogRepository.countAuthFailuresSince(org.mockito.ArgumentMatchers.any())).thenReturn(20L);
 
         ResponseEntity<Map<String, Object>> response = controller.getOperationsDashboard();
         Map<String, Object> body = response.getBody();

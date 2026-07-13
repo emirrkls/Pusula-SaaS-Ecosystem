@@ -98,6 +98,13 @@
             <artifactId>google-http-client-jackson2</artifactId>
             <version>1.45.3</version>
         </dependency>
+
+        <!-- Official Apple App Store Server Library -->
+        <dependency>
+            <groupId>com.apple.itunes.storekit</groupId>
+            <artifactId>app-store-server-library</artifactId>
+            <version>5.2.0</version>
+        </dependency>
     </dependencies>
 
     <build>

@@ -32,6 +32,8 @@ class SubscriptionServiceGoogleVerifyIdempotencyTest {
     @Mock
     private GooglePlayVerificationService googlePlayVerificationService;
     @Mock
+    private AppleAppStoreVerificationService appleAppStoreVerificationService;
+    @Mock
     private AuditLogService auditLogService;
 
     private SubscriptionService subscriptionService;
@@ -42,6 +44,7 @@ class SubscriptionServiceGoogleVerifyIdempotencyTest {
                 companyRepository,
                 paymentEventRepository,
                 googlePlayVerificationService,
+                appleAppStoreVerificationService,
                 auditLogService);
     }
 
