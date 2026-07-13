@@ -1,14 +1,30 @@
 package com.pusula.backend.dto;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
+
 import java.math.BigDecimal;
 import java.util.List;
 
 public class InventoryDTO {
     private Long id;
+
+    @NotBlank(message = "Parca adi bos olamaz")
     private String partName;
+
+    @NotNull(message = "Miktar zorunludur")
+    @PositiveOrZero(message = "Miktar negatif olamaz")
     private Integer quantity;
+
+    @DecimalMin(value = "0.0", inclusive = true, message = "Alis fiyati negatif olamaz")
     private BigDecimal buyPrice;
+
+    @DecimalMin(value = "0.0", inclusive = true, message = "Satis fiyati negatif olamaz")
     private BigDecimal sellPrice;
+
+    @PositiveOrZero(message = "Kritik seviye negatif olamaz")
     private Integer criticalLevel;
     private String brand;
     private String category;

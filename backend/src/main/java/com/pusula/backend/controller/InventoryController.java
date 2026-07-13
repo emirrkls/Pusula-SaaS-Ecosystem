@@ -7,7 +7,9 @@ import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.InventoryRepository;
 import com.pusula.backend.service.InventoryService;
 
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -68,19 +70,25 @@ public class InventoryController {
     }
 
     @PostMapping
-    public ResponseEntity<InventoryDTO> createInventory(@RequestBody InventoryDTO dto) {
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<InventoryDTO> createInventory(@Valid @RequestBody InventoryDTO dto) {
         return ResponseEntity.ok(service.createInventory(dto));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<InventoryDTO> updateInventory(@PathVariable Long id, @RequestBody InventoryDTO dto) {
-        return ResponseEntity.ok(service.updateInventory(id, dto));
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<InventoryDTO> updateInventory(@PathVariable Long id, @Valid @RequestBody InventoryDTO dto) {
+        return service.updateInventory(id, dto)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Void> deleteInventory(@PathVariable Long id) {
-        service.deleteInventory(id);
-        return ResponseEntity.noContent().build();
+        return service.deleteInventory(id)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.notFound().build();
     }
 
     // ── Private helpers ──

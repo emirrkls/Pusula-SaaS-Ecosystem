@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -71,11 +72,13 @@ public class InventoryService {
         return mapToDTO(saved);
     }
 
-    public InventoryDTO updateInventory(Long id, InventoryDTO dto) {
+    public Optional<InventoryDTO> updateInventory(Long id, InventoryDTO dto) {
         User user = getCurrentUser();
-        Inventory inventory = repository.findById(id)
-                .filter(inv -> inv.getCompanyId().equals(user.getCompanyId()))
-                .orElseThrow(() -> new RuntimeException("Inventory not found or access denied"));
+        Optional<Inventory> existing = repository.findByIdAndCompanyId(id, user.getCompanyId());
+        if (existing.isEmpty()) {
+            return Optional.empty();
+        }
+        Inventory inventory = existing.get();
 
         // Capture old values for audit
         Map<String, Object> oldValues = new HashMap<>();
@@ -113,20 +116,23 @@ public class InventoryService {
         }
         auditLogService.logChange("UPDATE", "INVENTORY", saved.getId(), description, oldValues, newValues);
 
-        return mapToDTO(saved);
+        return Optional.of(mapToDTO(saved));
     }
 
-    public void deleteInventory(Long id) {
+    public boolean deleteInventory(Long id) {
         User user = getCurrentUser();
-        Inventory inventory = repository.findById(id)
-                .filter(inv -> inv.getCompanyId().equals(user.getCompanyId()))
-                .orElseThrow(() -> new RuntimeException("Inventory not found or access denied"));
+        Optional<Inventory> existing = repository.findByIdAndCompanyId(id, user.getCompanyId());
+        if (existing.isEmpty()) {
+            return false;
+        }
+        Inventory inventory = existing.get();
 
         // Log before deletion
         auditLogService.log("DELETE", "INVENTORY", id,
                 "Stok kalemi silindi: " + inventory.getPartName() + " (Kalan: " + inventory.getQuantity() + ")");
 
         repository.delete(inventory);
+        return true;
     }
 
     public InventoryDTO mapToFullDTO(Inventory inventory) {
