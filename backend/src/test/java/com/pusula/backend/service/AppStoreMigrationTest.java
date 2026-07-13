@@ -19,6 +19,10 @@ class AppStoreMigrationTest {
             migration = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         }
 
+        assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS payment_events"));
+        assertTrue(migration.contains("id BIGSERIAL PRIMARY KEY"));
+        assertTrue(migration.contains("token_hash VARCHAR(64) NOT NULL"));
+        assertTrue(migration.contains("purchase_token_masked VARCHAR(32) NOT NULL"));
         assertTrue(migration.contains("CREATE UNIQUE INDEX IF NOT EXISTS ux_companies_subscription_provider_external_id"));
         assertTrue(migration.contains("subscription_provider IS NOT NULL"));
         assertTrue(migration.contains("external_subscription_id IS NOT NULL"));

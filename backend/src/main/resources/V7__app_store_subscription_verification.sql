@@ -16,6 +16,21 @@ END $$;
 ALTER TABLE companies
     ALTER COLUMN iyzico_subscription_id TYPE VARCHAR(255);
 
+CREATE TABLE IF NOT EXISTS payment_events (
+    id BIGSERIAL PRIMARY KEY,
+    company_id BIGINT,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITHOUT TIME ZONE,
+    updated_at TIMESTAMP WITHOUT TIME ZONE,
+    provider VARCHAR(32) NOT NULL,
+    event_type VARCHAR(64) NOT NULL,
+    token_hash VARCHAR(64) NOT NULL,
+    purchase_token_masked VARCHAR(32) NOT NULL,
+    external_subscription_id VARCHAR(255),
+    failure_reason VARCHAR(500),
+    status VARCHAR(32) NOT NULL
+);
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_event_provider_token_hash
     ON payment_events(provider, token_hash);
 
