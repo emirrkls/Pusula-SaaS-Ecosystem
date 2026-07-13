@@ -1,7 +1,5 @@
 package com.pusula.backend.controller;
 
-import com.pusula.backend.entity.Company;
-import com.pusula.backend.entity.PlanType;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.entity.WebhookEvent;
 import com.pusula.backend.entity.WebhookEventStatus;
@@ -202,31 +200,6 @@ public class PaymentController {
         body.put("traceId", UUID.randomUUID().toString());
         body.put("path", path);
         return body;
-    }
-
-    /**
-     * POST /api/payment/upgrade — Direct upgrade (admin initiates after payment confirmation).
-     * Used when payment is confirmed via polling or manual verification.
-     * Admin only.
-     */
-    @PostMapping("/upgrade")
-    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<Company> upgradePlan(@RequestBody Map<String, String> request) {
-        User user = getCurrentUser();
-        String planName = request.getOrDefault("plan", "USTA");
-        String subscriptionId = request.getOrDefault("subscriptionId", "");
-
-        PlanType plan;
-        try {
-            plan = PlanType.valueOf(planName.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        Company updated = subscriptionService.upgradePlan(
-                user.getCompanyId(), plan, subscriptionId);
-
-        return ResponseEntity.ok(updated);
     }
 
     /**

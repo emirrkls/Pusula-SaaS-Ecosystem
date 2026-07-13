@@ -1,5 +1,7 @@
 package com.pusula.backend.config;
 
+import com.pusula.backend.service.AppStoreVerificationException;
+import com.pusula.backend.service.PaymentOwnershipException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -71,6 +73,37 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(errorBody(HttpStatus.BAD_REQUEST, "MISSING_PARAMETER", ex.getMessage(), request, null));
+    }
+
+    @ExceptionHandler(AppStoreVerificationException.class)
+    public ResponseEntity<Map<String, Object>> handleAppStoreVerificationException(
+            AppStoreVerificationException ex,
+            HttpServletRequest request) {
+        HttpStatus status = switch (ex.getReason()) {
+            case CONFIGURATION -> HttpStatus.SERVICE_UNAVAILABLE;
+            case OWNERSHIP_CONFLICT -> HttpStatus.CONFLICT;
+            case MALFORMED -> HttpStatus.BAD_REQUEST;
+            case VERIFICATION_FAILED, PRODUCT_NOT_ALLOWED, BUNDLE_MISMATCH, ENVIRONMENT_NOT_ALLOWED,
+                    NOT_SUBSCRIPTION, REVOKED, EXPIRED -> HttpStatus.UNPROCESSABLE_ENTITY;
+        };
+        log.warn("App Store verification rejected on {} {}: reason={}",
+                request.getMethod(), request.getRequestURI(), ex.getReason());
+        return ResponseEntity.status(status)
+                .body(errorBody(status, "APP_STORE_VERIFY_FAILED", ex.getMessage(), request, null));
+    }
+
+    @ExceptionHandler(PaymentOwnershipException.class)
+    public ResponseEntity<Map<String, Object>> handlePaymentOwnershipException(
+            PaymentOwnershipException ex,
+            HttpServletRequest request) {
+        log.warn("Payment ownership conflict on {} {}", request.getMethod(), request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(errorBody(
+                        HttpStatus.CONFLICT,
+                        "PAYMENT_OWNERSHIP_CONFLICT",
+                        "Odeme kaydi baska bir sirkete ait",
+                        request,
+                        null));
     }
 
     @ExceptionHandler(RuntimeException.class)

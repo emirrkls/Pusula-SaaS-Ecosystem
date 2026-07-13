@@ -52,6 +52,12 @@ public class Company extends BaseEntity {
     @Column(name = "iyzico_subscription_id", length = 100)
     private String iyzicoSubscriptionId;
 
+    @Column(name = "subscription_provider", length = 32)
+    private String subscriptionProvider;
+
+    @Column(name = "external_subscription_id", length = 255)
+    private String externalSubscriptionId;
+
     // ─────────────────────────────────────────────────────────────
 
     @Column(name = "logo_path")
@@ -169,6 +175,22 @@ public class Company extends BaseEntity {
 
     public void setIyzicoSubscriptionId(String iyzicoSubscriptionId) {
         this.iyzicoSubscriptionId = iyzicoSubscriptionId;
+    }
+
+    public String getSubscriptionProvider() {
+        return subscriptionProvider;
+    }
+
+    public void setSubscriptionProvider(String subscriptionProvider) {
+        this.subscriptionProvider = subscriptionProvider;
+    }
+
+    public String getExternalSubscriptionId() {
+        return externalSubscriptionId;
+    }
+
+    public void setExternalSubscriptionId(String externalSubscriptionId) {
+        this.externalSubscriptionId = externalSubscriptionId;
     }
 
     @com.fasterxml.jackson.annotation.JsonProperty("logoUrl")

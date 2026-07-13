@@ -9,6 +9,7 @@ import com.pusula.backend.repository.PaymentEventRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -29,20 +31,29 @@ import java.util.Optional;
 public class SubscriptionService {
 
     private static final Logger log = LoggerFactory.getLogger(SubscriptionService.class);
+    private static final String APP_STORE_PROVIDER = "APP_STORE";
+    private static final String GOOGLE_PLAY_PROVIDER = "GOOGLE_PLAY";
+    private static final Map<String, PlanType> GOOGLE_PRODUCT_PLANS = Map.of(
+            "usta", PlanType.USTA,
+            "patron", PlanType.PATRON
+    );
 
     private final CompanyRepository companyRepository;
     private final PaymentEventRepository paymentEventRepository;
     private final GooglePlayVerificationService googlePlayVerificationService;
+    private final AppleAppStoreVerificationService appleAppStoreVerificationService;
     private final AuditLogService auditLogService;
 
     public SubscriptionService(
             CompanyRepository companyRepository,
             PaymentEventRepository paymentEventRepository,
             GooglePlayVerificationService googlePlayVerificationService,
+            AppleAppStoreVerificationService appleAppStoreVerificationService,
             AuditLogService auditLogService) {
         this.companyRepository = companyRepository;
         this.paymentEventRepository = paymentEventRepository;
         this.googlePlayVerificationService = googlePlayVerificationService;
+        this.appleAppStoreVerificationService = appleAppStoreVerificationService;
         this.auditLogService = auditLogService;
     }
 
@@ -60,6 +71,8 @@ public class SubscriptionService {
         company.setIsReadOnly(false);
         company.setSubscriptionStatus("ACTIVE");
         company.setIyzicoSubscriptionId(iyzicoSubscriptionId);
+        company.setSubscriptionProvider("IYZICO");
+        company.setExternalSubscriptionId(iyzicoSubscriptionId);
 
         // Set subscription expiry to 30 days from now
         company.setSubscriptionExpiresAt(LocalDateTime.now().plusDays(30));
@@ -74,15 +87,23 @@ public class SubscriptionService {
     @Transactional
     public GoogleVerifyResult verifyGooglePurchaseAndUpgradePlan(
             Long companyId,
-            PlanType planType,
             String purchaseToken,
             String productId) {
+        requireAllowedGoogleProduct(productId);
         String tokenHash = sha256(purchaseToken);
         Optional<PaymentEvent> existingOpt = paymentEventRepository
-                .findByProviderAndTokenHash("GOOGLE_PLAY", tokenHash);
+                .findByProviderAndTokenHash(GOOGLE_PLAY_PROVIDER, tokenHash);
 
         if (existingOpt.isPresent()) {
             PaymentEvent existing = existingOpt.get();
+            if (!companyId.equals(existing.getCompanyId())) {
+                auditLogService.log(
+                        "SUBSCRIPTION_GOOGLE_VERIFY_CONFLICT",
+                        "PAYMENT_EVENT",
+                        existing.getId(),
+                        "Google purchase token baska bir company tarafindan kullanilmis");
+                throw new PaymentOwnershipException();
+            }
             boolean alreadyProcessed = existing.getStatus() == PaymentEventStatus.PROCESSED;
             String description = alreadyProcessed
                     ? "Google purchase token tekrar geldi; idempotent replay olarak işlendi"
@@ -92,17 +113,20 @@ public class SubscriptionService {
                     "PAYMENT_EVENT",
                     existing.getId(),
                     description);
+            String existingPlan = companyRepository.findById(companyId)
+                    .map(company -> company.getPlanType().name())
+                    .orElse(null);
             return new GoogleVerifyResult(
                     alreadyProcessed,
                     true,
-                    planType.name(),
+                    existingPlan,
                     existing.getExternalSubscriptionId(),
                     alreadyProcessed ? "processed" : "failed");
         }
 
         PaymentEvent paymentEvent = new PaymentEvent();
         paymentEvent.setCompanyId(companyId);
-        paymentEvent.setProvider("GOOGLE_PLAY");
+        paymentEvent.setProvider(GOOGLE_PLAY_PROVIDER);
         paymentEvent.setEventType("SUBSCRIPTION_VERIFY");
         paymentEvent.setTokenHash(tokenHash);
         paymentEvent.setPurchaseTokenMasked(maskToken(purchaseToken));
@@ -121,10 +145,11 @@ public class SubscriptionService {
                     "PAYMENT_EVENT",
                     paymentEvent.getId(),
                     "Google subscription doğrulama başarısız: " + verification.reason());
-            return new GoogleVerifyResult(false, false, planType.name(), null, "failed");
+            return new GoogleVerifyResult(false, false, null, null, "failed");
         }
 
-        Company updated = upgradePlan(companyId, planType, "google:" + verification.subscriptionId());
+        PlanType verifiedPlan = requireAllowedGoogleProduct(verification.productId());
+        Company updated = upgradePlanFromGooglePlay(companyId, verifiedPlan, verification.subscriptionId());
         paymentEvent.setExternalSubscriptionId(verification.subscriptionId());
         paymentEvent.setStatus(PaymentEventStatus.PROCESSED);
         paymentEventRepository.save(paymentEvent);
@@ -136,6 +161,150 @@ public class SubscriptionService {
                 "Google subscription doğrulandı ve plan upgrade edildi: " + updated.getPlanType());
 
         return new GoogleVerifyResult(true, false, updated.getPlanType().name(), verification.subscriptionId(), "processed");
+    }
+
+    @Transactional
+    public Company upgradePlanFromGooglePlay(
+            Long companyId,
+            PlanType newPlan,
+            String verifiedSubscriptionId) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new RuntimeException("Company not found: " + companyId));
+
+        PlanType oldPlan = company.getPlanType();
+        company.setPlanType(newPlan);
+        company.setIsReadOnly(false);
+        company.setSubscriptionStatus("ACTIVE");
+        company.setSubscriptionProvider(GOOGLE_PLAY_PROVIDER);
+        company.setExternalSubscriptionId("google:" + verifiedSubscriptionId);
+        company.setIyzicoSubscriptionId(null);
+        company.setSubscriptionExpiresAt(LocalDateTime.now().plusDays(30));
+
+        Company saved = companyRepository.save(company);
+        log.info("Google Play plan upgraded: companyId={}, {} -> {}", companyId, oldPlan, newPlan);
+        return saved;
+    }
+
+    @Transactional
+    public AppleVerifyResult verifyAppleTransactionAndUpgradePlan(
+            Long companyId,
+            String signedTransactionInfo) {
+        AppleAppStoreVerificationService.AppleVerificationResult verification =
+                appleAppStoreVerificationService.verifyTransaction(signedTransactionInfo);
+
+        String transactionHash = sha256(verification.transactionId());
+        String originalTransactionHash = sha256(verification.originalTransactionId());
+        String externalSubscriptionId = "appstore:" + originalTransactionHash;
+        Optional<PaymentEvent> existingOpt = paymentEventRepository
+                .findByProviderAndTokenHash(APP_STORE_PROVIDER, transactionHash);
+
+        if (existingOpt.isPresent()) {
+            PaymentEvent existing = existingOpt.get();
+            if (!companyId.equals(existing.getCompanyId())) {
+                auditLogService.log(
+                        "SUBSCRIPTION_APP_STORE_VERIFY_CONFLICT",
+                        "PAYMENT_EVENT",
+                        existing.getId(),
+                        "Apple transaction baska bir company tarafindan islenmis");
+                throw new AppStoreVerificationException(
+                        AppStoreVerificationException.Reason.OWNERSHIP_CONFLICT,
+                        "Apple transaction baska bir sirket tarafindan kullanilmis");
+            }
+
+            boolean alreadyProcessed = existing.getStatus() == PaymentEventStatus.PROCESSED;
+            auditLogService.log(
+                    "SUBSCRIPTION_APP_STORE_VERIFY_IDEMPOTENT",
+                    "PAYMENT_EVENT",
+                    existing.getId(),
+                    "Apple transaction tekrar geldi; idempotent olarak islendi");
+            return new AppleVerifyResult(
+                    alreadyProcessed,
+                    true,
+                    verification.planType().name(),
+                    existing.getExternalSubscriptionId(),
+                    alreadyProcessed ? "processed" : "failed");
+        }
+
+        Optional<Company> owner = companyRepository
+                .findBySubscriptionProviderAndExternalSubscriptionId(APP_STORE_PROVIDER, externalSubscriptionId);
+        if (owner.isPresent() && !companyId.equals(owner.get().getId())) {
+            auditLogService.log(
+                    "SUBSCRIPTION_APP_STORE_VERIFY_CONFLICT",
+                    "COMPANY",
+                    owner.get().getId(),
+                    "Apple subscription baska bir company tarafindan sahiplenilmis");
+            throw ownershipConflict();
+        }
+
+        PaymentEvent paymentEvent = new PaymentEvent();
+        paymentEvent.setCompanyId(companyId);
+        paymentEvent.setProvider(APP_STORE_PROVIDER);
+        paymentEvent.setEventType("SUBSCRIPTION_VERIFY");
+        paymentEvent.setTokenHash(transactionHash);
+        paymentEvent.setPurchaseTokenMasked("sha256:" + transactionHash.substring(0, 12));
+        paymentEvent.setExternalSubscriptionId(externalSubscriptionId);
+        paymentEvent.setStatus(PaymentEventStatus.RECEIVED);
+
+        try {
+            paymentEventRepository.saveAndFlush(paymentEvent);
+            Company updated = upgradePlanFromAppStore(
+                    companyId,
+                    verification.planType(),
+                    originalTransactionHash,
+                    verification.expiresDate());
+
+            paymentEvent.setStatus(PaymentEventStatus.PROCESSED);
+            paymentEventRepository.save(paymentEvent);
+
+            auditLogService.log(
+                    "SUBSCRIPTION_APP_STORE_VERIFY_SUCCESS",
+                    "PAYMENT_EVENT",
+                    paymentEvent.getId(),
+                    "Apple subscription dogrulandi ve plan upgrade edildi: " + updated.getPlanType());
+
+            return new AppleVerifyResult(
+                    true,
+                    false,
+                    updated.getPlanType().name(),
+                    externalSubscriptionId,
+                    "processed");
+        } catch (DataIntegrityViolationException ex) {
+            log.warn("App Store subscription ownership conflict: companyId={}", companyId);
+            throw ownershipConflict();
+        } catch (RuntimeException ex) {
+            paymentEvent.setStatus(PaymentEventStatus.FAILED);
+            paymentEvent.setFailureReason("Apple subscription update failed");
+            paymentEventRepository.save(paymentEvent);
+            auditLogService.log(
+                    "SUBSCRIPTION_APP_STORE_VERIFY_FAILED",
+                    "PAYMENT_EVENT",
+                    paymentEvent.getId(),
+                    "Apple subscription dogrulandi ancak plan guncellenemedi");
+            throw ex;
+        }
+    }
+
+    @Transactional
+    public Company upgradePlanFromAppStore(
+            Long companyId,
+            PlanType newPlan,
+            String originalTransactionHash,
+            LocalDateTime expiresAt) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new RuntimeException("Company not found: " + companyId));
+
+        PlanType oldPlan = company.getPlanType();
+        company.setPlanType(newPlan);
+        company.setIsReadOnly(false);
+        company.setSubscriptionStatus("ACTIVE");
+        company.setSubscriptionProvider("APP_STORE");
+        company.setExternalSubscriptionId("appstore:" + originalTransactionHash);
+        company.setSubscriptionExpiresAt(expiresAt);
+
+        Company saved = companyRepository.saveAndFlush(company);
+        log.info("App Store plan upgraded: companyId={}, {} -> {}, expiresAt={}",
+                companyId, oldPlan, newPlan, expiresAt);
+        return saved;
     }
 
     /**
@@ -267,7 +436,30 @@ public class SubscriptionService {
         return "****" + token.substring(token.length() - 8);
     }
 
+    private PlanType requireAllowedGoogleProduct(String productId) {
+        PlanType planType = GOOGLE_PRODUCT_PLANS.get(productId);
+        if (planType == null) {
+            throw new IllegalArgumentException("Google productId tanimli degil");
+        }
+        return planType;
+    }
+
+    private AppStoreVerificationException ownershipConflict() {
+        return new AppStoreVerificationException(
+                AppStoreVerificationException.Reason.OWNERSHIP_CONFLICT,
+                "Apple aboneligi baska bir sirket tarafindan kullanilmis");
+    }
+
     public record GoogleVerifyResult(
+            boolean verified,
+            boolean idempotentReplay,
+            String plan,
+            String subscriptionId,
+            String status
+    ) {
+    }
+
+    public record AppleVerifyResult(
             boolean verified,
             boolean idempotentReplay,
             String plan,
