@@ -20,6 +20,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -31,6 +32,11 @@ public class SubscriptionService {
 
     private static final Logger log = LoggerFactory.getLogger(SubscriptionService.class);
     private static final String APP_STORE_PROVIDER = "APP_STORE";
+    private static final String GOOGLE_PLAY_PROVIDER = "GOOGLE_PLAY";
+    private static final Map<String, PlanType> GOOGLE_PRODUCT_PLANS = Map.of(
+            "usta", PlanType.USTA,
+            "patron", PlanType.PATRON
+    );
 
     private final CompanyRepository companyRepository;
     private final PaymentEventRepository paymentEventRepository;
@@ -81,12 +87,12 @@ public class SubscriptionService {
     @Transactional
     public GoogleVerifyResult verifyGooglePurchaseAndUpgradePlan(
             Long companyId,
-            PlanType planType,
             String purchaseToken,
             String productId) {
+        requireAllowedGoogleProduct(productId);
         String tokenHash = sha256(purchaseToken);
         Optional<PaymentEvent> existingOpt = paymentEventRepository
-                .findByProviderAndTokenHash("GOOGLE_PLAY", tokenHash);
+                .findByProviderAndTokenHash(GOOGLE_PLAY_PROVIDER, tokenHash);
 
         if (existingOpt.isPresent()) {
             PaymentEvent existing = existingOpt.get();
@@ -99,17 +105,20 @@ public class SubscriptionService {
                     "PAYMENT_EVENT",
                     existing.getId(),
                     description);
+            String existingPlan = companyRepository.findById(companyId)
+                    .map(company -> company.getPlanType().name())
+                    .orElse(null);
             return new GoogleVerifyResult(
                     alreadyProcessed,
                     true,
-                    planType.name(),
+                    existingPlan,
                     existing.getExternalSubscriptionId(),
                     alreadyProcessed ? "processed" : "failed");
         }
 
         PaymentEvent paymentEvent = new PaymentEvent();
         paymentEvent.setCompanyId(companyId);
-        paymentEvent.setProvider("GOOGLE_PLAY");
+        paymentEvent.setProvider(GOOGLE_PLAY_PROVIDER);
         paymentEvent.setEventType("SUBSCRIPTION_VERIFY");
         paymentEvent.setTokenHash(tokenHash);
         paymentEvent.setPurchaseTokenMasked(maskToken(purchaseToken));
@@ -128,10 +137,11 @@ public class SubscriptionService {
                     "PAYMENT_EVENT",
                     paymentEvent.getId(),
                     "Google subscription doğrulama başarısız: " + verification.reason());
-            return new GoogleVerifyResult(false, false, planType.name(), null, "failed");
+            return new GoogleVerifyResult(false, false, null, null, "failed");
         }
 
-        Company updated = upgradePlan(companyId, planType, "google:" + verification.subscriptionId());
+        PlanType verifiedPlan = requireAllowedGoogleProduct(verification.productId());
+        Company updated = upgradePlanFromGooglePlay(companyId, verifiedPlan, verification.subscriptionId());
         paymentEvent.setExternalSubscriptionId(verification.subscriptionId());
         paymentEvent.setStatus(PaymentEventStatus.PROCESSED);
         paymentEventRepository.save(paymentEvent);
@@ -143,6 +153,28 @@ public class SubscriptionService {
                 "Google subscription doğrulandı ve plan upgrade edildi: " + updated.getPlanType());
 
         return new GoogleVerifyResult(true, false, updated.getPlanType().name(), verification.subscriptionId(), "processed");
+    }
+
+    @Transactional
+    public Company upgradePlanFromGooglePlay(
+            Long companyId,
+            PlanType newPlan,
+            String verifiedSubscriptionId) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new RuntimeException("Company not found: " + companyId));
+
+        PlanType oldPlan = company.getPlanType();
+        company.setPlanType(newPlan);
+        company.setIsReadOnly(false);
+        company.setSubscriptionStatus("ACTIVE");
+        company.setSubscriptionProvider(GOOGLE_PLAY_PROVIDER);
+        company.setExternalSubscriptionId("google:" + verifiedSubscriptionId);
+        company.setIyzicoSubscriptionId(null);
+        company.setSubscriptionExpiresAt(LocalDateTime.now().plusDays(30));
+
+        Company saved = companyRepository.save(company);
+        log.info("Google Play plan upgraded: companyId={}, {} -> {}", companyId, oldPlan, newPlan);
+        return saved;
     }
 
     @Transactional
@@ -394,6 +426,14 @@ public class SubscriptionService {
             return "****" + token;
         }
         return "****" + token.substring(token.length() - 8);
+    }
+
+    private PlanType requireAllowedGoogleProduct(String productId) {
+        PlanType planType = GOOGLE_PRODUCT_PLANS.get(productId);
+        if (planType == null) {
+            throw new IllegalArgumentException("Google productId tanimli degil");
+        }
+        return planType;
     }
 
     private AppStoreVerificationException ownershipConflict() {

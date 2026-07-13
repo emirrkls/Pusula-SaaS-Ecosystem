@@ -7,6 +7,7 @@ public interface GooglePlayVerificationService {
     record GoogleVerificationResult(
             boolean valid,
             String subscriptionId,
+            String productId,
             String reason
     ) {
     }
