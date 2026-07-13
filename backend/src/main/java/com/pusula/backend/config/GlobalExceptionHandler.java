@@ -1,6 +1,7 @@
 package com.pusula.backend.config;
 
 import com.pusula.backend.service.AppStoreVerificationException;
+import com.pusula.backend.service.PaymentOwnershipException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -89,6 +90,20 @@ public class GlobalExceptionHandler {
                 request.getMethod(), request.getRequestURI(), ex.getReason());
         return ResponseEntity.status(status)
                 .body(errorBody(status, "APP_STORE_VERIFY_FAILED", ex.getMessage(), request, null));
+    }
+
+    @ExceptionHandler(PaymentOwnershipException.class)
+    public ResponseEntity<Map<String, Object>> handlePaymentOwnershipException(
+            PaymentOwnershipException ex,
+            HttpServletRequest request) {
+        log.warn("Payment ownership conflict on {} {}", request.getMethod(), request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(errorBody(
+                        HttpStatus.CONFLICT,
+                        "PAYMENT_OWNERSHIP_CONFLICT",
+                        "Odeme kaydi baska bir sirkete ait",
+                        request,
+                        null));
     }
 
     @ExceptionHandler(RuntimeException.class)

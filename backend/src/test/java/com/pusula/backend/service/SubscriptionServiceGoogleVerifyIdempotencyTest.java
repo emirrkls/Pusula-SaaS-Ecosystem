@@ -80,6 +80,25 @@ class SubscriptionServiceGoogleVerifyIdempotencyTest {
     }
 
     @Test
+    void verifyGooglePurchase_replayTokenFromDifferentCompanyIsRejectedBeforeDataLookup() {
+        PaymentEvent existing = new PaymentEvent();
+        existing.setId(99L);
+        existing.setCompanyId(20L);
+        existing.setStatus(PaymentEventStatus.PROCESSED);
+        existing.setExternalSubscriptionId("private-order-id");
+        when(paymentEventRepository.findByProviderAndTokenHash(eq("GOOGLE_PLAY"), any()))
+                .thenReturn(Optional.of(existing));
+
+        assertThrows(PaymentOwnershipException.class,
+                () -> subscriptionService.verifyGooglePurchaseAndUpgradePlan(
+                        10L, "same-token", "usta"));
+
+        verify(companyRepository, never()).findById(any());
+        verify(googlePlayVerificationService, never()).verifySubscription(any(), any());
+        verify(companyRepository, never()).save(any(Company.class));
+    }
+
+    @Test
     void verifyGooglePurchase_verifiedUstaProductUpdatesGoogleProviderOnly() {
         Company company = company(10L, PlanType.PATRON);
         company.setIyzicoSubscriptionId("legacy-iyzico-id");

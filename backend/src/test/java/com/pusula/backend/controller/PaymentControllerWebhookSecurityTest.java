@@ -12,16 +12,23 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentControllerWebhookSecurityTest {
@@ -38,6 +45,7 @@ class PaymentControllerWebhookSecurityTest {
     private HttpServletRequest request;
 
     private PaymentController paymentController;
+    private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
@@ -47,6 +55,7 @@ class PaymentControllerWebhookSecurityTest {
                 auditLogService,
                 webhookEventRepository,
                 new ObjectMapper());
+        mockMvc = MockMvcBuilders.standaloneSetup(paymentController).build();
     }
 
     @Test
@@ -67,5 +76,16 @@ class PaymentControllerWebhookSecurityTest {
         assertNotNull(response.getBody());
         assertEquals("INVALID_WEBHOOK_SIGNATURE", response.getBody().get("code"));
         verify(auditLogService, times(1)).logAuth(any(), any(), any(), eq("WEBHOOK_SIGNATURE_INVALID"), any(), any());
+    }
+
+    @Test
+    void companyAdminCannotUpgradePlanWithoutPaymentProof() throws Exception {
+        mockMvc.perform(post("/api/payment/upgrade")
+                        .with(user("company-admin").roles("COMPANY_ADMIN"))
+                        .contentType("application/json")
+                        .content("{\"plan\":\"PATRON\",\"subscriptionId\":\"unverified\"}"))
+                .andExpect(status().isNotFound());
+
+        verify(subscriptionService, never()).upgradePlan(anyLong(), any(), any());
     }
 }

@@ -96,6 +96,14 @@ public class SubscriptionService {
 
         if (existingOpt.isPresent()) {
             PaymentEvent existing = existingOpt.get();
+            if (!companyId.equals(existing.getCompanyId())) {
+                auditLogService.log(
+                        "SUBSCRIPTION_GOOGLE_VERIFY_CONFLICT",
+                        "PAYMENT_EVENT",
+                        existing.getId(),
+                        "Google purchase token baska bir company tarafindan kullanilmis");
+                throw new PaymentOwnershipException();
+            }
             boolean alreadyProcessed = existing.getStatus() == PaymentEventStatus.PROCESSED;
             String description = alreadyProcessed
                     ? "Google purchase token tekrar geldi; idempotent replay olarak işlendi"
