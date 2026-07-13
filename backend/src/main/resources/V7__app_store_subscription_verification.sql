@@ -1,5 +1,5 @@
--- App Store verification uses the existing payment_events idempotency model.
--- Apple original transaction ids are stored hashed in payment_events.token_hash.
+-- App Store transaction ids are hashed in payment_events.token_hash for idempotency.
+-- Hashed original transaction ids are stored as appstore:<sha256> on companies for ownership.
 
 DO $$
 BEGIN
@@ -18,3 +18,9 @@ ALTER TABLE companies
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_event_provider_token_hash
     ON payment_events(provider, token_hash);
+
+-- PostgreSQL permits multiple NULL values; the partial predicate also keeps legacy/unbound
+-- companies outside this ownership constraint.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_companies_subscription_provider_external_id
+    ON companies(subscription_provider, external_subscription_id)
+    WHERE subscription_provider IS NOT NULL AND external_subscription_id IS NOT NULL;

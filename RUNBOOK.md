@@ -19,6 +19,11 @@ This runbook covers Sprint 2-4 operational rollout items:
 - DB migration check
   - Ensure latest SQL migration files are applied, including:
     - `V6__super_admin_global_tenant_support.sql`
+    - `V7__app_store_subscription_verification.sql`
+  - This project does not run `V*.sql` automatically. Before V7, create a PostgreSQL backup.
+  - The deploy helper applies V7 only when `APPLY_APP_STORE_MIGRATION=true`; it creates a
+    timestamped custom-format backup in `DB_BACKUP_DIR` before running `psql -v ON_ERROR_STOP=1`.
+  - V7 uses guarded columns and `CREATE UNIQUE INDEX IF NOT EXISTS`, so rerunning it is safe.
 
 ## Required Environment Variables (Production)
 

@@ -2,35 +2,35 @@ package com.pusula.backend.service;
 
 import com.apple.itunes.storekit.model.Environment;
 import com.apple.itunes.storekit.model.JWSTransactionDecodedPayload;
-import com.apple.itunes.storekit.model.Type;
 import com.apple.itunes.storekit.verification.SignedDataVerifier;
 import com.apple.itunes.storekit.verification.VerificationException;
-import com.pusula.backend.entity.PlanType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 public class AppleAppStoreVerificationServiceImpl implements AppleAppStoreVerificationService {
 
-    private static final String EXPECTED_BUNDLE_ID = "com.pusula.service";
-    private static final Map<String, PlanType> PRODUCT_PLANS = Map.of(
-            "com.pusula.usta", PlanType.USTA,
-            "com.pusula.patron", PlanType.PATRON
-    );
+    private final AppleTransactionPayloadValidator payloadValidator;
+    private final ConcurrentMap<Environment, SignedDataVerifier> verifierCache = new ConcurrentHashMap<>();
 
-    @Value("${apple.app-store.bundle-id:" + EXPECTED_BUNDLE_ID + "}")
+    public AppleAppStoreVerificationServiceImpl(AppleTransactionPayloadValidator payloadValidator) {
+        this.payloadValidator = payloadValidator;
+    }
+
+    @Value("${apple.app-store.bundle-id:" + AppleTransactionPayloadValidator.EXPECTED_BUNDLE_ID + "}")
     private String bundleId;
 
     @Value("${apple.app-store.app-apple-id:}")
@@ -59,7 +59,7 @@ public class AppleAppStoreVerificationServiceImpl implements AppleAppStoreVerifi
             try {
                 JWSTransactionDecodedPayload payload = verifier(environment)
                         .verifyAndDecodeTransaction(signedTransactionInfo);
-                return validatePayload(payload, environment);
+                return payloadValidator.validate(payload, environment);
             } catch (VerificationException ex) {
                 lastFailure = new AppStoreVerificationException(
                         AppStoreVerificationException.Reason.VERIFICATION_FAILED,
@@ -68,82 +68,72 @@ public class AppleAppStoreVerificationServiceImpl implements AppleAppStoreVerifi
         }
         throw lastFailure != null
                 ? lastFailure
-                : new AppStoreVerificationException(
-                AppStoreVerificationException.Reason.CONFIGURATION,
-                "Apple environment konfigürasyonu eksik");
+                : configurationFailure("Apple environment konfigurasyonu eksik");
     }
 
     private SignedDataVerifier verifier(Environment environment) {
-        Long appId = parseAppAppleId(environment);
-        Set<InputStream> rootCertificates = openRootCertificates();
-        return new SignedDataVerifier(rootCertificates, bundleId, appId, environment, enableOnlineChecks);
+        return verifierCache.computeIfAbsent(environment, this::createVerifier);
     }
 
-    private AppleVerificationResult validatePayload(JWSTransactionDecodedPayload payload, Environment verifierEnvironment) {
-        if (payload == null) {
-            throw new AppStoreVerificationException(
-                    AppStoreVerificationException.Reason.VERIFICATION_FAILED,
-                    "Apple transaction okunamadi");
+    private SignedDataVerifier createVerifier(Environment environment) {
+        if (!AppleTransactionPayloadValidator.EXPECTED_BUNDLE_ID.equals(bundleId)) {
+            throw configurationFailure("Apple bundle ID konfigurasyonu gecersiz");
         }
-        if (!EXPECTED_BUNDLE_ID.equals(payload.getBundleId())) {
-            throw new AppStoreVerificationException(
-                    AppStoreVerificationException.Reason.BUNDLE_MISMATCH,
-                    "Apple bundleId uyumsuz");
-        }
-        if (payload.getEnvironment() != null && payload.getEnvironment() != verifierEnvironment) {
-            throw new AppStoreVerificationException(
-                    AppStoreVerificationException.Reason.ENVIRONMENT_NOT_ALLOWED,
-                    "Apple environment uyumsuz");
-        }
-        if (payload.getType() != Type.AUTO_RENEWABLE_SUBSCRIPTION) {
-            throw new AppStoreVerificationException(
-                    AppStoreVerificationException.Reason.NOT_SUBSCRIPTION,
-                    "Apple transaction abonelik degil");
-        }
-        if (payload.getRevocationDate() != null) {
-            throw new AppStoreVerificationException(
-                    AppStoreVerificationException.Reason.REVOKED,
-                    "Apple transaction revoke edilmis");
+        Long appId = parseAppAppleId(environment);
+        if (rootCertificatePaths == null || rootCertificatePaths.isBlank()) {
+            throw configurationFailure("Apple root certificate konfigurasyonu eksik");
         }
 
-        LocalDateTime expiresAt = millisToUtc(payload.getExpiresDate());
-        if (expiresAt == null || !expiresAt.isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
-            throw new AppStoreVerificationException(
-                    AppStoreVerificationException.Reason.EXPIRED,
-                    "Apple aboneligin suresi dolmus");
+        List<InputStream> rootCertificates = new ArrayList<>();
+        try {
+            Arrays.stream(rootCertificatePaths.split(","))
+                    .map(String::trim)
+                    .filter(value -> !value.isBlank())
+                    .map(this::openCertificate)
+                    .forEach(rootCertificates::add);
+            if (rootCertificates.isEmpty()) {
+                throw configurationFailure("Apple root certificate konfigurasyonu eksik");
+            }
+            return new SignedDataVerifier(
+                    new HashSet<>(rootCertificates),
+                    bundleId,
+                    appId,
+                    environment,
+                    enableOnlineChecks);
+        } catch (RuntimeException ex) {
+            if (ex instanceof AppStoreVerificationException appEx) {
+                throw appEx;
+            }
+            throw configurationFailure("Apple verifier olusturulamadi");
+        } finally {
+            rootCertificates.forEach(this::closeCertificate);
         }
-
-        PlanType planType = PRODUCT_PLANS.get(payload.getProductId());
-        if (planType == null) {
-            throw new AppStoreVerificationException(
-                    AppStoreVerificationException.Reason.PRODUCT_NOT_ALLOWED,
-                    "Apple productId tanimli degil");
-        }
-        if (payload.getTransactionId() == null || payload.getTransactionId().isBlank()
-                || payload.getOriginalTransactionId() == null || payload.getOriginalTransactionId().isBlank()) {
-            throw new AppStoreVerificationException(
-                    AppStoreVerificationException.Reason.MALFORMED,
-                    "Apple transaction kimligi eksik");
-        }
-
-        return new AppleVerificationResult(
-                payload.getTransactionId(),
-                payload.getOriginalTransactionId(),
-                payload.getProductId(),
-                planType,
-                payload.getBundleId(),
-                payload.getEnvironment() != null ? payload.getEnvironment().getValue() : verifierEnvironment.getValue(),
-                millisToUtc(payload.getPurchaseDate()),
-                expiresAt);
     }
 
     private Set<Environment> parseEnabledEnvironments() {
-        return Arrays.stream(enabledEnvironments.split(","))
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .map(value -> Environment.valueOf(value.toUpperCase(Locale.ROOT)))
-                .filter(environment -> environment == Environment.SANDBOX || environment == Environment.PRODUCTION)
-                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        if (enabledEnvironments == null || enabledEnvironments.isBlank()) {
+            throw configurationFailure("Apple environment konfigurasyonu eksik");
+        }
+        Set<Environment> environments = new LinkedHashSet<>();
+        for (String configuredValue : enabledEnvironments.split(",")) {
+            String value = configuredValue.trim();
+            if (value.isBlank()) {
+                continue;
+            }
+            try {
+                Environment environment = Environment.valueOf(value.toUpperCase(Locale.ROOT));
+                if (environment != Environment.SANDBOX && environment != Environment.PRODUCTION) {
+                    throw configurationFailure("Apple environment konfigurasyonu gecersiz");
+                }
+                environments.add(environment);
+            } catch (IllegalArgumentException ex) {
+                throw configurationFailure("Apple environment konfigurasyonu gecersiz");
+            }
+        }
+        if (environments.isEmpty()) {
+            throw configurationFailure("Apple environment konfigurasyonu eksik");
+        }
+        return environments;
     }
 
     private Long parseAppAppleId(Environment environment) {
@@ -151,38 +141,12 @@ public class AppleAppStoreVerificationServiceImpl implements AppleAppStoreVerifi
             return null;
         }
         if (appAppleId == null || appAppleId.isBlank()) {
-            throw new AppStoreVerificationException(
-                    AppStoreVerificationException.Reason.CONFIGURATION,
-                    "Production icin Apple App Apple ID gerekli");
+            throw configurationFailure("Production icin Apple App Apple ID gerekli");
         }
         try {
             return Long.valueOf(appAppleId.trim());
         } catch (NumberFormatException ex) {
-            throw new AppStoreVerificationException(
-                    AppStoreVerificationException.Reason.CONFIGURATION,
-                    "Apple App Apple ID gecersiz");
-        }
-    }
-
-    private Set<InputStream> openRootCertificates() {
-        if (rootCertificatePaths == null || rootCertificatePaths.isBlank()) {
-            throw new AppStoreVerificationException(
-                    AppStoreVerificationException.Reason.CONFIGURATION,
-                    "Apple root certificate konfigürasyonu eksik");
-        }
-        try {
-            return Arrays.stream(rootCertificatePaths.split(","))
-                    .map(String::trim)
-                    .filter(value -> !value.isBlank())
-                    .map(this::openCertificate)
-                    .collect(Collectors.toSet());
-        } catch (RuntimeException ex) {
-            if (ex instanceof AppStoreVerificationException appEx) {
-                throw appEx;
-            }
-            throw new AppStoreVerificationException(
-                    AppStoreVerificationException.Reason.CONFIGURATION,
-                    "Apple root certificate okunamadi");
+            throw configurationFailure("Apple App Apple ID gecersiz");
         }
     }
 
@@ -190,16 +154,21 @@ public class AppleAppStoreVerificationServiceImpl implements AppleAppStoreVerifi
         try {
             return new FileInputStream(path);
         } catch (IOException ex) {
-            throw new AppStoreVerificationException(
-                    AppStoreVerificationException.Reason.CONFIGURATION,
-                    "Apple root certificate okunamadi");
+            throw configurationFailure("Apple root certificate okunamadi");
         }
     }
 
-    private LocalDateTime millisToUtc(Long millis) {
-        if (millis == null) {
-            return null;
+    private void closeCertificate(InputStream certificate) {
+        try {
+            certificate.close();
+        } catch (IOException ignored) {
+            // The certificate has already been parsed into an in-memory trust anchor.
         }
-        return LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC);
+    }
+
+    private AppStoreVerificationException configurationFailure(String message) {
+        return new AppStoreVerificationException(
+                AppStoreVerificationException.Reason.CONFIGURATION,
+                message);
     }
 }

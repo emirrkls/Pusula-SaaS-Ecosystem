@@ -9,6 +9,7 @@ import com.pusula.backend.repository.PaymentEventRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ import java.util.Optional;
 public class SubscriptionService {
 
     private static final Logger log = LoggerFactory.getLogger(SubscriptionService.class);
+    private static final String APP_STORE_PROVIDER = "APP_STORE";
 
     private final CompanyRepository companyRepository;
     private final PaymentEventRepository paymentEventRepository;
@@ -150,9 +152,11 @@ public class SubscriptionService {
         AppleAppStoreVerificationService.AppleVerificationResult verification =
                 appleAppStoreVerificationService.verifyTransaction(signedTransactionInfo);
 
+        String transactionHash = sha256(verification.transactionId());
         String originalTransactionHash = sha256(verification.originalTransactionId());
+        String externalSubscriptionId = "appstore:" + originalTransactionHash;
         Optional<PaymentEvent> existingOpt = paymentEventRepository
-                .findByProviderAndTokenHash("APP_STORE", originalTransactionHash);
+                .findByProviderAndTokenHash(APP_STORE_PROVIDER, transactionHash);
 
         if (existingOpt.isPresent()) {
             PaymentEvent existing = existingOpt.get();
@@ -181,23 +185,34 @@ public class SubscriptionService {
                     alreadyProcessed ? "processed" : "failed");
         }
 
+        Optional<Company> owner = companyRepository
+                .findBySubscriptionProviderAndExternalSubscriptionId(APP_STORE_PROVIDER, externalSubscriptionId);
+        if (owner.isPresent() && !companyId.equals(owner.get().getId())) {
+            auditLogService.log(
+                    "SUBSCRIPTION_APP_STORE_VERIFY_CONFLICT",
+                    "COMPANY",
+                    owner.get().getId(),
+                    "Apple subscription baska bir company tarafindan sahiplenilmis");
+            throw ownershipConflict();
+        }
+
         PaymentEvent paymentEvent = new PaymentEvent();
         paymentEvent.setCompanyId(companyId);
-        paymentEvent.setProvider("APP_STORE");
+        paymentEvent.setProvider(APP_STORE_PROVIDER);
         paymentEvent.setEventType("SUBSCRIPTION_VERIFY");
-        paymentEvent.setTokenHash(originalTransactionHash);
-        paymentEvent.setPurchaseTokenMasked(maskToken(verification.originalTransactionId()));
+        paymentEvent.setTokenHash(transactionHash);
+        paymentEvent.setPurchaseTokenMasked("sha256:" + transactionHash.substring(0, 12));
+        paymentEvent.setExternalSubscriptionId(externalSubscriptionId);
         paymentEvent.setStatus(PaymentEventStatus.RECEIVED);
-        paymentEventRepository.save(paymentEvent);
 
         try {
+            paymentEventRepository.saveAndFlush(paymentEvent);
             Company updated = upgradePlanFromAppStore(
                     companyId,
                     verification.planType(),
                     originalTransactionHash,
                     verification.expiresDate());
 
-            paymentEvent.setExternalSubscriptionId("appstore:" + originalTransactionHash);
             paymentEvent.setStatus(PaymentEventStatus.PROCESSED);
             paymentEventRepository.save(paymentEvent);
 
@@ -211,8 +226,11 @@ public class SubscriptionService {
                     true,
                     false,
                     updated.getPlanType().name(),
-                    "appstore:" + originalTransactionHash,
+                    externalSubscriptionId,
                     "processed");
+        } catch (DataIntegrityViolationException ex) {
+            log.warn("App Store subscription ownership conflict: companyId={}", companyId);
+            throw ownershipConflict();
         } catch (RuntimeException ex) {
             paymentEvent.setStatus(PaymentEventStatus.FAILED);
             paymentEvent.setFailureReason("Apple subscription update failed");
@@ -243,7 +261,7 @@ public class SubscriptionService {
         company.setExternalSubscriptionId("appstore:" + originalTransactionHash);
         company.setSubscriptionExpiresAt(expiresAt);
 
-        Company saved = companyRepository.save(company);
+        Company saved = companyRepository.saveAndFlush(company);
         log.info("App Store plan upgraded: companyId={}, {} -> {}, expiresAt={}",
                 companyId, oldPlan, newPlan, expiresAt);
         return saved;
@@ -376,6 +394,12 @@ public class SubscriptionService {
             return "****" + token;
         }
         return "****" + token.substring(token.length() - 8);
+    }
+
+    private AppStoreVerificationException ownershipConflict() {
+        return new AppStoreVerificationException(
+                AppStoreVerificationException.Reason.OWNERSHIP_CONFLICT,
+                "Apple aboneligi baska bir sirket tarafindan kullanilmis");
     }
 
     public record GoogleVerifyResult(
