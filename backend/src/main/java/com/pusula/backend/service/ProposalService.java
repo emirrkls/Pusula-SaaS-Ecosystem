@@ -58,7 +58,9 @@ public class ProposalService {
         Proposal proposal = new Proposal();
         proposal.setCompanyId(currentUser.getCompanyId());
         proposal.setCustomerId(dto.getCustomerId());
-        proposal.setPreparedById(dto.getPreparedById() != null ? dto.getPreparedById() : currentUser.getId());
+        // The authenticated user is the authoritative proposal preparer. Clients
+        // must not be able to select another tenant's signature by sending an ID.
+        proposal.setPreparedById(currentUser.getId());
         proposal.setStatus(Proposal.ProposalStatus.DRAFT);
         proposal.setValidUntil(dto.getValidUntil());
         proposal.setNote(dto.getNote());
@@ -102,7 +104,12 @@ public class ProposalService {
                 && (oldStatus != Proposal.ProposalStatus.APPROVED);
 
         proposal.setCustomerId(dto.getCustomerId());
-        proposal.setPreparedById(dto.getPreparedById());
+        // Keep authorship immutable when clients omit preparedById on update.
+        // Legacy proposals without an author are attributed to the user repairing
+        // the record so future PDFs can resolve the correct stored signature.
+        if (proposal.getPreparedById() == null) {
+            proposal.setPreparedById(getCurrentUser().getId());
+        }
         proposal.setStatus(newStatus);
         proposal.setValidUntil(dto.getValidUntil());
         proposal.setNote(dto.getNote());
