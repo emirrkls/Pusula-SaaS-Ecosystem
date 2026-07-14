@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>Pusula Servis</string>
+	<string>Pusula Servis Yönetimi</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -23,7 +23,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Servis parçalarının barkodlarını okutarak sisteme hızlıca ekleyebilmeniz için kameranıza erişim gereklidir.</string>
 	<key>PusulaPushNotificationsEnabled</key>
-	<false/>
+	<true/>
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>
