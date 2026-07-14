@@ -432,7 +432,7 @@ struct SettingsView: View {
         defer { uploadingSignatureUserId = nil }
 
         do {
-            let data = try await jpegData(from: item)
+            let data = try await signatureJPEGData(from: item)
             try await SettingsService.uploadUserSignature(userId: userId, imageData: data)
             successMessage = "\(userName) için imza başarıyla yüklendi."
         } catch {
@@ -447,6 +447,104 @@ struct SettingsView: View {
             throw SettingsViewError.imageDataUnavailable
         }
         return jpegData
+    }
+
+    private func signatureJPEGData(from item: PhotosPickerItem) async throws -> Data {
+        guard let originalData = try await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: originalData) else {
+            throw SettingsViewError.imageDataUnavailable
+        }
+
+        let normalized = normalizedSignatureImage(image)
+        guard let jpegData = normalized.jpegData(compressionQuality: 0.9) else {
+            throw SettingsViewError.imageDataUnavailable
+        }
+        return jpegData
+    }
+
+    private func normalizedSignatureImage(_ image: UIImage) -> UIImage {
+        let maxDimension: CGFloat = 2_048
+        let downsample = min(1, maxDimension / max(image.size.width, image.size.height))
+        let normalizedSize = CGSize(
+            width: max(1, image.size.width * downsample),
+            height: max(1, image.size.height * downsample)
+        )
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let normalized = UIGraphicsImageRenderer(size: normalizedSize, format: format).image { context in
+            UIColor.white.setFill()
+            context.cgContext.fill(CGRect(origin: .zero, size: normalizedSize))
+            image.draw(in: CGRect(origin: .zero, size: normalizedSize))
+        }
+
+        guard let cgImage = normalized.cgImage,
+              let contentBounds = signatureContentBounds(in: cgImage),
+              let cropped = cgImage.cropping(to: contentBounds) else {
+            return normalized
+        }
+
+        let croppedImage = UIImage(cgImage: cropped, scale: 1, orientation: .up)
+        let safetyMargin: CGFloat = 16
+        let outputSize = CGSize(
+            width: croppedImage.size.width + safetyMargin * 2,
+            height: croppedImage.size.height + safetyMargin * 2
+        )
+        return UIGraphicsImageRenderer(size: outputSize, format: format).image { context in
+            UIColor.white.setFill()
+            context.cgContext.fill(CGRect(origin: .zero, size: outputSize))
+            croppedImage.draw(at: CGPoint(x: safetyMargin, y: safetyMargin))
+        }
+    }
+
+    private func signatureContentBounds(in image: CGImage) -> CGRect? {
+        let width = image.width
+        let height = image.height
+        guard width > 0, height > 0 else { return nil }
+
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        guard let context = CGContext(
+            data: &pixels,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        let cornerOffsets = [0, (width - 1) * 4, (height - 1) * width * 4, (width * height - 1) * 4]
+        let background = (0..<3).map { channel in
+            cornerOffsets.reduce(0) { $0 + Int(pixels[$1 + channel]) } / cornerOffsets.count
+        }
+
+        var minX = width
+        var minY = height
+        var maxX = -1
+        var maxY = -1
+        for y in 0..<height {
+            for x in 0..<width {
+                let offset = (y * width + x) * 4
+                let colorDistance = (0..<3).reduce(0) {
+                    $0 + abs(Int(pixels[offset + $1]) - background[$1])
+                }
+                if pixels[offset + 3] > 16 && colorDistance > 72 {
+                    minX = min(minX, x)
+                    minY = min(minY, y)
+                    maxX = max(maxX, x)
+                    maxY = max(maxY, y)
+                }
+            }
+        }
+
+        guard maxX >= minX, maxY >= minY else { return nil }
+        let padding = max(12, Int(Double(max(width, height)) * 0.02))
+        let x = max(0, minX - padding)
+        let y = max(0, minY - padding)
+        let right = min(width - 1, maxX + padding)
+        let bottom = min(height - 1, maxY + padding)
+        return CGRect(x: x, y: y, width: right - x + 1, height: bottom - y + 1)
     }
 
     private func roleTitle(_ role: String) -> String {
