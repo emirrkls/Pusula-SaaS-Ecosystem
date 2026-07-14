@@ -44,6 +44,7 @@ struct SignatureView: View {
                             .padding(.horizontal, 40)
                             .padding(.bottom, 60)
                     }
+                    .allowsHitTesting(false)
                     
                     // "X" mark for signature start
                     VStack {
@@ -57,6 +58,7 @@ struct SignatureView: View {
                             Spacer()
                         }
                     }
+                    .allowsHitTesting(false)
                 }
                 .frame(height: 300)
                 .padding()
@@ -136,10 +138,26 @@ struct SignatureView: View {
         isUploading = true
         errorMessage = nil
         
-        // Render canvas to image
-        let renderer = UIGraphicsImageRenderer(bounds: canvasView.bounds)
-        let image = renderer.image { ctx in
-            canvasView.drawHierarchy(in: canvasView.bounds, afterScreenUpdates: true)
+        let drawing = canvasView.drawing
+        guard !drawing.strokes.isEmpty else {
+            errorMessage = "Lütfen önce imzanızı atın"
+            isUploading = false
+            return
+        }
+
+        // Render the PencilKit strokes themselves so the saved image contains
+        // the complete signature instead of a cropped canvas viewport.
+        let signatureBounds = drawing.bounds.insetBy(dx: -16, dy: -16)
+        let scale = canvasView.window?.screen.scale ?? 2
+        let strokeImage = drawing.image(from: signatureBounds, scale: scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: signatureBounds.size, format: format)
+        let image = renderer.image { context in
+            UIColor.white.setFill()
+            context.cgContext.fill(CGRect(origin: .zero, size: signatureBounds.size))
+            strokeImage.draw(in: CGRect(origin: .zero, size: signatureBounds.size))
         }
         
         guard let pngData = image.pngData() else {
@@ -178,6 +196,8 @@ struct SignatureCanvas: UIViewRepresentable {
     func makeUIView(context: Context) -> PKCanvasView {
         canvasView.drawingPolicy = .anyInput
         canvasView.backgroundColor = .clear
+        canvasView.isScrollEnabled = false
+        canvasView.bounces = false
         
         // Set pen tool — fine black ink
         let ink = PKInkingTool(.pen, color: .black, width: 3)
