@@ -133,7 +133,7 @@ public class ReportController {
         } catch (ResponseStatusException e) {
             return ResponseEntity.status(e.getStatusCode()).build();
         } catch (Exception e) {
-            log.error("downloadServiceReport failed for ticketId={}", ticketId, e);
+            log.error("downloadServiceReport failed safely: errorType={}", e.getClass().getSimpleName());
             return ResponseEntity.internalServerError().build();
         }
     }

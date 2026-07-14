@@ -158,7 +158,7 @@ public class ReportService {
                         return baos.toByteArray();
 
                 } catch (Exception e) {
-                        throw new RuntimeException("Failed to generate PDF: " + e.getMessage(), e);
+                        throw new RuntimeException("Failed to generate service PDF", e);
                 }
         }
 

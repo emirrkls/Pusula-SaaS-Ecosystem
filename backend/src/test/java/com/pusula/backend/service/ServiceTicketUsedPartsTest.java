@@ -1,0 +1,132 @@
+package com.pusula.backend.service;
+
+import com.pusula.backend.dto.ServiceUsedPartDTO;
+import com.pusula.backend.entity.ServiceTicket;
+import com.pusula.backend.entity.ServiceUsedPart;
+import com.pusula.backend.entity.User;
+import com.pusula.backend.repository.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class ServiceTicketUsedPartsTest {
+    @Mock ServiceTicketRepository ticketRepository;
+    @Mock CustomerRepository customerRepository;
+    @Mock UserRepository userRepository;
+    @Mock InventoryRepository inventoryRepository;
+    @Mock ServiceUsedPartRepository usedPartRepository;
+    @Mock AuditLogService auditLogService;
+    @Mock CurrentAccountRepository currentAccountRepository;
+    @Mock VehicleStockRepository vehicleStockRepository;
+    @Mock WhatsAppNotificationService whatsAppNotificationService;
+    @Mock FeatureService featureService;
+    @Mock ServicePhotoRepository photoRepository;
+    @Mock FileUploadService fileUploadService;
+    @Mock ApplicationEventPublisher publisher;
+
+    private ServiceTicketService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new ServiceTicketService(ticketRepository, customerRepository, userRepository,
+                inventoryRepository, usedPartRepository, auditLogService, currentAccountRepository,
+                vehicleStockRepository, whatsAppNotificationService, featureService, photoRepository,
+                fileUploadService, publisher, "Europe/Istanbul");
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void missingInventoryUsesHistoricalFallbackInsteadOfThrowing() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = ticket(100L, 10L, 7L);
+        ServiceUsedPart part = ServiceUsedPart.builder()
+                .id(300L)
+                .companyId(10L)
+                .serviceTicket(ticket)
+                .inventory(null)
+                .quantityUsed(2)
+                .sellingPriceSnapshot(new BigDecimal("125.50"))
+                .build();
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part));
+
+        List<ServiceUsedPartDTO> result = service.getUsedParts(100L);
+
+        assertEquals(1, result.size());
+        assertNull(result.get(0).getInventoryId());
+        assertEquals("Yedek Parça", result.get(0).getPartName());
+        assertEquals(new BigDecimal("125.50"), result.get(0).getSellingPriceSnapshot());
+    }
+
+    @Test
+    void technicianCannotReadPartsForTicketAssignedToSomeoneElse() {
+        authenticate(7L, 10L, "TECHNICIAN");
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket(100L, 10L, 8L)));
+
+        assertThrows(RuntimeException.class, () -> service.getUsedParts(100L));
+
+        verify(usedPartRepository, never()).findByServiceTicketId(100L);
+    }
+
+    @Test
+    void foreignTenantTicketIsRejected() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket(100L, 20L, null)));
+
+        assertThrows(RuntimeException.class, () -> service.getUsedParts(100L));
+
+        verify(usedPartRepository, never()).findByServiceTicketId(100L);
+    }
+
+    @Test
+    void missingTicketIsRejected() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        when(ticketRepository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> service.getUsedParts(404L));
+
+        verify(usedPartRepository, never()).findByServiceTicketId(404L);
+    }
+
+    private ServiceTicket ticket(Long id, Long companyId, Long technicianId) {
+        return ServiceTicket.builder()
+                .id(id)
+                .companyId(companyId)
+                .customerId(200L)
+                .assignedTechnicianId(technicianId)
+                .status(ServiceTicket.TicketStatus.COMPLETED)
+                .build();
+    }
+
+    private void authenticate(Long id, Long companyId, String role) {
+        User user = new User();
+        user.setId(id);
+        user.setCompanyId(companyId);
+        user.setRole(role);
+        user.setUsername("test-user");
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
+    }
+}

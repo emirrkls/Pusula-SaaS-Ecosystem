@@ -1,6 +1,8 @@
 package com.pusula.backend.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
@@ -16,9 +18,18 @@ public class ServiceUsedPart extends BaseEntity {
     @JoinColumn(name = "ticket_id", nullable = false)
     private ServiceTicket serviceTicket;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "inventory_id", nullable = false)
+    @NotFound(action = NotFoundAction.IGNORE)
     private Inventory inventory;
+
+    /**
+     * Keeps the historical inventory identifier readable even when the inventory
+     * row was physically removed or is no longer visible through soft-delete
+     * filtering. The association remains the only writable mapping.
+     */
+    @Column(name = "inventory_id", insertable = false, updatable = false)
+    private Long inventoryId;
 
     @Column(name = "quantity_used", nullable = false)
     private Integer quantityUsed;
@@ -61,6 +72,10 @@ public class ServiceUsedPart extends BaseEntity {
 
     public void setInventory(Inventory inventory) {
         this.inventory = inventory;
+    }
+
+    public Long getInventoryId() {
+        return inventoryId;
     }
 
     public Integer getQuantityUsed() {

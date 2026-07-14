@@ -7,6 +7,7 @@ import com.pusula.backend.dto.ServiceTicketDTO;
 import com.pusula.backend.dto.ServiceUsedPartDTO;
 import com.pusula.backend.entity.CurrentAccount;
 import com.pusula.backend.entity.Customer;
+import com.pusula.backend.entity.Inventory;
 import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.User;
@@ -440,19 +441,32 @@ public class ServiceTicketService {
     public List<ServiceUsedPartDTO> getUsedParts(Long ticketId) {
         User currentUser = getCurrentUser();
         // Verify access to ticket
-        repository.findById(ticketId)
+        ServiceTicket ticket = repository.findById(ticketId)
                 .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
 
+        if ("TECHNICIAN".equals(currentUser.getRole())
+                && (ticket.getAssignedTechnicianId() == null
+                        || !ticket.getAssignedTechnicianId().equals(currentUser.getId()))) {
+            throw new RuntimeException("Access Denied: You can only view parts for tickets assigned to you.");
+        }
+
         return serviceUsedPartRepository.findByServiceTicketId(ticketId).stream()
-                .map(part -> new ServiceUsedPartDTO(
-                        part.getId(),
-                        part.getServiceTicket().getId(),
-                        part.getInventory().getId(),
-                        part.getInventory().getPartName(),
-                        part.getQuantityUsed(),
-                        part.getSellingPriceSnapshot(),
-                        part.getSourceVehicleId()))
+                .map(part -> {
+                    Inventory inventory = part.getInventory();
+                    Long inventoryId = inventory != null ? inventory.getId() : part.getInventoryId();
+                    String partName = inventory != null && inventory.getPartName() != null
+                            ? inventory.getPartName()
+                            : "Yedek Parça";
+                    return new ServiceUsedPartDTO(
+                            part.getId(),
+                            ticketId,
+                            inventoryId,
+                            partName,
+                            part.getQuantityUsed(),
+                            part.getSellingPriceSnapshot(),
+                            part.getSourceVehicleId());
+                })
                 .collect(Collectors.toList());
     }
 
