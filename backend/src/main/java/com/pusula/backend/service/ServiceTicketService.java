@@ -10,6 +10,7 @@ import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.User;
+import com.pusula.backend.event.TicketAssignedEvent;
 import com.pusula.backend.repository.CurrentAccountRepository;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.InventoryRepository;
@@ -24,6 +25,7 @@ import com.pusula.backend.entity.ServicePhoto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,7 @@ import java.time.ZoneId;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -64,6 +67,7 @@ public class ServiceTicketService {
     private final FeatureService featureService;
     private final ServicePhotoRepository servicePhotoRepository;
     private final FileUploadService fileUploadService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ServiceTicketService(ServiceTicketRepository repository,
             CustomerRepository customerRepository,
@@ -77,6 +81,7 @@ public class ServiceTicketService {
             FeatureService featureService,
             ServicePhotoRepository servicePhotoRepository,
             FileUploadService fileUploadService,
+            ApplicationEventPublisher eventPublisher,
             @Value("${app.business.timezone:Europe/Istanbul}") String businessTimezone) {
         this.repository = repository;
         this.customerRepository = customerRepository;
@@ -90,6 +95,7 @@ public class ServiceTicketService {
         this.featureService = featureService;
         this.servicePhotoRepository = servicePhotoRepository;
         this.fileUploadService = fileUploadService;
+        this.eventPublisher = eventPublisher;
         this.businessZone = ZoneId.of(businessTimezone);
     }
 
@@ -129,19 +135,25 @@ public class ServiceTicketService {
     }
 
     @CheckQuota("TICKETS")
+    @Transactional
     public ServiceTicketDTO createTicket(ServiceTicketDTO dto) {
         User user = getCurrentUser();
+        User assignedTechnician = dto.getAssignedTechnicianId() == null
+                ? null
+                : requireTechnician(dto.getAssignedTechnicianId(), user.getCompanyId());
         ServiceTicket ticket = ServiceTicket.builder()
                 .companyId(user.getCompanyId())
                 .customerId(dto.getCustomerId())
                 .assignedTechnicianId(dto.getAssignedTechnicianId())
-                .status(ServiceTicket.TicketStatus.PENDING)
+                .status(assignedTechnician == null
+                        ? ServiceTicket.TicketStatus.PENDING
+                        : ServiceTicket.TicketStatus.ASSIGNED)
                 .scheduledDate(dto.getScheduledDate())
                 .description(dto.getDescription())
                 .notes(dto.getNotes())
                 .build();
 
-        if (dto.getStatus() != null) {
+        if (assignedTechnician == null && dto.getStatus() != null) {
             ticket.setStatus(dto.getStatus());
         }
 
@@ -155,9 +167,14 @@ public class ServiceTicketService {
                 saved.getId(),
                 "Yeni servis fişi oluşturuldu: " + saved.getDescription());
 
+        if (assignedTechnician != null) {
+            publishAssignment(saved, assignedTechnician.getId());
+        }
+
         return mapToDTO(saved);
     }
 
+    @Transactional
     public ServiceTicketDTO updateTicket(Long id, ServiceTicketDTO dto) {
         User user = getCurrentUser();
         ServiceTicket ticket = repository.findById(id)
@@ -193,13 +210,17 @@ public class ServiceTicketService {
             ticket.setStatus(dto.getStatus());
         }
 
+        Long newTechnicianId = null;
         if (dto.getAssignedTechnicianId() != null && !dto.getAssignedTechnicianId().equals(oldTechnicianId)) {
+            User technician = requireTechnician(dto.getAssignedTechnicianId(), user.getCompanyId());
             auditLogService.log(
                     "UPDATE",
                     "TICKET",
                     ticket.getId(),
                     "Teknisyen atandı: ID " + dto.getAssignedTechnicianId());
-            ticket.setAssignedTechnicianId(dto.getAssignedTechnicianId());
+            ticket.setAssignedTechnicianId(technician.getId());
+            ticket.setStatus(ServiceTicket.TicketStatus.ASSIGNED);
+            newTechnicianId = technician.getId();
         }
 
         if (dto.getScheduledDate() != null)
@@ -208,6 +229,9 @@ public class ServiceTicketService {
             ticket.setNotes(dto.getNotes());
 
         ServiceTicket saved = repository.save(ticket);
+        if (newTechnicianId != null) {
+            publishAssignment(saved, newTechnicianId);
+        }
         return mapToDTO(saved);
     }
 
@@ -301,29 +325,42 @@ public class ServiceTicketService {
         return sb.toString();
     }
 
+    @Transactional
     public ServiceTicketDTO assignTechnician(Long ticketId, Long technicianId) {
         User currentUser = getCurrentUser();
         ServiceTicket ticket = repository.findById(ticketId)
                 .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
 
-        User technician = userRepository.findById(technicianId)
-                .filter(u -> u.getCompanyId().equals(currentUser.getCompanyId()))
-                .orElseThrow(() -> new RuntimeException("Technician not found or access denied"));
+        User technician = requireTechnician(technicianId, currentUser.getCompanyId());
+
+        boolean changed = !Objects.equals(ticket.getAssignedTechnicianId(), technician.getId());
 
         ticket.setAssignedTechnicianId(technician.getId());
         ticket.setStatus(ServiceTicket.TicketStatus.ASSIGNED);
 
         ServiceTicket saved = repository.save(ticket);
 
-        // Log technician assignment
-        auditLogService.log(
-                "UPDATE",
-                "TICKET",
-                saved.getId(),
-                "Teknisyen atandı: " + technician.getFullName());
+        if (changed) {
+            auditLogService.log(
+                    "UPDATE",
+                    "TICKET",
+                    saved.getId(),
+                    "Teknisyen atandı: " + technician.getFullName());
+            publishAssignment(saved, technician.getId());
+        }
 
         return mapToDTO(saved);
+    }
+
+    private User requireTechnician(Long technicianId, Long companyId) {
+        return userRepository.findByIdAndCompanyId(technicianId, companyId)
+                .filter(user -> "TECHNICIAN".equals(user.getRole()))
+                .orElseThrow(() -> new IllegalArgumentException("Technician not found, wrong tenant, or invalid role"));
+    }
+
+    private void publishAssignment(ServiceTicket ticket, Long technicianId) {
+        eventPublisher.publishEvent(new TicketAssignedEvent(ticket.getCompanyId(), technicianId, ticket.getId()));
     }
 
     @Transactional

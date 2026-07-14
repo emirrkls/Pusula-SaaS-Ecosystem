@@ -22,6 +22,7 @@ import org.springframework.context.ApplicationContext;
 @EnableJpaRepositories(basePackages = "com.pusula.backend.repository")
 @EntityScan(basePackages = "com.pusula.backend.entity")
 @org.springframework.scheduling.annotation.EnableScheduling
+@org.springframework.scheduling.annotation.EnableAsync
 public class PusulaBackendApplication implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(PusulaBackendApplication.class);

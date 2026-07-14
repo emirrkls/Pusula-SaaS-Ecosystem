@@ -32,6 +32,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/api/public/**", "/api/subscription/plans", "/api/payment/webhook/**", "/h2-console/**", "/uploads/**", "/downloads/**").permitAll()
                         .requestMatchers("/api/finance/**").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
                         .requestMatchers("/api/settings/**").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
+                        .requestMatchers("/api/push-devices/**").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN", "TECHNICIAN")
                         .requestMatchers("/api/tickets/*/assign").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
                         .anyRequest().authenticated())
                 .headers(headers -> headers.frameOptions(frame -> frame.disable())) // Allow H2 Console in iframe

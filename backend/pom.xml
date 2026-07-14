@@ -105,6 +105,13 @@
             <artifactId>app-store-server-library</artifactId>
             <version>5.2.0</version>
         </dependency>
+
+        <!-- APNs HTTP/2 client (token-based authentication) -->
+        <dependency>
+            <groupId>com.eatthepath</groupId>
+            <artifactId>pushy</artifactId>
+            <version>0.15.6</version>
+        </dependency>
     </dependencies>
 
     <build>
