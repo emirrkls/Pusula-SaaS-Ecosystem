@@ -24,6 +24,7 @@ class ServiceFormPDFGenerator {
     }
     
     static func generate(from data: FormData) -> Data {
+        let brandNavy = UIColor(red: 0.110, green: 0.204, blue: 0.380, alpha: 1)
         let pageWidth: CGFloat = 595.0  // A4
         let pageHeight: CGFloat = 842.0
         let margin: CGFloat = 40
@@ -40,7 +41,7 @@ class ServiceFormPDFGenerator {
             // Company name
             let titleAttrs: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 22, weight: .bold),
-                .foregroundColor: UIColor(red: 0.1, green: 0.3, blue: 0.6, alpha: 1)
+                .foregroundColor: brandNavy
             ]
             let titleStr = data.companyName
             titleStr.draw(at: CGPoint(x: margin, y: y), withAttributes: titleAttrs)
@@ -81,7 +82,7 @@ class ServiceFormPDFGenerator {
             
             let sectionHeader: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 13, weight: .semibold),
-                .foregroundColor: UIColor(red: 0.1, green: 0.3, blue: 0.6, alpha: 1)
+                .foregroundColor: brandNavy
             ]
             let bodyAttrs: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 11),
@@ -132,7 +133,7 @@ class ServiceFormPDFGenerator {
                 .foregroundColor: UIColor.white
             ]
             
-            let headerBg = UIColor(red: 0.1, green: 0.3, blue: 0.6, alpha: 1)
+            let headerBg = brandNavy
             let headerRect = CGRect(x: margin, y: y, width: contentWidth, height: 22)
             headerBg.setFill()
             UIBezierPath(roundedRect: headerRect, cornerRadius: 4).fill()

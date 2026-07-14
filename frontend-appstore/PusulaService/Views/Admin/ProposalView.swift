@@ -2,10 +2,16 @@ import SwiftUI
 
 struct ProposalView: View {
     @State private var proposals: [ProposalDTO] = []
+    @State private var customers: [CustomerDTO] = []
     @State private var searchText = ""
     @State private var isLoading = true
     @State private var editingProposal: ProposalDTO?
     @State private var showCreate = false
+    @State private var proposalPendingConversion: ProposalDTO?
+    @State private var downloadingPDFId: Int?
+    @State private var convertingProposalId: Int?
+    @State private var pdfPreview: PDFPreviewItem?
+    @State private var errorMessage: String?
     
     private var filtered: [ProposalDTO] {
         guard !searchText.isEmpty else { return proposals }
@@ -45,15 +51,40 @@ struct ProposalView: View {
         }
         .task { await load() }
         .sheet(isPresented: $showCreate) {
-            ProposalEditorSheet(proposal: nil) { await load() }
+            ProposalEditorSheet(proposal: nil, customers: customers) { await load() }
         }
         .sheet(item: $editingProposal) { proposal in
-            ProposalEditorSheet(proposal: proposal) { await load() }
+            ProposalEditorSheet(proposal: proposal, customers: customers) { await load() }
         }
+        .sheet(item: $pdfPreview) { item in
+            PDFPreviewSheet(item: item)
+        }
+        .confirmationDialog(
+            "Teklif işe dönüştürülsün mü?",
+            isPresented: Binding(
+                get: { proposalPendingConversion != nil },
+                set: { if !$0 { proposalPendingConversion = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("İş Emri Oluştur") {
+                guard let proposal = proposalPendingConversion else { return }
+                proposalPendingConversion = nil
+                Task { await convert(proposal) }
+            }
+            Button("Vazgeç", role: .cancel) {
+                proposalPendingConversion = nil
+            }
+        } message: {
+            Text("Teklif onaylanacak ve yeni bir servis iş emri oluşturulacak. Bu işlem yalnızca bir kez yapılabilir.")
+        }
+        .alert("Hata", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("Tamam", role: .cancel) { errorMessage = nil }
+        } message: { Text(errorMessage ?? "") }
     }
     
     private func proposalRow(_ proposal: ProposalDTO) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(proposal.title ?? "Teklif")
                     .font(.headline)
@@ -62,67 +93,166 @@ struct ProposalView: View {
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(.cyan.opacity(0.15))
+                    .background(PusulaTheme.accent.opacity(0.10))
                     .clipShape(Capsule())
             }
             
             Text(proposal.customerName ?? "Müşteri")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+
+            Label(proposal.preparedByName ?? "Hazırlayan bilgisi yok", systemImage: "signature")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             
             Text(formatCurrency(proposal.totalPrice))
                 .font(.title3.weight(.bold))
-                .foregroundColor(.cyan)
+                .foregroundColor(PusulaTheme.accent)
             
-            HStack {
-                Button("Düzenle") { editingProposal = proposal }
-                Spacer()
-                Button("PDF") { Task { await downloadPDF(proposal) } }
-                Button("İşe Dönüştür") { Task { await convert(proposal) } }
-                    .readOnlyProtected()
+            Divider()
+
+            HStack(spacing: 10) {
+                Button {
+                    editingProposal = proposal
+                } label: {
+                    Label("Düzenle", systemImage: "pencil")
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 36)
+                }
+                .buttonStyle(.bordered)
+                .readOnlyProtected()
+
+                Button {
+                    Task { await downloadPDF(proposal) }
+                } label: {
+                    HStack(spacing: 6) {
+                        if downloadingPDFId == proposal.id {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "doc.richtext")
+                        }
+                        Text(downloadingPDFId == proposal.id ? "Açılıyor…" : "PDF")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 36)
+                }
+                .buttonStyle(.bordered)
+                .disabled(proposal.id == nil || downloadingPDFId != nil)
             }
-            .font(.caption.weight(.semibold))
+
+            Button {
+                proposalPendingConversion = proposal
+            } label: {
+                HStack(spacing: 8) {
+                    if convertingProposalId == proposal.id {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: conversionAllowed(proposal) ? "arrow.trianglehead.branch" : "checkmark.circle")
+                    }
+                    Text(conversionButtonTitle(proposal))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 40)
+            }
+            .buttonStyle(.bordered)
+            .tint(conversionAllowed(proposal) ? .green : .secondary)
+            .disabled(!conversionAllowed(proposal) || convertingProposalId != nil)
+            .readOnlyProtected()
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
     }
     
     private func load() async {
         isLoading = true
-        proposals = (try? await ProposalService.getProposals()) ?? []
+        do {
+            async let proposalRequest = ProposalService.getProposals()
+            async let customerRequest = CustomerService.getCustomers()
+            let (loadedProposals, loadedCustomers) = try await (proposalRequest, customerRequest)
+            proposals = loadedProposals
+            customers = loadedCustomers.sorted {
+                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
         isLoading = false
     }
     
     private func downloadPDF(_ proposal: ProposalDTO) async {
         guard let id = proposal.id else { return }
-        if let data = try? await ProposalService.downloadPDF(id: id) {
-            sharePDF(data: data, fileName: "teklif-\(id).pdf")
+        downloadingPDFId = id
+        defer { downloadingPDFId = nil }
+        do {
+            let data = try await ProposalService.downloadPDF(id: id)
+            pdfPreview = try PDFPreviewItem(
+                data: data,
+                fileName: "teklif-\(id).pdf",
+                title: "Teklif #\(id)"
+            )
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
     
     private func convert(_ proposal: ProposalDTO) async {
-        guard let id = proposal.id else { return }
-        _ = try? await ProposalService.convertToJob(id: id)
-        await load()
+        guard let id = proposal.id, conversionAllowed(proposal) else { return }
+        convertingProposalId = id
+        defer { convertingProposalId = nil }
+        do {
+            _ = try await ProposalService.convertToJob(id: id)
+            await load()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func conversionAllowed(_ proposal: ProposalDTO) -> Bool {
+        guard proposal.id != nil else { return false }
+        let status = proposal.status?.uppercased() ?? "DRAFT"
+        return status != "APPROVED" && status != "REJECTED"
+    }
+
+    private func conversionButtonTitle(_ proposal: ProposalDTO) -> String {
+        if convertingProposalId == proposal.id { return "İş Emri Oluşturuluyor…" }
+        return conversionAllowed(proposal) ? "İşe Dönüştür" : "İşe Dönüştürülemez"
     }
 }
 
 struct ProposalEditorSheet: View {
     let proposal: ProposalDTO?
+    let customers: [CustomerDTO]
     let onSaved: () async -> Void
     
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
     @State private var note = ""
-    @State private var customerName = ""
+    @State private var selectedCustomerId: Int?
     @State private var itemDescription = ""
     @State private var quantity = "1"
     @State private var unitPrice = ""
+    @State private var isSaving = false
+    @State private var errorMessage: String?
     
     var body: some View {
         NavigationStack {
             Form {
                 TextField("Başlık", text: $title)
-                TextField("Müşteri", text: $customerName)
+                Section("Müşteri") {
+                    if customers.isEmpty {
+                        ContentUnavailableView(
+                            "Müşteri Bulunamadı",
+                            systemImage: "person.crop.circle.badge.exclamationmark",
+                            description: Text("Teklif oluşturmadan önce bir müşteri kaydı ekleyin.")
+                        )
+                    } else {
+                        Picker("Müşteri Seç", selection: $selectedCustomerId) {
+                            Text("Seçiniz").tag(Optional<Int>.none)
+                            ForEach(customers) { customer in
+                                Text(customer.name).tag(customer.id)
+                            }
+                        }
+                    }
+                }
                 TextField("Not", text: $note, axis: .vertical)
                 Section("Kalem") {
                     TextField("Açıklama", text: $itemDescription)
@@ -135,26 +265,34 @@ struct ProposalEditorSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Kaydet") { Task { await save() } }
+                        .disabled(selectedCustomerId == nil || isSaving)
                         .readOnlyProtected()
                 }
             }
             .onAppear {
                 title = proposal?.title ?? ""
                 note = proposal?.note ?? ""
-                customerName = proposal?.customerName ?? ""
+                selectedCustomerId = proposal?.customerId
             }
+            .alert("Teklif Kaydedilemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button("Tamam", role: .cancel) { errorMessage = nil }
+            } message: { Text(errorMessage ?? "") }
         }
     }
     
     private func save() async {
+        guard let selectedCustomerId else {
+            errorMessage = "Lütfen teklif için bir müşteri seçin."
+            return
+        }
         let qty = Int(quantity) ?? 1
         let price = Double(unitPrice.replacingOccurrences(of: ",", with: ".")) ?? 0
         let item = ProposalItemDTO(id: nil, description: itemDescription, quantity: qty, unitCost: nil, unitPrice: price, totalPrice: Double(qty) * price)
-        var dto = ProposalDTO(
+        let dto = ProposalDTO(
             id: proposal?.id,
             companyId: proposal?.companyId,
-            customerId: proposal?.customerId,
-            customerName: customerName.nilIfEmpty,
+            customerId: selectedCustomerId,
+            customerName: customers.first(where: { $0.id == selectedCustomerId })?.name,
             preparedById: proposal?.preparedById,
             preparedByName: proposal?.preparedByName,
             status: proposal?.status ?? "DRAFT",
@@ -168,13 +306,19 @@ struct ProposalEditorSheet: View {
             totalPrice: item.totalPrice,
             items: [item]
         )
-        if let id = proposal?.id {
-            _ = try? await ProposalService.updateProposal(id: id, proposal: dto)
-        } else {
-            _ = try? await ProposalService.createProposal(dto)
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            if let id = proposal?.id {
+                _ = try await ProposalService.updateProposal(id: id, proposal: dto)
+            } else {
+                _ = try await ProposalService.createProposal(dto)
+            }
+            await onSaved()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
         }
-        await onSaved()
-        await MainActor.run { dismiss() }
     }
 }
 

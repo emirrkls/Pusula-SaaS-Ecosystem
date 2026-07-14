@@ -29,6 +29,14 @@ struct AuthResponse: Codable {
     let trialDaysRemaining: Int?
 }
 
+/// Partial response returned by GET /api/auth/feature-context.
+struct AuthProfileResponse: Codable {
+    let role: String?
+    let fullName: String?
+    let companyId: Int?
+    let companyName: String?
+}
+
 struct QuotaDTO: Codable {
     let maxTechnicians: Int
     let maxCustomers: Int
@@ -137,6 +145,7 @@ struct InventoryItemDTO: Codable, Identifiable {
     let quantity: Int
     let buyPrice: Double?
     let sellPrice: Double?
+    let criticalLevel: Int?
     let brand: String?
     let category: String?
     let barcode: String?

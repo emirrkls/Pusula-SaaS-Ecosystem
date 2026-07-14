@@ -40,6 +40,7 @@ struct ServicePhotoView: View {
             }
             .padding()
         }
+        .background(PusulaTheme.page)
         .navigationTitle("Servis Görselleri")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -55,8 +56,9 @@ struct ServicePhotoView: View {
         }
     }
     
+    @ViewBuilder
     private func photoPickerButton(_ title: String, type: String, prominent: Bool) -> some View {
-        PhotosPicker(selection: Binding(
+        let picker = PhotosPicker(selection: Binding(
             get: { nil as PhotosPickerItem? },
             set: { item in
                 pendingType = type
@@ -67,9 +69,17 @@ struct ServicePhotoView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
         }
-        .buttonStyle(prominent ? .borderedProminent : .bordered)
-        .tint(prominent ? .cyan : .primary)
         .readOnlyProtected()
+
+        if prominent {
+            picker
+                .buttonStyle(.borderedProminent)
+                .tint(PusulaTheme.accent)
+        } else {
+            picker
+                .buttonStyle(.bordered)
+                .tint(.primary)
+        }
     }
     
     private func photoRow(_ photo: ServicePhotoDTO) -> some View {
@@ -99,9 +109,7 @@ struct ServicePhotoView: View {
             }
             .readOnlyProtected()
         }
-        .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .pusulaCard()
     }
     
     private func loadPhotos() async {

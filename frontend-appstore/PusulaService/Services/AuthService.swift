@@ -38,6 +38,10 @@ enum AuthService {
     static func refreshFeatureContext() async throws -> SubscriptionContextDTO {
         try await NetworkManager.shared.get("/api/subscription/my-context")
     }
+
+    static func fetchAuthProfile() async throws -> AuthProfileResponse {
+        try await NetworkManager.shared.get("/api/auth/feature-context")
+    }
     
     /// Logout — clear token
     static func logout() async {

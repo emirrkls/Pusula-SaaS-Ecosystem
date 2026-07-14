@@ -9,9 +9,33 @@ enum TicketService {
     static func getAllTickets() async throws -> [FieldTicketDTO] {
         try await NetworkManager.shared.get("/api/tickets")
     }
+
+    static func getTicket(id: Int) async throws -> FieldTicketDTO {
+        try await NetworkManager.shared.get("/api/tickets/\(id)")
+    }
+
+    static func getTimeline(ticketId: Int) async throws -> [AuditLogDTO] {
+        try await NetworkManager.shared.get("/api/audit-logs/ticket/\(ticketId)")
+    }
     
     static func createTicket(_ request: CreateTicketRequest) async throws -> FieldTicketDTO {
         try await NetworkManager.shared.post("/api/tickets", body: request)
+    }
+
+    static func updateTicket(id: Int, request: UpdateTicketRequest) async throws -> FieldTicketDTO {
+        try await NetworkManager.shared.put("/api/tickets/\(id)", body: request)
+    }
+
+    static func updateStatus(ticketId: Int, status: TicketStatus) async throws -> FieldTicketDTO {
+        try await updateTicket(id: ticketId, request: UpdateTicketRequest(status: status))
+    }
+
+    static func cancelService(ticketId: Int) async throws -> FieldTicketDTO {
+        try await NetworkManager.shared.request(.PATCH, path: "/api/tickets/\(ticketId)/cancel")
+    }
+
+    static func createFollowUp(ticketId: Int) async throws -> FieldTicketDTO {
+        try await NetworkManager.shared.request(.POST, path: "/api/tickets/\(ticketId)/follow-up")
     }
     
     static func getUsedParts(ticketId: Int) async throws -> [UsedPartDTO] {

@@ -1,9 +1,9 @@
 import SwiftUI
-import SafariServices
 
 /// Subscription plan comparison and upgrade view with payment integration.
 struct PlanUpgradeView: View {
     @StateObject private var storeManager = StoreKitManager.shared
+    @StateObject private var session = SessionManager.shared
     @State private var selectedPlan: PlanTier = .usta
     @State private var showAlert = false
     @State private var alertMessage = ""
@@ -15,43 +15,79 @@ struct PlanUpgradeView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "crown.fill")
                         .font(.system(size: 40))
-                        .foregroundStyle(
-                            LinearGradient(colors: [.yellow, .orange], startPoint: .top, endPoint: .bottom)
-                        )
-                    Text("Paketinizi Yükseltin")
+                        .foregroundStyle(PusulaTheme.amber)
+                    Text("Paketinizi Yönetin")
                         .font(.title2.weight(.bold))
-                    Text("İşletmenizi bir üst seviyeye taşıyın")
+                    Text("İşletmenize uygun hizmet seviyesini seçin")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.top, 10)
                 
                 // Plan cards
-                if storeManager.products.isEmpty {
+                if storeManager.isLoadingProducts {
                     ProgressView("Paketler Yükleniyor...")
                         .padding(40)
+                } else if storeManager.products.isEmpty {
+                    ContentUnavailableView {
+                        Label("Paketler Yüklenemedi", systemImage: "wifi.exclamationmark")
+                    } description: {
+                        Text("App Store bağlantısını kontrol edip tekrar deneyin.")
+                    } actions: {
+                        Button("Tekrar Dene") {
+                            Task { await storeManager.loadProducts() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 } else {
                     ForEach(PlanTier.allCases, id: \.self) { plan in
                         planCard(plan)
                     }
                 }
                 
-                // Footer
-                Text("Tüm paketler 14 gün ücretsiz deneme ile başlar.\nİstediğiniz zaman iptal edebilirsiniz.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding()
+                subscriptionDisclosure
+
+                HStack {
+                    Button {
+                        Task { await storeManager.restorePurchases() }
+                    } label: {
+                        if storeManager.isRestoring {
+                            ProgressView()
+                        } else {
+                            Label("Satın Alımları Geri Yükle", systemImage: "arrow.clockwise")
+                        }
+                    }
+                    .disabled(storeManager.isRestoring || storeManager.isPurchasing)
+
+                    Spacer()
+
+                    Button("Aboneliği Yönet") {
+                        storeManager.manageSubscriptions()
+                    }
+                }
+                .font(.caption.weight(.medium))
             }
             .padding()
         }
+        .background(PusulaTheme.page)
         .navigationTitle("Paketler")
         .task {
+            guard session.isAdmin else {
+                alertMessage = "Paket değişikliklerini yalnızca şirket yöneticisi yapabilir."
+                showAlert = true
+                return
+            }
             await storeManager.loadProducts()
         }
         .onChange(of: storeManager.purchaseError) { _, error in
             if let error = error {
                 alertMessage = error
+                showAlert = true
+            }
+        }
+        .onChange(of: storeManager.statusMessage) { _, message in
+            if let message {
+                alertMessage = message
                 showAlert = true
             }
         }
@@ -64,7 +100,8 @@ struct PlanUpgradeView: View {
     
     private func planCard(_ plan: PlanTier) -> some View {
         let isPopular = plan == .usta
-        let isCurrent = SessionManager.shared.planType.uppercased() == plan.rawValue
+        let currentPlan = PlanTier(rawValue: session.planType.uppercased()) ?? .cirak
+        let isCurrent = currentPlan == plan
         
         return VStack(spacing: 14) {
             // Header ribbon
@@ -89,19 +126,26 @@ struct PlanUpgradeView: View {
                 }
                 Spacer()
                 VStack(alignment: .trailing) {
-                    HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        if let priceStr = storeManager.formattedPrice(for: plan) {
+                    if plan == .cirak {
+                        Text("Başlangıç")
+                            .font(.headline.weight(.bold))
+                            .foregroundColor(plan.color)
+                    } else {
+                        HStack(alignment: .firstTextBaseline, spacing: 2) {
+                            if let priceStr = storeManager.formattedPrice(for: plan) {
                             Text(priceStr)
                                 .font(.title.weight(.bold))
                                 .foregroundColor(plan.color)
-                        } else {
-                            Text("₺\(plan.price)")
-                                .font(.title.weight(.bold))
-                                .foregroundColor(plan.color)
+                            }
+                            Text(storeManager.billingPeriod(for: plan) ?? "")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                        Text("/ay")
+                    }
+                    if let offer = storeManager.introductoryOffer(for: plan) {
+                        Text(offer)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.green)
                     }
                 }
             }
@@ -130,7 +174,15 @@ struct PlanUpgradeView: View {
                     .padding(.vertical, 12)
                     .background(Color(.systemGray5))
                     .foregroundColor(.secondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
+            } else if plan == .cirak {
+                Text("Ücretsiz başlangıç paketi")
+                    .font(.subheadline.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color(.systemGray5))
+                    .foregroundColor(.secondary)
+                    .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
             } else {
                 Button(action: { handleUpgrade(plan) }) {
                     HStack {
@@ -138,34 +190,58 @@ struct PlanUpgradeView: View {
                             ProgressView()
                                 .tint(.white)
                         }
-                        Text(plan == .patron ? "Patron'a Geç" : "Yükselt")
+                        Text(actionTitle(from: currentPlan, to: plan))
                             .font(.subheadline.weight(.bold))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                 }
-                .background(
-                    LinearGradient(colors: plan.gradientColors, startPoint: .leading, endPoint: .trailing)
-                )
+                .background(plan.color)
                 .foregroundColor(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .disabled(storeManager.isPurchasing)
+                .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
+                .disabled(storeManager.isPurchasing || !session.isAdmin)
             }
         }
         .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .background(PusulaTheme.raisedSurface)
+        .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
         .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(isPopular ? .orange : .clear, lineWidth: 2)
+            RoundedRectangle(cornerRadius: PusulaTheme.radius)
+                .stroke(isPopular ? Color.orange : PusulaTheme.border, lineWidth: 1)
         )
     }
     
     private func handleUpgrade(_ plan: PlanTier) {
+        guard session.isAdmin else {
+            alertMessage = "Paket değişikliklerini yalnızca şirket yöneticisi yapabilir."
+            showAlert = true
+            return
+        }
         selectedPlan = plan
         Task {
             await storeManager.purchase(plan)
         }
+    }
+
+    private func actionTitle(from current: PlanTier, to target: PlanTier) -> String {
+        if target.rank > current.rank { return "\(target.transitionName) Yükselt" }
+        return "\(target.transitionName) Düşür"
+    }
+
+    private var subscriptionDisclosure: some View {
+        VStack(spacing: 10) {
+            Text("Ödeme Apple Kimliğinize yansıtılır. Abonelik, dönem bitiminden en az 24 saat önce iptal edilmediği sürece otomatik yenilenir. Fiyat ve dönem satın alma onay ekranında gösterilir.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: 16) {
+                Link("Gizlilik Politikası", destination: AppLinks.privacyPolicy)
+                Link("Kullanım Koşulları", destination: AppLinks.termsOfUse)
+            }
+            .font(.caption.weight(.medium))
+        }
+        .padding(.horizontal)
     }
 }
 
@@ -192,11 +268,19 @@ enum PlanTier: String, CaseIterable {
         }
     }
     
-    var price: String {
+    var rank: Int {
         switch self {
-        case .cirak: return "99"
-        case .usta: return "299"
-        case .patron: return "699"
+        case .cirak: return 0
+        case .usta: return 1
+        case .patron: return 2
+        }
+    }
+
+    var transitionName: String {
+        switch self {
+        case .cirak: return "Çırak'a"
+        case .usta: return "Usta'ya"
+        case .patron: return "Patron'a"
         }
     }
     
@@ -205,14 +289,6 @@ enum PlanTier: String, CaseIterable {
         case .cirak: return .blue
         case .usta: return .orange
         case .patron: return .purple
-        }
-    }
-    
-    var gradientColors: [Color] {
-        switch self {
-        case .cirak: return [.blue, .cyan]
-        case .usta: return [.orange, .red]
-        case .patron: return [.purple, .indigo]
         }
     }
     

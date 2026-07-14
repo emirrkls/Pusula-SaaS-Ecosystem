@@ -4,6 +4,7 @@ import SwiftUI
 struct ProfitAnalysisView: View {
     @State private var analysis: ProfitAnalysis?
     @State private var isLoading = true
+    @State private var errorMessage: String?
     
     var body: some View {
         ScrollView {
@@ -16,21 +17,38 @@ struct ProfitAnalysisView: View {
                     if let parts = a.topProfitableParts, !parts.isEmpty {
                         topPartsSection(parts)
                     }
+                } else if let errorMessage {
+                    ContentUnavailableView {
+                        Label("Analiz Yüklenemedi", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(errorMessage)
+                    } actions: {
+                        Button("Tekrar Dene") { Task { await load() } }
+                            .buttonStyle(.borderedProminent)
+                    }
                 }
             }
             .padding()
         }
+        .background(PusulaTheme.page)
         .navigationTitle("Kâr Analizi")
-        .task {
-            do {
-                analysis = try await AdminService.getProfitAnalysis()
-            } catch {}
-            isLoading = false
-        }
+        .task { await load() }
         .overlay {
             if isLoading {
                 ProgressView("Analiz hesaplanıyor...")
             }
+        }
+    }
+
+    private func load() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        do {
+            analysis = try await AdminService.getProfitAnalysis()
+        } catch {
+            analysis = nil
+            errorMessage = error.localizedDescription
         }
     }
     
@@ -38,7 +56,7 @@ struct ProfitAnalysisView: View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
                 summaryCard("Maliyet (COGS)", value: a.totalCostOfGoodsSold, color: .red)
-                summaryCard("Parça Geliri", value: a.totalRevenueFromParts, color: .cyan)
+                summaryCard("Parça Geliri", value: a.totalRevenueFromParts, color: PusulaTheme.accent)
             }
             HStack(spacing: 12) {
                 summaryCard("Brüt Kâr", value: a.grossProfit,
@@ -50,12 +68,10 @@ struct ProfitAnalysisView: View {
                         .foregroundStyle(.secondary)
                     Text("%\(String(format: "%.1f", a.grossMarginPercent ?? 0))")
                         .font(.title.weight(.bold))
-                        .foregroundColor(.purple)
+                        .foregroundColor(PusulaTheme.accentStrong)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .pusulaCard()
             }
         }
     }
@@ -71,9 +87,7 @@ struct ProfitAnalysisView: View {
                 .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .pusulaCard()
     }
     
     private func topPartsSection(_ parts: [PartProfit]) -> some View {
@@ -113,8 +127,6 @@ struct ProfitAnalysisView: View {
                 }
             }
         }
-        .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .pusulaCard()
     }
 }

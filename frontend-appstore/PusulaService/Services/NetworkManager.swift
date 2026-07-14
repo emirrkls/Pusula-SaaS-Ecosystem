@@ -54,6 +54,9 @@ actor NetworkManager {
         case 200...299:
             break
         case 401:
+            await MainActor.run {
+                SessionManager.shared.handleUnauthorized()
+            }
             throw NetworkError.unauthorized
         case 403:
             // Check for feature gate or quota error
@@ -66,10 +69,21 @@ actor NetworkManager {
                 throw NetworkError.quotaExceeded(errorBody.message ?? "Kota aşıldı")
             }
             throw NetworkError.quotaExceeded("Kota limitinize ulaştınız")
+        case 409:
+            let errorBody = try? JSONDecoder().decode(ErrorResponse.self, from: data)
+            throw NetworkError.conflict(
+                code: errorBody?.error,
+                message: errorBody?.message,
+                count: errorBody?.count
+            )
         default:
             throw NetworkError.serverError(httpResponse.statusCode)
         }
         
+        if data.isEmpty, T.self == EmptyResponse.self {
+            return EmptyResponse() as! T
+        }
+
         let decoder = JSONDecoder()
         return try decoder.decode(T.self, from: data)
     }
@@ -111,6 +125,13 @@ actor NetworkManager {
             throw NetworkError.invalidResponse
         }
         
+        if httpResponse.statusCode == 401 {
+            await MainActor.run {
+                SessionManager.shared.handleUnauthorized()
+            }
+            throw NetworkError.unauthorized
+        }
+
         guard (200...299).contains(httpResponse.statusCode) else {
             throw NetworkError.serverError(httpResponse.statusCode)
         }
@@ -126,6 +147,49 @@ actor NetworkManager {
         fieldName: String = "file",
         textFields: [String: String] = [:]
     ) async throws -> T {
+        let data = try await uploadMultipartData(
+            path: path,
+            fileData: fileData,
+            fileName: fileName,
+            mimeType: mimeType,
+            fieldName: fieldName,
+            textFields: textFields
+        )
+
+        if data.isEmpty, T.self == EmptyResponse.self {
+            return EmptyResponse() as! T
+        }
+
+        return try JSONDecoder().decode(T.self, from: data)
+    }
+
+    func uploadMultipartString(
+        path: String,
+        fileData: Data,
+        fileName: String,
+        mimeType: String,
+        fieldName: String = "file",
+        textFields: [String: String] = [:]
+    ) async throws -> String {
+        let data = try await uploadMultipartData(
+            path: path,
+            fileData: fileData,
+            fileName: fileName,
+            mimeType: mimeType,
+            fieldName: fieldName,
+            textFields: textFields
+        )
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    private func uploadMultipartData(
+        path: String,
+        fileData: Data,
+        fileName: String,
+        mimeType: String,
+        fieldName: String,
+        textFields: [String: String]
+    ) async throws -> Data {
         guard let url = URL(string: baseURL + path) else {
             throw NetworkError.invalidURL
         }
@@ -160,11 +224,36 @@ actor NetworkManager {
             throw NetworkError.invalidResponse
         }
         
-        guard (200...299).contains(httpResponse.statusCode) else {
+        switch httpResponse.statusCode {
+        case 200...299:
+            break
+        case 401:
+            await MainActor.run {
+                SessionManager.shared.handleUnauthorized()
+            }
+            throw NetworkError.unauthorized
+        case 403:
+            if let errorBody = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                throw NetworkError.forbidden(errorBody.message ?? "Erişim reddedildi")
+            }
+            throw NetworkError.forbidden("Bu işlem için yetkiniz yok")
+        case 429:
+            if let errorBody = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
+                throw NetworkError.quotaExceeded(errorBody.message ?? "Kota aşıldı")
+            }
+            throw NetworkError.quotaExceeded("Kota limitinize ulaştınız")
+        case 409:
+            let errorBody = try? JSONDecoder().decode(ErrorResponse.self, from: data)
+            throw NetworkError.conflict(
+                code: errorBody?.error,
+                message: errorBody?.message,
+                count: errorBody?.count
+            )
+        default:
             throw NetworkError.serverError(httpResponse.statusCode)
         }
-        
-        return try JSONDecoder().decode(T.self, from: data)
+
+        return data
     }
 }
 
@@ -180,6 +269,7 @@ enum NetworkError: LocalizedError {
     case unauthorized
     case forbidden(String)
     case quotaExceeded(String)
+    case conflict(code: String?, message: String?, count: Int?)
     case serverError(Int)
     case decodingError(Error)
     
@@ -190,6 +280,7 @@ enum NetworkError: LocalizedError {
         case .unauthorized: return "Oturum süresi doldu. Lütfen tekrar giriş yapın."
         case .forbidden(let msg): return msg
         case .quotaExceeded(let msg): return msg
+        case .conflict(_, let message, _): return message ?? "İşlem mevcut verilerle çakışıyor."
         case .serverError(let code): return "Sunucu hatası (\(code))"
         case .decodingError(let err): return "Veri çözümleme hatası: \(err.localizedDescription)"
         }
@@ -199,6 +290,7 @@ enum NetworkError: LocalizedError {
 struct ErrorResponse: Decodable {
     let message: String?
     let error: String?
+    let count: Int?
 }
 
 struct EmptyResponse: Decodable {}

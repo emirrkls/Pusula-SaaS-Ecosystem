@@ -3,8 +3,10 @@ import SwiftUI
 /// App entry point — initializes session and routes to login or main content.
 @main
 struct PusulaServiceApp: App {
-    @State private var session = SessionManager.shared
-    
+    @UIApplicationDelegateAdaptor(PusulaAppDelegate.self) private var appDelegate
+    @AppStorage(PusulaAppearance.storageKey) private var appearance = PusulaAppearance.system.rawValue
+    @Environment(\.scenePhase) private var scenePhase
+
     init() {
         // Try to restore saved session from Keychain
         SessionManager.shared.tryRestoreSession()
@@ -16,7 +18,11 @@ struct PusulaServiceApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(PusulaAppearance(rawValue: appearance)?.colorScheme)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            PushNotificationManager.shared.appDidBecomeActive()
         }
     }
     

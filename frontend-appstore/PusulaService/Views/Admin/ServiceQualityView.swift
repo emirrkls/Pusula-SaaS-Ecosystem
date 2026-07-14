@@ -7,6 +7,7 @@ struct ServiceQualityView: View {
     @State private var startDate = Date()
     @State private var endDate = Date()
     @State private var isLoading = true
+    @State private var errorMessage: String?
     
     private var filteredPhotos: [ServicePhotoDTO] {
         photos.filter { photo in
@@ -29,7 +30,7 @@ struct ServiceQualityView: View {
                 
                 Button("Filtrele") { Task { await load() } }
                     .buttonStyle(.borderedProminent)
-                    .tint(.cyan)
+                    .tint(PusulaTheme.accent)
                 
                 if isLoading {
                     ProgressView()
@@ -46,22 +47,34 @@ struct ServiceQualityView: View {
             }
             .padding()
         }
+        .background(PusulaTheme.page)
         .navigationTitle("Servis Kalite")
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
+        .alert("Görseller Yüklenemedi", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("Tekrar Dene") { Task { await load() } }
+            Button("Tamam", role: .cancel) { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "")
+        }
     }
     
     private var filterBar: some View {
-        HStack(spacing: 8) {
-            filterChip("Tümü", type: nil, selected: filterType == nil)
-            filterChip("Öncesi", type: "BEFORE", selected: filterType == "BEFORE")
-            filterChip("Sonrası", type: "AFTER", selected: filterType == "AFTER")
+        VStack(spacing: 10) {
+            HStack(spacing: 8) {
+                filterChip("Tümü", type: nil, selected: filterType == nil)
+                filterChip("Öncesi", type: "BEFORE", selected: filterType == "BEFORE")
+                filterChip("Sonrası", type: "AFTER", selected: filterType == "AFTER")
+            }
+
+            TextField("Fiş No", text: $ticketNo)
+                .padding(10)
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
         }
-        
-        TextField("Fiş No", text: $ticketNo)
-            .padding(10)
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
     }
     
     private func filterChip(_ title: String, type: String?, selected: Bool) -> some View {
@@ -70,7 +83,7 @@ struct ServiceQualityView: View {
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(selected ? Color.cyan : Color(.systemGray5))
+                .background(selected ? PusulaTheme.accent : PusulaTheme.raisedSurface)
                 .foregroundColor(selected ? .white : .primary)
                 .clipShape(Capsule())
         }
@@ -87,7 +100,7 @@ struct ServiceQualityView: View {
                 }
             }
             .frame(height: 120)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
             
             Text(photo.typeLabel)
                 .font(.caption.weight(.semibold))
@@ -95,21 +108,24 @@ struct ServiceQualityView: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
-        .padding(10)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .pusulaCard(padding: 10)
     }
     
     private func load() async {
         isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        photos = (try? await TicketService.getCompanyServicePhotos(
-            type: filterType,
-            ticketId: Int(ticketNo),
-            startDate: formatter.string(from: startDate),
-            endDate: formatter.string(from: endDate)
-        )) ?? []
-        isLoading = false
+        do {
+            photos = try await TicketService.getCompanyServicePhotos(
+                type: filterType,
+                ticketId: Int(ticketNo),
+                startDate: formatter.string(from: startDate),
+                endDate: formatter.string(from: endDate)
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }

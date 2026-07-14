@@ -4,6 +4,8 @@ struct ProfileView: View {
     let session = SessionManager.shared
     @State private var showDeleteAlert = false
     @State private var showPlanUpgrade = false
+    @State private var isDeletingAccount = false
+    @State private var deleteError: String?
     
     var body: some View {
         ScrollView {
@@ -22,8 +24,11 @@ struct ProfileView: View {
                         infoRow("Deneme Süresi", value: "\(days) gün kaldı")
                     }
                 }
+
+                PusulaAppearancePicker()
+                    .pusulaCard()
                 
-                if session.isAdmin || session.isTechnician {
+                if session.isAdmin {
                     Button(action: { showPlanUpgrade = true }) {
                         Label("Paket Yükselt", systemImage: "arrow.up.circle.fill")
                             .frame(maxWidth: .infinity)
@@ -32,6 +37,21 @@ struct ProfileView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.orange)
                 }
+
+                if session.isAdmin && session.planType.uppercased() != "CIRAK" {
+                    Button(action: { StoreKitManager.shared.manageSubscriptions() }) {
+                        Label("Aboneliği Yönet", systemImage: "creditcard")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                HStack(spacing: 20) {
+                    Link("Gizlilik Politikası", destination: AppLinks.privacyPolicy)
+                    Link("Kullanım Koşulları", destination: AppLinks.termsOfUse)
+                }
+                .font(.caption.weight(.medium))
                 
                 Button(role: .destructive, action: { session.logout() }) {
                     Label("Çıkış Yap", systemImage: "rectangle.portrait.and.arrow.right")
@@ -41,14 +61,19 @@ struct ProfileView: View {
                 .buttonStyle(.bordered)
                 
                 Button(role: .destructive, action: { showDeleteAlert = true }) {
-                    Label("Hesabımı Sil", systemImage: "trash")
+                    HStack {
+                        if isDeletingAccount { ProgressView() }
+                        Label(isDeletingAccount ? "Hesap Siliniyor…" : "Hesabımı Sil", systemImage: "trash")
+                    }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                 }
                 .buttonStyle(.bordered)
+                .disabled(isDeletingAccount)
             }
             .padding()
         }
+        .background(PusulaTheme.page)
         .navigationTitle("Hesap")
         .sheet(isPresented: $showPlanUpgrade) {
             NavigationStack { PlanUpgradeView() }
@@ -56,11 +81,25 @@ struct ProfileView: View {
         .alert("Hesabı Sil", isPresented: $showDeleteAlert) {
             Button("İptal", role: .cancel) { }
             Button("Sil", role: .destructive) {
-                Task { try? await session.deleteAccount() }
+                deleteAccount()
             }
         } message: {
-            Text("Hesabınızı ve tüm verilerinizi kalıcı olarak silmek istediğinizden emin misiniz?")
+            Text(deleteConfirmationMessage)
         }
+        .alert("Hesap Silinemedi", isPresented: Binding(
+            get: { deleteError != nil },
+            set: { if !$0 { deleteError = nil } }
+        )) {
+            Button("Tamam", role: .cancel) { deleteError = nil }
+        } message: {
+            Text(deleteError ?? "Bilinmeyen bir hata oluştu.")
+        }
+    }
+
+    private var deleteConfirmationMessage: String {
+        let base = "Hesabınızı ve tüm verilerinizi kalıcı olarak silmek istediğinizden emin misiniz?"
+        guard session.planType.uppercased() != "CIRAK" else { return base }
+        return base + " Apple aboneliğiniz hesap silinince otomatik olarak iptal olmaz. Devam etmeden önce Aboneliği Yönet bölümünden iptal edin."
     }
     
     private var heroCard: some View {
@@ -70,22 +109,19 @@ struct ProfileView: View {
                 .foregroundStyle(.secondary)
             Text(session.fullName.isEmpty ? "Kullanıcı" : session.fullName)
                 .font(.title2.weight(.bold))
-            Text("\(roleLabel(session.role)) • \(session.companyName ?? "Pusula Servis")")
+            Text("\(roleLabel(session.role)) · \(session.companyName ?? "Pusula Servis")")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Text("\(session.planType) Plan")
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(.cyan.opacity(0.15))
+                .foregroundStyle(PusulaTheme.accentStrong)
+                .background(PusulaTheme.accent.opacity(0.10))
                 .clipShape(Capsule())
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(
-            LinearGradient(colors: [.cyan.opacity(0.2), .blue.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .pusulaCard()
     }
     
     private func infoRow(_ title: String, value: String) -> some View {
@@ -102,9 +138,7 @@ struct ProfileView: View {
             VStack(spacing: 10) { content() }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .pusulaCard()
     }
     
     private func roleLabel(_ role: String) -> String {
@@ -113,6 +147,24 @@ struct ProfileView: View {
         case "COMPANY_ADMIN": return "Yönetici"
         case "SUPER_ADMIN": return "Süper Admin"
         default: return role
+        }
+    }
+
+    private func deleteAccount() {
+        guard !isDeletingAccount else { return }
+        isDeletingAccount = true
+        deleteError = nil
+
+        Task {
+            do {
+                try await session.deleteAccount()
+                await MainActor.run { isDeletingAccount = false }
+            } catch {
+                await MainActor.run {
+                    deleteError = error.localizedDescription
+                    isDeletingAccount = false
+                }
+            }
         }
     }
 }

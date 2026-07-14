@@ -23,6 +23,7 @@ struct FinanceView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
         }
+        .background(PusulaTheme.page)
         .navigationTitle("Finans")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -33,6 +34,8 @@ struct FinanceDailyTab: View {
     @State private var fixedExpenses: [FixedExpenseDefinitionDTO] = []
     @State private var showAddExpense = false
     @State private var isLoading = true
+    @State private var isClosingDay = false
+    @State private var errorMessage: String?
     
     var body: some View {
         ScrollView {
@@ -41,7 +44,7 @@ struct FinanceDailyTab: View {
                     HStack(spacing: 12) {
                         financeMetric("Gelir", value: summary.totalIncome, color: .green)
                         financeMetric("Gider", value: summary.totalExpense, color: .red)
-                        financeMetric("Net", value: summary.netCash, color: .cyan)
+                        financeMetric("Net", value: summary.netCash, color: PusulaTheme.accent)
                     }
                     
                     if summary.dayClosed {
@@ -53,8 +56,9 @@ struct FinanceDailyTab: View {
                         Button("Günü Kapat") {
                             Task { await closeDay() }
                         }
+                        .disabled(isClosingDay)
                         .buttonStyle(.borderedProminent)
-                        .tint(.cyan)
+                        .tint(PusulaTheme.accent)
                         .readOnlyProtected()
                     }
                 }
@@ -103,6 +107,9 @@ struct FinanceDailyTab: View {
         .sheet(isPresented: $showAddExpense) {
             AddExpenseSheet { await load() }
         }
+        .alert("Finans İşlemi Başarısız", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("Tamam", role: .cancel) { errorMessage = nil }
+        } message: { Text(errorMessage ?? "") }
     }
     
     private func load() async {
@@ -117,6 +124,7 @@ struct FinanceDailyTab: View {
                 isLoading = false
             }
         } catch {
+            errorMessage = error.localizedDescription
             isLoading = false
         }
     }
@@ -125,14 +133,22 @@ struct FinanceDailyTab: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let today = formatter.string(from: Date())
-        _ = try? await FinanceService.closeDay(date: today, companyId: SessionManager.shared.companyId)
-        await load()
+        isClosingDay = true
+        defer { isClosingDay = false }
+        do {
+            _ = try await FinanceService.closeDay(date: today, companyId: SessionManager.shared.companyId)
+            await load()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
 struct FinanceAnalysisTab: View {
     @State private var dailyTotals: [DailyTotalDTO] = []
     @State private var categoryReport: CategoryReportDTO?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
     
     var body: some View {
         ScrollView {
@@ -170,16 +186,30 @@ struct FinanceAnalysisTab: View {
             }
             .padding()
         }
+        .overlay { if isLoading { ProgressView("Analiz yükleniyor...") } }
         .task { await load() }
+        .refreshable { await load() }
+        .alert("Finans Analizi Yüklenemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("Tekrar Dene") { Task { await load() } }
+            Button("Tamam", role: .cancel) { errorMessage = nil }
+        } message: { Text(errorMessage ?? "") }
     }
     
     private func load() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let end = formatter.string(from: Date())
         let start = formatter.string(from: Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: Date())) ?? Date())
-        dailyTotals = (try? await FinanceService.getDailyTotals()) ?? []
-        categoryReport = try? await FinanceService.getCategoryReport(startDate: start, endDate: end)
+        do {
+            async let totalsTask = FinanceService.getDailyTotals()
+            async let categoryTask = FinanceService.getCategoryReport(startDate: start, endDate: end)
+            (dailyTotals, categoryReport) = try await (totalsTask, categoryTask)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
@@ -187,6 +217,8 @@ struct FinanceAccountsTab: View {
     @State private var accounts: [CurrentAccountDTO] = []
     @State private var selectedAccount: CurrentAccountDTO?
     @State private var showPaySheet = false
+    @State private var isLoading = true
+    @State private var errorMessage: String?
     
     var body: some View {
         List(Array(accounts.enumerated()), id: \.offset) { _, account in
@@ -212,17 +244,35 @@ struct FinanceAccountsTab: View {
         }
         .listStyle(.plain)
         .overlay {
-            if accounts.isEmpty {
+            if isLoading {
+                ProgressView("Cari hesaplar yükleniyor...")
+            } else if accounts.isEmpty {
                 ContentUnavailableView("Cari hesap yok", systemImage: "person.crop.circle.badge.exclamationmark")
             }
         }
-        .task { accounts = (try? await FinanceService.getCurrentAccounts()) ?? [] }
+        .task { await load() }
+        .refreshable { await load() }
         .sheet(isPresented: $showPaySheet) {
             if let account = selectedAccount {
                 PayDebtSheet(account: account) {
-                    accounts = (try? await FinanceService.getCurrentAccounts()) ?? []
+                    await load()
                 }
             }
+        }
+        .alert("Cari Hesaplar Yüklenemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("Tekrar Dene") { Task { await load() } }
+            Button("Tamam", role: .cancel) { errorMessage = nil }
+        } message: { Text(errorMessage ?? "") }
+    }
+
+    private func load() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        do {
+            accounts = try await FinanceService.getCurrentAccounts()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }
@@ -230,6 +280,9 @@ struct FinanceAccountsTab: View {
 struct FinanceReportsTab: View {
     @State private var archives: [MonthlySummaryDTO] = []
     @State private var downloadingMonth: String?
+    @State private var pdfPreview: PDFPreviewItem?
+    @State private var errorMessage: String?
+    @State private var isLoading = true
     
     var body: some View {
         List(archives) { archive in
@@ -252,13 +305,40 @@ struct FinanceReportsTab: View {
                 .disabled(archive.period == nil)
             }
         }
-        .task { archives = (try? await FinanceService.getMonthlyArchives()) ?? [] }
+        .overlay { if isLoading { ProgressView("Raporlar yükleniyor...") } }
+        .task { await load() }
+        .refreshable { await load() }
+        .sheet(item: $pdfPreview) { item in
+            PDFPreviewSheet(item: item)
+        }
+        .alert("Rapor İşlemi Başarısız", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("Tekrar Dene") { Task { await load() } }
+            Button("Tamam", role: .cancel) { errorMessage = nil }
+        } message: { Text(errorMessage ?? "") }
+    }
+
+    private func load() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        do {
+            archives = try await FinanceService.getMonthlyArchives()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
     
     private func download(month: String) async {
         downloadingMonth = month
-        if let data = try? await FinanceService.downloadMonthlyPDF(month: month) {
-            sharePDF(data: data, fileName: "finans-\(month).pdf")
+        do {
+            let data = try await FinanceService.downloadMonthlyPDF(month: month)
+            pdfPreview = try PDFPreviewItem(
+                data: data,
+                fileName: "finans-\(month).pdf",
+                title: "Aylık Finans Raporu"
+            )
+        } catch {
+            errorMessage = error.localizedDescription
         }
         downloadingMonth = nil
     }
@@ -270,6 +350,8 @@ struct AddExpenseSheet: View {
     @State private var amount = ""
     @State private var description = ""
     @State private var category = ExpenseCategory.other
+    @State private var isSaving = false
+    @State private var errorMessage: String?
     
     var body: some View {
         NavigationStack {
@@ -288,22 +370,33 @@ struct AddExpenseSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Kaydet") {
-                        Task {
-                            let formatter = DateFormatter()
-                            formatter.dateFormat = "yyyy-MM-dd"
-                            let expense = ExpenseDTO(
-                                amount: Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0,
-                                description: description,
-                                date: formatter.string(from: Date()),
-                                category: category.rawValue
-                            )
-                            _ = try? await FinanceService.addExpense(expense)
-                            await onSaved()
-                            dismiss()
-                        }
+                        Task { await save() }
                     }
+                    .disabled(isSaving || parsedAmount <= 0)
                 }
             }
+            .alert("Gider Kaydedilemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button("Tamam", role: .cancel) { errorMessage = nil }
+            } message: { Text(errorMessage ?? "") }
+        }
+    }
+
+    private var parsedAmount: Double {
+        Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0
+    }
+
+    private func save() async {
+        isSaving = true
+        defer { isSaving = false }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let expense = ExpenseDTO(amount: parsedAmount, description: description, date: formatter.string(from: Date()), category: category.rawValue)
+        do {
+            _ = try await FinanceService.addExpense(expense)
+            await onSaved()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }
@@ -314,6 +407,8 @@ struct PayDebtSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var payment = ""
     @State private var discount = ""
+    @State private var isPaying = false
+    @State private var errorMessage: String?
     
     var body: some View {
         NavigationStack {
@@ -330,20 +425,39 @@ struct PayDebtSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Tahsil Et") {
-                        Task {
-                            guard let accountId = account.id else { return }
-                            _ = try? await FinanceService.payDebt(
-                                accountId: accountId,
-                                paymentAmount: Double(payment.replacingOccurrences(of: ",", with: ".")) ?? 0,
-                                discount: Double(discount.replacingOccurrences(of: ",", with: ".")) ?? 0
-                            )
-                            await onPaid()
-                            dismiss()
-                        }
+                        Task { await payDebt() }
                     }
+                    .disabled(isPaying || parsedPayment <= 0)
                     .readOnlyProtected()
                 }
             }
+            .alert("Tahsilat Kaydedilemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button("Tamam", role: .cancel) { errorMessage = nil }
+            } message: { Text(errorMessage ?? "") }
+        }
+    }
+
+    private var parsedPayment: Double {
+        Double(payment.replacingOccurrences(of: ",", with: ".")) ?? 0
+    }
+
+    private func payDebt() async {
+        guard let accountId = account.id else {
+            errorMessage = "Cari hesap kimliği bulunamadı."
+            return
+        }
+        isPaying = true
+        defer { isPaying = false }
+        do {
+            _ = try await FinanceService.payDebt(
+                accountId: accountId,
+                paymentAmount: parsedPayment,
+                discount: Double(discount.replacingOccurrences(of: ",", with: ".")) ?? 0
+            )
+            await onPaid()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }
@@ -357,8 +471,12 @@ private func financeMetric(_ title: String, value: Double?, color: Color) -> som
     }
     .frame(maxWidth: .infinity)
     .padding(.vertical, 14)
-    .background(.regularMaterial)
-    .clipShape(RoundedRectangle(cornerRadius: 12))
+    .background(PusulaTheme.raisedSurface)
+    .overlay {
+        RoundedRectangle(cornerRadius: PusulaTheme.radius)
+            .stroke(PusulaTheme.border, lineWidth: 1)
+    }
+    .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
 }
 
 private func sectionCard<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -367,7 +485,5 @@ private func sectionCard<Content: View>(_ title: String, @ViewBuilder content: (
         VStack(spacing: 8) { content() }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
-    .padding()
-    .background(.regularMaterial)
-    .clipShape(RoundedRectangle(cornerRadius: 14))
+    .pusulaCard()
 }

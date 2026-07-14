@@ -8,16 +8,45 @@ struct TicketDetailView: View {
     
     @Environment(\.dismiss) private var dismiss
     @State private var usedParts: [UsedPartDTO] = []
+    @State private var timeline: [AuditLogDTO] = []
     @State private var showScanner = false
     @State private var showCollection = false
     @State private var showSignature = false
     @State private var showPhotos = false
     @State private var isLoadingParts = false
     @State private var isGeneratingPDF = false
+    @State private var pdfPreview: PDFPreviewItem?
+    @State private var isUpdatingTicket = false
+    @State private var showCancelConfirmation = false
+    @State private var showFollowUpConfirmation = false
+    @State private var operationMessage: String?
     @State private var errorMessage: String?
+    @State private var currentTicket: FieldTicketDTO
+
+    init(
+        ticket: FieldTicketDTO,
+        isAdmin: Bool = false,
+        technicians: [TechnicianDTO] = [],
+        onComplete: @escaping () async -> Void
+    ) {
+        self.ticket = ticket
+        self.isAdmin = isAdmin
+        self.technicians = technicians
+        self.onComplete = onComplete
+        _currentTicket = State(initialValue: ticket)
+    }
     
     private var isEditable: Bool {
-        ticket.statusEnum != .completed && ticket.statusEnum != .cancelled
+        currentTicket.statusEnum != .completed && currentTicket.statusEnum != .cancelled
+    }
+
+    private var availableOperationalStatuses: [TicketStatus] {
+        if isAdmin {
+            return [.pending, .assigned, .inProgress].filter {
+                $0 != .assigned || currentTicket.assignedTechnicianId != nil
+            }
+        }
+        return [.assigned, .inProgress]
     }
     
     var totalPartsValue: Double {
@@ -30,21 +59,32 @@ struct TicketDetailView: View {
                 heroCard
                 customerCard
                 
-                if let desc = ticket.description, !desc.isEmpty {
+                if let desc = currentTicket.description, !desc.isEmpty {
                     infoCard(title: "İş Açıklaması", icon: "doc.text", content: desc)
+                }
+
+                statusSection
+
+                if let operationMessage {
+                    Label(operationMessage, systemImage: "checkmark.circle.fill")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.green)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 
                 partsSection
+                timelineSection
                 
                 if isEditable {
                     quickActionsGrid
                     primaryActions
-                } else if ticket.statusEnum == .completed {
+                } else if currentTicket.statusEnum == .completed {
                     secondaryActions
                 }
             }
             .padding()
         }
+        .background(PusulaTheme.page)
         .navigationTitle("İş Emri #\(ticket.id)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -52,7 +92,7 @@ struct TicketDetailView: View {
                 Button("Kapat") { dismiss() }
             }
         }
-        .task { await loadParts() }
+        .task { await loadDetailData() }
         .sheet(isPresented: $showScanner) {
             BarcodeScannerView { item, quantity in
                 Task { await addPart(from: item, quantity: quantity) }
@@ -60,7 +100,7 @@ struct TicketDetailView: View {
         }
         .sheet(isPresented: $showCollection) {
             CollectionView(
-                ticket: ticket,
+                ticket: currentTicket,
                 partsTotal: totalPartsValue,
                 onComplete: {
                     await onComplete()
@@ -76,10 +116,27 @@ struct TicketDetailView: View {
                 ServicePhotoView(ticketId: ticket.id)
             }
         }
+        .sheet(item: $pdfPreview) { item in
+            PDFPreviewSheet(item: item)
+        }
         .alert("Hata", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Tamam", role: .cancel) { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
+        }
+        .confirmationDialog("Servis fişi iptal edilsin mi?", isPresented: $showCancelConfirmation, titleVisibility: .visible) {
+            Button("Servis Fişini İptal Et", role: .destructive) {
+                Task { await cancelTicket() }
+            }
+            Button("Vazgeç", role: .cancel) {}
+        } message: {
+            Text("Kullanılan parçalar stoğa geri alınacak.")
+        }
+        .confirmationDialog("Takip kaydı oluşturulsun mu?", isPresented: $showFollowUpConfirmation, titleVisibility: .visible) {
+            Button("Takip Kaydı Oluştur") {
+                Task { await createFollowUp() }
+            }
+            Button("Vazgeç", role: .cancel) {}
         }
     }
     
@@ -88,20 +145,19 @@ struct TicketDetailView: View {
             Text("Servis fişi #\(ticket.id)")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Text(ticket.customerName ?? "Müşteri")
+            Text(currentTicket.customerName ?? "Müşteri")
                 .font(.title2.weight(.bold))
+            Label(currentTicket.statusEnum.displayName, systemImage: currentTicket.statusEnum.iconName)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
             if totalPartsValue > 0 {
                 Text(formatCurrency(totalPartsValue))
                     .font(.headline)
-                    .foregroundColor(.cyan)
+                    .foregroundColor(PusulaTheme.accent)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(
-            LinearGradient(colors: [.cyan.opacity(0.25), .blue.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .pusulaCard()
     }
     
     private var customerCard: some View {
@@ -109,7 +165,7 @@ struct TicketDetailView: View {
             Label("Müşteri", systemImage: "person.crop.circle")
                 .font(.subheadline.weight(.semibold))
             
-            if let phone = ticket.customerPhone, !phone.isEmpty {
+            if let phone = currentTicket.customerPhone, !phone.isEmpty {
                 HStack {
                     Label(phone, systemImage: "phone.fill")
                         .font(.subheadline)
@@ -122,7 +178,7 @@ struct TicketDetailView: View {
                 }
             }
             
-            if let address = ticket.customerAddress, !address.isEmpty {
+            if let address = currentTicket.customerAddress, !address.isEmpty {
                 Button(action: { openMaps(address: address) }) {
                     HStack(alignment: .top) {
                         Image(systemName: "mappin.and.ellipse")
@@ -147,18 +203,18 @@ struct TicketDetailView: View {
                         }
                     }
                 } label: {
-                    Label(ticket.assignedTechnicianName ?? "Teknisyen Seç", systemImage: "person.badge.plus")
+                    Label(currentTicket.assignedTechnicianName ?? "Teknisyen Seç", systemImage: "person.badge.plus")
                         .font(.subheadline.weight(.medium))
-                        .foregroundColor(.cyan)
+                        .foregroundColor(PusulaTheme.accent)
                 }
                 .readOnlyProtected()
             }
             
-            if ticket.hasOutstandingBalance {
+            if currentTicket.hasOutstandingBalance {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.orange)
-                    Text("Geçmiş Cari Borç: \(formatCurrency(ticket.customerBalance))")
+                    Text("Geçmiş Cari Borç: \(formatCurrency(currentTicket.customerBalance))")
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(.orange)
                 }
@@ -168,9 +224,43 @@ struct TicketDetailView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
         }
-        .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .pusulaCard()
+    }
+
+    private var statusSection: some View {
+        HStack(spacing: 12) {
+            Label("Durum", systemImage: currentTicket.statusEnum.iconName)
+                .font(.subheadline.weight(.semibold))
+            Spacer()
+
+            if isEditable {
+                Menu {
+                    ForEach(availableOperationalStatuses, id: \.self) { status in
+                        Button {
+                            Task { await updateStatus(status) }
+                        } label: {
+                            Label(status.displayName, systemImage: status.iconName)
+                        }
+                        .disabled(status == currentTicket.statusEnum)
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        if isUpdatingTicket { ProgressView().controlSize(.small) }
+                        Text(currentTicket.statusEnum.displayName)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption2)
+                    }
+                    .font(.subheadline.weight(.medium))
+                }
+                .disabled(isUpdatingTicket)
+                .readOnlyProtected()
+            } else {
+                Text(currentTicket.statusEnum.displayName)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .pusulaCard()
     }
     
     private func infoCard(title: String, icon: String, content: String) -> some View {
@@ -182,9 +272,7 @@ struct TicketDetailView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .pusulaCard()
     }
     
     private var partsSection: some View {
@@ -232,46 +320,112 @@ struct TicketDetailView: View {
                     Spacer()
                     Text(formatCurrency(totalPartsValue))
                         .font(.headline.weight(.bold))
-                        .foregroundColor(.cyan)
+                        .foregroundColor(PusulaTheme.accent)
                 }
             }
         }
-        .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .pusulaCard()
+    }
+
+    private var timelineSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("İşlem Geçmişi", systemImage: "clock.arrow.circlepath")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                if !timeline.isEmpty {
+                    Text("\(timeline.count) kayıt")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if timeline.isEmpty {
+                Text("Henüz işlem kaydı bulunmuyor")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(Array(timeline.enumerated()), id: \.offset) { index, log in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: timelineIcon(log.actionType))
+                            .foregroundStyle(PusulaTheme.accent)
+                            .frame(width: 22)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(log.description ?? actionLabel(log.actionType))
+                                .font(.subheadline.weight(.medium))
+                            HStack(spacing: 5) {
+                                if let user = log.userName, !user.isEmpty { Text(user) }
+                                if let date = formattedTimelineDate(log.timestamp) { Text(date) }
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if index < timeline.count - 1 { Divider() }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .pusulaCard()
     }
     
     private var quickActionsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-            actionTile("Barkod Okut", icon: "barcode.viewfinder", color: .cyan) { showScanner = true }
-            actionTile("Görseller", icon: "photo.on.rectangle", color: .purple) { showPhotos = true }
-            actionTile("İmza", icon: "pencil.tip.crop.circle", color: .indigo) { showSignature = true }
+            actionTile("Barkod Okut", icon: "barcode.viewfinder", color: PusulaTheme.accent) { showScanner = true }
+            actionTile("Görseller", icon: "photo.on.rectangle", color: PusulaTheme.accent) { showPhotos = true }
+            actionTile("İmza", icon: "pencil.tip.crop.circle", color: PusulaTheme.accent) { showSignature = true }
             actionTile("PDF", icon: "doc.richtext", color: .orange) { Task { await generatePDF() } }
+                .disabled(isGeneratingPDF)
         }
     }
     
     private var primaryActions: some View {
-        Button(action: { showCollection = true }) {
-            Label("Servisi Tamamla & Tahsilat", systemImage: "checkmark.circle.fill")
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .font(.headline)
+        VStack(spacing: 10) {
+            Button(action: { showCollection = true }) {
+                Label("Servisi Tamamla & Tahsilat", systemImage: "checkmark.circle.fill")
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: PusulaTheme.controlHeight)
+                    .font(.headline)
+            }
+            .background(PusulaTheme.accent)
+            .foregroundColor(.white)
+            .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
+            .readOnlyProtected()
+
+            if isAdmin {
+                Button(role: .destructive) { showCancelConfirmation = true } label: {
+                    Label("Servis Fişini İptal Et", systemImage: "xmark.circle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isUpdatingTicket)
+                .readOnlyProtected()
+            }
         }
-        .background(LinearGradient(colors: [.green, .cyan], startPoint: .leading, endPoint: .trailing))
-        .foregroundColor(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .readOnlyProtected()
     }
     
     private var secondaryActions: some View {
-        Button(action: { Task { await generatePDF() } }) {
-            Label(isGeneratingPDF ? "PDF Hazırlanıyor..." : "Servis Formu PDF", systemImage: "doc.richtext")
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
+        VStack(spacing: 10) {
+            Button(action: { Task { await generatePDF() } }) {
+                Label(isGeneratingPDF ? "PDF Hazırlanıyor..." : "Servis Formu PDF", systemImage: "doc.richtext")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.orange)
+            .disabled(isGeneratingPDF)
+
+            if isAdmin {
+                Button { showFollowUpConfirmation = true } label: {
+                    Label("Takip / Garanti Kaydı", systemImage: "arrow.clockwise.circle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isUpdatingTicket)
+                .readOnlyProtected()
+            }
         }
-        .buttonStyle(.borderedProminent)
-        .tint(.orange)
-        .disabled(isGeneratingPDF)
     }
     
     private func actionTile(_ title: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
@@ -286,8 +440,12 @@ struct TicketDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(PusulaTheme.raisedSurface)
+            .overlay {
+                RoundedRectangle(cornerRadius: PusulaTheme.radius)
+                    .stroke(PusulaTheme.border, lineWidth: 1)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
         }
         .readOnlyProtected()
     }
@@ -296,8 +454,56 @@ struct TicketDetailView: View {
         isLoadingParts = true
         do {
             usedParts = try await TicketService.getUsedParts(ticketId: ticket.id)
-        } catch {}
+        } catch {
+            errorMessage = "Kullanılan parçalar yüklenemedi: \(error.localizedDescription)"
+        }
         isLoadingParts = false
+    }
+
+    private func loadDetailData() async {
+        async let partsRequest: Void = loadParts()
+        async let timelineRequest: Void = loadTimeline()
+        _ = await (partsRequest, timelineRequest)
+    }
+
+    private func loadTimeline() async {
+        do {
+            timeline = try await TicketService.getTimeline(ticketId: ticket.id)
+        } catch {
+            if errorMessage == nil {
+                errorMessage = "İşlem geçmişi yüklenemedi: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func actionLabel(_ action: String?) -> String {
+        switch action?.uppercased() {
+        case "CREATE": return "İş emri oluşturuldu"
+        case "UPDATE": return "İş emri güncellendi"
+        case "ASSIGN": return "Teknisyen atandı"
+        case "COMPLETE": return "Servis tamamlandı"
+        default: return action ?? "İşlem yapıldı"
+        }
+    }
+
+    private func timelineIcon(_ action: String?) -> String {
+        switch action?.uppercased() {
+        case "CREATE": return "plus.circle"
+        case "ASSIGN": return "person.badge.plus"
+        case "COMPLETE": return "checkmark.circle"
+        default: return "pencil.circle"
+        }
+    }
+
+    private func formattedTimelineDate(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = iso.date(from: value) ?? ISO8601DateFormatter().date(from: value) else { return value }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.dateFormat = "d MMM, HH:mm"
+        return formatter.string(from: date)
     }
     
     private func addPart(from item: InventoryItemDTO, quantity: Int) async {
@@ -319,26 +525,83 @@ struct TicketDetailView: View {
     
     private func assign(techId: Int) async {
         do {
-            _ = try await TicketService.assignTechnician(ticketId: ticket.id, technicianId: techId)
+            let updated = try await TicketService.assignTechnician(ticketId: ticket.id, technicianId: techId)
+            await MainActor.run {
+                currentTicket = updated
+                operationMessage = "Teknisyen ataması güncellendi."
+            }
+            await loadTimeline()
             await onComplete()
         } catch {
             await MainActor.run { errorMessage = error.localizedDescription }
         }
     }
+
+    private func updateStatus(_ status: TicketStatus) async {
+        guard status != currentTicket.statusEnum, !isUpdatingTicket else { return }
+        isUpdatingTicket = true
+        operationMessage = nil
+        defer { isUpdatingTicket = false }
+
+        do {
+            let updated = try await TicketService.updateStatus(ticketId: ticket.id, status: status)
+            currentTicket = updated
+            operationMessage = "İş emri durumu güncellendi."
+            await loadTimeline()
+            await onComplete()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func cancelTicket() async {
+        guard !isUpdatingTicket else { return }
+        isUpdatingTicket = true
+        operationMessage = nil
+        defer { isUpdatingTicket = false }
+
+        do {
+            let updated = try await TicketService.cancelService(ticketId: ticket.id)
+            currentTicket = updated
+            usedParts = []
+            operationMessage = "Servis fişi iptal edildi."
+            await loadTimeline()
+            await onComplete()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func createFollowUp() async {
+        guard !isUpdatingTicket else { return }
+        isUpdatingTicket = true
+        operationMessage = nil
+        defer { isUpdatingTicket = false }
+
+        do {
+            let followUp = try await TicketService.createFollowUp(ticketId: ticket.id)
+            operationMessage = followUp.isWarrantyCall == true
+                ? "#\(followUp.id) garanti kaydı oluşturuldu."
+                : "#\(followUp.id) takip kaydı oluşturuldu."
+            await onComplete()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
     
     private func generatePDF() async {
+        guard !isGeneratingPDF else { return }
         isGeneratingPDF = true
+        defer { isGeneratingPDF = false }
         do {
             let data = try await TicketService.downloadServiceReportPDF(ticketId: ticket.id)
-            await MainActor.run {
-                sharePDF(data: data, fileName: "servis-formu-\(ticket.id).pdf")
-                isGeneratingPDF = false
-            }
+            pdfPreview = try PDFPreviewItem(
+                data: data,
+                fileName: "servis-formu-\(ticket.id).pdf",
+                title: "Servis Formu #\(ticket.id)"
+            )
         } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-                isGeneratingPDF = false
-            }
+            errorMessage = error.localizedDescription
         }
     }
     

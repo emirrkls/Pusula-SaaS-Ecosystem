@@ -26,5 +26,5 @@ struct CompanyDTO: Codable, Identifiable {
 }
 
 struct ResetPasswordRequest: Codable {
-    let newPassword: String
+    let password: String
 }

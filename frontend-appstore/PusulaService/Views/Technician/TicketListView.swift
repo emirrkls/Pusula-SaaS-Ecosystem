@@ -42,7 +42,7 @@ struct TicketListView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 12)
             }
-            .background(.ultraThinMaterial)
+            .background(PusulaTheme.page)
             
             if isAdmin {
                 adminActionBar
@@ -75,6 +75,7 @@ struct TicketListView: View {
                 .refreshable { await loadTickets(refresh: true) }
             }
         }
+        .background(PusulaTheme.page)
         .navigationTitle(isAdmin ? "Operasyon" : "İşlerim")
         .task { await loadTickets() }
         .onAppear {
@@ -100,7 +101,11 @@ struct TicketListView: View {
             }
             .task {
                 if customers.isEmpty {
-                    customers = (try? await CustomerService.getCustomers()) ?? []
+                    do {
+                        customers = try await CustomerService.getCustomers()
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
                 }
             }
         }
@@ -139,19 +144,19 @@ struct TicketListView: View {
     private var adminActionBar: some View {
         HStack(spacing: 12) {
             Button(action: { showCreateTicket = true }) {
-                Label("Servis Fişi Oluştur", systemImage: "plus.circle.fill")
+                Label("Servis Fişi Oluştur", systemImage: "plus")
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .frame(minHeight: 44)
             }
             .buttonStyle(.borderedProminent)
-            .tint(.cyan)
+            .tint(PusulaTheme.accent)
             .readOnlyProtected()
             
             if !pendingUnassigned.isEmpty {
                 Button(action: { showBulkAssign = true }) {
                     Text("Toplu Atama (\(pendingUnassigned.count))")
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .frame(minHeight: 44)
                 }
                 .buttonStyle(.bordered)
                 .readOnlyProtected()
@@ -165,9 +170,13 @@ struct TicketListView: View {
                 .font(.subheadline.weight(.medium))
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
-                .background(selectedFilter == title ? Color.cyan : Color(.systemGray5))
+                .background(selectedFilter == title ? PusulaTheme.accent : PusulaTheme.raisedSurface)
                 .foregroundColor(selectedFilter == title ? .white : .primary)
                 .clipShape(Capsule())
+                .overlay {
+                    Capsule()
+                        .stroke(selectedFilter == title ? Color.clear : PusulaTheme.border, lineWidth: 1)
+                }
         }
     }
     
@@ -181,6 +190,7 @@ struct TicketListView: View {
                 await MainActor.run {
                     tickets = loadedTickets
                     technicians = loadedTechs
+                    openPendingTicket(in: loadedTickets)
                     isLoading = false
                     isRefreshing = false
                 }
@@ -188,6 +198,7 @@ struct TicketListView: View {
                 let loaded = try await TicketService.getMyAssignedTickets()
                 await MainActor.run {
                     tickets = loaded
+                    openPendingTicket(in: loaded)
                     isLoading = false
                     isRefreshing = false
                 }
@@ -199,6 +210,13 @@ struct TicketListView: View {
                 isRefreshing = false
             }
         }
+    }
+
+    private func openPendingTicket(in loadedTickets: [FieldTicketDTO]) {
+        guard let ticketId = AppNavigation.shared.pendingTicketId,
+              let ticket = loadedTickets.first(where: { $0.id == ticketId }) else { return }
+        selectedTicket = ticket
+        AppNavigation.shared.clearPendingTicket(id: ticketId)
     }
     
     private func assignTechnician(ticketId: Int, technicianId: Int) async {
@@ -292,7 +310,7 @@ struct TicketCardView: View {
                             Text(phone)
                         }
                         .font(.caption)
-                        .foregroundColor(.cyan)
+                        .foregroundColor(PusulaTheme.accent)
                     }
                 }
                 
@@ -323,7 +341,7 @@ struct TicketCardView: View {
                 } label: {
                     Label(ticket.assignedTechnicianName ?? "Teknisyen Ata", systemImage: "person.badge.plus")
                         .font(.caption.weight(.semibold))
-                        .foregroundColor(.cyan)
+                        .foregroundColor(PusulaTheme.accent)
                 }
                 .readOnlyProtected()
             } else if let techName = ticket.assignedTechnicianName {
@@ -332,12 +350,7 @@ struct TicketCardView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
-        )
+        .pusulaCard()
     }
     
     private var displayStatus: String {
@@ -492,7 +505,7 @@ struct BulkAssignSheet: View {
                         Button(action: { toggle(ticket.id) }) {
                             HStack {
                                 Image(systemName: selectedTicketIds.contains(ticket.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundColor(selectedTicketIds.contains(ticket.id) ? .cyan : .secondary)
+                                    .foregroundColor(selectedTicketIds.contains(ticket.id) ? PusulaTheme.accent : .secondary)
                                 VStack(alignment: .leading) {
                                     Text(ticket.customerName ?? "Müşteri")
                                     Text(ticket.description ?? "")
@@ -537,8 +550,10 @@ struct BulkAssignSheet: View {
     }
 }
 
-#Preview {
-    NavigationStack {
-        TicketListView()
+struct TicketListView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationStack {
+            TicketListView()
+        }
     }
 }

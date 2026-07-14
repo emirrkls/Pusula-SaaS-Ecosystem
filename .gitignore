@@ -83,6 +83,7 @@ frontend-desktop/installer/PusulaServiceManagerSetup.exe
 **/DerivedData/
 **/*.xcuserstate
 **/xcuserdata/
+/work/
 
 # Signing / Certificates / Private keys
 *.jks

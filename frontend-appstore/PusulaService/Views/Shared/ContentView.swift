@@ -2,17 +2,20 @@ import SwiftUI
 
 /// Root content view — routes between login and the role-based dashboard.
 struct ContentView: View {
-    let session = SessionManager.shared
+    @StateObject private var session = SessionManager.shared
     @State private var showPlanUpgrade = false
     
     var body: some View {
         Group {
-            if session.isAuthenticated {
+            if session.isRestoringSession {
+                sessionRestoreView
+            } else if session.isAuthenticated {
                 mainView
             } else {
                 LoginView()
             }
         }
+        .tint(PusulaTheme.accent)
         .animation(.easeInOut(duration: 0.3), value: session.isAuthenticated)
         .sheet(isPresented: $showPlanUpgrade) {
             NavigationStack { PlanUpgradeView() }
@@ -21,21 +24,51 @@ struct ContentView: View {
     
     @ViewBuilder
     private var mainView: some View {
-        ZStack(alignment: .top) {
-            if session.isTechnician {
+        if session.isTechnician {
+            ZStack(alignment: .top) {
                 TechnicianTabView()
-            } else {
+                sessionBanners
+            }
+        } else if session.isAdmin {
+            ZStack(alignment: .top) {
                 AdminTabView()
+                sessionBanners
             }
-            
-            if session.showTrialBanner {
-                trialBanner
-            }
-            
-            if session.isReadOnly {
-                readOnlyBanner
+        } else {
+            ContentUnavailableView(
+                "Desteklenmeyen kullanıcı rolü",
+                systemImage: "person.crop.circle.badge.exclamationmark",
+                description: Text("Bu hesap mobil uygulamada kullanılamıyor.")
+            )
+            .safeAreaInset(edge: .bottom) {
+                Button("Oturumu Kapat") { session.logout() }
+                    .buttonStyle(.borderedProminent)
+                    .padding()
             }
         }
+    }
+
+    private var sessionRestoreView: some View {
+        VStack(spacing: 16) {
+            PusulaBrandMark(size: 52)
+            ProgressView()
+                .tint(PusulaTheme.accent)
+            Text("Oturum doğrulanıyor...")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(PusulaTheme.page)
+    }
+
+    @ViewBuilder
+    private var sessionBanners: some View {
+        VStack(spacing: 6) {
+            if session.isReadOnly { readOnlyBanner }
+            if session.showTrialBanner { trialBanner }
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 4)
     }
     
     private var trialBanner: some View {
@@ -44,19 +77,23 @@ struct ContentView: View {
             Text("Deneme süreniz \(session.trialDaysRemaining ?? 0) gün sonra bitiyor")
                 .font(.caption.weight(.medium))
             Spacer()
-            Button("Yükselt") { showPlanUpgrade = true }
-                .font(.caption.weight(.bold))
-                .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
-                .background(.orange)
-                .clipShape(Capsule())
+            if session.isAdmin {
+                Button { showPlanUpgrade = true } label: {
+                    Image(systemName: "arrow.up.right")
+                        .font(.caption.weight(.bold))
+                }
+                .accessibilityLabel("Paketi yükselt")
+            }
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(.orange.opacity(0.15))
+        .padding(.horizontal, 12)
+        .frame(minHeight: 36)
+        .background(PusulaTheme.raisedSurface)
+        .overlay {
+            RoundedRectangle(cornerRadius: PusulaTheme.radius)
+                .stroke(.orange.opacity(0.35), lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
         .foregroundColor(.orange)
-        .padding(.top, session.isReadOnly ? 36 : 0)
     }
     
     private var readOnlyBanner: some View {
@@ -66,9 +103,14 @@ struct ContentView: View {
                 .font(.caption.weight(.medium))
             Spacer()
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(.red.opacity(0.15))
+        .padding(.horizontal, 12)
+        .frame(minHeight: 36)
+        .background(PusulaTheme.raisedSurface)
+        .overlay {
+            RoundedRectangle(cornerRadius: PusulaTheme.radius)
+                .stroke(.red.opacity(0.35), lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
         .foregroundColor(.red)
     }
 }
@@ -92,15 +134,15 @@ struct TechnicianTabView: View {
                 Label("Hesap", systemImage: "person.circle")
             }
         }
-        .tint(.cyan)
+        .tint(PusulaTheme.accent)
     }
 }
 
 // MARK: - Admin Tab View (Android: Özet, Operasyon, Diğer, Finans, Hesap)
 
 struct AdminTabView: View {
-    let session = SessionManager.shared
-    @State private var navigation = AppNavigation.shared
+    @StateObject private var session = SessionManager.shared
+    @StateObject private var navigation = AppNavigation.shared
     @State private var selectedTab: AdminTab = .overview
     @State private var lastRealTab: AdminTab = .overview
     @State private var showQuickActions = false
@@ -140,7 +182,7 @@ struct AdminTabView: View {
             .tabItem { Label("Hesap", systemImage: "gearshape") }
             .tag(AdminTab.account)
         }
-        .tint(.cyan)
+        .tint(PusulaTheme.accent)
         .onChange(of: selectedTab) { oldValue, newValue in
             if newValue == .more {
                 showQuickActions = true
@@ -192,6 +234,8 @@ enum QuickAction: String, Identifiable {
     var id: String { rawValue }
 }
 
-#Preview {
-    ContentView()
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
 }

@@ -7,6 +7,7 @@ struct CustomerView: View {
     @State private var editingCustomer: CustomerDTO?
     @State private var showCreate = false
     @State private var ticketCustomer: CustomerDTO?
+    @State private var errorMessage: String?
     
     private var filtered: [CustomerDTO] {
         guard !searchText.isEmpty else { return customers }
@@ -24,8 +25,12 @@ struct CustomerView: View {
                 TextField("Müşteri ara...", text: $searchText)
             }
             .padding(10)
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .background(PusulaTheme.raisedSurface)
+            .overlay {
+                RoundedRectangle(cornerRadius: PusulaTheme.radius)
+                    .stroke(PusulaTheme.border, lineWidth: 1)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
             .padding()
             
             if isLoading {
@@ -40,6 +45,7 @@ struct CustomerView: View {
                 .refreshable { await load() }
             }
         }
+        .background(PusulaTheme.page)
         .navigationTitle("Müşteriler")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -59,6 +65,9 @@ struct CustomerView: View {
         .sheet(item: $ticketCustomer) { customer in
             CreateTicketFromCustomerSheet(customer: customer) { await load() }
         }
+        .alert("Hata", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("Tamam", role: .cancel) { errorMessage = nil }
+        } message: { Text(errorMessage ?? "") }
     }
     
     private func customerRow(_ customer: CustomerDTO) -> some View {
@@ -66,8 +75,11 @@ struct CustomerView: View {
             HStack {
                 Text(customer.name).font(.headline)
                 Spacer()
-                Button("Düzenle") { editingCustomer = customer }
-                    .font(.caption.weight(.semibold))
+                Button { editingCustomer = customer } label: {
+                    Image(systemName: "pencil")
+                        .frame(width: 32, height: 32)
+                }
+                    .accessibilityLabel("Müşteriyi düzenle")
                     .readOnlyProtected()
             }
             
@@ -94,7 +106,11 @@ struct CustomerView: View {
     
     private func load() async {
         isLoading = true
-        customers = (try? await CustomerService.getCustomers()) ?? []
+        do {
+            customers = try await CustomerService.getCustomers()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
         isLoading = false
     }
 }
@@ -107,6 +123,8 @@ struct CustomerEditorSheet: View {
     @State private var name = ""
     @State private var phone = ""
     @State private var address = ""
+    @State private var isSaving = false
+    @State private var errorMessage: String?
     
     var body: some View {
         NavigationStack {
@@ -120,18 +138,9 @@ struct CustomerEditorSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Kaydet") {
-                        Task {
-                            let dto = CustomerDTO(id: customer?.id, name: name, phone: phone.nilIfEmpty, address: address.nilIfEmpty, coordinates: customer?.coordinates)
-                            if let id = customer?.id {
-                                _ = try? await CustomerService.updateCustomer(id: id, customer: dto)
-                            } else {
-                                _ = try? await CustomerService.createCustomer(dto)
-                            }
-                            await onSaved()
-                            dismiss()
-                        }
+                        Task { await save() }
                     }
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
                     .readOnlyProtected()
                 }
             }
@@ -140,6 +149,26 @@ struct CustomerEditorSheet: View {
                 phone = customer?.phone ?? ""
                 address = customer?.address ?? ""
             }
+            .alert("Müşteri Kaydedilemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button("Tamam", role: .cancel) { errorMessage = nil }
+            } message: { Text(errorMessage ?? "") }
+        }
+    }
+
+    private func save() async {
+        isSaving = true
+        defer { isSaving = false }
+        let dto = CustomerDTO(id: customer?.id, name: name, phone: phone.nilIfEmpty, address: address.nilIfEmpty, coordinates: customer?.coordinates)
+        do {
+            if let id = customer?.id {
+                _ = try await CustomerService.updateCustomer(id: id, customer: dto)
+            } else {
+                _ = try await CustomerService.createCustomer(dto)
+            }
+            await onSaved()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }
@@ -151,6 +180,8 @@ struct CreateTicketFromCustomerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var description = ""
     @State private var notes = ""
+    @State private var isCreating = false
+    @State private var errorMessage: String?
     
     var body: some View {
         NavigationStack {
@@ -168,18 +199,32 @@ struct CreateTicketFromCustomerSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Oluştur") {
-                        Task {
-                            guard let customerId = customer.id else { return }
-                            let request = CreateTicketRequest(customerId: customerId, description: description, notes: notes.nilIfEmpty)
-                            _ = try? await TicketService.createTicket(request)
-                            await onCreated()
-                            dismiss()
-                        }
+                        Task { await createTicket() }
                     }
-                    .disabled(description.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(description.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)
                     .readOnlyProtected()
                 }
             }
+            .alert("Servis Fişi Oluşturulamadı", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button("Tamam", role: .cancel) { errorMessage = nil }
+            } message: { Text(errorMessage ?? "") }
+        }
+    }
+
+    private func createTicket() async {
+        guard let customerId = customer.id else {
+            errorMessage = "Müşteri kimliği bulunamadı."
+            return
+        }
+        isCreating = true
+        defer { isCreating = false }
+        do {
+            let request = CreateTicketRequest(customerId: customerId, description: description, notes: notes.nilIfEmpty)
+            _ = try await TicketService.createTicket(request)
+            await onCreated()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }

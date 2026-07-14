@@ -1,4 +1,6 @@
 import Foundation
+import PDFKit
+import SwiftUI
 
 enum TicketFilters {
     static let adminFilters = ["Atama Bekleyen", "Bugün Açılan", "Atanan", "Devam Eden", "Kapanan", "Tümü"]
@@ -62,13 +64,73 @@ func formatShortAmount(_ value: Double?) -> String {
     return String(format: "%.0f", val)
 }
 
-func sharePDF(data: Data, fileName: String) {
-    let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-    try? data.write(to: url)
-    guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-          let root = scene.windows.first?.rootViewController else { return }
-    let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-    root.present(activity, animated: true)
+struct PDFPreviewItem: Identifiable {
+    let id = UUID()
+    let url: URL
+    let title: String
+
+    init(data: Data, fileName: String, title: String) throws {
+        guard data.starts(with: Data("%PDF-".utf8)), PDFDocument(data: data) != nil else {
+            throw PDFPreviewError.invalidDocument
+        }
+
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("PusulaPDFPreviews", isDirectory: true)
+            .appendingPathComponent(id.uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        url = directory.appendingPathComponent(fileName)
+        self.title = title
+        try data.write(to: url, options: .atomic)
+    }
 }
 
-import UIKit
+struct PDFPreviewSheet: View {
+    let item: PDFPreviewItem
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            PDFDocumentView(url: item.url)
+                .background(Color(uiColor: .secondarySystemBackground))
+                .navigationTitle(item.title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Kapat") { dismiss() }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        ShareLink(item: item.url) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                        .accessibilityLabel("PDF'yi paylaş")
+                    }
+                }
+        }
+    }
+}
+
+private struct PDFDocumentView: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> PDFView {
+        let view = PDFView()
+        view.autoScales = true
+        view.displayMode = .singlePageContinuous
+        view.displayDirection = .vertical
+        return view
+    }
+
+    func updateUIView(_ view: PDFView, context: Context) {
+        if view.document?.documentURL != url {
+            view.document = PDFDocument(url: url)
+        }
+    }
+}
+
+private enum PDFPreviewError: LocalizedError {
+    case invalidDocument
+
+    var errorDescription: String? {
+        "Sunucu geçerli bir PDF döndürmedi. Lütfen daha sonra tekrar deneyin."
+    }
+}

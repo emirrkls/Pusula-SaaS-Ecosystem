@@ -54,6 +54,7 @@ struct CollectionView: View {
                 }
                 .padding()
             }
+            .background(PusulaTheme.page)
             .navigationTitle("Tahsilat")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -110,9 +111,7 @@ struct CollectionView: View {
                 }
             }
         }
-        .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .pusulaCard()
     }
     
     // MARK: - Payment Method
@@ -133,12 +132,12 @@ struct CollectionView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(selectedMethod == method ? .cyan.opacity(0.15) : Color(.systemGray6))
-                        .foregroundColor(selectedMethod == method ? .cyan : .secondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .background(selectedMethod == method ? PusulaTheme.accent.opacity(0.10) : PusulaTheme.raisedSurface)
+                        .foregroundColor(selectedMethod == method ? PusulaTheme.accent : .secondary)
+                        .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(selectedMethod == method ? .cyan : .clear, lineWidth: 2)
+                            RoundedRectangle(cornerRadius: PusulaTheme.radius)
+                                .stroke(selectedMethod == method ? PusulaTheme.accent : PusulaTheme.border, lineWidth: 1)
                         )
                     }
                 }
@@ -156,14 +155,18 @@ struct CollectionView: View {
             HStack {
                 Text("₺")
                     .font(.title.weight(.bold))
-                    .foregroundColor(.cyan)
+                    .foregroundColor(PusulaTheme.accent)
                 TextField("0.00", text: $collectedAmount)
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                     .keyboardType(.decimalPad)
             }
             .padding()
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .background(PusulaTheme.raisedSurface)
+            .overlay {
+                RoundedRectangle(cornerRadius: PusulaTheme.radius)
+                    .stroke(PusulaTheme.border, lineWidth: 1)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
             
             // Quick amount buttons
             HStack(spacing: 8) {
@@ -181,8 +184,8 @@ struct CollectionView: View {
                 .font(.caption.weight(.medium))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(.cyan.opacity(0.1))
-                .foregroundColor(.cyan)
+                .background(PusulaTheme.accent.opacity(0.1))
+                .foregroundColor(PusulaTheme.accent)
                 .clipShape(Capsule())
         }
     }
@@ -234,9 +237,7 @@ struct CollectionView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .pusulaCard()
     }
     
     private func waterfallRow(_ title: String, amount: Double, icon: String, color: Color) -> some View {
@@ -268,14 +269,9 @@ struct CollectionView: View {
             .padding(.vertical, 16)
             .font(.headline)
         }
-        .background(
-            LinearGradient(
-                colors: isFullPayment ? [.green, .cyan] : [.orange, .red.opacity(0.8)],
-                startPoint: .leading, endPoint: .trailing
-            )
-        )
+        .background(isFullPayment ? PusulaTheme.accent : Color.orange)
         .foregroundColor(.white)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
         .disabled(isProcessing || collectedAmount.isEmpty)
     }
     

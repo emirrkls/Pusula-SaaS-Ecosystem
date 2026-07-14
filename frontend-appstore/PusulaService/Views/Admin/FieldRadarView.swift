@@ -5,15 +5,17 @@ import MapKit
 struct FieldRadarView: View {
     @State private var pins: [FieldPin] = []
     @State private var isLoading = true
-    @State private var region = MKCoordinateRegion(
+    @State private var errorMessage: String?
+    @State private var position: MapCameraPosition = .region(MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 39.9334, longitude: 32.8597), // Ankara default
         span: MKCoordinateSpan(latitudeDelta: 0.5, longitudeDelta: 0.5)
-    )
+    ))
     
     var body: some View {
         ZStack {
-            Map(coordinateRegion: $region, annotationItems: mapPins) { pin in
-                MapAnnotation(coordinate: pin.coordinate) {
+            Map(position: $position) {
+                ForEach(mapPins) { pin in
+                    Annotation(pin.name, coordinate: pin.coordinate) {
                     VStack(spacing: 2) {
                         Image(systemName: statusIcon(pin.status))
                             .font(.title3)
@@ -31,6 +33,7 @@ struct FieldRadarView: View {
                             .clipShape(Capsule())
                     }
                 }
+                }
             }
             .ignoresSafeArea(edges: .bottom)
             
@@ -44,13 +47,22 @@ struct FieldRadarView: View {
                 ProgressView("Saha verileri yükleniyor...")
                     .padding()
                     .background(.ultraThickMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
             }
         }
         .navigationTitle("Saha Radarı")
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadPins() }
         .refreshable { await loadPins() }
+        .alert("Saha Verileri Yüklenemedi", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("Tekrar Dene") { Task { await loadPins() } }
+            Button("Tamam", role: .cancel) { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "")
+        }
     }
     
     private var mapPins: [MapPinData] {
@@ -74,7 +86,7 @@ struct FieldRadarView: View {
         }
         .padding()
         .background(.ultraThickMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
         .padding()
     }
     
@@ -104,19 +116,21 @@ struct FieldRadarView: View {
     }
     
     private func loadPins() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
         do {
             pins = try await AdminService.getFieldRadar()
-            isLoading = false
             
             // Auto-center map on first pin
             if let first = mapPins.first {
-                region = MKCoordinateRegion(
+                position = .region(MKCoordinateRegion(
                     center: first.coordinate,
                     span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)
-                )
+                ))
             }
         } catch {
-            isLoading = false
+            errorMessage = error.localizedDescription
         }
     }
 }

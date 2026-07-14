@@ -25,8 +25,8 @@ struct BarcodeScannerView: View {
                     Spacer()
                     
                     // Scan guide frame
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(.cyan, lineWidth: 2)
+                    RoundedRectangle(cornerRadius: PusulaTheme.radius)
+                        .stroke(PusulaTheme.accent, lineWidth: 2)
                         .frame(width: 280, height: 160)
                         .background(.black.opacity(0.01)) // Invisible tap target
                     
@@ -40,7 +40,7 @@ struct BarcodeScannerView: View {
                         ProgressView("Ürün aranıyor...")
                             .padding()
                             .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
                     } else if let error = errorMessage {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
@@ -50,13 +50,13 @@ struct BarcodeScannerView: View {
                         }
                         .padding()
                         .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
                     } else {
                         Text("Barkodu kameraya gösterin")
                             .font(.subheadline)
                             .padding()
                             .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
                     }
                 }
                 .padding()
@@ -92,7 +92,7 @@ struct BarcodeScannerView: View {
                 Spacer()
                 Text("₺\(String(format: "%.2f", item.sellPrice ?? 0))")
                     .font(.title3.weight(.bold))
-                    .foregroundColor(.cyan)
+                    .foregroundColor(PusulaTheme.accent)
             }
             
             // Quantity stepper
@@ -115,14 +115,14 @@ struct BarcodeScannerView: View {
                 .padding(.vertical, 12)
                 .font(.headline)
             }
-            .background(.cyan)
+            .background(PusulaTheme.accent)
             .foregroundColor(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
             .disabled(item.quantity < 1)
         }
         .padding()
         .background(.ultraThickMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
     }
     
     private func handleBarcode(_ code: String) {

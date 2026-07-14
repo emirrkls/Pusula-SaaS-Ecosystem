@@ -8,181 +8,161 @@ struct RegisterView: View {
     @State private var confirmPassword = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
-    
-    let session = SessionManager.shared
-    
-    var passwordsMatch: Bool { password == confirmPassword && !password.isEmpty }
-    var isFormValid: Bool { !fullName.isEmpty && !email.isEmpty && passwordsMatch }
-    
+
+    private let session = SessionManager.shared
+
+    private var passwordsMatch: Bool {
+        password == confirmPassword && !password.isEmpty
+    }
+
+    private var isFormValid: Bool {
+        !fullName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && email.contains("@")
+            && password.count >= 6
+            && passwordsMatch
+    }
+
     var body: some View {
         NavigationStack {
-            ZStack {
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.06, green: 0.09, blue: 0.16),
-                        Color(red: 0.10, green: 0.14, blue: 0.25)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-                
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Header
-                        VStack(spacing: 8) {
-                            Image(systemName: "person.badge.plus")
-                                .font(.system(size: 48))
-                                .foregroundStyle(.cyan.gradient)
-                            
-                            Text("Ücretsiz Hesap Oluştur")
-                                .font(.title2.weight(.bold))
-                                .foregroundColor(.white)
-                            
-                            Text("14 gün ücretsiz deneme süresi ile\nÇırak Paketi'ne başlayın")
-                                .font(.subheadline)
-                                .foregroundColor(.white.opacity(0.6))
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding(.top, 32)
-                        
-                        // Form Fields
-                        VStack(spacing: 16) {
-                            formField(icon: "person", placeholder: "Ad Soyad", text: $fullName)
-                                .textContentType(.name)
-                            
-                            formField(icon: "envelope", placeholder: "E-posta", text: $email)
-                                .textContentType(.emailAddress)
-                                .keyboardType(.emailAddress)
-                                .autocapitalization(.none)
-                            
-                            HStack {
-                                Image(systemName: "lock")
-                                    .foregroundColor(.white.opacity(0.5))
-                                SecureField("Şifre (min 6 karakter)", text: $password)
-                                    .textContentType(.newPassword)
-                                    .foregroundColor(.white)
-                            }
-                            .padding()
-                            .background(.white.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            
-                            HStack {
-                                Image(systemName: "lock.rotation")
-                                    .foregroundColor(.white.opacity(0.5))
-                                SecureField("Şifre Tekrar", text: $confirmPassword)
-                                    .foregroundColor(.white)
-                            }
-                            .padding()
-                            .background(
-                                !confirmPassword.isEmpty && !passwordsMatch
-                                    ? Color.red.opacity(0.15)
-                                    : Color.white.opacity(0.08)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(
-                                        !confirmPassword.isEmpty && !passwordsMatch
-                                            ? .red.opacity(0.5)
-                                            : .clear,
-                                        lineWidth: 1
-                                    )
-                            )
-                        }
-                        .padding(.horizontal, 32)
-                        
-                        // Plan badge
-                        HStack(spacing: 8) {
-                            Image(systemName: "gift")
-                            Text("Çırak Paketi • 14 Gün Ücretsiz")
-                        }
-                        .font(.caption.weight(.medium))
-                        .foregroundColor(.cyan)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(.cyan.opacity(0.1))
-                        .clipShape(Capsule())
-                        
-                        // Error
-                        if let error = errorMessage {
-                            Text(error)
-                                .font(.caption)
-                                .foregroundColor(.red)
-                                .padding(.horizontal, 32)
-                        }
-                        
-                        // Register Button
-                        Button(action: handleRegister) {
-                            HStack {
-                                if isLoading {
-                                    ProgressView().tint(.white)
-                                } else {
-                                    Text("Hesap Oluştur")
-                                        .fontWeight(.semibold)
-                                    Image(systemName: "arrow.right")
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                        }
-                        .background(
-                            LinearGradient(
-                                colors: [.blue, .cyan.opacity(0.8)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .foregroundColor(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .disabled(!isFormValid || isLoading)
-                        .opacity(isFormValid ? 1 : 0.5)
-                        .padding(.horizontal, 32)
-                        
-                        Spacer(minLength: 40)
-                    }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 26) {
+                    header
+                    form
+                    trialNote
+                    legalNote
                 }
+                .frame(maxWidth: 520, alignment: .leading)
+                .padding(.horizontal, PusulaTheme.pagePadding)
+                .padding(.top, 16)
+                .padding(.bottom, 32)
+                .frame(maxWidth: .infinity)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .background(PusulaTheme.page.ignoresSafeArea())
+            .navigationTitle("Hesap Oluştur")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.white.opacity(0.6))
-                            .font(.title3)
+                        Image(systemName: "xmark")
                     }
+                    .accessibilityLabel("Kapat")
                 }
             }
         }
     }
-    
-    private func formField(icon: String, placeholder: String, text: Binding<String>) -> some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundColor(.white.opacity(0.5))
-            TextField(placeholder, text: text)
-                .foregroundColor(.white)
+
+    private var header: some View {
+        HStack(alignment: .center, spacing: 14) {
+            PusulaBrandMark(size: 52)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("İşletmenizi oluşturun")
+                    .font(.title2.weight(.bold))
+                Text("Çırak planı ile başlayın")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
-        .padding()
-        .background(.white.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
-    
-    private func handleRegister() {
-        guard isFormValid, password.count >= 6 else {
-            errorMessage = "Lütfen tüm alanları doldurun (şifre min. 6 karakter)"
-            return
+
+    private var form: some View {
+        VStack(spacing: 18) {
+            PusulaTextField(
+                title: "Ad soyad",
+                icon: "person",
+                text: $fullName,
+                contentType: .name
+            )
+
+            PusulaTextField(
+                title: "E-posta",
+                icon: "envelope",
+                text: $email,
+                contentType: .emailAddress,
+                keyboardType: .emailAddress,
+                textInputAutocapitalization: .never
+            )
+
+            PusulaTextField(
+                title: "Şifre",
+                icon: "lock",
+                text: $password,
+                contentType: .newPassword,
+                textInputAutocapitalization: .never,
+                isSecure: true
+            )
+
+            PusulaTextField(
+                title: "Şifre tekrar",
+                icon: "lock.rotation",
+                text: $confirmPassword,
+                contentType: .newPassword,
+                textInputAutocapitalization: .never,
+                isSecure: true,
+                isInvalid: !confirmPassword.isEmpty && !passwordsMatch,
+                submitLabel: .done,
+                onSubmit: { if isFormValid { handleRegister() } }
+            )
+
+            if !confirmPassword.isEmpty && !passwordsMatch {
+                PusulaInlineMessage(text: "Şifreler eşleşmiyor.")
+            }
+
+            if let errorMessage {
+                PusulaInlineMessage(text: errorMessage)
+            }
+
+            PusulaPrimaryButton(
+                title: "Hesap Oluştur",
+                icon: "arrow.right",
+                isLoading: isLoading,
+                isDisabled: !isFormValid,
+                action: handleRegister
+            )
         }
-        
+    }
+
+    private var trialNote: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "calendar.badge.clock")
+                .foregroundStyle(PusulaTheme.amber)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("14 gün ücretsiz")
+                    .font(.subheadline.weight(.semibold))
+                Text("Çırak planı")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .pusulaCard(padding: 14)
+    }
+
+    private var legalNote: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Hesap oluşturarak Kullanım Koşulları'nı ve Gizlilik Politikası'nı kabul etmiş olursunuz.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 18) {
+                Link("Gizlilik", destination: AppLinks.privacyPolicy)
+                Link("Kullanım Koşulları", destination: AppLinks.termsOfUse)
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(PusulaTheme.accent)
+        }
+    }
+
+    private func handleRegister() {
+        guard isFormValid else { return }
         isLoading = true
         errorMessage = nil
-        
+
         Task {
             do {
                 let response = try await AuthService.registerIndividual(
-                    email: email,
+                    email: email.trimmingCharacters(in: .whitespacesAndNewlines),
                     password: password,
-                    fullName: fullName
+                    fullName: fullName.trimmingCharacters(in: .whitespacesAndNewlines)
                 )
                 await MainActor.run {
                     session.configure(from: response)
@@ -199,6 +179,8 @@ struct RegisterView: View {
     }
 }
 
-#Preview {
-    RegisterView()
+struct RegisterView_Previews: PreviewProvider {
+    static var previews: some View {
+        RegisterView()
+    }
 }

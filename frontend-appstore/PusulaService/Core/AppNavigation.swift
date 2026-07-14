@@ -1,13 +1,12 @@
 import SwiftUI
-import Observation
 
 /// Shared navigation state between admin dashboard and tab shell.
-@Observable
-final class AppNavigation {
+final class AppNavigation: ObservableObject {
     static let shared = AppNavigation()
     
-    var adminSelectedTab: AdminTab = .overview
-    var operationFilter: String?
+    @Published var adminSelectedTab: AdminTab = .overview
+    @Published var operationFilter: String?
+    @Published private(set) var pendingTicketId: Int?
     
     func openOperations(with filter: String) {
         operationFilter = filter
@@ -17,6 +16,16 @@ final class AppNavigation {
     func consumeOperationFilter() -> String? {
         defer { operationFilter = nil }
         return operationFilter
+    }
+
+    func openTicket(id: Int) {
+        pendingTicketId = id
+        adminSelectedTab = .operations
+    }
+
+    func clearPendingTicket(id: Int) {
+        guard pendingTicketId == id else { return }
+        pendingTicketId = nil
     }
 }
 

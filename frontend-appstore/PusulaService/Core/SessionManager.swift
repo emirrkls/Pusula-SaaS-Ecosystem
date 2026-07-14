@@ -1,26 +1,25 @@
 import SwiftUI
-import Observation
 
 /// Central session state — drives the entire app's navigation and feature visibility.
-/// Uses @Observable (iOS 17+) for efficient SwiftUI reactivity.
-@Observable
-final class SessionManager {
+final class SessionManager: ObservableObject {
     static let shared = SessionManager()
     
     // MARK: - Auth State
-    var isAuthenticated = false
-    var token: String?
-    var role: String = ""
-    var fullName: String = ""
-    var companyId: Int?
-    var companyName: String?
+    @Published var isAuthenticated = false
+    @Published var isRestoringSession = true
+    @Published var sessionMessage: String?
+    @Published var token: String?
+    @Published var role: String = ""
+    @Published var fullName: String = ""
+    @Published var companyId: Int?
+    @Published var companyName: String?
     
     // MARK: - SaaS State
-    var planType: String = "CIRAK"
-    var features: [String: Bool] = [:]
-    var quota: QuotaDTO?
-    var isReadOnly: Bool = false
-    var trialDaysRemaining: Int?
+    @Published var planType: String = "CIRAK"
+    @Published var features: [String: Bool] = [:]
+    @Published var quota: QuotaDTO?
+    @Published var isReadOnly: Bool = false
+    @Published var trialDaysRemaining: Int?
     
     // MARK: - Computed Properties
     
@@ -50,6 +49,8 @@ final class SessionManager {
     // MARK: - Session Lifecycle
     
     func configure(from response: AuthResponse) {
+        self.isRestoringSession = false
+        self.sessionMessage = nil
         self.isAuthenticated = true
         self.token = response.token
         self.role = response.role
@@ -65,9 +66,28 @@ final class SessionManager {
         // Persist token to Keychain
         KeychainHelper.save(key: "auth_token", value: response.token)
         KeychainHelper.save(key: "user_role", value: response.role)
+        Task { @MainActor in
+            PushNotificationManager.shared.sessionDidAuthenticate()
+        }
     }
     
     func logout() {
+        clearLocalSession()
+        Task {
+            await PushNotificationManager.shared.unregisterCurrentDevice()
+            await AuthService.logout()
+        }
+    }
+
+    func handleUnauthorized() {
+        guard isAuthenticated || token != nil else { return }
+        clearLocalSession(message: "Oturum süreniz doldu. Lütfen tekrar giriş yapın.")
+        Task { await AuthService.logout() }
+    }
+
+    private func clearLocalSession(message: String? = nil) {
+        isRestoringSession = false
+        sessionMessage = message
         isAuthenticated = false
         token = nil
         role = ""
@@ -83,7 +103,6 @@ final class SessionManager {
         KeychainHelper.delete(key: "auth_token")
         KeychainHelper.delete(key: "user_role")
         
-        Task { await AuthService.logout() }
     }
     
     func deleteAccount() async throws {
@@ -98,16 +117,46 @@ final class SessionManager {
     
     func tryRestoreSession() {
         guard let savedToken = KeychainHelper.load(key: "auth_token"),
-              let savedRole = KeychainHelper.load(key: "user_role") else {
+              KeychainHelper.load(key: "user_role") != nil else {
+            isRestoringSession = false
             return
         }
+        isRestoringSession = true
         self.token = savedToken
-        self.role = savedRole
-        self.isAuthenticated = true
+        self.role = ""
+        self.isAuthenticated = false
         
         Task {
             await NetworkManager.shared.setToken(savedToken)
-            await refreshSubscriptionContext()
+            await validateRestoredSession()
+        }
+    }
+
+    @MainActor
+    private func validateRestoredSession() async {
+        do {
+            async let profileRequest = AuthService.fetchAuthProfile()
+            async let subscriptionRequest = AuthService.refreshFeatureContext()
+            let (profile, context) = try await (profileRequest, subscriptionRequest)
+
+            guard let restoredRole = profile.role,
+                  ["TECHNICIAN", "COMPANY_ADMIN", "SUPER_ADMIN"].contains(restoredRole) else {
+                throw SessionRestoreError.unsupportedRole
+            }
+
+            role = restoredRole
+            fullName = profile.fullName ?? ""
+            companyId = profile.companyId
+            companyName = profile.companyName
+            KeychainHelper.save(key: "user_role", value: restoredRole)
+            applySubscriptionContext(context)
+            isAuthenticated = true
+            isRestoringSession = false
+            sessionMessage = nil
+            PushNotificationManager.shared.sessionDidAuthenticate()
+        } catch {
+            clearLocalSession(message: "Oturum doğrulanamadı. Lütfen tekrar giriş yapın.")
+            await AuthService.logout()
         }
     }
     
@@ -115,15 +164,29 @@ final class SessionManager {
     func refreshSubscriptionContext() async {
         do {
             let context = try await AuthService.refreshFeatureContext()
-            if let plan = context.planType { self.planType = plan }
-            if let features = context.features { self.features = features }
-            if let quota = context.quota { self.quota = quota }
-            if let readOnly = context.isReadOnly { self.isReadOnly = readOnly }
-            self.trialDaysRemaining = context.trialDaysRemaining
+            applySubscriptionContext(context)
+            self.isAuthenticated = true
+            self.isRestoringSession = false
         } catch {
-            // Keep cached session if refresh fails
+            if case NetworkError.unauthorized = error {
+                handleUnauthorized()
+            } else {
+                self.sessionMessage = "Sunucuya ulaşılamadı. Bazı bilgiler güncel olmayabilir."
+            }
         }
     }
+
+    private func applySubscriptionContext(_ context: SubscriptionContextDTO) {
+        if let plan = context.planType { planType = plan }
+        if let enabledFeatures = context.features { features = enabledFeatures }
+        if let currentQuota = context.quota { quota = currentQuota }
+        if let readOnly = context.isReadOnly { isReadOnly = readOnly }
+        trialDaysRemaining = context.trialDaysRemaining
+    }
+}
+
+private enum SessionRestoreError: Error {
+    case unsupportedRole
 }
 
 // MARK: - Keychain Helper (Secure Token Storage)

@@ -77,6 +77,16 @@ struct CreateTicketRequest: Codable {
     }
 }
 
+struct UpdateTicketRequest: Codable {
+    let status: String?
+    let notes: String?
+
+    init(status: TicketStatus? = nil, notes: String? = nil) {
+        self.status = status?.rawValue
+        self.notes = notes
+    }
+}
+
 struct TechnicianDTO: Codable, Identifiable {
     let id: Int
     let fullName: String?
@@ -97,5 +107,20 @@ struct ServicePhotoDTO: Codable, Identifiable {
     var fullURL: URL? {
         if url.hasPrefix("http") { return URL(string: url) }
         return URL(string: "https://api.pusulaiklimlendirme.com" + url)
+    }
+}
+
+struct AuditLogDTO: Codable, Identifiable {
+    let id: Int?
+    let userName: String?
+    let actionType: String?
+    let entityType: String?
+    let description: String?
+    let oldValue: String?
+    let newValue: String?
+    let timestamp: String?
+
+    var stableId: String {
+        id.map(String.init) ?? timestamp ?? UUID().uuidString
     }
 }

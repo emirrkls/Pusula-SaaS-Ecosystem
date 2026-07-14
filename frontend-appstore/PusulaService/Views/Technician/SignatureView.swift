@@ -18,7 +18,7 @@ struct SignatureView: View {
                 // Instructions
                 HStack {
                     Image(systemName: "pencil.tip.crop.circle")
-                        .foregroundColor(.cyan)
+                        .foregroundColor(PusulaTheme.accent)
                     Text("Lütfen aşağıdaki alana imzanızı atınız")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -29,9 +29,9 @@ struct SignatureView: View {
                 ZStack {
                     SignatureCanvas(canvasView: $canvasView)
                         .background(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 16)
+                            RoundedRectangle(cornerRadius: PusulaTheme.radius)
                                 .stroke(Color(.systemGray3), lineWidth: 1)
                         )
                     
@@ -96,7 +96,7 @@ struct SignatureView: View {
                     }
                     .background(Color(.systemGray5))
                     .foregroundColor(.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
                     
                     // Save button
                     Button(action: saveSignature) {
@@ -111,9 +111,9 @@ struct SignatureView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                     }
-                    .background(.cyan)
+                    .background(PusulaTheme.accent)
                     .foregroundColor(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
                     .disabled(isUploading)
                 }
                 .padding()

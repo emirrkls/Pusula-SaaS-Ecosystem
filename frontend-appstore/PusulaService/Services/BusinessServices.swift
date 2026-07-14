@@ -118,8 +118,17 @@ enum SettingsService {
     }
     
     static func resetPassword(userId: Int, newPassword: String) async throws {
-        let body = ResetPasswordRequest(newPassword: newPassword)
+        let body = ResetPasswordRequest(password: newPassword)
         let _: EmptyResponse = try await NetworkManager.shared.post("/api/users/\(userId)/reset-password", body: body)
+    }
+
+    static func uploadUserSignature(userId: Int, imageData: Data) async throws {
+        _ = try await NetworkManager.shared.uploadMultipartString(
+            path: "/api/users/\(userId)/upload-signature",
+            fileData: imageData,
+            fileName: "signature.jpg",
+            mimeType: "image/jpeg"
+        )
     }
     
     static func getVehicles() async throws -> [VehicleDTO] {
