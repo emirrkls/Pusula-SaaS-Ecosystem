@@ -98,12 +98,15 @@ struct PusulaTextField: View {
     var isInvalid = false
     var submitLabel: SubmitLabel = .next
     var onSubmit: () -> Void = { }
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(title)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
+                .onTapGesture { isFocused = true }
 
             HStack(spacing: 12) {
                 Image(systemName: icon)
@@ -123,9 +126,14 @@ struct PusulaTextField: View {
                 .textInputAutocapitalization(textInputAutocapitalization)
                 .submitLabel(submitLabel)
                 .onSubmit(onSubmit)
+                .focused($isFocused)
             }
             .padding(.horizontal, 14)
             .frame(height: PusulaTheme.controlHeight)
+            .contentShape(Rectangle())
+            .simultaneousGesture(
+                TapGesture().onEnded { isFocused = true }
+            )
             .background(PusulaTheme.raisedSurface)
             .overlay {
                 RoundedRectangle(cornerRadius: PusulaTheme.radius)
@@ -157,6 +165,7 @@ struct PusulaPrimaryButton: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: PusulaTheme.controlHeight)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .foregroundStyle(.white)
