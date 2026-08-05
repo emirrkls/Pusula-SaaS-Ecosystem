@@ -3,6 +3,7 @@ package com.pusula.backend.controller;
 import com.pusula.backend.dto.ServicePhotoDTO;
 import com.pusula.backend.dto.ServiceTicketDTO;
 import com.pusula.backend.dto.ServiceUsedPartDTO;
+import com.pusula.backend.dto.CompleteServiceRequest;
 import com.pusula.backend.entity.ServicePhoto;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.service.ServiceTicketService;
@@ -24,7 +25,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -98,13 +98,9 @@ public class ServiceTicketController {
      */
     @PatchMapping("/{id}/complete")
     public ResponseEntity<ServiceTicketDTO> completeService(@PathVariable Long id,
-            @RequestBody Map<String, Object> request) {
-        BigDecimal amount = new BigDecimal(request.get("collectedAmount").toString());
-        com.pusula.backend.entity.PaymentMethod paymentMethod = request.containsKey("paymentMethod")
-                ? com.pusula.backend.entity.PaymentMethod.valueOf(request.get("paymentMethod").toString())
-                : com.pusula.backend.entity.PaymentMethod.CASH;
-
-        return ResponseEntity.ok(service.completeService(id, amount, paymentMethod));
+            @RequestBody CompleteServiceRequest request) {
+        return ResponseEntity.ok(service.completeService(id, request.getCollectedAmount(),
+                request.getPaymentMethod(), request.getCompletionDate()));
     }
 
     @PatchMapping("/{id}/cancel")

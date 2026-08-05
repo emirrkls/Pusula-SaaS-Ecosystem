@@ -29,6 +29,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import com.pusula.desktop.dto.InventoryDTO;
 import com.pusula.desktop.dto.AuthRequest;
@@ -419,8 +420,6 @@ public class TicketDetailsController {
         statusMap.put(getStatusTranslation("PENDING"), "PENDING");
         statusMap.put(getStatusTranslation("IN_PROGRESS"), "IN_PROGRESS");
         statusMap.put(getStatusTranslation("ASSIGNED"), "ASSIGNED");
-        statusMap.put(getStatusTranslation("COMPLETED"), "COMPLETED");
-        statusMap.put(getStatusTranslation("CANCELLED"), "CANCELLED");
 
         List<String> choices = new java.util.ArrayList<>(statusMap.keySet());
         String currentStatusDisplay = getStatusTranslation(currentTicket.getStatus());
@@ -1070,10 +1069,23 @@ public class TicketDetailsController {
         );
         paymentCombo.setValue(resourceBundle.getString("payment.cash")); // Default to cash
 
+        DatePicker completionDatePicker = new DatePicker(LocalDate.now());
+        completionDatePicker.setDayCellFactory(picker -> new DateCell() {
+            @Override
+            public void updateItem(LocalDate item, boolean empty) {
+                super.updateItem(item, empty);
+                setDisable(empty || item.isAfter(LocalDate.now()));
+            }
+        });
+
         grid.add(new Label(resourceBundle.getString("dialog.complete.amount") + ":"), 0, 0);
         grid.add(amountField, 1, 0);
         grid.add(new Label(resourceBundle.getString("payment.method") + ":"), 0, 1);
         grid.add(paymentCombo, 1, 1);
+        if (com.pusula.desktop.util.SessionManager.isAdmin()) {
+            grid.add(new Label(resourceBundle.getString("dialog.complete.date") + ":"), 0, 2);
+            grid.add(completionDatePicker, 1, 2);
+        }
 
         dialog.getDialogPane().setContent(grid);
 
@@ -1083,6 +1095,9 @@ public class TicketDetailsController {
                 java.util.Map<String, Object> result = new java.util.HashMap<>();
                 result.put("amount", amountField.getRawValue());
                 result.put("paymentMethod", paymentCombo.getValue());
+                if (com.pusula.desktop.util.SessionManager.isAdmin()) {
+                    result.put("completionDate", completionDatePicker.getValue());
+                }
                 return result;
             }
             return null;
@@ -1105,6 +1120,9 @@ public class TicketDetailsController {
                 java.util.Map<String, Object> requestBody = new java.util.HashMap<>();
                 requestBody.put("collectedAmount", amount);
                 requestBody.put("paymentMethod", paymentMethod);
+                if (result.get("completionDate") != null) {
+                    requestBody.put("completionDate", result.get("completionDate").toString());
+                }
 
                 ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
                 api.completeService(currentTicket.getId(), requestBody).enqueue(new Callback<ServiceTicketDTO>() {

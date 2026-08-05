@@ -40,6 +40,7 @@ class ServiceTicketAssignmentNotificationTest {
     @Mock ServicePhotoRepository photoRepository;
     @Mock FileUploadService fileUploadService;
     @Mock ApplicationEventPublisher publisher;
+    @Mock FinanceService financeService;
     private ServiceTicketService service;
 
     @BeforeEach
@@ -47,7 +48,7 @@ class ServiceTicketAssignmentNotificationTest {
         service = new ServiceTicketService(ticketRepository, customerRepository, userRepository,
                 inventoryRepository, usedPartRepository, auditLogService, currentAccountRepository,
                 vehicleStockRepository, whatsAppNotificationService, featureService, photoRepository,
-                fileUploadService, publisher, "Europe/Istanbul");
+                fileUploadService, publisher, financeService, "Europe/Istanbul");
         authenticate(1L, 10L, "COMPANY_ADMIN");
     }
 

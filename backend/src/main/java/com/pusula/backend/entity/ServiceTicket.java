@@ -5,6 +5,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -32,6 +33,14 @@ public class ServiceTicket extends BaseEntity {
 
     @Column(name = "collected_amount")
     private BigDecimal collectedAmount;
+
+    /** Business timestamp at which the service was actually completed. */
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    /** Business date on which liquid payment was collected. Null for current account. */
+    @Column(name = "collection_date")
+    private LocalDate collectionDate;
 
     @Column(name = "parent_ticket_id")
     private Long parentTicketId;
@@ -119,6 +128,41 @@ public class ServiceTicket extends BaseEntity {
 
     public void setCollectedAmount(BigDecimal collectedAmount) {
         this.collectedAmount = collectedAmount;
+    }
+
+    public LocalDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
+    public LocalDate getCollectionDate() {
+        return collectionDate;
+    }
+
+    public void setCollectionDate(LocalDate collectionDate) {
+        this.collectionDate = collectionDate;
+    }
+
+    /** Transitional fallback for rows created before completed_at was introduced. */
+    @Transient
+    public LocalDateTime getEffectiveCompletedAt() {
+        return completedAt != null ? completedAt : getUpdatedAt();
+    }
+
+    /** Transitional fallback for rows created before collection_date was introduced. */
+    @Transient
+    public LocalDate getEffectiveCollectionDate() {
+        if (getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT) {
+            return null;
+        }
+        if (collectionDate != null) {
+            return collectionDate;
+        }
+        LocalDateTime effectiveCompletion = getEffectiveCompletedAt();
+        return effectiveCompletion != null ? effectiveCompletion.toLocalDate() : null;
     }
 
     public Long getParentTicketId() {

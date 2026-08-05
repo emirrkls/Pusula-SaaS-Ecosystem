@@ -4,6 +4,7 @@ import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket.TicketStatus;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class ServiceTicketDTO {
@@ -17,6 +18,8 @@ public class ServiceTicketDTO {
     private BigDecimal collectedAmount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime completedAt;
+    private LocalDate collectionDate;
     private Long parentTicketId;
     private boolean isWarrantyCall;
     private String customerName; // Customer full name for frontend display
@@ -134,6 +137,22 @@ public class ServiceTicketDTO {
         this.updatedAt = updatedAt;
     }
 
+    public LocalDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
+    public LocalDate getCollectionDate() {
+        return collectionDate;
+    }
+
+    public void setCollectionDate(LocalDate collectionDate) {
+        this.collectionDate = collectionDate;
+    }
+
     public Long getParentTicketId() {
         return parentTicketId;
     }
@@ -192,6 +211,8 @@ public class ServiceTicketDTO {
         private BigDecimal collectedAmount;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
+        private LocalDateTime completedAt;
+        private LocalDate collectionDate;
         private Long parentTicketId;
         private boolean isWarrantyCall;
         private String customerName;
@@ -250,6 +271,16 @@ public class ServiceTicketDTO {
             return this;
         }
 
+        public ServiceTicketDTOBuilder completedAt(LocalDateTime completedAt) {
+            this.completedAt = completedAt;
+            return this;
+        }
+
+        public ServiceTicketDTOBuilder collectionDate(LocalDate collectionDate) {
+            this.collectionDate = collectionDate;
+            return this;
+        }
+
         public ServiceTicketDTOBuilder parentTicketId(Long parentTicketId) {
             this.parentTicketId = parentTicketId;
             return this;
@@ -274,6 +305,8 @@ public class ServiceTicketDTO {
             ServiceTicketDTO dto = new ServiceTicketDTO(id, customerId, assignedTechnicianId, status, scheduledDate, description, notes,
                     collectedAmount, createdAt, parentTicketId, isWarrantyCall, customerName, paymentMethod);
             dto.setUpdatedAt(updatedAt);
+            dto.setCompletedAt(completedAt);
+            dto.setCollectionDate(collectionDate);
             return dto;
         }
     }

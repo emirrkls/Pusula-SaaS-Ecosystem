@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +40,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Base64;
 import java.util.List;
@@ -69,6 +71,7 @@ public class ServiceTicketService {
     private final ServicePhotoRepository servicePhotoRepository;
     private final FileUploadService fileUploadService;
     private final ApplicationEventPublisher eventPublisher;
+    private final FinanceService financeService;
 
     public ServiceTicketService(ServiceTicketRepository repository,
             CustomerRepository customerRepository,
@@ -83,6 +86,7 @@ public class ServiceTicketService {
             ServicePhotoRepository servicePhotoRepository,
             FileUploadService fileUploadService,
             ApplicationEventPublisher eventPublisher,
+            FinanceService financeService,
             @Value("${app.business.timezone:Europe/Istanbul}") String businessTimezone) {
         this.repository = repository;
         this.customerRepository = customerRepository;
@@ -97,11 +101,16 @@ public class ServiceTicketService {
         this.servicePhotoRepository = servicePhotoRepository;
         this.fileUploadService = fileUploadService;
         this.eventPublisher = eventPublisher;
+        this.financeService = financeService;
         this.businessZone = ZoneId.of(businessTimezone);
     }
 
     private User getCurrentUser() {
         return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    }
+
+    private boolean isAdmin(User user) {
+        return "COMPANY_ADMIN".equals(user.getRole()) || "SUPER_ADMIN".equals(user.getRole());
     }
 
     public List<ServiceTicketDTO> getAllTickets() {
@@ -139,6 +148,10 @@ public class ServiceTicketService {
     @Transactional
     public ServiceTicketDTO createTicket(ServiceTicketDTO dto) {
         User user = getCurrentUser();
+        if (dto.getStatus() == ServiceTicket.TicketStatus.COMPLETED
+                || dto.getStatus() == ServiceTicket.TicketStatus.CANCELLED) {
+            throw new IllegalArgumentException("Yeni servis kaydı kapalı durumla oluşturulamaz.");
+        }
         User assignedTechnician = dto.getAssignedTechnicianId() == null
                 ? null
                 : requireTechnician(dto.getAssignedTechnicianId(), user.getCompanyId());
@@ -200,6 +213,12 @@ public class ServiceTicketService {
 
         // Apply updates
         if (dto.getStatus() != null && !dto.getStatus().equals(ticket.getStatus())) {
+            if (dto.getStatus() == ServiceTicket.TicketStatus.COMPLETED) {
+                throw new IllegalArgumentException("Servis kapatma işlemi tahsilat bilgileriyle yapılmalıdır.");
+            }
+            if (dto.getStatus() == ServiceTicket.TicketStatus.CANCELLED) {
+                throw new IllegalArgumentException("Servis iptali parça iade akışıyla yapılmalıdır.");
+            }
             String newStatus = getStatusInTurkish(dto.getStatus());
             auditLogService.log(
                     "UPDATE",
@@ -470,19 +489,49 @@ public class ServiceTicketService {
                 .collect(Collectors.toList());
     }
 
-    public ServiceTicketDTO completeService(Long ticketId, BigDecimal collectedAmount, PaymentMethod paymentMethod) {
+    @Transactional
+    public ServiceTicketDTO completeService(Long ticketId, BigDecimal collectedAmount, PaymentMethod paymentMethod,
+            LocalDate requestedCompletionDate) {
         User currentUser = getCurrentUser();
         ServiceTicket ticket = repository.findById(ticketId)
                 .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
 
+        if (!isAdmin(currentUser)
+                && (ticket.getAssignedTechnicianId() == null
+                        || !ticket.getAssignedTechnicianId().equals(currentUser.getId()))) {
+            throw new AccessDeniedException("Yalnızca size atanmış servisi kapatabilirsiniz.");
+        }
+        if (ticket.getStatus() == ServiceTicket.TicketStatus.COMPLETED
+                || ticket.getStatus() == ServiceTicket.TicketStatus.CANCELLED) {
+            throw new IllegalStateException("Kapalı bir servis tekrar tamamlanamaz.");
+        }
+        if (collectedAmount == null || collectedAmount.signum() < 0) {
+            throw new IllegalArgumentException("Tahsilat tutarı sıfır veya daha büyük olmalıdır.");
+        }
+
+        LocalDate businessToday = LocalDate.now(businessZone);
+        if (requestedCompletionDate != null && !isAdmin(currentUser)) {
+            throw new AccessDeniedException("Geçmiş kapanış tarihi yalnızca yöneticiler tarafından seçilebilir.");
+        }
+        LocalDate completionDate = requestedCompletionDate != null ? requestedCompletionDate : businessToday;
+        if (completionDate.isAfter(businessToday)) {
+            throw new IllegalArgumentException("Servis kapanış tarihi gelecekte olamaz.");
+        }
+        PaymentMethod effectivePaymentMethod = paymentMethod != null ? paymentMethod : PaymentMethod.CASH;
+        LocalTime completionTime = completionDate.equals(businessToday)
+                ? LocalTime.now(businessZone)
+                : LocalTime.NOON;
+
         String previousStatus = getStatusInTurkish(ticket.getStatus());
         ticket.setStatus(ServiceTicket.TicketStatus.COMPLETED);
         ticket.setCollectedAmount(collectedAmount);
-        ticket.setPaymentMethod(paymentMethod != null ? paymentMethod : PaymentMethod.CASH);
+        ticket.setPaymentMethod(effectivePaymentMethod);
+        ticket.setCompletedAt(completionDate.atTime(completionTime));
+        ticket.setCollectionDate(effectivePaymentMethod == PaymentMethod.CURRENT_ACCOUNT ? null : completionDate);
 
         // If CURRENT_ACCOUNT, create/update debt record (not liquid cash)
-        if (paymentMethod == PaymentMethod.CURRENT_ACCOUNT && ticket.getCustomerId() != null) {
+        if (effectivePaymentMethod == PaymentMethod.CURRENT_ACCOUNT && ticket.getCustomerId() != null) {
             // Fetch customer entity
             Customer customer = customerRepository.findById(ticket.getCustomerId())
                     .orElseThrow(() -> new RuntimeException("Customer not found"));
@@ -504,6 +553,12 @@ public class ServiceTicketService {
         }
 
         ServiceTicket saved = repository.save(ticket);
+        financeService.reconcileClosedDay(saved.getCompanyId(), completionDate);
+        if (!completionDate.equals(businessToday)) {
+            auditLogService.log("BACKDATED_COMPLETE", "TICKET", saved.getId(),
+                    "Servis geçmiş iş tarihiyle kapatıldı: " + completionDate
+                            + " | Gerçek işlem zamanı: " + LocalDateTime.now(businessZone));
+        }
 
         auditLogService.log(
                 "UPDATE",
@@ -518,12 +573,12 @@ public class ServiceTicketService {
                 saved.getId(),
                 String.format("Tahsilat kaydedildi: %.2f ₺ (%s)",
                         collectedAmount,
-                        paymentMethod != null ? paymentMethod.name() : "CASH"));
+                        effectivePaymentMethod.name()));
 
         // WhatsApp notification — async fire-and-forget
         try {
             BigDecimal remainingDebt = BigDecimal.ZERO;
-            if (paymentMethod == PaymentMethod.CURRENT_ACCOUNT) {
+            if (effectivePaymentMethod == PaymentMethod.CURRENT_ACCOUNT) {
                 remainingDebt = collectedAmount;
             }
             whatsAppNotificationService.notifyServiceCompleted(ticketId, collectedAmount, remainingDebt);
@@ -541,6 +596,16 @@ public class ServiceTicketService {
         ServiceTicket ticket = repository.findById(ticketId)
                 .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
+
+        if (!isAdmin(currentUser)
+                && (ticket.getAssignedTechnicianId() == null
+                        || !ticket.getAssignedTechnicianId().equals(currentUser.getId()))) {
+            throw new AccessDeniedException("Yalnızca size atanmış servisi iptal edebilirsiniz.");
+        }
+        if (ticket.getStatus() == ServiceTicket.TicketStatus.COMPLETED
+                || ticket.getStatus() == ServiceTicket.TicketStatus.CANCELLED) {
+            throw new IllegalStateException("Kapalı bir servis tekrar iptal edilemez.");
+        }
 
         // Return all used parts back to inventory
         List<com.pusula.backend.entity.ServiceUsedPart> usedParts = serviceUsedPartRepository
@@ -611,8 +676,8 @@ public class ServiceTicketService {
 
         // Check if warranty call (completed less than 30 days ago)
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
-        boolean isWarranty = originalTicket.getUpdatedAt() != null &&
-                originalTicket.getUpdatedAt().isAfter(thirtyDaysAgo);
+        boolean isWarranty = originalTicket.getEffectiveCompletedAt() != null &&
+                originalTicket.getEffectiveCompletedAt().isAfter(thirtyDaysAgo);
         followUpTicket.setWarrantyCall(isWarranty);
 
         // Save and return
@@ -669,6 +734,8 @@ public class ServiceTicketService {
                 .collectedAmount(ticket.getCollectedAmount())
                 .createdAt(ticket.getCreatedAt())
                 .updatedAt(ticket.getUpdatedAt())
+                .completedAt(ticket.getEffectiveCompletedAt())
+                .collectionDate(ticket.getEffectiveCollectionDate())
                 .parentTicketId(ticket.getParentTicketId())
                 .isWarrantyCall(ticket.isWarrantyCall())
                 .paymentMethod(ticket.getPaymentMethod())

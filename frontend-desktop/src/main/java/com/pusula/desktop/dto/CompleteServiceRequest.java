@@ -1,11 +1,13 @@
 package com.pusula.desktop.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public class CompleteServiceRequest {
     private BigDecimal collectedAmount;
     private BigDecimal laborCost;
     private String paymentMethod;
+    private LocalDate completionDate;
 
     public CompleteServiceRequest() {
     }
@@ -43,5 +45,13 @@ public class CompleteServiceRequest {
 
     public void setPaymentMethod(String paymentMethod) {
         this.paymentMethod = paymentMethod;
+    }
+
+    public LocalDate getCompletionDate() {
+        return completionDate;
+    }
+
+    public void setCompletionDate(LocalDate completionDate) {
+        this.completionDate = completionDate;
     }
 }

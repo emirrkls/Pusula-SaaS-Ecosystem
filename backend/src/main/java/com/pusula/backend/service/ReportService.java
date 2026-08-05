@@ -255,8 +255,9 @@ public class ReportService {
                 DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
                 String startDate = ticket.getCreatedAt() != null ? ticket.getCreatedAt().format(fmt) : "-";
                 String endDate = "-";
-                if (ticket.getStatus() == ServiceTicket.TicketStatus.COMPLETED && ticket.getUpdatedAt() != null) {
-                        endDate = ticket.getUpdatedAt().format(fmt);
+                if (ticket.getStatus() == ServiceTicket.TicketStatus.COMPLETED
+                                && ticket.getEffectiveCompletedAt() != null) {
+                        endDate = ticket.getEffectiveCompletedAt().format(fmt);
                 }
 
                 Paragraph pStart = new Paragraph("Müracaat Tarihi: " + startDate, NORMAL_FONT);
@@ -862,17 +863,17 @@ public class ReportService {
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
-                                .filter(st -> st.getUpdatedAt() != null)
+                                .filter(st -> st.getEffectiveCollectionDate() != null)
                                 // Exclude CURRENT_ACCOUNT payments (not liquid cash)
                                 .filter(st -> st.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT)
                                 .collect(java.util.stream.Collectors.toList());
 
                 List<Expense> allExpenses = expenseRepository.findByCompanyId(companyId);
 
-                // Group tickets by month (using updatedAt)
+                // Group liquid service income by its actual collection date.
                 Map<java.time.YearMonth, List<ServiceTicket>> ticketsByMonth = allTickets.stream()
                                 .collect(java.util.stream.Collectors.groupingBy(
-                                                st -> java.time.YearMonth.from(st.getUpdatedAt())));
+                                                st -> java.time.YearMonth.from(st.getEffectiveCollectionDate())));
 
                 // Group expenses by month
                 Map<java.time.YearMonth, List<Expense>> expensesByMonth = allExpenses.stream()
@@ -967,9 +968,9 @@ public class ReportService {
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
-                                .filter(st -> st.getUpdatedAt() != null &&
-                                                !st.getUpdatedAt().toLocalDate().isBefore(startDate) &&
-                                                !st.getUpdatedAt().toLocalDate().isAfter(endDate))
+                                .filter(st -> st.getEffectiveCollectionDate() != null &&
+                                                !st.getEffectiveCollectionDate().isBefore(startDate) &&
+                                                !st.getEffectiveCollectionDate().isAfter(endDate))
                                 // Exclude CURRENT_ACCOUNT payments (not liquid cash)
                                 .filter(st -> st.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT)
                                 .collect(java.util.stream.Collectors.toList());
@@ -1020,15 +1021,15 @@ public class ReportService {
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
-                                .filter(st -> st.getUpdatedAt() != null &&
-                                                !st.getUpdatedAt().toLocalDate().isBefore(startDate) &&
-                                                !st.getUpdatedAt().toLocalDate().isAfter(endDate))
+                                .filter(st -> st.getEffectiveCollectionDate() != null &&
+                                                !st.getEffectiveCollectionDate().isBefore(startDate) &&
+                                                !st.getEffectiveCollectionDate().isAfter(endDate))
                                 .collect(java.util.stream.Collectors.toList());
 
                 List<Expense> ledgerExpenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate);
 
                 Map<java.time.LocalDate, List<ServiceTicket>> ticketsByDate = ledgerTickets.stream()
-                                .collect(java.util.stream.Collectors.groupingBy(st -> st.getUpdatedAt().toLocalDate()));
+                                .collect(java.util.stream.Collectors.groupingBy(ServiceTicket::getEffectiveCollectionDate));
 
                 Map<java.time.LocalDate, List<Expense>> expensesByDate = ledgerExpenses.stream()
                                 .collect(java.util.stream.Collectors.groupingBy(Expense::getDate));
@@ -1187,8 +1188,8 @@ public class ReportService {
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
-                                .filter(st -> st.getUpdatedAt() != null)
-                                .filter(st -> java.time.YearMonth.from(st.getUpdatedAt()).isBefore(targetPeriod))
+                                .filter(st -> st.getEffectiveCollectionDate() != null)
+                                .filter(st -> java.time.YearMonth.from(st.getEffectiveCollectionDate()).isBefore(targetPeriod))
                                 .filter(st -> st.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT)
                                 .collect(java.util.stream.Collectors.toList());
 

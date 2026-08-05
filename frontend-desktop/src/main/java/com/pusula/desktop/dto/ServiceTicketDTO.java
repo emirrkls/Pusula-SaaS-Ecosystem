@@ -1,6 +1,7 @@
 package com.pusula.desktop.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class ServiceTicketDTO {
@@ -15,6 +16,8 @@ public class ServiceTicketDTO {
     private BigDecimal collectedAmount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime completedAt;
+    private LocalDate collectionDate;
     private Long parentTicketId;
     private boolean isWarrantyCall;
     private String customerName; // Display field for table
@@ -99,6 +102,22 @@ public class ServiceTicketDTO {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public LocalDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
+    public LocalDate getCollectionDate() {
+        return collectionDate;
+    }
+
+    public void setCollectionDate(LocalDate collectionDate) {
+        this.collectionDate = collectionDate;
     }
 
     public BigDecimal getCollectedAmount() {

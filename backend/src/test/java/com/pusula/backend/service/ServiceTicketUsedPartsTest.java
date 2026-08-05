@@ -41,6 +41,7 @@ class ServiceTicketUsedPartsTest {
     @Mock ServicePhotoRepository photoRepository;
     @Mock FileUploadService fileUploadService;
     @Mock ApplicationEventPublisher publisher;
+    @Mock FinanceService financeService;
 
     private ServiceTicketService service;
 
@@ -49,7 +50,7 @@ class ServiceTicketUsedPartsTest {
         service = new ServiceTicketService(ticketRepository, customerRepository, userRepository,
                 inventoryRepository, usedPartRepository, auditLogService, currentAccountRepository,
                 vehicleStockRepository, whatsAppNotificationService, featureService, photoRepository,
-                fileUploadService, publisher, "Europe/Istanbul");
+                fileUploadService, publisher, financeService, "Europe/Istanbul");
     }
 
     @AfterEach

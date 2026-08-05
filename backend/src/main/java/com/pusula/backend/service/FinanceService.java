@@ -23,7 +23,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -82,8 +81,9 @@ public class FinanceService {
                 BigDecimal totalIncome = tickets.stream()
                                 .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
                                 .filter(t -> {
-                                        LocalDate ticketDate = t.getUpdatedAt().toLocalDate();
-                                        return !ticketDate.isBefore(startDate) && !ticketDate.isAfter(endDate);
+                                        LocalDate collectionDate = t.getEffectiveCollectionDate();
+                                        return collectionDate != null && !collectionDate.isBefore(startDate)
+                                                        && !collectionDate.isAfter(endDate);
                                 })
                                 .map(ServiceTicket::getCollectedAmount)
                                 .filter(amount -> amount != null)
@@ -199,9 +199,6 @@ public class FinanceService {
          * Get daily summary for a specific date
          */
         public DailySummaryDTO getDailySummary(Long companyId, LocalDate date) {
-                LocalDateTime startOfDay = date.atStartOfDay();
-                LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
-
                 // Calculate Income from completed tickets on this date
                 // EXCLUDE CURRENT_ACCOUNT payments (not liquid cash - those become income when
                 // customer pays)
@@ -211,10 +208,8 @@ public class FinanceService {
                                 .filter(t -> t.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT) // Exclude
                                                                                                                               // credit/debt
                                 .filter(t -> {
-                                        LocalDateTime updatedAt = t.getUpdatedAt();
-                                        return updatedAt != null
-                                                        && !updatedAt.isBefore(startOfDay)
-                                                        && !updatedAt.isAfter(endOfDay);
+                                        LocalDate collectionDate = t.getEffectiveCollectionDate();
+                                        return date.equals(collectionDate);
                                 })
                                 .collect(Collectors.toList());
 
@@ -329,6 +324,30 @@ public class FinanceService {
                                                 + " ₺");
 
                 return saved;
+        }
+
+        /**
+         * Keep the immutable-looking daily snapshot consistent when an administrator
+         * records a legitimate late transaction for an already closed business day.
+         */
+        public void reconcileClosedDay(Long companyId, LocalDate date) {
+                dailyClosingRepository.findByCompanyIdAndDate(companyId, date)
+                                .filter(closing -> closing.getStatus() == DailyClosing.ClosingStatus.CLOSED)
+                                .ifPresent(closing -> {
+                                        DailySummaryDTO summary = getDailySummary(companyId, date);
+                                        BigDecimal oldIncome = closing.getTotalIncome();
+                                        BigDecimal oldExpense = closing.getTotalExpense();
+                                        closing.setTotalIncome(summary.getTotalIncome());
+                                        closing.setTotalExpense(summary.getTotalExpense());
+                                        closing.setNetCash(summary.getNetCash());
+                                        dailyClosingRepository.save(closing);
+                                        auditLogService.log("RECONCILE", "DAY_CLOSING", closing.getId(),
+                                                        "Geçmiş gün mutabakatı: " + date
+                                                                        + " | Gelir: " + oldIncome + " -> "
+                                                                        + summary.getTotalIncome()
+                                                                        + " | Gider: " + oldExpense + " -> "
+                                                                        + summary.getTotalExpense());
+                                });
         }
 
         /**
@@ -582,9 +601,6 @@ public class FinanceService {
                 // Calculate totals for each day
                 for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
                         LocalDate currentDate = date;
-                        LocalDateTime dayStart = currentDate.atStartOfDay();
-                        LocalDateTime dayEnd = currentDate.atTime(LocalTime.MAX);
-
                         // Income for this day
                         // EXCLUDE CURRENT_ACCOUNT payments (not liquid cash - those become income when
                         // customer pays)
@@ -592,9 +608,7 @@ public class FinanceService {
                                         .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
                                         .filter(t -> t.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT)
                                         .filter(t -> {
-                                                LocalDateTime updatedAt = t.getUpdatedAt();
-                                                return updatedAt != null && !updatedAt.isBefore(dayStart)
-                                                                && !updatedAt.isAfter(dayEnd);
+                                                return currentDate.equals(t.getEffectiveCollectionDate());
                                         })
                                         .map(ServiceTicket::getCollectedAmount)
                                         .filter(amount -> amount != null)

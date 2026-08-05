@@ -91,7 +91,9 @@ public class AdminDashboardService {
         BigDecimal ticketRevenueThisMonth = tickets.stream()
                 .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
                 .filter(t -> t.getPaymentMethod() != PaymentMethod.CURRENT_ACCOUNT)
-                .filter(t -> isOnOrAfterBusinessDate(t.getUpdatedAt(), monthStart))
+                .filter(t -> t.getEffectiveCollectionDate() != null
+                        && !t.getEffectiveCollectionDate().isBefore(monthStart)
+                        && !t.getEffectiveCollectionDate().isAfter(monthEnd))
                 .map(t -> t.getCollectedAmount() != null ? t.getCollectedAmount() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -132,7 +134,7 @@ public class AdminDashboardService {
 
         int completedThisMonth = (int) tickets.stream()
                 .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
-                .filter(t -> isOnOrAfterBusinessDate(t.getUpdatedAt(), monthStart))
+                .filter(t -> isDateOnOrAfter(t.getEffectiveCompletedAt(), monthStart))
                 .count();
 
         int openedToday = (int) tickets.stream()
@@ -142,7 +144,7 @@ public class AdminDashboardService {
         int closedToday = (int) tickets.stream()
                 .filter(t -> t.getStatus() == ServiceTicket.TicketStatus.COMPLETED
                         || t.getStatus() == ServiceTicket.TicketStatus.CANCELLED)
-                .filter(t -> isBusinessDateEquals(t.getUpdatedAt(), businessToday))
+                .filter(t -> isDateEquals(t.getEffectiveCompletedAt(), businessToday))
                 .count();
 
         int pendingNow = (int) tickets.stream()
@@ -204,26 +206,27 @@ public class AdminDashboardService {
             // Completed today
             long completedToday = myTickets.stream()
                     .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
-                    .filter(t -> isBusinessDateEquals(t.getUpdatedAt(), businessToday))
+                    .filter(t -> isDateEquals(t.getEffectiveCompletedAt(), businessToday))
                     .count();
 
             // Completed this month
             long completedMonth = myTickets.stream()
                     .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
-                    .filter(t -> isOnOrAfterBusinessDate(t.getUpdatedAt(), monthStart))
+                    .filter(t -> isDateOnOrAfter(t.getEffectiveCompletedAt(), monthStart))
                     .count();
 
             // Collections today
             BigDecimal collectedToday = myTickets.stream()
                     .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
-                    .filter(t -> isBusinessDateEquals(t.getUpdatedAt(), businessToday))
+                    .filter(t -> businessToday.equals(t.getEffectiveCollectionDate()))
                     .map(t -> t.getCollectedAmount() != null ? t.getCollectedAmount() : BigDecimal.ZERO)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
             // Collections this month
             BigDecimal collectedMonth = myTickets.stream()
                     .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
-                    .filter(t -> isOnOrAfterBusinessDate(t.getUpdatedAt(), monthStart))
+                    .filter(t -> t.getEffectiveCollectionDate() != null
+                            && !t.getEffectiveCollectionDate().isBefore(monthStart))
                     .map(t -> t.getCollectedAmount() != null ? t.getCollectedAmount() : BigDecimal.ZERO)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -236,7 +239,8 @@ public class AdminDashboardService {
             // Last location — from last completed ticket's customer
             String lastLocation = myTickets.stream()
                     .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
-                    .max(Comparator.comparing(t -> t.getUpdatedAt() != null ? t.getUpdatedAt() : LocalDateTime.MIN))
+                    .max(Comparator.comparing(t -> t.getEffectiveCompletedAt() != null
+                            ? t.getEffectiveCompletedAt() : LocalDateTime.MIN))
                     .flatMap(t -> customerRepository.findById(t.getCustomerId()))
                     .map(Customer::getCoordinates)
                     .orElse(null);
@@ -264,9 +268,12 @@ public class AdminDashboardService {
         return businessDate != null && businessDate.equals(date);
     }
 
-    private boolean isOnOrAfterBusinessDate(LocalDateTime dateTime, LocalDate date) {
-        LocalDate businessDate = toBusinessDate(dateTime);
-        return businessDate != null && !businessDate.isBefore(date);
+    private boolean isDateEquals(LocalDateTime dateTime, LocalDate date) {
+        return dateTime != null && dateTime.toLocalDate().equals(date);
+    }
+
+    private boolean isDateOnOrAfter(LocalDateTime dateTime, LocalDate date) {
+        return dateTime != null && !dateTime.toLocalDate().isBefore(date);
     }
 
     // ═══════════════════════════════════════════════════

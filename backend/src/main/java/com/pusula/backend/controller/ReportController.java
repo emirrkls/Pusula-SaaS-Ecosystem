@@ -86,7 +86,7 @@ public class ReportController {
         Map<String, Map<String, Integer>> performanceData = new HashMap<>();
 
         for (ServiceTicket ticket : completedTickets) {
-            if (ticket.getAssignedTechnicianId() == null || ticket.getUpdatedAt() == null) {
+            if (ticket.getAssignedTechnicianId() == null || ticket.getEffectiveCompletedAt() == null) {
                 continue;
             }
 
@@ -100,7 +100,7 @@ public class ReportController {
             String techName = technician.getFullName();
 
             // Get date string
-            String dateKey = ticket.getUpdatedAt().toLocalDate().format(dateFormatter);
+            String dateKey = ticket.getEffectiveCompletedAt().toLocalDate().format(dateFormatter);
 
             // Initialize maps if needed
             performanceData.putIfAbsent(techName, new HashMap<>());
