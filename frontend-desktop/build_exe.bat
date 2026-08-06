@@ -22,7 +22,7 @@ echo Adim 3: JPackage ile bagimsiz Native Installer (Kurulum Sihirbazi) uretiliy
 if exist "target\installer" rmdir /s /q "target\installer"
 
 REM JPackage komutu:
-call jpackage --type msi --name "Pusula" --app-version 3.2.9 --description "Pusula Servis Yönetimi" --vendor "Pusula" --icon "src\main\resources\app.ico" --dest target\installer --input target\jpackage-input --main-jar frontend-desktop-1.0-SNAPSHOT.jar --main-class com.pusula.desktop.Launcher --win-shortcut --win-menu --win-dir-chooser
+call jpackage --type msi --name "Pusula" --app-version 3.2.11 --description "Pusula Servis Yönetimi" --vendor "Pusula" --icon "src\main\resources\app.ico" --dest target\installer --input target\jpackage-input --main-jar frontend-desktop-1.0-SNAPSHOT.jar --main-class com.pusula.desktop.Launcher --win-shortcut --win-menu --win-dir-chooser
 
 if %ERRORLEVEL% neq 0 (
     echo [HATA] JPackage olusturma basarisiz oldu! Lutfen WiX Toolset kurulu oldugundan veya JDK surumunuzden emin olun.
@@ -32,7 +32,7 @@ if %ERRORLEVEL% neq 0 (
 
 echo.
 echo ========================================================
-echo [BASARILI] Kurulum dosyasi (Pusula-3.2.9.msi) basariyla olusturuldu!
+echo [BASARILI] Kurulum dosyasi (Pusula-3.2.11.msi) basariyla olusturuldu!
 echo Konum: frontend-desktop\target\installer\
 echo Bu MSI dosyasini kendi Java'si icinde bagimsizca sirketlere gonderebilirsiniz!
 echo ========================================================

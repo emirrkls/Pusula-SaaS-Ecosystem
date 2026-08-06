@@ -32,9 +32,6 @@ public class ServiceTicketExpenseController {
             @PathVariable Long ticketId,
             @RequestBody ServiceTicketExpenseDTO dto) {
         dto.setServiceTicketId(ticketId);
-        if (dto.getCompanyId() == null) {
-            dto.setCompanyId(1L);
-        }
         return ResponseEntity.ok(expenseService.addExpense(dto));
     }
 
@@ -45,7 +42,7 @@ public class ServiceTicketExpenseController {
     public ResponseEntity<Void> deleteExpense(
             @PathVariable Long ticketId,
             @PathVariable Long expenseId) {
-        expenseService.deleteExpense(expenseId);
+        expenseService.deleteExpense(ticketId, expenseId);
         return ResponseEntity.ok().build();
     }
 }

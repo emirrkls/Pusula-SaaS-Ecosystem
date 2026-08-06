@@ -2,6 +2,7 @@ package com.pusula.backend.dto;
 
 import lombok.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -19,5 +20,6 @@ public class ServiceTicketExpenseDTO {
     private BigDecimal amount;
     private String supplier;
     private String notes;
+    private LocalDate expenseDate;
     private LocalDateTime createdAt;
 }

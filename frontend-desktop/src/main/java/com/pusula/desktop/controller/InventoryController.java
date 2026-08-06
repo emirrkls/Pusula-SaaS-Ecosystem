@@ -28,6 +28,8 @@ import com.pusula.desktop.util.UTF8Control;
 
 import javafx.application.Platform;
 
+import javafx.animation.PauseTransition;
+
 import javafx.beans.property.SimpleObjectProperty;
 
 import javafx.beans.property.SimpleStringProperty;
@@ -36,17 +38,23 @@ import javafx.collections.FXCollections;
 
 import javafx.collections.ObservableList;
 
+import javafx.collections.transformation.SortedList;
+
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
 
 import javafx.scene.control.*;
 
+import javafx.scene.Node;
+
 import javafx.scene.layout.HBox;
 
 import javafx.scene.layout.VBox;
 
 import javafx.stage.Stage;
+
+import javafx.util.Duration;
 
 import retrofit2.Call;
 
@@ -67,6 +75,8 @@ import java.util.ResourceBundle;
 
 
 public class InventoryController {
+
+    private static final Locale TR = Locale.forLanguageTag("tr-TR");
 
 
 
@@ -102,8 +112,6 @@ public class InventoryController {
 
     @FXML private Label resultCountLabel;
 
-    @FXML private VBox emptyStateBox;
-
     @FXML private ComboBox<VehicleDTO> vehicleFilterComboBox;
 
     @FXML private TableView<VehicleStockDTO> vehicleStocksTable;
@@ -119,6 +127,10 @@ public class InventoryController {
     private final ObservableList<InventoryDTO> inventoryList = FXCollections.observableArrayList();
 
     private javafx.collections.transformation.FilteredList<InventoryDTO> filteredList;
+
+    private SortedList<InventoryDTO> sortedList;
+
+    private final PauseTransition searchDebounce = new PauseTransition(Duration.millis(200));
 
     private final ObservableList<VehicleStockDTO> vehicleStocksList = FXCollections.observableArrayList();
 
@@ -170,6 +182,8 @@ public class InventoryController {
 
         colQuantity.setCellFactory(col -> new TableCell<>() {
 
+            private final Label badge = new Label();
+
             @Override
 
             protected void updateItem(Integer item, boolean empty) {
@@ -188,7 +202,14 @@ public class InventoryController {
 
                 InventoryDTO row = getTableRow().getItem();
 
-                setGraphic(TableUiHelper.createCriticalBadge(item != null ? item : 0, row.getCriticalLevel()));
+                int quantity = item != null ? item : 0;
+                badge.setText(String.valueOf(quantity));
+                badge.getStyleClass().removeAll("mini-pill", "mini-pill-danger");
+                if (row.getCriticalLevel() != null && row.getCriticalLevel() > 0
+                        && quantity <= row.getCriticalLevel()) {
+                    badge.getStyleClass().addAll("mini-pill", "mini-pill-danger");
+                }
+                setGraphic(badge);
 
                 setText(null);
 
@@ -222,6 +243,17 @@ public class InventoryController {
 
         colDistribution.setCellFactory(col -> new TableCell<>() {
 
+            private final HBox distribution = new HBox(6);
+            private final Label warehouseLabel = new Label();
+            private final Label vehicleLabel = new Label();
+
+            {
+                distribution.setAlignment(Pos.CENTER_LEFT);
+                warehouseLabel.getStyleClass().addAll("mini-pill", "mini-pill-blue");
+                vehicleLabel.getStyleClass().addAll("mini-pill", "mini-pill-green");
+                distribution.getChildren().addAll(warehouseLabel, vehicleLabel);
+            }
+
             @Override
 
             protected void updateItem(Void item, boolean empty) {
@@ -242,7 +274,9 @@ public class InventoryController {
 
                 int veh = row.getInVehicleQuantity() != null ? row.getInVehicleQuantity() : 0;
 
-                setGraphic(TableUiHelper.createDistributionPills(wh, veh));
+                warehouseLabel.setText("Depo " + wh);
+                vehicleLabel.setText("Araç " + veh);
+                setGraphic(distribution);
 
             }
 
@@ -290,9 +324,14 @@ public class InventoryController {
 
         filteredList = new javafx.collections.transformation.FilteredList<>(inventoryList, p -> true);
 
-        searchField.textProperty().addListener((o, ov, nv) -> updatePredicate());
+        sortedList = new SortedList<>(filteredList);
+        sortedList.comparatorProperty().bind(inventoryTable.comparatorProperty());
 
-        inventoryTable.setItems(filteredList);
+        searchDebounce.setOnFinished(event -> updatePredicate());
+        searchField.textProperty().addListener((o, ov, nv) -> searchDebounce.playFromStart());
+
+        inventoryTable.setItems(sortedList);
+        inventoryTable.setFixedCellSize(48);
 
         filteredList.addListener((javafx.collections.ListChangeListener<InventoryDTO>) c -> updateCounts());
 
@@ -324,7 +363,11 @@ public class InventoryController {
 
             row.setOnMouseClicked(event -> {
 
-                if (!row.isEmpty() && row.getItem() != null) {
+                boolean isPrimaryDoubleClick = event.getButton() == javafx.scene.input.MouseButton.PRIMARY
+                        && event.getClickCount() == 2
+                        && event.isStillSincePress();
+                if (isPrimaryDoubleClick && !row.isEmpty() && row.getItem() != null
+                        && !isInteractiveTarget(event.getTarget(), row)) {
 
                     inventoryTable.getSelectionModel().select(row.getItem());
 
@@ -350,6 +393,20 @@ public class InventoryController {
 
         loadVehicleStocks();
 
+    }
+
+    private boolean isInteractiveTarget(Object target, TableRow<?> row) {
+        if (!(target instanceof Node node)) {
+            return false;
+        }
+        Node current = node;
+        while (current != null && current != row) {
+            if (current instanceof ButtonBase || current instanceof ScrollBar) {
+                return true;
+            }
+            current = current.getParent();
+        }
+        return false;
     }
 
 
@@ -450,6 +507,12 @@ public class InventoryController {
 
         filteredList.setPredicate(item -> matchesChip(item) && matchesSearch(item, search));
 
+        Platform.runLater(() -> {
+            if (!sortedList.isEmpty()) {
+                inventoryTable.scrollTo(0);
+            }
+        });
+
     }
 
 
@@ -482,7 +545,7 @@ public class InventoryController {
 
 
 
-    private boolean matchesSearch(InventoryDTO item, String search) {
+    static boolean matchesSearch(InventoryDTO item, String search) {
 
         if (search == null || search.isBlank()) {
 
@@ -490,17 +553,30 @@ public class InventoryController {
 
         }
 
-        String q = search.toLowerCase(Locale.forLanguageTag("tr-TR"));
+        String haystack = String.join(" ",
+                normalize(item.getPartName()),
+                normalize(item.getBrand()),
+                normalize(item.getCategory()),
+                normalize(item.getBarcode()),
+                normalize(item.getLocation()),
+                normalize(item.getQuantity()),
+                normalize(item.getBuyPrice()),
+                normalize(item.getSellPrice()));
 
-        return contains(item.getPartName(), q) || contains(item.getBrand(), q) || contains(item.getCategory(), q);
+        for (String token : normalize(search).split("\\s+")) {
+            if (!token.isBlank() && !haystack.contains(token)) {
+                return false;
+            }
+        }
+        return true;
 
     }
 
 
 
-    private boolean contains(String value, String q) {
+    private static String normalize(Object value) {
 
-        return value != null && value.toLowerCase(Locale.forLanguageTag("tr-TR")).contains(q);
+        return value != null ? value.toString().strip().toLowerCase(TR) : "";
 
     }
 
@@ -515,14 +591,6 @@ public class InventoryController {
                 .count();
 
         resultCountLabel.setText(filteredList.size() + " parça · " + critical + " kritik");
-
-        boolean empty = filteredList.isEmpty();
-
-        emptyStateBox.setVisible(empty);
-
-        emptyStateBox.setManaged(empty);
-
-        inventoryTable.setVisible(!empty);
 
     }
 
@@ -549,6 +617,8 @@ public class InventoryController {
     public void clearFilter() {
 
         currentFilter = StockFilter.ALL;
+
+        searchDebounce.stop();
 
         searchField.clear();
 

@@ -12,6 +12,7 @@ public class InventoryDTO {
     private Integer criticalLevel;
     private String brand;
     private String category;
+    private String barcode;
     private String location; // DEPO or VEHICLE
     private Long vehicleId; // If location is VEHICLE, which vehicle
 
@@ -83,6 +84,14 @@ public class InventoryDTO {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getBarcode() {
+        return barcode;
+    }
+
+    public void setBarcode(String barcode) {
+        this.barcode = barcode;
     }
 
     public String getLocation() {

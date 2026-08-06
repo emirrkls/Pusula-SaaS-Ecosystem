@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -51,6 +52,14 @@ public class ServiceTicketExpense {
      */
     @Column(length = 500)
     private String notes;
+
+    /** Business date on which this expense belongs in finance reports. */
+    @Column(name = "expense_date", nullable = false)
+    private LocalDate expenseDate;
+
+    /** Paired row in the finance ledger, used for consistent deletion. */
+    @Column(name = "finance_expense_id")
+    private Long financeExpenseId;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
