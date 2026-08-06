@@ -37,6 +37,9 @@ public class ServiceUsedPart extends BaseEntity {
     @Column(name = "selling_price_snapshot")
     private BigDecimal sellingPriceSnapshot;
 
+    @Column(name = "buying_price_snapshot")
+    private BigDecimal buyingPriceSnapshot;
+
     // NULL = from main inventory, set = from specific vehicle's stock
     @Column(name = "source_vehicle_id")
     private Long sourceVehicleId;
@@ -94,6 +97,14 @@ public class ServiceUsedPart extends BaseEntity {
         this.sellingPriceSnapshot = sellingPriceSnapshot;
     }
 
+    public BigDecimal getBuyingPriceSnapshot() {
+        return buyingPriceSnapshot;
+    }
+
+    public void setBuyingPriceSnapshot(BigDecimal buyingPriceSnapshot) {
+        this.buyingPriceSnapshot = buyingPriceSnapshot;
+    }
+
     public Long getSourceVehicleId() {
         return sourceVehicleId;
     }
@@ -109,6 +120,7 @@ public class ServiceUsedPart extends BaseEntity {
         private Inventory inventory;
         private Integer quantityUsed;
         private BigDecimal sellingPriceSnapshot;
+        private BigDecimal buyingPriceSnapshot;
         private Long sourceVehicleId;
 
         ServiceUsedPartBuilder() {
@@ -144,6 +156,11 @@ public class ServiceUsedPart extends BaseEntity {
             return this;
         }
 
+        public ServiceUsedPartBuilder buyingPriceSnapshot(BigDecimal buyingPriceSnapshot) {
+            this.buyingPriceSnapshot = buyingPriceSnapshot;
+            return this;
+        }
+
         public ServiceUsedPartBuilder sourceVehicleId(Long sourceVehicleId) {
             this.sourceVehicleId = sourceVehicleId;
             return this;
@@ -152,6 +169,7 @@ public class ServiceUsedPart extends BaseEntity {
         public ServiceUsedPart build() {
             ServiceUsedPart part = new ServiceUsedPart(id, companyId, serviceTicket, inventory, quantityUsed,
                     sellingPriceSnapshot);
+            part.setBuyingPriceSnapshot(buyingPriceSnapshot);
             part.setSourceVehicleId(sourceVehicleId);
             return part;
         }

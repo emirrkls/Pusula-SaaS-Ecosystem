@@ -34,6 +34,22 @@ public class ServiceTicket extends BaseEntity {
     @Column(name = "collected_amount")
     private BigDecimal collectedAmount;
 
+    /** Customer-facing labor/service fee. Uses the legacy labor_cost column. */
+    @Column(name = "labor_cost")
+    private BigDecimal laborFee;
+
+    /** Sum of part selling-price snapshots at completion time. */
+    @Column(name = "parts_total")
+    private BigDecimal partsTotal;
+
+    /** Total amount charged to the customer: parts + labor/service fee. */
+    @Column(name = "invoice_total")
+    private BigDecimal invoiceTotal;
+
+    /** Portion of the invoice that remains receivable after completion. */
+    @Column(name = "outstanding_amount")
+    private BigDecimal outstandingAmount;
+
     /** Business timestamp at which the service was actually completed. */
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
@@ -128,6 +144,52 @@ public class ServiceTicket extends BaseEntity {
 
     public void setCollectedAmount(BigDecimal collectedAmount) {
         this.collectedAmount = collectedAmount;
+    }
+
+    public BigDecimal getLaborFee() {
+        return laborFee;
+    }
+
+    public void setLaborFee(BigDecimal laborFee) {
+        this.laborFee = laborFee;
+    }
+
+    public BigDecimal getPartsTotal() {
+        return partsTotal;
+    }
+
+    public void setPartsTotal(BigDecimal partsTotal) {
+        this.partsTotal = partsTotal;
+    }
+
+    public BigDecimal getInvoiceTotal() {
+        return invoiceTotal;
+    }
+
+    public void setInvoiceTotal(BigDecimal invoiceTotal) {
+        this.invoiceTotal = invoiceTotal;
+    }
+
+    public BigDecimal getOutstandingAmount() {
+        return outstandingAmount;
+    }
+
+    public void setOutstandingAmount(BigDecimal outstandingAmount) {
+        this.outstandingAmount = outstandingAmount;
+    }
+
+    /** Legacy tickets have no invoice_total and retain collected_amount semantics. */
+    @Transient
+    public BigDecimal getEffectiveInvoiceTotal() {
+        if (invoiceTotal != null) {
+            return invoiceTotal;
+        }
+        return collectedAmount != null ? collectedAmount : BigDecimal.ZERO;
+    }
+
+    @Transient
+    public boolean usesStructuredPricing() {
+        return invoiceTotal != null;
     }
 
     public LocalDateTime getCompletedAt() {

@@ -16,6 +16,10 @@ public class ServiceTicketDTO {
     private String description;
     private String notes;
     private BigDecimal collectedAmount;
+    private BigDecimal laborFee;
+    private BigDecimal partsTotal;
+    private BigDecimal invoiceTotal;
+    private BigDecimal outstandingAmount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime completedAt;
@@ -121,6 +125,18 @@ public class ServiceTicketDTO {
         this.collectedAmount = collectedAmount;
     }
 
+    public BigDecimal getLaborFee() { return laborFee; }
+    public void setLaborFee(BigDecimal laborFee) { this.laborFee = laborFee; }
+
+    public BigDecimal getPartsTotal() { return partsTotal; }
+    public void setPartsTotal(BigDecimal partsTotal) { this.partsTotal = partsTotal; }
+
+    public BigDecimal getInvoiceTotal() { return invoiceTotal; }
+    public void setInvoiceTotal(BigDecimal invoiceTotal) { this.invoiceTotal = invoiceTotal; }
+
+    public BigDecimal getOutstandingAmount() { return outstandingAmount; }
+    public void setOutstandingAmount(BigDecimal outstandingAmount) { this.outstandingAmount = outstandingAmount; }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -209,6 +225,10 @@ public class ServiceTicketDTO {
         private String description;
         private String notes;
         private BigDecimal collectedAmount;
+        private BigDecimal laborFee;
+        private BigDecimal partsTotal;
+        private BigDecimal invoiceTotal;
+        private BigDecimal outstandingAmount;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
         private LocalDateTime completedAt;
@@ -261,6 +281,11 @@ public class ServiceTicketDTO {
             return this;
         }
 
+        public ServiceTicketDTOBuilder laborFee(BigDecimal laborFee) { this.laborFee = laborFee; return this; }
+        public ServiceTicketDTOBuilder partsTotal(BigDecimal partsTotal) { this.partsTotal = partsTotal; return this; }
+        public ServiceTicketDTOBuilder invoiceTotal(BigDecimal invoiceTotal) { this.invoiceTotal = invoiceTotal; return this; }
+        public ServiceTicketDTOBuilder outstandingAmount(BigDecimal outstandingAmount) { this.outstandingAmount = outstandingAmount; return this; }
+
         public ServiceTicketDTOBuilder createdAt(LocalDateTime createdAt) {
             this.createdAt = createdAt;
             return this;
@@ -307,6 +332,10 @@ public class ServiceTicketDTO {
             dto.setUpdatedAt(updatedAt);
             dto.setCompletedAt(completedAt);
             dto.setCollectionDate(collectionDate);
+            dto.setLaborFee(laborFee);
+            dto.setPartsTotal(partsTotal);
+            dto.setInvoiceTotal(invoiceTotal);
+            dto.setOutstandingAmount(outstandingAmount);
             return dto;
         }
     }

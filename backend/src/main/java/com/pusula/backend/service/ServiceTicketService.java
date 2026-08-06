@@ -436,6 +436,7 @@ public class ServiceTicketService {
                 .inventory(inventory)
                 .quantityUsed(dto.getQuantityUsed())
                 .sellingPriceSnapshot(inventory.getSellPrice())
+                .buyingPriceSnapshot(inventory.getBuyPrice())
                 .sourceVehicleId(sourceVehicleId)
                 .build();
 
@@ -492,6 +493,12 @@ public class ServiceTicketService {
     @Transactional
     public ServiceTicketDTO completeService(Long ticketId, BigDecimal collectedAmount, PaymentMethod paymentMethod,
             LocalDate requestedCompletionDate) {
+        return completeService(ticketId, collectedAmount, null, paymentMethod, requestedCompletionDate);
+    }
+
+    @Transactional
+    public ServiceTicketDTO completeService(Long ticketId, BigDecimal collectedAmount, BigDecimal laborFee,
+            PaymentMethod paymentMethod, LocalDate requestedCompletionDate) {
         User currentUser = getCurrentUser();
         ServiceTicket ticket = repository.findById(ticketId)
                 .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
@@ -510,6 +517,64 @@ public class ServiceTicketService {
             throw new IllegalArgumentException("Tahsilat tutarı sıfır veya daha büyük olmalıdır.");
         }
 
+        List<com.pusula.backend.entity.ServiceUsedPart> usedParts = serviceUsedPartRepository
+                .findByServiceTicketId(ticketId);
+        if (usedParts == null) {
+            usedParts = List.of();
+        }
+        BigDecimal partsTotal = usedParts.stream()
+                .map(part -> {
+                    BigDecimal unitPrice = part.getSellingPriceSnapshot() != null
+                            ? part.getSellingPriceSnapshot()
+                            : BigDecimal.ZERO;
+                    int quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
+                    return unitPrice.multiply(BigDecimal.valueOf(quantity));
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        PaymentMethod effectivePaymentMethod = paymentMethod != null ? paymentMethod : PaymentMethod.CASH;
+        BigDecimal effectiveLaborFee;
+        BigDecimal invoiceTotal;
+        BigDecimal effectiveCollectedAmount;
+        BigDecimal storedCollectedAmount;
+        BigDecimal outstandingAmount;
+        boolean structuredPricingRequest = laborFee != null;
+
+        if (!structuredPricingRequest) {
+            // Older clients sent a single amount. Preserve it as the invoice total.
+            invoiceTotal = collectedAmount;
+            effectiveLaborFee = invoiceTotal.subtract(partsTotal).max(BigDecimal.ZERO);
+            effectiveCollectedAmount = effectivePaymentMethod == PaymentMethod.CURRENT_ACCOUNT
+                    ? BigDecimal.ZERO
+                    : collectedAmount;
+            // Keep the legacy database contract: on CURRENT_ACCOUNT this field held
+            // the debt/invoice amount even though no cash was collected.
+            storedCollectedAmount = collectedAmount;
+            outstandingAmount = effectivePaymentMethod == PaymentMethod.CURRENT_ACCOUNT
+                    ? invoiceTotal
+                    : BigDecimal.ZERO;
+        } else {
+            if (laborFee.signum() < 0) {
+                throw new IllegalArgumentException("İşçilik/servis bedeli negatif olamaz.");
+            }
+            effectiveLaborFee = laborFee;
+            invoiceTotal = partsTotal.add(effectiveLaborFee);
+
+            if (effectivePaymentMethod == PaymentMethod.CURRENT_ACCOUNT) {
+                if (collectedAmount.signum() != 0) {
+                    throw new IllegalArgumentException("Cari hesapta tahsil edilen tutar 0 olmalıdır.");
+                }
+                effectiveCollectedAmount = BigDecimal.ZERO;
+            } else {
+                if (collectedAmount.compareTo(invoiceTotal) > 0) {
+                    throw new IllegalArgumentException("Tahsil edilen tutar fiş toplamını aşamaz.");
+                }
+                effectiveCollectedAmount = collectedAmount;
+            }
+            storedCollectedAmount = effectiveCollectedAmount;
+            outstandingAmount = invoiceTotal.subtract(effectiveCollectedAmount);
+        }
+
         LocalDate businessToday = LocalDate.now(businessZone);
         if (requestedCompletionDate != null && !isAdmin(currentUser)) {
             throw new AccessDeniedException("Geçmiş kapanış tarihi yalnızca yöneticiler tarafından seçilebilir.");
@@ -518,20 +583,23 @@ public class ServiceTicketService {
         if (completionDate.isAfter(businessToday)) {
             throw new IllegalArgumentException("Servis kapanış tarihi gelecekte olamaz.");
         }
-        PaymentMethod effectivePaymentMethod = paymentMethod != null ? paymentMethod : PaymentMethod.CASH;
         LocalTime completionTime = completionDate.equals(businessToday)
                 ? LocalTime.now(businessZone)
                 : LocalTime.NOON;
 
         String previousStatus = getStatusInTurkish(ticket.getStatus());
         ticket.setStatus(ServiceTicket.TicketStatus.COMPLETED);
-        ticket.setCollectedAmount(collectedAmount);
+        ticket.setPartsTotal(structuredPricingRequest ? partsTotal : null);
+        ticket.setLaborFee(structuredPricingRequest ? effectiveLaborFee : null);
+        ticket.setInvoiceTotal(structuredPricingRequest ? invoiceTotal : null);
+        ticket.setCollectedAmount(storedCollectedAmount);
+        ticket.setOutstandingAmount(structuredPricingRequest ? outstandingAmount : null);
         ticket.setPaymentMethod(effectivePaymentMethod);
         ticket.setCompletedAt(completionDate.atTime(completionTime));
-        ticket.setCollectionDate(effectivePaymentMethod == PaymentMethod.CURRENT_ACCOUNT ? null : completionDate);
+        ticket.setCollectionDate(effectiveCollectedAmount.signum() > 0 ? completionDate : null);
 
-        // If CURRENT_ACCOUNT, create/update debt record (not liquid cash)
-        if (effectivePaymentMethod == PaymentMethod.CURRENT_ACCOUNT && ticket.getCustomerId() != null) {
+        // Any unpaid portion becomes customer debt, including partial cash/card payments.
+        if (outstandingAmount.signum() > 0 && ticket.getCustomerId() != null) {
             // Fetch customer entity
             Customer customer = customerRepository.findById(ticket.getCustomerId())
                     .orElseThrow(() -> new RuntimeException("Customer not found"));
@@ -548,7 +616,8 @@ public class ServiceTicketService {
                     });
 
             // ADD to debt (positive balance = customer owes us)
-            account.setBalance(account.getBalance().add(collectedAmount));
+            BigDecimal currentBalance = account.getBalance() != null ? account.getBalance() : BigDecimal.ZERO;
+            account.setBalance(currentBalance.add(outstandingAmount));
             currentAccountRepository.save(account);
         }
 
@@ -572,16 +641,13 @@ public class ServiceTicketService {
                 "TICKET",
                 saved.getId(),
                 String.format("Tahsilat kaydedildi: %.2f ₺ (%s)",
-                        collectedAmount,
+                        effectiveCollectedAmount,
                         effectivePaymentMethod.name()));
 
         // WhatsApp notification — async fire-and-forget
         try {
-            BigDecimal remainingDebt = BigDecimal.ZERO;
-            if (effectivePaymentMethod == PaymentMethod.CURRENT_ACCOUNT) {
-                remainingDebt = collectedAmount;
-            }
-            whatsAppNotificationService.notifyServiceCompleted(ticketId, collectedAmount, remainingDebt);
+            whatsAppNotificationService.notifyServiceCompleted(ticketId, effectiveCollectedAmount,
+                    outstandingAmount);
         } catch (Exception e) {
             // Don't fail the service completion if notification fails
             log.warn("WhatsApp notification failed (non-blocking): {}", e.getMessage());
@@ -732,6 +798,10 @@ public class ServiceTicketService {
                 .description(ticket.getDescription())
                 .notes(ticket.getNotes())
                 .collectedAmount(ticket.getCollectedAmount())
+                .laborFee(ticket.getLaborFee())
+                .partsTotal(ticket.getPartsTotal())
+                .invoiceTotal(ticket.getInvoiceTotal())
+                .outstandingAmount(ticket.getOutstandingAmount())
                 .createdAt(ticket.getCreatedAt())
                 .updatedAt(ticket.getUpdatedAt())
                 .completedAt(ticket.getEffectiveCompletedAt())

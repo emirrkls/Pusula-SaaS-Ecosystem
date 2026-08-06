@@ -14,6 +14,10 @@ public class ServiceTicketDTO {
     private String description;
     private String notes;
     private BigDecimal collectedAmount;
+    private BigDecimal laborFee;
+    private BigDecimal partsTotal;
+    private BigDecimal invoiceTotal;
+    private BigDecimal outstandingAmount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime completedAt;
@@ -127,6 +131,18 @@ public class ServiceTicketDTO {
     public void setCollectedAmount(BigDecimal collectedAmount) {
         this.collectedAmount = collectedAmount;
     }
+
+    public BigDecimal getLaborFee() { return laborFee; }
+    public void setLaborFee(BigDecimal laborFee) { this.laborFee = laborFee; }
+
+    public BigDecimal getPartsTotal() { return partsTotal; }
+    public void setPartsTotal(BigDecimal partsTotal) { this.partsTotal = partsTotal; }
+
+    public BigDecimal getInvoiceTotal() { return invoiceTotal; }
+    public void setInvoiceTotal(BigDecimal invoiceTotal) { this.invoiceTotal = invoiceTotal; }
+
+    public BigDecimal getOutstandingAmount() { return outstandingAmount; }
+    public void setOutstandingAmount(BigDecimal outstandingAmount) { this.outstandingAmount = outstandingAmount; }
 
     public Long getParentTicketId() {
         return parentTicketId;

@@ -83,18 +83,24 @@ public class AdminDashboardService {
 
         List<ServiceTicket> tickets = ticketRepository.findByCompanyId(companyId);
 
-        /*
-         * Align with FinanceService / ReportService semantics:
-         * - Ticket income excludes CURRENT_ACCOUNT (debt until collected).
-         * - DEVICE_SALE expenses are stored as negative; count as revenue, not as expense rows.
-         */
-        BigDecimal ticketRevenueThisMonth = tickets.stream()
+        // Profit KPIs use sales at completion time. Cash collection remains a
+        // separate FinanceService concern.
+        List<ServiceTicket> completedSalesThisMonth = tickets.stream()
                 .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
-                .filter(t -> t.getPaymentMethod() != PaymentMethod.CURRENT_ACCOUNT)
-                .filter(t -> t.getEffectiveCollectionDate() != null
-                        && !t.getEffectiveCollectionDate().isBefore(monthStart)
-                        && !t.getEffectiveCollectionDate().isAfter(monthEnd))
-                .map(t -> t.getCollectedAmount() != null ? t.getCollectedAmount() : BigDecimal.ZERO)
+                .filter(t -> t.getEffectiveCompletedAt() != null)
+                .filter(t -> {
+                    LocalDate completionDate = t.getEffectiveCompletedAt().toLocalDate();
+                    return !completionDate.isBefore(monthStart) && !completionDate.isAfter(monthEnd);
+                })
+                .collect(Collectors.toList());
+
+        BigDecimal ticketRevenueThisMonth = completedSalesThisMonth.stream()
+                .map(ServiceTicket::getEffectiveInvoiceTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal partsCostThisMonth = completedSalesThisMonth.stream()
+                .filter(ServiceTicket::usesStructuredPricing)
+                .map(this::calculateTicketPartsCost)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         List<Expense> monthExpenses = expenseRepository
@@ -108,7 +114,8 @@ public class AdminDashboardService {
         BigDecimal monthlyExpenseOnly = monthExpenses.stream()
                 .filter(e -> !ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
                 .map(Expense::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .add(partsCostThisMonth);
 
         BigDecimal monthlyRevenue = ticketRevenueThisMonth.add(deviceSaleIncome);
         BigDecimal netProfit = monthlyRevenue.subtract(monthlyExpenseOnly);
@@ -301,6 +308,20 @@ public class AdminDashboardService {
         private BigDecimal marginPercent;
     }
 
+    private BigDecimal calculateTicketPartsCost(ServiceTicket ticket) {
+        return usedPartRepository.findByServiceTicketId(ticket.getId()).stream()
+                .map(part -> {
+                    BigDecimal unitCost = part.getBuyingPriceSnapshot();
+                    if (unitCost == null && part.getInventory() != null) {
+                        unitCost = part.getInventory().getBuyPrice();
+                    }
+                    int quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
+                    return (unitCost != null ? unitCost : BigDecimal.ZERO)
+                            .multiply(BigDecimal.valueOf(quantity));
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     public ProfitAnalysis getProfitAnalysis(Long companyId) {
         // Get all used parts from completed tickets
         List<ServiceTicket> completedTickets = ticketRepository.findByCompanyId(companyId).stream()
@@ -317,7 +338,9 @@ public class AdminDashboardService {
                 Inventory inv = part.getInventory();
                 if (inv == null) continue;
 
-                BigDecimal buyPrice = inv.getBuyPrice() != null ? inv.getBuyPrice() : BigDecimal.ZERO;
+                BigDecimal buyPrice = part.getBuyingPriceSnapshot() != null
+                        ? part.getBuyingPriceSnapshot()
+                        : (inv.getBuyPrice() != null ? inv.getBuyPrice() : BigDecimal.ZERO);
                 BigDecimal sellPrice = part.getSellingPriceSnapshot() != null
                         ? part.getSellingPriceSnapshot() : BigDecimal.ZERO;
                 int qty = part.getQuantityUsed();

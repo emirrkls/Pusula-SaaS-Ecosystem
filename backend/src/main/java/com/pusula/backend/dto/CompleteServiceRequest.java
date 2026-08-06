@@ -3,11 +3,13 @@ package com.pusula.backend.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.pusula.backend.entity.PaymentMethod;
 
 public class CompleteServiceRequest {
     private BigDecimal collectedAmount;
-    private BigDecimal laborCost;
+    @JsonAlias("laborCost")
+    private BigDecimal laborFee;
     private PaymentMethod paymentMethod;
     private LocalDate completionDate;
 
@@ -16,7 +18,7 @@ public class CompleteServiceRequest {
 
     public CompleteServiceRequest(BigDecimal collectedAmount, BigDecimal laborCost) {
         this.collectedAmount = collectedAmount;
-        this.laborCost = laborCost;
+        this.laborFee = laborCost;
     }
 
     public BigDecimal getCollectedAmount() {
@@ -28,11 +30,19 @@ public class CompleteServiceRequest {
     }
 
     public BigDecimal getLaborCost() {
-        return laborCost;
+        return laborFee;
     }
 
     public void setLaborCost(BigDecimal laborCost) {
-        this.laborCost = laborCost;
+        this.laborFee = laborCost;
+    }
+
+    public BigDecimal getLaborFee() {
+        return laborFee;
+    }
+
+    public void setLaborFee(BigDecimal laborFee) {
+        this.laborFee = laborFee;
     }
 
     public PaymentMethod getPaymentMethod() {

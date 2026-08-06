@@ -93,14 +93,15 @@ public class ServiceTicketController {
     }
 
     /**
-     * PATCH /api/tickets/{id}/complete — complete service with waterfall payment model.
-     * Supports: collectedAmount, paymentMethod, remainingToDebt (cari)
+     * PATCH /api/tickets/{id}/complete — complete service with separate sale and collection amounts.
+     * Structured clients send laborFee; the server adds snapshotted part sales and
+     * moves any unpaid remainder to the customer's current account.
      */
     @PatchMapping("/{id}/complete")
     public ResponseEntity<ServiceTicketDTO> completeService(@PathVariable Long id,
             @RequestBody CompleteServiceRequest request) {
         return ResponseEntity.ok(service.completeService(id, request.getCollectedAmount(),
-                request.getPaymentMethod(), request.getCompletionDate()));
+                request.getLaborFee(), request.getPaymentMethod(), request.getCompletionDate()));
     }
 
     @PatchMapping("/{id}/cancel")

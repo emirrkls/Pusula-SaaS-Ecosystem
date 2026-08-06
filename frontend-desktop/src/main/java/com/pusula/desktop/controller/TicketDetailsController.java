@@ -1039,6 +1039,11 @@ public class TicketDetailsController {
         });
     }
 
+    private String formatMoney(BigDecimal amount) {
+        BigDecimal safeAmount = amount != null ? amount : BigDecimal.ZERO;
+        return String.format(Locale.of("tr", "TR"), "%,.2f ₺", safeAmount);
+    }
+
     @FXML
     private void handleCompleteService() {
         if (currentTicket == null)
@@ -1058,8 +1063,24 @@ public class TicketDetailsController {
         grid.setVgap(10);
         grid.setPadding(new javafx.geometry.Insets(20, 150, 10, 10));
 
-        com.pusula.desktop.util.CurrencyTextField amountField = new com.pusula.desktop.util.CurrencyTextField();
-        amountField.setPromptText("0,00");
+        BigDecimal partsTotal = usedPartsList.stream()
+                .map(part -> {
+                    BigDecimal unitPrice = part.getSellingPriceSnapshot() != null
+                            ? part.getSellingPriceSnapshot()
+                            : BigDecimal.ZERO;
+                    int quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
+                    return unitPrice.multiply(BigDecimal.valueOf(quantity));
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        CurrencyTextField laborFeeField = new CurrencyTextField();
+        laborFeeField.setRawValue(BigDecimal.ZERO);
+        CurrencyTextField collectedField = new CurrencyTextField();
+        collectedField.setRawValue(partsTotal);
+
+        Label partsTotalLabel = new Label(formatMoney(partsTotal));
+        Label invoiceTotalLabel = new Label(formatMoney(partsTotal));
+        Label outstandingLabel = new Label(formatMoney(BigDecimal.ZERO));
 
         javafx.scene.control.ComboBox<String> paymentCombo = new javafx.scene.control.ComboBox<>();
         paymentCombo.getItems().addAll(
@@ -1078,14 +1099,52 @@ public class TicketDetailsController {
             }
         });
 
-        grid.add(new Label(resourceBundle.getString("dialog.complete.amount") + ":"), 0, 0);
-        grid.add(amountField, 1, 0);
-        grid.add(new Label(resourceBundle.getString("payment.method") + ":"), 0, 1);
-        grid.add(paymentCombo, 1, 1);
+        grid.add(new Label("Parça toplamı:"), 0, 0);
+        grid.add(partsTotalLabel, 1, 0);
+        grid.add(new Label("İşçilik / servis bedeli:"), 0, 1);
+        grid.add(laborFeeField, 1, 1);
+        grid.add(new Label("Fiş toplamı:"), 0, 2);
+        grid.add(invoiceTotalLabel, 1, 2);
+        grid.add(new Label("Tahsil edilen:"), 0, 3);
+        grid.add(collectedField, 1, 3);
+        grid.add(new Label("Kalan / cari:"), 0, 4);
+        grid.add(outstandingLabel, 1, 4);
+        grid.add(new Label(resourceBundle.getString("payment.method") + ":"), 0, 5);
+        grid.add(paymentCombo, 1, 5);
         if (com.pusula.desktop.util.SessionManager.isAdmin()) {
-            grid.add(new Label(resourceBundle.getString("dialog.complete.date") + ":"), 0, 2);
-            grid.add(completionDatePicker, 1, 2);
+            grid.add(new Label(resourceBundle.getString("dialog.complete.date") + ":"), 0, 6);
+            grid.add(completionDatePicker, 1, 6);
         }
+
+        Runnable updateTotals = () -> {
+            BigDecimal invoiceTotal = partsTotal.add(laborFeeField.getRawValue());
+            boolean currentAccount = paymentCombo.getValue()
+                    .equals(resourceBundle.getString("payment.current_account"));
+            if (currentAccount) {
+                collectedField.setRawValue(BigDecimal.ZERO);
+            }
+            BigDecimal collected = collectedField.getRawValue();
+            BigDecimal outstanding = invoiceTotal.subtract(collected).max(BigDecimal.ZERO);
+            invoiceTotalLabel.setText(formatMoney(invoiceTotal));
+            outstandingLabel.setText(formatMoney(outstanding));
+        };
+
+        laborFeeField.textProperty().addListener((observable, oldValue, newValue) -> {
+            BigDecimal invoiceTotal = partsTotal.add(laborFeeField.getRawValue());
+            if (!paymentCombo.getValue().equals(resourceBundle.getString("payment.current_account"))) {
+                collectedField.setRawValue(invoiceTotal);
+            }
+            updateTotals.run();
+        });
+        collectedField.textProperty().addListener((observable, oldValue, newValue) -> updateTotals.run());
+        paymentCombo.valueProperty().addListener((observable, oldValue, newValue) -> {
+            boolean currentAccount = newValue.equals(resourceBundle.getString("payment.current_account"));
+            collectedField.setDisable(currentAccount);
+            collectedField.setRawValue(currentAccount
+                    ? BigDecimal.ZERO
+                    : partsTotal.add(laborFeeField.getRawValue()));
+            updateTotals.run();
+        });
 
         dialog.getDialogPane().setContent(grid);
 
@@ -1093,7 +1152,8 @@ public class TicketDetailsController {
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == ButtonType.OK) {
                 java.util.Map<String, Object> result = new java.util.HashMap<>();
-                result.put("amount", amountField.getRawValue());
+                result.put("laborFee", laborFeeField.getRawValue());
+                result.put("collectedAmount", collectedField.getRawValue());
                 result.put("paymentMethod", paymentCombo.getValue());
                 if (com.pusula.desktop.util.SessionManager.isAdmin()) {
                     result.put("completionDate", completionDatePicker.getValue());
@@ -1105,8 +1165,15 @@ public class TicketDetailsController {
 
         dialog.showAndWait().ifPresent(result -> {
             try {
-                BigDecimal amount = (BigDecimal) result.get("amount");
+                BigDecimal laborFee = (BigDecimal) result.get("laborFee");
+                BigDecimal collectedAmount = (BigDecimal) result.get("collectedAmount");
                 String paymentMethodDisplay = result.get("paymentMethod").toString();
+                BigDecimal invoiceTotal = partsTotal.add(laborFee);
+                if (collectedAmount.compareTo(invoiceTotal) > 0) {
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                            "Geçersiz tahsilat", "Tahsil edilen tutar fiş toplamını aşamaz.");
+                    return;
+                }
 
                 // Map display text to backend enum value
                 String paymentMethod = "CASH"; // Default
@@ -1118,7 +1185,8 @@ public class TicketDetailsController {
 
                 // Create request body as Map
                 java.util.Map<String, Object> requestBody = new java.util.HashMap<>();
-                requestBody.put("collectedAmount", amount);
+                requestBody.put("laborFee", laborFee);
+                requestBody.put("collectedAmount", collectedAmount);
                 requestBody.put("paymentMethod", paymentMethod);
                 if (result.get("completionDate") != null) {
                     requestBody.put("completionDate", result.get("completionDate").toString());

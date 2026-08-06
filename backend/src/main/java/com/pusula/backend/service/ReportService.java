@@ -324,8 +324,9 @@ public class ReportService {
                 }
 
                 // 2. Service Fee (Labor)
-                BigDecimal serviceFee = ticket.getCollectedAmount() != null ? ticket.getCollectedAmount()
-                                : BigDecimal.ZERO;
+                BigDecimal serviceFee = ticket.getLaborFee() != null
+                                ? ticket.getLaborFee()
+                                : (ticket.getCollectedAmount() != null ? ticket.getCollectedAmount() : BigDecimal.ZERO);
                 subTotal = subTotal.add(serviceFee);
 
                 addCellToTable(table, "İşçilik / Servis Hizmet Bedeli", false, Element.ALIGN_LEFT);
@@ -345,14 +346,22 @@ public class ReportService {
                 totalsTable.setWidthPercentage(100);
                 totalsTable.setWidths(new float[] { 4f, 1f });
 
-                // Calculate VAT
-                BigDecimal vatRate = new BigDecimal("0.20");
-                BigDecimal vatAmount = subTotal.multiply(vatRate);
-                BigDecimal grandTotal = subTotal.add(vatAmount);
+                BigDecimal invoiceTotal = ticket.usesStructuredPricing()
+                                ? ticket.getEffectiveInvoiceTotal()
+                                : subTotal;
+                BigDecimal collected = !ticket.usesStructuredPricing()
+                                && ticket.getPaymentMethod() == com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT
+                                                ? BigDecimal.ZERO
+                                                : (ticket.getCollectedAmount() != null
+                                                                ? ticket.getCollectedAmount()
+                                                                : BigDecimal.ZERO);
+                BigDecimal outstanding = ticket.getOutstandingAmount() != null
+                                ? ticket.getOutstandingAmount()
+                                : invoiceTotal.subtract(collected).max(BigDecimal.ZERO);
 
-                addTotalRow(totalsTable, "Ara Toplam:", String.format("%.2f ₺", subTotal));
-                addTotalRow(totalsTable, "KDV (%20):", String.format("%.2f ₺", vatAmount));
-                addTotalRow(totalsTable, "GENEL TOPLAM:", String.format("%.2f ₺", grandTotal));
+                addTotalRow(totalsTable, "FİŞ TOPLAMI:", String.format("%.2f ₺", invoiceTotal));
+                addTotalRow(totalsTable, "TAHSİL EDİLEN:", String.format("%.2f ₺", collected));
+                addTotalRow(totalsTable, "KALAN / CARİ:", String.format("%.2f ₺", outstanding));
 
                 document.add(totalsTable);
         }
@@ -854,26 +863,38 @@ public class ReportService {
                 return String.format(Locale.forLanguageTag("tr-TR"), "%,.2f ₺", amount);
         }
 
+        private BigDecimal calculateTicketPartsCost(ServiceTicket ticket) {
+                return serviceUsedPartRepository.findByServiceTicketId(ticket.getId()).stream()
+                                .map(part -> {
+                                        BigDecimal unitCost = part.getBuyingPriceSnapshot();
+                                        if (unitCost == null && part.getInventory() != null) {
+                                                unitCost = part.getInventory().getBuyPrice();
+                                        }
+                                        int quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
+                                        return (unitCost != null ? unitCost : BigDecimal.ZERO)
+                                                        .multiply(BigDecimal.valueOf(quantity));
+                                })
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
         // ========== MONTHLY FINANCIAL REPORTS ==========
 
         public List<com.pusula.backend.dto.MonthlySummaryDTO> getMonthlyArchives(Long companyId) {
-                // Query tickets and expenses directly instead of DailyClosing
-                // This ensures all data is included even if days weren't closed
+                // Monthly profitability uses sales at completion time. Collection/cash
+                // reports continue to use collection_date in FinanceService.
                 List<ServiceTicket> allTickets = ticketRepository.findAll().stream()
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
-                                .filter(st -> st.getEffectiveCollectionDate() != null)
-                                // Exclude CURRENT_ACCOUNT payments (not liquid cash)
-                                .filter(st -> st.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT)
+                                .filter(st -> st.getEffectiveCompletedAt() != null)
                                 .collect(java.util.stream.Collectors.toList());
 
                 List<Expense> allExpenses = expenseRepository.findByCompanyId(companyId);
 
-                // Group liquid service income by its actual collection date.
+                // Group service sales by the date the work was completed.
                 Map<java.time.YearMonth, List<ServiceTicket>> ticketsByMonth = allTickets.stream()
                                 .collect(java.util.stream.Collectors.groupingBy(
-                                                st -> java.time.YearMonth.from(st.getEffectiveCollectionDate())));
+                                                st -> java.time.YearMonth.from(st.getEffectiveCompletedAt())));
 
                 // Group expenses by month
                 Map<java.time.YearMonth, List<Expense>> expensesByMonth = allExpenses.stream()
@@ -893,8 +914,14 @@ public class ReportService {
                         // Calculate income from completed tickets
                         BigDecimal ticketIncome = ticketsByMonth.getOrDefault(month, java.util.Collections.emptyList())
                                         .stream()
-                                        .map(ServiceTicket::getCollectedAmount)
-                                        .filter(amount -> amount != null)
+                                        .map(ServiceTicket::getEffectiveInvoiceTotal)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        BigDecimal partsCost = ticketsByMonth
+                                        .getOrDefault(month, java.util.Collections.emptyList())
+                                        .stream()
+                                        .filter(ServiceTicket::usesStructuredPricing)
+                                        .map(this::calculateTicketPartsCost)
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                         // Get all expenses for this month
@@ -915,7 +942,7 @@ public class ReportService {
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                         BigDecimal totalIncome = ticketIncome.add(deviceSaleIncome);
-                        BigDecimal totalExpense = regularExpenses;
+                        BigDecimal totalExpense = regularExpenses.add(partsCost);
 
                         summaries.add(com.pusula.backend.dto.MonthlySummaryDTO.builder()
                                         .period(month.toString())
@@ -968,19 +995,21 @@ public class ReportService {
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
-                                .filter(st -> st.getEffectiveCollectionDate() != null &&
-                                                !st.getEffectiveCollectionDate().isBefore(startDate) &&
-                                                !st.getEffectiveCollectionDate().isAfter(endDate))
-                                // Exclude CURRENT_ACCOUNT payments (not liquid cash)
-                                .filter(st -> st.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT)
+                                .filter(st -> st.getEffectiveCompletedAt() != null &&
+                                                !st.getEffectiveCompletedAt().toLocalDate().isBefore(startDate) &&
+                                                !st.getEffectiveCompletedAt().toLocalDate().isAfter(endDate))
                                 .collect(java.util.stream.Collectors.toList());
 
                 List<Expense> expenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate);
 
                 // Calculate income from tickets
                 BigDecimal ticketIncome = completedTickets.stream()
-                                .map(ServiceTicket::getCollectedAmount)
-                                .filter(amount -> amount != null)
+                                .map(ServiceTicket::getEffectiveInvoiceTotal)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal partsCost = completedTickets.stream()
+                                .filter(ServiceTicket::usesStructuredPricing)
+                                .map(this::calculateTicketPartsCost)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 // Separate DEVICE_SALE income from regular expenses
@@ -995,7 +1024,7 @@ public class ReportService {
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 BigDecimal totalIncome = ticketIncome.add(deviceSaleIncome);
-                BigDecimal totalExpense = regularExpenses;
+                BigDecimal totalExpense = regularExpenses.add(partsCost);
                 BigDecimal netProfit = totalIncome.subtract(totalExpense);
 
                 // Calculate carryOver from all previous months
@@ -1021,15 +1050,16 @@ public class ReportService {
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
-                                .filter(st -> st.getEffectiveCollectionDate() != null &&
-                                                !st.getEffectiveCollectionDate().isBefore(startDate) &&
-                                                !st.getEffectiveCollectionDate().isAfter(endDate))
+                                .filter(st -> st.getEffectiveCompletedAt() != null &&
+                                                !st.getEffectiveCompletedAt().toLocalDate().isBefore(startDate) &&
+                                                !st.getEffectiveCompletedAt().toLocalDate().isAfter(endDate))
                                 .collect(java.util.stream.Collectors.toList());
 
                 List<Expense> ledgerExpenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate);
 
                 Map<java.time.LocalDate, List<ServiceTicket>> ticketsByDate = ledgerTickets.stream()
-                                .collect(java.util.stream.Collectors.groupingBy(ServiceTicket::getEffectiveCollectionDate));
+                                .collect(java.util.stream.Collectors.groupingBy(
+                                                ticket -> ticket.getEffectiveCompletedAt().toLocalDate()));
 
                 Map<java.time.LocalDate, List<Expense>> expensesByDate = ledgerExpenses.stream()
                                 .collect(java.util.stream.Collectors.groupingBy(Expense::getDate));
@@ -1063,8 +1093,7 @@ public class ReportService {
                                                 && !ticket.getDescription().isEmpty()
                                                                 ? ticket.getDescription()
                                                                 : "Servis Hizmeti";
-                                BigDecimal amount = ticket.getCollectedAmount() != null ? ticket.getCollectedAmount()
-                                                : BigDecimal.ZERO;
+                                BigDecimal amount = ticket.getEffectiveInvoiceTotal();
                                 dailyIncome = dailyIncome.add(amount);
 
                                 String line = String.format("   Gelir: %s - %s → %s ₺", customerName, serviceDesc,
@@ -1073,6 +1102,20 @@ public class ReportService {
                                 Paragraph incomeLine = new Paragraph(line, greenFont);
                                 incomeLine.setIndentationLeft(10);
                                 document.add(incomeLine);
+
+                                if (ticket.usesStructuredPricing()) {
+                                        BigDecimal ticketPartsCost = calculateTicketPartsCost(ticket);
+                                        if (ticketPartsCost.signum() > 0) {
+                                                dailyExpense = dailyExpense.add(ticketPartsCost);
+                                                String costLine = String.format("   Satılan parça maliyeti: #%d → %s ₺",
+                                                                ticket.getId(), currencyFormat.format(ticketPartsCost));
+                                                Font costFont = new Font(interBaseFont, 10, Font.NORMAL,
+                                                                new Color(192, 0, 0));
+                                                Paragraph costParagraph = new Paragraph(costLine, costFont);
+                                                costParagraph.setIndentationLeft(10);
+                                                document.add(costParagraph);
+                                        }
+                                }
                         }
 
                         List<Expense> dayExpenses = expensesByDate.getOrDefault(date,
@@ -1188,14 +1231,17 @@ public class ReportService {
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
-                                .filter(st -> st.getEffectiveCollectionDate() != null)
-                                .filter(st -> java.time.YearMonth.from(st.getEffectiveCollectionDate()).isBefore(targetPeriod))
-                                .filter(st -> st.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT)
+                                .filter(st -> st.getEffectiveCompletedAt() != null)
+                                .filter(st -> java.time.YearMonth.from(st.getEffectiveCompletedAt()).isBefore(targetPeriod))
                                 .collect(java.util.stream.Collectors.toList());
 
                 BigDecimal prevTicketIncome = prevTickets.stream()
-                                .map(ServiceTicket::getCollectedAmount)
-                                .filter(a -> a != null)
+                                .map(ServiceTicket::getEffectiveInvoiceTotal)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal prevPartsCost = prevTickets.stream()
+                                .filter(ServiceTicket::usesStructuredPricing)
+                                .map(this::calculateTicketPartsCost)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 // Get all expenses BEFORE the target period
@@ -1215,7 +1261,7 @@ public class ReportService {
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 BigDecimal prevTotalIncome = prevTicketIncome.add(prevDeviceSaleIncome);
-                return prevTotalIncome.subtract(prevRegularExpenses);
+                return prevTotalIncome.subtract(prevRegularExpenses.add(prevPartsCost));
         }
 
         private String getCategoryNameTurkish(String category) {
