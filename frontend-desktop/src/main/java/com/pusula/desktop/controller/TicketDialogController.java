@@ -6,12 +6,14 @@ import com.pusula.desktop.dto.CustomerDTO;
 import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.CustomerSearchSupport;
 import com.pusula.desktop.util.UTF8Control;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import retrofit2.Call;
@@ -40,6 +42,7 @@ public class TicketDialogController {
 
     private Runnable onSaveSuccess;
     private ObservableList<CustomerDTO> allCustomers;
+    private ObservableList<CustomerDTO> filteredCustomers;
     private ResourceBundle bundle;
 
     public void setOnSaveSuccess(Runnable onSaveSuccess) {
@@ -50,18 +53,18 @@ public class TicketDialogController {
     public void initialize() {
         bundle = ResourceBundle.getBundle("i18n.messages", Locale.forLanguageTag("tr-TR"), new UTF8Control());
         allCustomers = FXCollections.observableArrayList();
+        filteredCustomers = FXCollections.observableArrayList();
         configureCustomerComboBox();
         loadCustomers();
     }
 
     private void configureCustomerComboBox() {
         customerComboBox.setEditable(true);
+        customerComboBox.setItems(filteredCustomers);
         customerComboBox.setConverter(new StringConverter<CustomerDTO>() {
             @Override
             public String toString(CustomerDTO customer) {
-                if (customer == null)
-                    return "";
-                return customer.getName() + " - " + customer.getPhone();
+                return CustomerSearchSupport.displayText(customer);
             }
 
             @Override
@@ -69,37 +72,42 @@ public class TicketDialogController {
                 if (string == null || string.isEmpty())
                     return null;
                 return allCustomers.stream()
-                        .filter(c -> (c.getName() + " - " + c.getPhone()).equals(string))
+                        .filter(c -> CustomerSearchSupport.displayText(c).equalsIgnoreCase(string.trim()))
                         .findFirst()
                         .orElse(null);
             }
         });
 
-        // Add listener for filtering
-        customerComboBox.getEditor().textProperty().addListener((obs, oldValue, newValue) -> {
-            // If the text matches the current selection, don't filter (it's just the
-            // selection updating the text)
-            if (customerComboBox.getSelectionModel().getSelectedItem() != null) {
-                String selectedString = customerComboBox.getConverter()
-                        .toString(customerComboBox.getSelectionModel().getSelectedItem());
-                if (selectedString.equalsIgnoreCase(newValue)) {
-                    return;
-                }
+        customerComboBox.getEditor().setOnKeyReleased(event -> {
+            if (event.getCode() == KeyCode.UP || event.getCode() == KeyCode.DOWN
+                    || event.getCode() == KeyCode.ENTER || event.getCode() == KeyCode.TAB
+                    || event.getCode() == KeyCode.ESCAPE) {
+                return;
             }
 
-            if (newValue == null || newValue.isEmpty()) {
-                customerComboBox.setItems(allCustomers);
-            } else {
-                String search = newValue.toLowerCase();
-                ObservableList<CustomerDTO> filtered = allCustomers
-                        .filtered(customer -> customer.getName().toLowerCase().contains(search) ||
-                                customer.getPhone().toLowerCase().contains(search));
-                customerComboBox.setItems(filtered);
-                if (!customerComboBox.isShowing()) {
-                    customerComboBox.show();
-                }
+            String query = customerComboBox.getEditor().getText();
+            CustomerDTO selected = customerComboBox.getSelectionModel().getSelectedItem();
+            if (selected != null && !CustomerSearchSupport.displayText(selected).equals(query)) {
+                customerComboBox.getSelectionModel().clearSelection();
+                customerComboBox.setValue(null);
+                customerComboBox.getEditor().setText(query);
+                customerComboBox.getEditor().positionCaret(query.length());
             }
+
+            applyCustomerFilter(query);
         });
+    }
+
+    private void applyCustomerFilter(String query) {
+        filteredCustomers.setAll(allCustomers.stream()
+                .filter(customer -> CustomerSearchSupport.matches(customer, query))
+                .toList());
+
+        if (filteredCustomers.isEmpty()) {
+            customerComboBox.hide();
+        } else if (!customerComboBox.isShowing()) {
+            customerComboBox.show();
+        }
     }
 
     private void loadCustomers() {
@@ -110,7 +118,7 @@ public class TicketDialogController {
                 if (response.isSuccessful() && response.body() != null) {
                     Platform.runLater(() -> {
                         allCustomers.setAll(response.body());
-                        customerComboBox.setItems(allCustomers);
+                        applyCustomerFilter(customerComboBox.getEditor().getText());
                     });
                 }
             }
