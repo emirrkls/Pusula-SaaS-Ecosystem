@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,13 +29,16 @@ class FinanceServiceCollectionDateTest {
     @Mock CustomerRepository customerRepository;
     @Mock FixedExpenseDefinitionRepository fixedExpenseDefinitionRepository;
     @Mock AuditLogService auditLogService;
+    @Mock CompanyDebtPaymentRepository companyDebtPaymentRepository;
+    @Mock ServiceTicketExpenseRepository serviceTicketExpenseRepository;
 
     private FinanceService service;
 
     @BeforeEach
     void setUp() {
         service = new FinanceService(ticketRepository, expenseRepository, dailyClosingRepository,
-                customerRepository, fixedExpenseDefinitionRepository, auditLogService);
+                customerRepository, fixedExpenseDefinitionRepository, auditLogService,
+                companyDebtPaymentRepository, serviceTicketExpenseRepository);
     }
 
     @Test
@@ -80,6 +84,15 @@ class FinanceServiceCollectionDateTest {
         assertEquals(new BigDecimal("750.00"), closing.getNetCash());
         verify(dailyClosingRepository).save(closing);
         verify(auditLogService).log(eq("RECONCILE"), eq("DAY_CLOSING"), eq(9L), anyString());
+    }
+
+    @Test
+    void linkedDebtPaymentExpenseCannotBeDeletedFromGenericFinanceFlow() {
+        when(companyDebtPaymentRepository.existsByExpenseId(88L)).thenReturn(true);
+
+        assertThrows(IllegalStateException.class, () -> service.deleteExpense(88L));
+
+        verify(expenseRepository, never()).deleteById(88L);
     }
 
     private ServiceTicket completedCashTicket(BigDecimal amount, LocalDate collectionDate) {

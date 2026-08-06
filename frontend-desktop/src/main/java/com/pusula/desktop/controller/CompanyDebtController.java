@@ -2,6 +2,8 @@ package com.pusula.desktop.controller;
 
 import com.pusula.desktop.api.CompanyDebtApi;
 import com.pusula.desktop.dto.CompanyDebtDTO;
+import com.pusula.desktop.dto.CompanyDebtPaymentDTO;
+import com.pusula.desktop.dto.DebtPaymentRequestDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.CurrencyTextField;
 import javafx.application.Platform;
@@ -25,6 +27,7 @@ import retrofit2.Response;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -37,6 +40,8 @@ public class CompanyDebtController {
     private TableColumn<CompanyDebtDTO, String> colCreditor;
     @FXML
     private TableColumn<CompanyDebtDTO, String> colDescription;
+    @FXML
+    private TableColumn<CompanyDebtDTO, String> colCategory;
     @FXML
     private TableColumn<CompanyDebtDTO, String> colOriginal;
     @FXML
@@ -73,6 +78,8 @@ public class CompanyDebtController {
         colCreditor.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getCreditorName()));
         colDescription.setCellValueFactory(data -> new SimpleStringProperty(
                 data.getValue().getDescription() != null ? data.getValue().getDescription() : ""));
+        colCategory.setCellValueFactory(data -> new SimpleStringProperty(
+                getCategoryText(data.getValue().getExpenseCategory())));
 
         colOriginal.setCellValueFactory(data -> new SimpleStringProperty(
                 formatCurrency(data.getValue().getOriginalAmount())));
@@ -115,13 +122,15 @@ public class CompanyDebtController {
     private void setupActionsColumn() {
         colActions.setCellFactory(col -> new TableCell<>() {
             private final Button payBtn = new Button("Öde");
+            private final Button historyBtn = new Button("Geçmiş");
             private final Button addBtn = new Button("İlave");
             private final Button deleteBtn = new Button("Sil");
-            private final HBox box = new HBox(8, payBtn, addBtn, deleteBtn);
+            private final HBox box = new HBox(6, payBtn, historyBtn, addBtn, deleteBtn);
 
             {
                 box.setStyle("-fx-alignment: center;");
                 payBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 11; -fx-cursor: hand; -fx-padding: 5 10; -fx-min-width: 50;");
+                historyBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 11; -fx-cursor: hand; -fx-padding: 5 10; -fx-min-width: 58;");
                 addBtn.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white; -fx-font-size: 11; -fx-cursor: hand; -fx-padding: 5 10; -fx-min-width: 50;");
                 deleteBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 11; -fx-cursor: hand; -fx-padding: 5 10; -fx-min-width: 50;");
 
@@ -129,6 +138,13 @@ public class CompanyDebtController {
                     CompanyDebtDTO debt = getTableRow().getItem();
                     if (debt != null) {
                         handlePayDebt(debt);
+                    }
+                });
+
+                historyBtn.setOnAction(e -> {
+                    CompanyDebtDTO debt = getTableRow().getItem();
+                    if (debt != null) {
+                        handlePaymentHistory(debt);
                     }
                 });
 
@@ -267,40 +283,178 @@ public class CompanyDebtController {
     }
 
     private void handlePayDebt(CompanyDebtDTO debt) {
-        TextInputDialog dialog = new TextInputDialog(debt.getRemainingAmount().toString());
+        Dialog<DebtPaymentRequestDTO> dialog = new Dialog<>();
         dialog.setTitle("Borç Öde");
         dialog.setHeaderText(debt.getCreditorName() + " - Kalan: " + formatCurrency(debt.getRemainingAmount()));
-        dialog.setContentText("Ödeme Tutarı (₺):");
+        ButtonType payButtonType = new ButtonType("Ödemeyi Kaydet", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(payButtonType, ButtonType.CANCEL);
 
-        dialog.showAndWait().ifPresent(input -> {
-            try {
-                BigDecimal amount = CurrencyTextField.parseTurkishCurrency(input);
-                if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                    showError("Tutar sıfırdan büyük olmalıdır!");
-                    return;
+        CurrencyTextField amountField = new CurrencyTextField();
+        amountField.setRawValue(debt.getRemainingAmount());
+        DatePicker paymentDatePicker = new DatePicker(LocalDate.now());
+        paymentDatePicker.setDayCellFactory(picker -> new DateCell() {
+            @Override
+            public void updateItem(LocalDate date, boolean empty) {
+                super.updateItem(date, empty);
+                setDisable(empty || date.isBefore(debt.getDebtDate()) || date.isAfter(LocalDate.now()));
+            }
+        });
+        TextArea notesField = new TextArea();
+        notesField.setPromptText("Ödeme notu (isteğe bağlı)");
+        notesField.setPrefRowCount(2);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(15));
+        grid.add(new Label("Gider Kategorisi:"), 0, 0);
+        grid.add(new Label(getCategoryText(debt.getExpenseCategory())), 1, 0);
+        grid.add(new Label("Ödeme Tutarı (₺):"), 0, 1);
+        grid.add(amountField, 1, 1);
+        grid.add(new Label("Ödeme Tarihi:"), 0, 2);
+        grid.add(paymentDatePicker, 1, 2);
+        grid.add(new Label("Not:"), 0, 3);
+        grid.add(notesField, 1, 3);
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(button -> button == payButtonType
+                ? DebtPaymentRequestDTO.builder()
+                        .amount(amountField.getRawValue())
+                        .paymentDate(paymentDatePicker.getValue())
+                        .notes(notesField.getText())
+                        .build()
+                : null);
+
+        dialog.showAndWait().ifPresent(request -> {
+            if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                showError("Tutar sıfırdan büyük olmalıdır!");
+                return;
+            }
+            if (request.getAmount().compareTo(debt.getRemainingAmount()) > 0) {
+                showError("Ödeme tutarı kalan borçtan fazla olamaz!");
+                return;
+            }
+            if (request.getPaymentDate() == null) {
+                showError("Ödeme tarihi zorunludur!");
+                return;
+            }
+
+            api.payDebt(debt.getId(), request).enqueue(new Callback<>() {
+                @Override
+                public void onResponse(Call<CompanyDebtDTO> call, Response<CompanyDebtDTO> response) {
+                    Platform.runLater(() -> {
+                        if (response.isSuccessful()) {
+                            showInfo("Ödeme seçilen tarihe kaydedildi!");
+                            loadDebts();
+                            loadTotalDebt();
+                        } else {
+                            showError("Ödeme kaydedilemedi: " + response.code());
+                        }
+                    });
                 }
 
-                api.payDebt(debt.getId(), amount).enqueue(new Callback<>() {
-                    @Override
-                    public void onResponse(Call<CompanyDebtDTO> call, Response<CompanyDebtDTO> response) {
-                        Platform.runLater(() -> {
-                            if (response.isSuccessful()) {
-                                showInfo("Ödeme başarılı!");
-                                loadDebts();
-                                loadTotalDebt();
-                            } else {
-                                showError("Ödeme başarısız!");
-                            }
-                        });
-                    }
+                @Override
+                public void onFailure(Call<CompanyDebtDTO> call, Throwable t) {
+                    Platform.runLater(() -> showError("Hata: " + t.getMessage()));
+                }
+            });
+        });
+    }
 
-                    @Override
-                    public void onFailure(Call<CompanyDebtDTO> call, Throwable t) {
-                        Platform.runLater(() -> showError("Hata: " + t.getMessage()));
+    private void handlePaymentHistory(CompanyDebtDTO debt) {
+        api.getPayments(debt.getId()).enqueue(new Callback<>() {
+            @Override
+            public void onResponse(Call<List<CompanyDebtPaymentDTO>> call,
+                    Response<List<CompanyDebtPaymentDTO>> response) {
+                Platform.runLater(() -> {
+                    if (!response.isSuccessful() || response.body() == null) {
+                        showError("Ödeme geçmişi yüklenemedi: " + response.code());
+                        return;
+                    }
+                    showPaymentHistoryDialog(debt, response.body());
+                });
+            }
+
+            @Override
+            public void onFailure(Call<List<CompanyDebtPaymentDTO>> call, Throwable t) {
+                Platform.runLater(() -> showError("Ödeme geçmişi yüklenemedi: " + t.getMessage()));
+            }
+        });
+    }
+
+    private void showPaymentHistoryDialog(CompanyDebtDTO debt, List<CompanyDebtPaymentDTO> payments) {
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle("Ödeme Geçmişi");
+        dialog.setHeaderText(debt.getCreditorName() + " - " + getCategoryText(debt.getExpenseCategory()));
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        dialog.getDialogPane().setPrefWidth(720);
+
+        TableView<CompanyDebtPaymentDTO> table = new TableView<>();
+        TableColumn<CompanyDebtPaymentDTO, String> dateColumn = new TableColumn<>("Ödeme Tarihi");
+        dateColumn.setCellValueFactory(data -> new SimpleStringProperty(
+                data.getValue().getPaymentDate().format(dateFormatter)));
+        TableColumn<CompanyDebtPaymentDTO, String> amountColumn = new TableColumn<>("Tutar");
+        amountColumn.setCellValueFactory(data -> new SimpleStringProperty(formatCurrency(data.getValue().getAmount())));
+        TableColumn<CompanyDebtPaymentDTO, String> categoryColumn = new TableColumn<>("Kategori");
+        categoryColumn.setCellValueFactory(data -> new SimpleStringProperty(
+                getCategoryText(data.getValue().getExpenseCategory())));
+        TableColumn<CompanyDebtPaymentDTO, String> notesColumn = new TableColumn<>("Not");
+        notesColumn.setCellValueFactory(data -> new SimpleStringProperty(
+                data.getValue().getNotes() != null ? data.getValue().getNotes() : ""));
+        TableColumn<CompanyDebtPaymentDTO, Void> actionColumn = new TableColumn<>("İşlem");
+        actionColumn.setCellFactory(column -> new TableCell<>() {
+            private final Button undoButton = new Button("Geri Al");
+            {
+                undoButton.getStyleClass().add("btn-danger");
+                undoButton.setOnAction(event -> {
+                    CompanyDebtPaymentDTO payment = getTableView().getItems().get(getIndex());
+                    undoPayment(debt, payment, dialog);
+                });
+            }
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : undoButton);
+            }
+        });
+
+        table.getColumns().addAll(dateColumn, amountColumn, categoryColumn, notesColumn, actionColumn);
+        table.setItems(FXCollections.observableArrayList(payments));
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        table.setPrefHeight(320);
+        table.setPlaceholder(new Label("Bu borç için kayıtlı ödeme bulunmuyor."));
+        dialog.getDialogPane().setContent(table);
+        dialog.showAndWait();
+    }
+
+    private void undoPayment(CompanyDebtDTO debt, CompanyDebtPaymentDTO payment, Dialog<Void> historyDialog) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                payment.getPaymentDate().format(dateFormatter) + " tarihli "
+                        + formatCurrency(payment.getAmount()) + " ödeme geri alınsın mı?",
+                ButtonType.YES, ButtonType.NO);
+        confirm.setHeaderText("Ödeme ve bağlı finans gideri silinecek");
+        if (confirm.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) {
+            return;
+        }
+
+        api.deletePayment(debt.getId(), payment.getId()).enqueue(new Callback<>() {
+            @Override
+            public void onResponse(Call<CompanyDebtDTO> call, Response<CompanyDebtDTO> response) {
+                Platform.runLater(() -> {
+                    if (response.isSuccessful()) {
+                        historyDialog.close();
+                        loadDebts();
+                        loadTotalDebt();
+                        showInfo("Ödeme ve bağlı finans gideri geri alındı.");
+                    } else {
+                        showError("Ödeme geri alınamadı: " + response.code());
                     }
                 });
-            } catch (NumberFormatException e) {
-                showError("Geçersiz tutar formatı!");
+            }
+
+            @Override
+            public void onFailure(Call<CompanyDebtDTO> call, Throwable t) {
+                Platform.runLater(() -> showError("Ödeme geri alınamadı: " + t.getMessage()));
             }
         });
     }
@@ -383,8 +537,12 @@ public class CompanyDebtController {
                     @Override
                     public void onResponse(Call<Void> call, Response<Void> response) {
                         Platform.runLater(() -> {
-                            loadDebts();
-                            loadTotalDebt();
+                            if (response.isSuccessful()) {
+                                loadDebts();
+                                loadTotalDebt();
+                            } else {
+                                showError("Ödeme geçmişi bulunan borç silinemez. Önce ödemeleri geri alın.");
+                            }
                         });
                     }
 
@@ -405,6 +563,23 @@ public class CompanyDebtController {
             case "PARTIAL" -> "Kısmi Ödeme";
             case "PAID" -> "Ödendi";
             default -> status;
+        };
+    }
+
+    private String getCategoryText(String category) {
+        if (category == null) {
+            return "Diğer";
+        }
+        return switch (category) {
+            case "RENT" -> "Kira";
+            case "SALARY" -> "Maaş";
+            case "BILLS" -> "Faturalar";
+            case "FUEL" -> "Yakıt";
+            case "FOOD" -> "Yemek";
+            case "TAX" -> "Vergi";
+            case "MATERIAL" -> "Malzeme";
+            case "OTHER" -> "Diğer";
+            default -> category;
         };
     }
 

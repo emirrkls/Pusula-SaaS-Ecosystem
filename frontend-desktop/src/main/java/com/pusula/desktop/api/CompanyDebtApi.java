@@ -1,6 +1,8 @@
 package com.pusula.desktop.api;
 
 import com.pusula.desktop.dto.CompanyDebtDTO;
+import com.pusula.desktop.dto.CompanyDebtPaymentDTO;
+import com.pusula.desktop.dto.DebtPaymentRequestDTO;
 import retrofit2.Call;
 import retrofit2.http.*;
 
@@ -29,7 +31,13 @@ public interface CompanyDebtApi {
     Call<CompanyDebtDTO> updateDebt(@Path("id") Long id, @Body CompanyDebtDTO dto);
 
     @POST("/api/company-debts/{id}/pay")
-    Call<CompanyDebtDTO> payDebt(@Path("id") Long id, @Query("amount") BigDecimal amount);
+    Call<CompanyDebtDTO> payDebt(@Path("id") Long id, @Body DebtPaymentRequestDTO request);
+
+    @GET("/api/company-debts/{id}/payments")
+    Call<List<CompanyDebtPaymentDTO>> getPayments(@Path("id") Long id);
+
+    @DELETE("/api/company-debts/{id}/payments/{paymentId}")
+    Call<CompanyDebtDTO> deletePayment(@Path("id") Long id, @Path("paymentId") Long paymentId);
 
     @POST("/api/company-debts/{id}/add")
     Call<CompanyDebtDTO> addDebtAmount(@Path("id") Long id, @Query("amount") BigDecimal amount, @Query("notes") String notes);

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface CompanyDebtRepository extends JpaRepository<CompanyDebt, Long> {
@@ -15,4 +16,6 @@ public interface CompanyDebtRepository extends JpaRepository<CompanyDebt, Long> 
 
     List<CompanyDebt> findByCompanyIdAndCreditorNameContainingIgnoreCaseAndDeletedFalse(Long companyId,
             String creditorName);
+
+    Optional<CompanyDebt> findByIdAndCompanyIdAndDeletedFalse(Long id, Long companyId);
 }

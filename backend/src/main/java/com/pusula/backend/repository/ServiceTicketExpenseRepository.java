@@ -15,4 +15,6 @@ public interface ServiceTicketExpenseRepository extends JpaRepository<ServiceTic
     List<ServiceTicketExpense> findByCompanyId(Long companyId);
 
     Optional<ServiceTicketExpense> findByIdAndServiceTicketId(Long id, Long serviceTicketId);
+
+    boolean existsByFinanceExpenseId(Long financeExpenseId);
 }

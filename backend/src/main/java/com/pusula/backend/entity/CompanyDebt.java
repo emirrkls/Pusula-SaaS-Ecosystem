@@ -52,6 +52,12 @@ public class CompanyDebt {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal remainingAmount;
 
+    /** Finance category used when payments are posted as expenses. */
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "expense_category", nullable = false)
+    private ExpenseCategory expenseCategory = ExpenseCategory.OTHER;
+
     /**
      * Date debt was incurred
      */
@@ -73,6 +79,7 @@ public class CompanyDebt {
      */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private DebtStatus status = DebtStatus.UNPAID;
 
     /**
@@ -87,7 +94,12 @@ public class CompanyDebt {
     private LocalDateTime updatedAt;
 
     @Column(nullable = false)
+    @Builder.Default
     private boolean deleted = false;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @PrePersist
     protected void onCreate() {

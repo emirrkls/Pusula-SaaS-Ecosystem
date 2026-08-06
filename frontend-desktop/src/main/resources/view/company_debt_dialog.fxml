@@ -24,16 +24,18 @@
         <TextField fx:id="creditorField" GridPane.columnIndex="1" GridPane.rowIndex="0" promptText="Tedarikçi adı"/>
         <Label GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="field-label" text="Tutar (₺) *"/>
         <CurrencyTextField fx:id="amountField" GridPane.columnIndex="1" GridPane.rowIndex="1" promptText="0,00"/>
-        <Label GridPane.columnIndex="0" GridPane.rowIndex="2" styleClass="field-label" text="Açıklama"/>
-        <TextField fx:id="descriptionField" GridPane.columnIndex="1" GridPane.rowIndex="2" promptText="Ne için borçlanıldı?"/>
-        <Label GridPane.columnIndex="0" GridPane.rowIndex="3" styleClass="field-label" text="Borç Tarihi"/>
-        <DatePicker fx:id="debtDatePicker" GridPane.columnIndex="1" GridPane.rowIndex="3" maxWidth="Infinity"/>
-        <Label GridPane.columnIndex="0" GridPane.rowIndex="4" styleClass="field-label" text="Vade Tarihi"/>
-        <DatePicker fx:id="dueDatePicker" GridPane.columnIndex="1" GridPane.rowIndex="4" maxWidth="Infinity"/>
-        <Label GridPane.columnIndex="0" GridPane.rowIndex="5" styleClass="field-label" text="Telefon"/>
-        <TextField fx:id="phoneField" GridPane.columnIndex="1" GridPane.rowIndex="5" promptText="İletişim numarası"/>
-        <Label GridPane.columnIndex="0" GridPane.rowIndex="6" styleClass="field-label" text="Notlar"/>
-        <TextArea fx:id="notesArea" GridPane.columnIndex="1" GridPane.rowIndex="6" prefRowCount="2"/>
+        <Label GridPane.columnIndex="0" GridPane.rowIndex="2" styleClass="field-label" text="Gider Kategorisi *"/>
+        <ComboBox fx:id="categoryComboBox" GridPane.columnIndex="1" GridPane.rowIndex="2" maxWidth="Infinity"/>
+        <Label GridPane.columnIndex="0" GridPane.rowIndex="3" styleClass="field-label" text="Açıklama"/>
+        <TextField fx:id="descriptionField" GridPane.columnIndex="1" GridPane.rowIndex="3" promptText="Ne için borçlanıldı?"/>
+        <Label GridPane.columnIndex="0" GridPane.rowIndex="4" styleClass="field-label" text="Borç Tarihi"/>
+        <DatePicker fx:id="debtDatePicker" GridPane.columnIndex="1" GridPane.rowIndex="4" maxWidth="Infinity"/>
+        <Label GridPane.columnIndex="0" GridPane.rowIndex="5" styleClass="field-label" text="Vade Tarihi"/>
+        <DatePicker fx:id="dueDatePicker" GridPane.columnIndex="1" GridPane.rowIndex="5" maxWidth="Infinity"/>
+        <Label GridPane.columnIndex="0" GridPane.rowIndex="6" styleClass="field-label" text="Telefon"/>
+        <TextField fx:id="phoneField" GridPane.columnIndex="1" GridPane.rowIndex="6" promptText="İletişim numarası"/>
+        <Label GridPane.columnIndex="0" GridPane.rowIndex="7" styleClass="field-label" text="Notlar"/>
+        <TextArea fx:id="notesArea" GridPane.columnIndex="1" GridPane.rowIndex="7" prefRowCount="2"/>
     </GridPane>
 
     <Separator/>

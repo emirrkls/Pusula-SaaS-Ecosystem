@@ -1,6 +1,8 @@
 package com.pusula.backend.controller;
 
 import com.pusula.backend.dto.CompanyDebtDTO;
+import com.pusula.backend.dto.CompanyDebtPaymentDTO;
+import com.pusula.backend.dto.DebtPaymentRequestDTO;
 import com.pusula.backend.service.CompanyDebtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -26,8 +28,7 @@ public class CompanyDebtController {
     @GetMapping
     public ResponseEntity<List<CompanyDebtDTO>> getAllDebts(
             ) {
-        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
-        return ResponseEntity.ok(debtService.getAllDebts(companyId));
+        return ResponseEntity.ok(debtService.getAllDebts(getCompanyId()));
     }
 
     /**
@@ -36,8 +37,7 @@ public class CompanyDebtController {
     @GetMapping("/unpaid")
     public ResponseEntity<List<CompanyDebtDTO>> getUnpaidDebts(
             ) {
-        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
-        return ResponseEntity.ok(debtService.getUnpaidDebts(companyId));
+        return ResponseEntity.ok(debtService.getUnpaidDebts(getCompanyId()));
     }
 
     /**
@@ -46,7 +46,7 @@ public class CompanyDebtController {
     @GetMapping("/total-unpaid")
     public ResponseEntity<Map<String, BigDecimal>> getTotalUnpaidDebt(
             ) {
-        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
+        Long companyId = getCompanyId();
         BigDecimal total = debtService.getTotalUnpaidDebt(companyId);
         return ResponseEntity.ok(Map.of("totalUnpaid", total));
     }
@@ -56,9 +56,7 @@ public class CompanyDebtController {
      */
     @PostMapping
     public ResponseEntity<CompanyDebtDTO> createDebt(@RequestBody CompanyDebtDTO dto) {
-        if (dto.getCompanyId() == null) {
-            dto.setCompanyId(1L);
-        }
+        dto.setCompanyId(getCompanyId());
         return ResponseEntity.ok(debtService.createDebt(dto));
     }
 
@@ -69,7 +67,7 @@ public class CompanyDebtController {
     public ResponseEntity<CompanyDebtDTO> updateDebt(
             @PathVariable Long id,
             @RequestBody CompanyDebtDTO dto) {
-        return ResponseEntity.ok(debtService.updateDebt(id, dto));
+        return ResponseEntity.ok(debtService.updateDebt(id, getCompanyId(), dto));
     }
 
     /**
@@ -78,13 +76,29 @@ public class CompanyDebtController {
     @PostMapping("/{id}/pay")
     public ResponseEntity<?> payDebt(
             @PathVariable Long id,
-            @RequestParam BigDecimal amount) {
+            @RequestParam(required = false) BigDecimal amount,
+            @RequestBody(required = false) DebtPaymentRequestDTO request) {
         try {
-            CompanyDebtDTO updated = debtService.payDebt(id, amount);
+            DebtPaymentRequestDTO effectiveRequest = request != null
+                    ? request
+                    : DebtPaymentRequestDTO.builder().amount(amount).build();
+            CompanyDebtDTO updated = debtService.payDebt(id, getCompanyId(), effectiveRequest);
             return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/{id}/payments")
+    public ResponseEntity<List<CompanyDebtPaymentDTO>> getPayments(@PathVariable Long id) {
+        return ResponseEntity.ok(debtService.getPayments(id, getCompanyId()));
+    }
+
+    @DeleteMapping("/{id}/payments/{paymentId}")
+    public ResponseEntity<CompanyDebtDTO> deletePayment(
+            @PathVariable Long id,
+            @PathVariable Long paymentId) {
+        return ResponseEntity.ok(debtService.deletePayment(id, paymentId, getCompanyId()));
     }
 
     /**
@@ -96,7 +110,7 @@ public class CompanyDebtController {
             @RequestParam BigDecimal amount,
             @RequestParam(required = false) String notes) {
         try {
-            CompanyDebtDTO updated = debtService.addAmountToDebt(id, amount, notes);
+            CompanyDebtDTO updated = debtService.addAmountToDebt(id, getCompanyId(), amount, notes);
             return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -107,8 +121,17 @@ public class CompanyDebtController {
      * Delete a debt (soft delete)
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteDebt(@PathVariable Long id) {
-        debtService.deleteDebt(id);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<?> deleteDebt(@PathVariable Long id) {
+        try {
+            debtService.deleteDebt(id, getCompanyId());
+            return ResponseEntity.ok().build();
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.badRequest().body(Map.of("error", exception.getMessage()));
+        }
+    }
+
+    private Long getCompanyId() {
+        return ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getCompanyId();
     }
 }

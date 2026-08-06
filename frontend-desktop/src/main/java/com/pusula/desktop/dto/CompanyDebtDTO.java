@@ -19,6 +19,7 @@ public class CompanyDebtDTO {
     private String description;
     private BigDecimal originalAmount;
     private BigDecimal remainingAmount;
+    private String expenseCategory;
     private LocalDate debtDate;
     private LocalDate dueDate;
     private String creditorPhone;

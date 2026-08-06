@@ -5,6 +5,7 @@ import com.pusula.desktop.dto.CompanyDebtDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.CurrencyTextField;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
@@ -24,6 +25,8 @@ public class CompanyDebtDialogController {
     @FXML
     private TextField descriptionField;
     @FXML
+    private ComboBox<CategoryOption> categoryComboBox;
+    @FXML
     private DatePicker debtDatePicker;
     @FXML
     private DatePicker dueDatePicker;
@@ -39,6 +42,23 @@ public class CompanyDebtDialogController {
     public void initialize() {
         api = RetrofitClient.getClient().create(CompanyDebtApi.class);
         debtDatePicker.setValue(LocalDate.now());
+        debtDatePicker.setDayCellFactory(picker -> new DateCell() {
+            @Override
+            public void updateItem(LocalDate date, boolean empty) {
+                super.updateItem(date, empty);
+                setDisable(empty || date.isAfter(LocalDate.now()));
+            }
+        });
+        categoryComboBox.setItems(FXCollections.observableArrayList(
+                new CategoryOption("MATERIAL", "Malzeme"),
+                new CategoryOption("RENT", "Kira"),
+                new CategoryOption("BILLS", "Faturalar"),
+                new CategoryOption("FUEL", "Yakıt"),
+                new CategoryOption("FOOD", "Yemek"),
+                new CategoryOption("SALARY", "Maaş"),
+                new CategoryOption("TAX", "Vergi"),
+                new CategoryOption("OTHER", "Diğer")));
+        categoryComboBox.getSelectionModel().selectLast();
     }
 
     public void setOnSave(Runnable callback) {
@@ -67,6 +87,7 @@ public class CompanyDebtDialogController {
                 .companyId(com.pusula.desktop.util.SessionManager.getCompanyId())
                 .creditorName(creditorField.getText().trim())
                 .originalAmount(amount)
+                .expenseCategory(categoryComboBox.getValue().code())
                 .description(descriptionField.getText().trim())
                 .debtDate(debtDatePicker.getValue())
                 .dueDate(dueDatePicker.getValue())
@@ -112,5 +133,12 @@ public class CompanyDebtDialogController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    private record CategoryOption(String code, String label) {
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 }

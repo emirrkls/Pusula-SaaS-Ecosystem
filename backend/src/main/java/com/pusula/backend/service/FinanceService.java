@@ -9,10 +9,12 @@ import com.pusula.backend.entity.ExpenseCategory;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.FixedExpenseDefinition;
 import com.pusula.backend.repository.CustomerRepository;
+import com.pusula.backend.repository.CompanyDebtPaymentRepository;
 import com.pusula.backend.repository.DailyClosingRepository;
 import com.pusula.backend.repository.ExpenseRepository;
 import com.pusula.backend.repository.FixedExpenseDefinitionRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
+import com.pusula.backend.repository.ServiceTicketExpenseRepository;
 import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +44,8 @@ public class FinanceService {
         private final CustomerRepository customerRepository;
         private final FixedExpenseDefinitionRepository fixedExpenseDefinitionRepository;
         private final AuditLogService auditLogService;
+        private final CompanyDebtPaymentRepository companyDebtPaymentRepository;
+        private final ServiceTicketExpenseRepository serviceTicketExpenseRepository;
 
         @Data
         @Builder
@@ -173,6 +177,7 @@ public class FinanceService {
         }
 
         public Expense updateExpense(Long id, Expense updatedExpense) {
+                rejectManagedExpenseMutation(id);
                 Expense existing = expenseRepository.findById(id)
                                 .orElseThrow(() -> new IllegalArgumentException("Expense not found: " + id));
 
@@ -185,6 +190,7 @@ public class FinanceService {
         }
 
         public void deleteExpense(Long id) {
+                rejectManagedExpenseMutation(id);
                 // Log before deletion
                 Expense expense = expenseRepository.findById(id).orElse(null);
                 if (expense != null) {
@@ -193,6 +199,17 @@ public class FinanceService {
                                                         + " ₺)");
                 }
                 expenseRepository.deleteById(id);
+        }
+
+        private void rejectManagedExpenseMutation(Long expenseId) {
+                if (companyDebtPaymentRepository.existsByExpenseId(expenseId)) {
+                        throw new IllegalStateException(
+                                        "Borç ödeme gideri ödeme geçmişi ekranından geri alınmalıdır.");
+                }
+                if (serviceTicketExpenseRepository.existsByFinanceExpenseId(expenseId)) {
+                        throw new IllegalStateException(
+                                        "Servis dış gideri ilgili servis fişi üzerinden değiştirilmelidir.");
+                }
         }
 
         /**

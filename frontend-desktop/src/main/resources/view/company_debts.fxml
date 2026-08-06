@@ -27,13 +27,14 @@
     <TableView fx:id="debtTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
         <columns>
             <TableColumn fx:id="colCreditor" minWidth="150" prefWidth="180" text="Alacaklı"/>
+            <TableColumn fx:id="colCategory" minWidth="90" prefWidth="100" text="Kategori"/>
             <TableColumn fx:id="colDescription" minWidth="150" prefWidth="200" text="Açıklama"/>
             <TableColumn fx:id="colOriginal" minWidth="100" prefWidth="120" text="Toplam Borç"/>
             <TableColumn fx:id="colRemaining" minWidth="100" prefWidth="120" text="Kalan Borç"/>
             <TableColumn fx:id="colDebtDate" minWidth="90" prefWidth="100" text="Borç Tarihi"/>
             <TableColumn fx:id="colDueDate" minWidth="90" prefWidth="100" text="Vade Tarihi"/>
             <TableColumn fx:id="colStatus" minWidth="80" prefWidth="100" text="Durum"/>
-            <TableColumn fx:id="colActions" minWidth="180" prefWidth="200" text="İşlemler"/>
+            <TableColumn fx:id="colActions" minWidth="245" prefWidth="260" text="İşlemler"/>
         </columns>
         <placeholder>
             <Label text="Henüz borç kaydı bulunmuyor"/>
