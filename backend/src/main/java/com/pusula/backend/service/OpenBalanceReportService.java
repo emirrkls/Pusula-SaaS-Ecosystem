@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 public class OpenBalanceReportService {
 
     private static final Color BRAND = new Color(2, 10, 85);
+    private static final Color BODY_TEXT = new Color(30, 58, 95);
     private static final Color HEADER_BG = new Color(51, 65, 85);
     private static final Color BORDER = new Color(203, 213, 225);
     private static final Color MUTED = new Color(100, 116, 139);
@@ -70,9 +71,9 @@ public class OpenBalanceReportService {
         }
         this.titleFont = new Font(baseFont, 18, Font.BOLD, BRAND);
         this.sectionFont = new Font(baseFont, 12, Font.BOLD, BRAND);
-        this.normalFont = new Font(baseFont, 9, Font.NORMAL, Color.BLACK);
+        this.normalFont = new Font(baseFont, 9, Font.NORMAL, BODY_TEXT);
         this.smallFont = new Font(baseFont, 8, Font.NORMAL, MUTED);
-        this.boldFont = new Font(baseFont, 9, Font.BOLD, Color.BLACK);
+        this.boldFont = new Font(baseFont, 9, Font.BOLD, BODY_TEXT);
         this.headerFont = new Font(baseFont, 8, Font.BOLD, Color.WHITE);
     }
 

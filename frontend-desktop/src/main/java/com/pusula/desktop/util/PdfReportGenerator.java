@@ -32,6 +32,7 @@ public class PdfReportGenerator {
 
     // Modern color palette (matches app design)
     private static final Color BRAND_COLOR = new Color(2, 10, 85); // Dark blue
+    private static final Color BODY_TEXT = new Color(30, 58, 95); // Navy
     private static final Color HEADER_BG = new Color(30, 41, 59); // Slate-800
     private static final Color TABLE_HEADER_BG = new Color(51, 65, 85); // Slate-700
     private static final Color TABLE_HEADER_TEXT = Color.WHITE;
@@ -64,9 +65,9 @@ public class PdfReportGenerator {
             TITLE_FONT = new Font(interBaseFont, 20, Font.BOLD, BRAND_COLOR);
             SUBTITLE_FONT = new Font(interBaseFont, 12, Font.NORMAL, TEXT_MUTED);
             HEADER_FONT = new Font(interBaseFont, 10, Font.BOLD, TABLE_HEADER_TEXT);
-            NORMAL_FONT = new Font(interBaseFont, 10, Font.NORMAL, Color.BLACK);
+            NORMAL_FONT = new Font(interBaseFont, 10, Font.NORMAL, BODY_TEXT);
             SMALL_FONT = new Font(interBaseFont, 8, Font.NORMAL, TEXT_MUTED);
-            BOLD_FONT = new Font(interBaseFont, 10, Font.BOLD, Color.BLACK);
+            BOLD_FONT = new Font(interBaseFont, 10, Font.BOLD, BODY_TEXT);
             CRITICAL_FONT = new Font(interBaseFont, 10, Font.BOLD, CRITICAL_TEXT);
         } catch (Exception e) {
             System.err.println("Could not load Inter font, falling back to Helvetica: " + e.getMessage());
@@ -74,9 +75,9 @@ public class PdfReportGenerator {
             TITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, BRAND_COLOR);
             SUBTITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA, 12, TEXT_MUTED);
             HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, TABLE_HEADER_TEXT);
-            NORMAL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 10, Color.BLACK);
+            NORMAL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 10, BODY_TEXT);
             SMALL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 8, TEXT_MUTED);
-            BOLD_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Color.BLACK);
+            BOLD_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BODY_TEXT);
             CRITICAL_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, CRITICAL_TEXT);
         }
     }

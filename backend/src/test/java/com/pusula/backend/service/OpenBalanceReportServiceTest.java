@@ -10,6 +10,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.awt.Color;
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -41,6 +43,8 @@ class OpenBalanceReportServiceTest {
 
     @Test
     void debtPdfContainsOnlyOpenDebtsAndTheirDatedMovements() throws Exception {
+        assertEquals(new Color(30, 58, 95), fontColor("normalFont"));
+        assertEquals(new Color(30, 58, 95), fontColor("boldFont"));
         CompanyDebt open = debt(20L, "ZT Soğutma", "70000.00", CompanyDebt.DebtStatus.PARTIAL);
         CompanyDebt paid = debt(21L, "Kapalı Tedarikçi", "0.00", CompanyDebt.DebtStatus.PAID);
         when(debtRepository.findByCompanyIdAndDeletedFalse(7L)).thenReturn(List.of(open, paid));
@@ -93,6 +97,12 @@ class OpenBalanceReportServiceTest {
                 .originalAmount(new BigDecimal("100000.00")).remainingAmount(new BigDecimal(remaining))
                 .expenseCategory(ExpenseCategory.MATERIAL).debtDate(LocalDate.of(2026, 5, 1))
                 .dueDate(LocalDate.of(2026, 7, 1)).status(status).deleted(false).build();
+    }
+
+    private Color fontColor(String fieldName) throws Exception {
+        Field field = OpenBalanceReportService.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return ((com.lowagie.text.Font) field.get(service)).getColor();
     }
 
     private String pdfText(byte[] pdf) throws Exception {

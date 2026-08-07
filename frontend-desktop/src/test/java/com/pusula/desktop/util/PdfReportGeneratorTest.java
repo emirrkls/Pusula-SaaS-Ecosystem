@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.math.BigDecimal;
+import java.awt.Color;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -15,6 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PdfReportGeneratorTest {
+
+    private static final Color NAVY = new Color(30, 58, 95);
 
     @TempDir
     Path tempDirectory;
@@ -29,6 +33,7 @@ class PdfReportGeneratorTest {
 
         PdfReportGenerator.writeInventoryReport(output.toFile(),
                 List.of(missingCriticalLevel, missingSellPrice));
+        writeSample("inventory-navy-sample.pdf", output);
 
         assertTrue(Files.size(output) > 0);
         PdfReader reader = new PdfReader(output.toString());
@@ -43,6 +48,26 @@ class PdfReportGeneratorTest {
             assertTrue(text.contains("Satış fiyatı belirtilmeyen ürünlerde alış fiyatı kullanılmıştır"));
         } finally {
             reader.close();
+        }
+    }
+
+    @Test
+    void bodyFontsUseNavyInsteadOfBlack() throws Exception {
+        assertEquals(NAVY, fontColor("NORMAL_FONT"));
+        assertEquals(NAVY, fontColor("BOLD_FONT"));
+    }
+
+    private static Color fontColor(String fieldName) throws Exception {
+        Field field = PdfReportGenerator.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return ((com.lowagie.text.Font) field.get(null)).getColor();
+    }
+
+    private static void writeSample(String name, Path source) throws Exception {
+        if (Boolean.getBoolean("writeReportSamples")) {
+            Path directory = Path.of("target", "report-samples");
+            Files.createDirectories(directory);
+            Files.copy(source, directory.resolve(name), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         }
     }
 

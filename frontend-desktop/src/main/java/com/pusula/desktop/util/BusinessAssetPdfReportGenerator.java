@@ -36,6 +36,7 @@ import java.util.Locale;
 
 public final class BusinessAssetPdfReportGenerator {
     private static final Color BRAND = new Color(2, 10, 85);
+    private static final Color BODY_TEXT = new Color(30, 58, 95);
     private static final Color HEADER = new Color(51, 65, 85);
     private static final Color BORDER = new Color(203, 213, 225);
     private static final Color MUTED = new Color(100, 116, 139);
@@ -65,9 +66,9 @@ public final class BusinessAssetPdfReportGenerator {
         TITLE_FONT = new Font(baseFont, 20, Font.BOLD, BRAND);
         SUBTITLE_FONT = new Font(baseFont, 11, Font.NORMAL, MUTED);
         HEADER_FONT = new Font(baseFont, 8, Font.BOLD, Color.WHITE);
-        NORMAL_FONT = new Font(baseFont, 8, Font.NORMAL, Color.BLACK);
+        NORMAL_FONT = new Font(baseFont, 8, Font.NORMAL, BODY_TEXT);
         SMALL_FONT = new Font(baseFont, 7, Font.NORMAL, MUTED);
-        BOLD_FONT = new Font(baseFont, 10, Font.BOLD, Color.BLACK);
+        BOLD_FONT = new Font(baseFont, 10, Font.BOLD, BODY_TEXT);
     }
 
     private BusinessAssetPdfReportGenerator() {}
