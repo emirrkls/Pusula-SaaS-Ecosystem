@@ -1988,6 +1988,26 @@
     -fx-padding: 16;
 }
 
+.dialog-form-scroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.dialog-form-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.dialog-action-bar {
+    -fx-padding: 12 24 18 24;
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #E2E8F0 transparent transparent transparent;
+}
+
+.dark-theme .dialog-action-bar {
+    -fx-background-color: #1E293B;
+    -fx-border-color: #334155 transparent transparent transparent;
+}
+
 .dialog-tab-pane {
     -fx-tab-min-height: 40;
     -fx-tab-max-height: 40;

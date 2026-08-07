@@ -16,46 +16,58 @@
     <TabPane fx:id="modeTabPane" styleClass="dialog-tab-pane" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
         <tabs>
             <Tab text="%unified_expense.tab.daily">
-                <VBox spacing="18" styleClass="dialog-body">
-                    <HBox spacing="16">
-                        <VBox HBox.hgrow="ALWAYS" prefWidth="250" spacing="6">
-                            <Label styleClass="field-label" text="%unified_expense.daily.category"/>
-                            <ComboBox fx:id="comboCategory" maxWidth="Infinity" styleClass="form-control-tall"/>
-                        </VBox>
-                        <VBox HBox.hgrow="ALWAYS" spacing="6">
-                            <Label styleClass="muted-label" text="Bağlı Sabit Gider (Opsiyonel)"/>
-                            <ComboBox fx:id="comboLinkedFixedExpense" maxWidth="Infinity"
-                                      promptText="Sabit gidere bağla..." styleClass="form-control-tall"/>
-                        </VBox>
-                    </HBox>
-                    <HBox spacing="16">
-                        <VBox HBox.hgrow="ALWAYS" spacing="6">
-                            <Label styleClass="field-label" text="%unified_expense.daily.amount"/>
-                            <CurrencyTextField fx:id="txtAmount" promptText="0,00" styleClass="form-control-tall"/>
-                        </VBox>
-                        <VBox HBox.hgrow="ALWAYS" spacing="6">
-                            <Label styleClass="field-label" text="%unified_expense.daily.date"/>
-                            <DatePicker fx:id="datePicker" maxWidth="Infinity" styleClass="form-control-tall"/>
-                        </VBox>
-                    </HBox>
-                    <VBox spacing="6">
-                        <Label styleClass="field-label" text="Finansal Etki"/>
-                        <ComboBox fx:id="comboFinancialTreatment" maxWidth="Infinity"
-                                  promptText="Giderin rapora etkisini seçin" styleClass="form-control-tall"/>
-                        <Label styleClass="muted-label"
-                               text="Borç ana para ödemesi gibi kârı değiştirmeyen çıkışlarda yalnızca nakit hareketini seçin."
-                               wrapText="true"/>
-                    </VBox>
-                    <VBox spacing="6" VBox.vgrow="ALWAYS">
-                        <Label styleClass="field-label" text="%unified_expense.daily.description"/>
-                        <TextArea fx:id="txtDescription" prefRowCount="4" promptText="%unified_expense.daily.description_prompt"
-                                  VBox.vgrow="ALWAYS"/>
-                    </VBox>
-                    <HBox alignment="CENTER_RIGHT" spacing="12">
+                <BorderPane>
+                    <center>
+                        <ScrollPane fitToHeight="false" fitToWidth="true" hbarPolicy="NEVER"
+                                    pannable="true" styleClass="dialog-form-scroll">
+                            <content>
+                                <VBox spacing="18" styleClass="dialog-body">
+                                    <HBox spacing="16">
+                                        <VBox HBox.hgrow="ALWAYS" prefWidth="250" spacing="6">
+                                            <Label styleClass="field-label" text="%unified_expense.daily.category"/>
+                                            <ComboBox fx:id="comboCategory" maxWidth="Infinity" styleClass="form-control-tall"/>
+                                        </VBox>
+                                        <VBox HBox.hgrow="ALWAYS" spacing="6">
+                                            <Label styleClass="muted-label" text="Bağlı Sabit Gider (Opsiyonel)"/>
+                                            <ComboBox fx:id="comboLinkedFixedExpense" maxWidth="Infinity"
+                                                      promptText="Sabit gidere bağla..." styleClass="form-control-tall"/>
+                                        </VBox>
+                                    </HBox>
+                                    <HBox spacing="16">
+                                        <VBox HBox.hgrow="ALWAYS" spacing="6">
+                                            <Label styleClass="field-label" text="%unified_expense.daily.amount"/>
+                                            <CurrencyTextField fx:id="txtAmount" promptText="0,00" styleClass="form-control-tall"/>
+                                        </VBox>
+                                        <VBox HBox.hgrow="ALWAYS" spacing="6">
+                                            <Label styleClass="field-label" text="%unified_expense.daily.date"/>
+                                            <DatePicker fx:id="datePicker" maxWidth="Infinity" styleClass="form-control-tall"/>
+                                        </VBox>
+                                    </HBox>
+                                    <VBox spacing="6">
+                                        <Label styleClass="field-label" text="Finansal Etki"/>
+                                        <ComboBox fx:id="comboFinancialTreatment" maxWidth="Infinity"
+                                                  promptText="Giderin rapora etkisini seçin" styleClass="form-control-tall"/>
+                                        <Label styleClass="muted-label"
+                                               text="Borç ana para ödemesi gibi kârı değiştirmeyen çıkışlarda yalnızca nakit hareketini seçin."
+                                               wrapText="true"/>
+                                    </VBox>
+                                    <VBox spacing="6">
+                                        <Label styleClass="field-label" text="%unified_expense.daily.description"/>
+                                        <TextArea fx:id="txtDescription" prefRowCount="4"
+                                                  promptText="%unified_expense.daily.description_prompt"/>
+                                    </VBox>
+                                </VBox>
+                            </content>
+                        </ScrollPane>
+                    </center>
+                    <bottom>
+                        <HBox alignment="CENTER_RIGHT" spacing="12" styleClass="dialog-action-bar">
                         <Button onAction="#handleDailyCancel" styleClass="btn-secondary" text="%unified_expense.daily.cancel"/>
-                        <Button onAction="#handleDailySave" styleClass="btn-success" text="%unified_expense.daily.save"/>
-                    </HBox>
-                </VBox>
+                            <Button defaultButton="true" onAction="#handleDailySave" styleClass="btn-success"
+                                    text="%unified_expense.daily.save"/>
+                        </HBox>
+                    </bottom>
+                </BorderPane>
             </Tab>
             <Tab text="%unified_expense.tab.fixed">
                 <VBox spacing="12" styleClass="dialog-body-compact">
