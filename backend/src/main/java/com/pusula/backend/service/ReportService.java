@@ -886,6 +886,7 @@ public class ReportService {
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
+                                .filter(st -> !st.isCurrentAccountPayment())
                                 .filter(st -> st.getEffectiveCompletedAt() != null)
                                 .collect(java.util.stream.Collectors.toList());
 
@@ -995,6 +996,7 @@ public class ReportService {
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
+                                .filter(st -> !st.isCurrentAccountPayment())
                                 .filter(st -> st.getEffectiveCompletedAt() != null &&
                                                 !st.getEffectiveCompletedAt().toLocalDate().isBefore(startDate) &&
                                                 !st.getEffectiveCompletedAt().toLocalDate().isAfter(endDate))
@@ -1050,6 +1052,7 @@ public class ReportService {
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
+                                .filter(st -> !st.isCurrentAccountPayment())
                                 .filter(st -> st.getEffectiveCompletedAt() != null &&
                                                 !st.getEffectiveCompletedAt().toLocalDate().isBefore(startDate) &&
                                                 !st.getEffectiveCompletedAt().toLocalDate().isAfter(endDate))
@@ -1231,6 +1234,7 @@ public class ReportService {
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
+                                .filter(st -> !st.isCurrentAccountPayment())
                                 .filter(st -> st.getEffectiveCompletedAt() != null)
                                 .filter(st -> java.time.YearMonth.from(st.getEffectiveCompletedAt()).isBefore(targetPeriod))
                                 .collect(java.util.stream.Collectors.toList());

@@ -87,6 +87,7 @@ public class AdminDashboardService {
         // separate FinanceService concern.
         List<ServiceTicket> completedSalesThisMonth = tickets.stream()
                 .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
+                .filter(t -> !t.isCurrentAccountPayment())
                 .filter(t -> t.getEffectiveCompletedAt() != null)
                 .filter(t -> {
                     LocalDate completionDate = t.getEffectiveCompletedAt().toLocalDate();
@@ -141,16 +142,19 @@ public class AdminDashboardService {
 
         int completedThisMonth = (int) tickets.stream()
                 .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
+                .filter(t -> !t.isCurrentAccountPayment())
                 .filter(t -> isDateOnOrAfter(t.getEffectiveCompletedAt(), monthStart))
                 .count();
 
         int openedToday = (int) tickets.stream()
+                .filter(t -> !t.isCurrentAccountPayment())
                 .filter(t -> isBusinessDateEquals(t.getCreatedAt(), businessToday))
                 .count();
 
         int closedToday = (int) tickets.stream()
                 .filter(t -> t.getStatus() == ServiceTicket.TicketStatus.COMPLETED
                         || t.getStatus() == ServiceTicket.TicketStatus.CANCELLED)
+                .filter(t -> !t.isCurrentAccountPayment())
                 .filter(t -> isDateEquals(t.getEffectiveCompletedAt(), businessToday))
                 .count();
 
@@ -213,12 +217,14 @@ public class AdminDashboardService {
             // Completed today
             long completedToday = myTickets.stream()
                     .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
+                    .filter(t -> !t.isCurrentAccountPayment())
                     .filter(t -> isDateEquals(t.getEffectiveCompletedAt(), businessToday))
                     .count();
 
             // Completed this month
             long completedMonth = myTickets.stream()
                     .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
+                    .filter(t -> !t.isCurrentAccountPayment())
                     .filter(t -> isDateOnOrAfter(t.getEffectiveCompletedAt(), monthStart))
                     .count();
 
@@ -246,6 +252,7 @@ public class AdminDashboardService {
             // Last location — from last completed ticket's customer
             String lastLocation = myTickets.stream()
                     .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
+                    .filter(t -> !t.isCurrentAccountPayment())
                     .max(Comparator.comparing(t -> t.getEffectiveCompletedAt() != null
                             ? t.getEffectiveCompletedAt() : LocalDateTime.MIN))
                     .flatMap(t -> customerRepository.findById(t.getCustomerId()))
@@ -326,6 +333,7 @@ public class AdminDashboardService {
         // Get all used parts from completed tickets
         List<ServiceTicket> completedTickets = ticketRepository.findByCompanyId(companyId).stream()
                 .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
+                .filter(t -> !t.isCurrentAccountPayment())
                 .collect(Collectors.toList());
 
         BigDecimal totalCOGS = BigDecimal.ZERO;

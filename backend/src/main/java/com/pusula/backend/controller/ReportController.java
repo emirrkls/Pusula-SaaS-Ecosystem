@@ -86,7 +86,9 @@ public class ReportController {
         Map<String, Map<String, Integer>> performanceData = new HashMap<>();
 
         for (ServiceTicket ticket : completedTickets) {
-            if (ticket.getAssignedTechnicianId() == null || ticket.getEffectiveCompletedAt() == null) {
+            if (ticket.isCurrentAccountPayment()
+                    || ticket.getAssignedTechnicianId() == null
+                    || ticket.getEffectiveCompletedAt() == null) {
                 continue;
             }
 

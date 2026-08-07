@@ -87,6 +87,20 @@ class FinanceServiceCollectionDateTest {
     }
 
     @Test
+    void currentAccountCollectionRemainsLiquidIncome() {
+        LocalDate collectionDate = LocalDate.now().minusDays(3);
+        ServiceTicket payment = completedCashTicket(new BigDecimal("135000.00"), collectionDate);
+        payment.setCurrentAccountPayment(true);
+        when(ticketRepository.findByCompanyId(10L)).thenReturn(List.of(payment));
+        when(expenseRepository.findByCompanyIdAndDateBetween(10L, collectionDate, collectionDate))
+                .thenReturn(List.of());
+
+        DailySummaryDTO summary = service.getDailySummary(10L, collectionDate);
+
+        assertEquals(new BigDecimal("135000.00"), summary.getTotalIncome());
+    }
+
+    @Test
     void linkedDebtPaymentExpenseCannotBeDeletedFromGenericFinanceFlow() {
         when(companyDebtPaymentRepository.existsByExpenseId(88L)).thenReturn(true);
 

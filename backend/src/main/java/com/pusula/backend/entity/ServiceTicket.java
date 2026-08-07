@@ -68,6 +68,15 @@ public class ServiceTicket extends BaseEntity {
     @Column(name = "payment_method")
     private PaymentMethod paymentMethod = PaymentMethod.CASH; // Default to cash
 
+    /**
+     * True when this row represents cash collected against an earlier current
+     * account sale rather than a new service sale. These rows remain part of cash
+     * collection reports but must not be recognized as revenue a second time in
+     * completion-based sales/profit reports.
+     */
+    @Column(name = "current_account_payment", nullable = false, columnDefinition = "boolean default false")
+    private boolean currentAccountPayment = false;
+
     public ServiceTicket() {
     }
 
@@ -249,6 +258,14 @@ public class ServiceTicket extends BaseEntity {
 
     public void setPaymentMethod(PaymentMethod paymentMethod) {
         this.paymentMethod = paymentMethod;
+    }
+
+    public boolean isCurrentAccountPayment() {
+        return currentAccountPayment;
+    }
+
+    public void setCurrentAccountPayment(boolean currentAccountPayment) {
+        this.currentAccountPayment = currentAccountPayment;
     }
 
     public enum TicketStatus {

@@ -127,6 +127,7 @@ public class CurrentAccountController {
                                 .collectedAmount(paymentAmount)
                                 .build();
                         // PaymentMethod defaults to CASH
+                        incomeTicket.setCurrentAccountPayment(true);
                         incomeTicket.setCompletedAt(LocalDateTime.now());
                         incomeTicket.setCollectionDate(LocalDate.now());
 

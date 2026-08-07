@@ -78,4 +78,35 @@ class ReportServiceStructuredPricingTest {
         assertEquals(new BigDecimal("400.00"), summaries.get(0).getTotalExpense());
         assertEquals(new BigDecimal("100.00"), summaries.get(0).getNetProfit());
     }
+
+    @Test
+    void monthlyProfitDoesNotRecognizeCurrentAccountCollectionAsSecondSale() {
+        LocalDate completionDate = LocalDate.now().withDayOfMonth(2);
+
+        ServiceTicket originalSale = new ServiceTicket();
+        originalSale.setId(100L);
+        originalSale.setCompanyId(10L);
+        originalSale.setStatus(ServiceTicket.TicketStatus.COMPLETED);
+        originalSale.setCompletedAt(completionDate.atTime(12, 0));
+        originalSale.setInvoiceTotal(new BigDecimal("135000.00"));
+        originalSale.setCollectedAmount(BigDecimal.ZERO);
+
+        ServiceTicket laterCollection = new ServiceTicket();
+        laterCollection.setId(101L);
+        laterCollection.setCompanyId(10L);
+        laterCollection.setStatus(ServiceTicket.TicketStatus.COMPLETED);
+        laterCollection.setCompletedAt(completionDate.atTime(13, 0));
+        laterCollection.setCollectedAmount(new BigDecimal("135000.00"));
+        laterCollection.setCurrentAccountPayment(true);
+
+        when(ticketRepository.findAll()).thenReturn(List.of(originalSale, laterCollection));
+        when(expenseRepository.findByCompanyId(10L)).thenReturn(List.of());
+        when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of());
+
+        List<MonthlySummaryDTO> summaries = service.getMonthlyArchives(10L);
+
+        assertEquals(1, summaries.size());
+        assertEquals(new BigDecimal("135000.00"), summaries.get(0).getTotalIncome());
+        assertEquals(new BigDecimal("135000.00"), summaries.get(0).getNetProfit());
+    }
 }

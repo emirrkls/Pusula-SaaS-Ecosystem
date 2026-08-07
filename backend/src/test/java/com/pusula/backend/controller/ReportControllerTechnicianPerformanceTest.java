@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -94,5 +95,28 @@ class ReportControllerTechnicianPerformanceTest {
         assertEquals(1, response.getBody().get("Ali Usta").get(dateKey));
         verify(ticketRepository).findCompletedTicketsSince(eq(42L), any(LocalDateTime.class));
         verify(userRepository).findByIdAndCompanyId(10L, 42L);
+    }
+
+    @Test
+    void technicianPerformance_excludesCurrentAccountCollections() {
+        ServiceTicket payment = ServiceTicket.builder()
+                .id(101L)
+                .companyId(42L)
+                .customerId(200L)
+                .assignedTechnicianId(10L)
+                .status(ServiceTicket.TicketStatus.COMPLETED)
+                .build();
+        payment.setCompletedAt(LocalDateTime.now().minusDays(1));
+        payment.setCurrentAccountPayment(true);
+
+        when(ticketRepository.findCompletedTicketsSince(eq(42L), any(LocalDateTime.class)))
+                .thenReturn(List.of(payment));
+
+        ResponseEntity<Map<String, Map<String, Integer>>> response = controller.getTechnicianPerformance();
+
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(Map.of(), response.getBody());
+        verifyNoInteractions(userRepository);
     }
 }
