@@ -194,6 +194,14 @@ public class PdfReportGenerator {
         int totalQuantity = inventoryList.stream()
                 .mapToInt(i -> safeInt(i.getQuantity()))
                 .sum();
+        java.math.BigDecimal inventoryValue = inventoryList.stream()
+                .map(i -> safeMoney(i.getBuyPrice())
+                        .multiply(java.math.BigDecimal.valueOf(safeInt(i.getQuantity()))))
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        java.math.BigDecimal estimatedSalesValue = inventoryList.stream()
+                .map(i -> estimatedSellPrice(i).multiply(
+                        java.math.BigDecimal.valueOf(safeInt(i.getQuantity()))))
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
 
         PdfPTable summaryTable = new PdfPTable(3);
         summaryTable.setWidthPercentage(100);
@@ -204,6 +212,20 @@ public class PdfReportGenerator {
         addSummaryCell(summaryTable, "Kritik Stok", String.valueOf(criticalCount), criticalCount > 0);
 
         document.add(summaryTable);
+
+        PdfPTable valueTable = new PdfPTable(2);
+        valueTable.setWidthPercentage(100);
+        valueTable.setSpacingBefore(8);
+        valueTable.setSpacingAfter(10);
+        addSummaryCell(valueTable, "Toplam Envanter Değeri", formatCurrency(inventoryValue) + " ₺");
+        addSummaryCell(valueTable, "Envanterin Tahmini Toplam Satış Tutarı",
+                formatCurrency(estimatedSalesValue) + " ₺");
+        document.add(valueTable);
+
+        Paragraph estimateNote = new Paragraph(
+                "* Satış fiyatı belirtilmeyen ürünlerde alış fiyatı kullanılmıştır.", SMALL_FONT);
+        estimateNote.setSpacingAfter(5);
+        document.add(estimateNote);
     }
 
     private static void addSummaryCell(PdfPTable table, String label, String value) {
@@ -246,7 +268,7 @@ public class PdfReportGenerator {
         addCell(table, item.getPartName() == null ? "-" : item.getPartName(), font, bgColor, Element.ALIGN_LEFT);
         addCell(table, String.valueOf(safeInt(item.getQuantity())), font, bgColor, Element.ALIGN_CENTER);
         addCell(table, formatCurrency(item.getBuyPrice()), NORMAL_FONT, bgColor, Element.ALIGN_RIGHT);
-        addCell(table, formatCurrency(item.getSellPrice()), NORMAL_FONT, bgColor, Element.ALIGN_RIGHT);
+        addCell(table, formatCurrency(estimatedSellPrice(item)), NORMAL_FONT, bgColor, Element.ALIGN_RIGHT);
         addCell(table, String.valueOf(safeInt(item.getCriticalLevel())), NORMAL_FONT, bgColor, Element.ALIGN_CENTER);
     }
 
@@ -281,5 +303,15 @@ public class PdfReportGenerator {
 
     private static int safeInt(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    private static java.math.BigDecimal safeMoney(java.math.BigDecimal value) {
+        return value == null ? java.math.BigDecimal.ZERO : value;
+    }
+
+    private static java.math.BigDecimal estimatedSellPrice(InventoryDTO item) {
+        java.math.BigDecimal sellPrice = item.getSellPrice();
+        return sellPrice == null || sellPrice.compareTo(java.math.BigDecimal.ZERO) <= 0
+                ? safeMoney(item.getBuyPrice()) : sellPrice;
     }
 }
