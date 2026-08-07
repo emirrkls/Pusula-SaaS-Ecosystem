@@ -14,6 +14,7 @@
     <HBox alignment="CENTER_LEFT" spacing="15" styleClass="page-header">
         <Label styleClass="page-header-title" text="Borçlarımız" HBox.hgrow="ALWAYS"/>
         <Label fx:id="totalDebtLabel" styleClass="debt-total-label" text="Toplam Borç: 0 ₺"/>
+        <Button onAction="#handleExportPdf" styleClass="btn-export" text="PDF Kaydet"/>
         <Button onAction="#handleAddDebt" styleClass="btn-primary" text="+ Borç Ekle"/>
         <Button onAction="#loadDebts" styleClass="btn-secondary" text="Yenile"/>
     </HBox>

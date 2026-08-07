@@ -3,6 +3,7 @@ package com.pusula.desktop.controller;
 import com.pusula.desktop.api.CompanyDebtApi;
 import com.pusula.desktop.dto.CompanyDebtDTO;
 import com.pusula.desktop.dto.CompanyDebtPaymentDTO;
+import com.pusula.desktop.dto.DebtAdditionRequestDTO;
 import com.pusula.desktop.dto.DebtPaymentRequestDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.CurrencyTextField;
@@ -20,11 +21,14 @@ import javafx.scene.layout.HBox;
 import javafx.geometry.Insets;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.FileChooser;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 import java.math.BigDecimal;
+import java.io.File;
+import java.nio.file.Files;
 import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
@@ -460,7 +464,7 @@ public class CompanyDebtController {
     }
 
     private void handleAddAmountToDebt(CompanyDebtDTO debt) {
-        Dialog<Map<String, String>> dialog = new Dialog<>();
+        Dialog<DebtAdditionRequestDTO> dialog = new Dialog<>();
         dialog.setTitle("Borca İlave Yap");
         dialog.setHeaderText(debt.getCreditorName() + " borcuna ilave tutar ekleniyor.");
 
@@ -476,31 +480,48 @@ public class CompanyDebtController {
         amountField.setPromptText("0,00");
         TextField notesField = new TextField();
         notesField.setPromptText("Örn: X malzemesi alındı");
+        DatePicker additionDatePicker = new DatePicker(LocalDate.now());
+        additionDatePicker.setDayCellFactory(picker -> new DateCell() {
+            @Override
+            public void updateItem(LocalDate date, boolean empty) {
+                super.updateItem(date, empty);
+                setDisable(empty || date.isBefore(debt.getDebtDate()) || date.isAfter(LocalDate.now()));
+            }
+        });
 
         grid.add(new Label("Tutar (₺):"), 0, 0);
         grid.add(amountField, 1, 0);
-        grid.add(new Label("Açıklama:"), 0, 1);
-        grid.add(notesField, 1, 1);
+        grid.add(new Label("İlave Tarihi:"), 0, 1);
+        grid.add(additionDatePicker, 1, 1);
+        grid.add(new Label("Açıklama:"), 0, 2);
+        grid.add(notesField, 1, 2);
 
         dialog.getDialogPane().setContent(grid);
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
-                return Map.of("amount", amountField.getText(), "notes", notesField.getText());
+                return DebtAdditionRequestDTO.builder()
+                        .amount(amountField.getRawValue())
+                        .additionDate(additionDatePicker.getValue())
+                        .notes(notesField.getText())
+                        .build();
             }
             return null;
         });
 
-        dialog.showAndWait().ifPresent(result -> {
+        dialog.showAndWait().ifPresent(request -> {
             try {
-                BigDecimal amount = amountField.getRawValue();
+                BigDecimal amount = request.getAmount();
                 if (amount.compareTo(BigDecimal.ZERO) <= 0) {
                     showError("Tutar sıfırdan büyük olmalıdır!");
                     return;
                 }
 
-                String notes = result.get("notes");
-                api.addDebtAmount(debt.getId(), amount, notes).enqueue(new Callback<>() {
+                if (request.getAdditionDate() == null) {
+                    showError("İlave tarihi zorunludur!");
+                    return;
+                }
+                api.addDebtAmount(debt.getId(), request).enqueue(new Callback<>() {
                     @Override
                     public void onResponse(Call<CompanyDebtDTO> call, Response<CompanyDebtDTO> response) {
                         Platform.runLater(() -> {
@@ -523,6 +544,46 @@ public class CompanyDebtController {
                 showError("Geçersiz tutar formatı!");
             }
         });
+    }
+
+    @FXML
+    public void handleExportPdf() {
+        api.downloadOpenDebtsPdf().enqueue(new Callback<>() {
+            @Override
+            public void onResponse(Call<okhttp3.ResponseBody> call, Response<okhttp3.ResponseBody> response) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    Platform.runLater(() -> showError("PDF oluşturulamadı: " + response.code()));
+                    return;
+                }
+                try {
+                    byte[] pdf = response.body().bytes();
+                    Platform.runLater(() -> savePdf(pdf, "Acik_Isletme_Borclari.pdf"));
+                } catch (Exception exception) {
+                    Platform.runLater(() -> showError("PDF okunamadı: " + exception.getMessage()));
+                }
+            }
+
+            @Override
+            public void onFailure(Call<okhttp3.ResponseBody> call, Throwable throwable) {
+                Platform.runLater(() -> showError("PDF indirilemedi: " + throwable.getMessage()));
+            }
+        });
+    }
+
+    private void savePdf(byte[] pdf, String initialFileName) {
+        try {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle("Açık Borçlar PDF Raporunu Kaydet");
+            chooser.setInitialFileName(initialFileName);
+            chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF Dosyaları", "*.pdf"));
+            File file = chooser.showSaveDialog((Stage) debtTable.getScene().getWindow());
+            if (file != null) {
+                Files.write(file.toPath(), pdf);
+                showInfo("PDF başarıyla kaydedildi.");
+            }
+        } catch (Exception exception) {
+            showError("PDF kaydedilemedi: " + exception.getMessage());
+        }
     }
 
     private void handleDeleteDebt(CompanyDebtDTO debt) {

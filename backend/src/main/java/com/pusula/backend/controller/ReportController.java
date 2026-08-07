@@ -5,6 +5,7 @@ import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.ServiceTicketRepository;
 import com.pusula.backend.repository.UserRepository;
 import com.pusula.backend.service.ReportService;
+import com.pusula.backend.service.OpenBalanceReportService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -30,13 +31,16 @@ public class ReportController {
     private final ServiceTicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final ReportService reportService;
+    private final OpenBalanceReportService openBalanceReportService;
 
     public ReportController(ServiceTicketRepository ticketRepository,
             UserRepository userRepository,
-            ReportService reportService) {
+            ReportService reportService,
+            OpenBalanceReportService openBalanceReportService) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.reportService = reportService;
+        this.openBalanceReportService = openBalanceReportService;
     }
 
     private Long getCompanyId() {
@@ -192,5 +196,27 @@ public class ReportController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @GetMapping("/open-company-debts/pdf")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<byte[]> downloadOpenCompanyDebtsPdf() {
+        byte[] pdf = openBalanceReportService.generateOpenCompanyDebtsPdf(getCompanyId());
+        return pdfResponse(pdf, "acik_isletme_borclari.pdf");
+    }
+
+    @GetMapping("/open-current-accounts/pdf")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<byte[]> downloadOpenCurrentAccountsPdf() {
+        byte[] pdf = openBalanceReportService.generateOpenCurrentAccountsPdf(getCompanyId());
+        return pdfResponse(pdf, "acik_cari_hesaplar.pdf");
+    }
+
+    private ResponseEntity<byte[]> pdfResponse(byte[] pdf, String filename) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", filename);
+        headers.setCacheControl("no-store");
+        return ResponseEntity.ok().headers(headers).body(pdf);
     }
 }

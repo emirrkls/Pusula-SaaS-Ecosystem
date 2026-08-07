@@ -1,14 +1,18 @@
 package com.pusula.backend.service;
 
 import com.pusula.backend.dto.CompanyDebtDTO;
+import com.pusula.backend.dto.CompanyDebtAdditionDTO;
 import com.pusula.backend.dto.CompanyDebtPaymentDTO;
+import com.pusula.backend.dto.DebtAdditionRequestDTO;
 import com.pusula.backend.dto.DebtPaymentRequestDTO;
 import com.pusula.backend.entity.CompanyDebt;
+import com.pusula.backend.entity.CompanyDebtAddition;
 import com.pusula.backend.entity.CompanyDebtPayment;
 import com.pusula.backend.entity.Expense;
 import com.pusula.backend.entity.ExpenseCategory;
 import com.pusula.backend.entity.ExpenseTreatment;
 import com.pusula.backend.repository.CompanyDebtPaymentRepository;
+import com.pusula.backend.repository.CompanyDebtAdditionRepository;
 import com.pusula.backend.repository.CompanyDebtRepository;
 import com.pusula.backend.repository.ExpenseRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +29,7 @@ public class CompanyDebtService {
 
     private final CompanyDebtRepository debtRepository;
     private final CompanyDebtPaymentRepository paymentRepository;
+    private final CompanyDebtAdditionRepository additionRepository;
     private final ExpenseRepository expenseRepository;
     private final AuditLogService auditLogService;
     private final FinanceService financeService;
@@ -32,12 +37,14 @@ public class CompanyDebtService {
 
     public CompanyDebtService(CompanyDebtRepository debtRepository,
             CompanyDebtPaymentRepository paymentRepository,
+            CompanyDebtAdditionRepository additionRepository,
             ExpenseRepository expenseRepository,
             AuditLogService auditLogService,
             FinanceService financeService,
             @Value("${app.business.timezone:Europe/Istanbul}") String businessTimezone) {
         this.debtRepository = debtRepository;
         this.paymentRepository = paymentRepository;
+        this.additionRepository = additionRepository;
         this.expenseRepository = expenseRepository;
         this.auditLogService = auditLogService;
         this.financeService = financeService;
@@ -167,6 +174,14 @@ public class CompanyDebtService {
                 .toList();
     }
 
+    public List<CompanyDebtAdditionDTO> getAdditions(Long debtId, Long companyId) {
+        findDebt(debtId, companyId);
+        return additionRepository.findByDebtIdAndCompanyIdOrderByAdditionDateAscIdAsc(debtId, companyId)
+                .stream()
+                .map(this::mapAdditionToDTO)
+                .toList();
+    }
+
     @Transactional
     public CompanyDebtDTO deletePayment(Long debtId, Long paymentId, Long companyId) {
         CompanyDebt debt = findDebt(debtId, companyId);
@@ -188,20 +203,37 @@ public class CompanyDebtService {
     }
 
     @Transactional
-    public CompanyDebtDTO addAmountToDebt(Long id, Long companyId, BigDecimal amountToAdd, String notes) {
+    public CompanyDebtDTO addAmountToDebt(Long id, Long companyId, DebtAdditionRequestDTO request) {
         CompanyDebt debt = findDebt(id, companyId);
+        BigDecimal amountToAdd = request != null ? request.getAmount() : null;
+        LocalDate additionDate = request != null && request.getAdditionDate() != null
+                ? request.getAdditionDate()
+                : LocalDate.now(businessZone);
+        String notes = request != null ? request.getNotes() : null;
         validatePositive(amountToAdd, "Eklenecek tutar");
+        if (additionDate.isBefore(debt.getDebtDate())) {
+            throw new IllegalArgumentException("İlave tarihi borç tarihinden önce olamaz.");
+        }
+        if (additionDate.isAfter(LocalDate.now(businessZone))) {
+            throw new IllegalArgumentException("İlave tarihi gelecekte olamaz.");
+        }
+
+        additionRepository.save(CompanyDebtAddition.builder()
+                .companyId(companyId)
+                .debtId(debt.getId())
+                .amount(amountToAdd)
+                .additionDate(additionDate)
+                .notes(notes)
+                .build());
 
         debt.setOriginalAmount(debt.getOriginalAmount().add(amountToAdd));
         debt.setRemainingAmount(debt.getRemainingAmount().add(amountToAdd));
-        String currentDescription = debt.getDescription() == null ? "" : debt.getDescription() + " | ";
-        debt.setDescription(currentDescription + "İlave Borç (" + amountToAdd + "₺)"
-                + (notes != null && !notes.isBlank() ? ": " + notes : ""));
         updateStatus(debt);
 
         CompanyDebt saved = debtRepository.save(debt);
         auditLogService.log("UPDATE", "COMPANY_DEBT", saved.getId(),
-                "Borca ilave yapıldı: " + amountToAdd + " ₺. Yeni borç: " + saved.getRemainingAmount() + " ₺");
+                "Borca ilave yapıldı: " + amountToAdd + " ₺ (" + additionDate
+                        + "). Yeni borç: " + saved.getRemainingAmount() + " ₺");
         return mapToDTO(saved);
     }
 
@@ -211,6 +243,9 @@ public class CompanyDebtService {
         if (paymentRepository.existsByDebtIdAndCompanyId(id, companyId)) {
             throw new IllegalStateException(
                     "Ödeme geçmişi bulunan borç silinemez. Önce kayıtlı ödemeleri geri alın.");
+        }
+        if (additionRepository.existsByDebtIdAndCompanyId(id, companyId)) {
+            throw new IllegalStateException("İlave hareketi bulunan borç silinemez.");
         }
         debt.setDeleted(true);
         debtRepository.save(debt);
@@ -287,6 +322,17 @@ public class CompanyDebtService {
                 .creditorName(creditorName)
                 .notes(payment.getNotes())
                 .createdAt(payment.getCreatedAt())
+                .build();
+    }
+
+    private CompanyDebtAdditionDTO mapAdditionToDTO(CompanyDebtAddition addition) {
+        return CompanyDebtAdditionDTO.builder()
+                .id(addition.getId())
+                .debtId(addition.getDebtId())
+                .amount(addition.getAmount())
+                .additionDate(addition.getAdditionDate())
+                .notes(addition.getNotes())
+                .createdAt(addition.getCreatedAt())
                 .build();
     }
 }

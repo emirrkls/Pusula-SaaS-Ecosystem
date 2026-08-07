@@ -914,6 +914,51 @@ public class FinanceController {
         });
     }
 
+    @FXML
+    public void handleExportCurrentAccountsPdf() {
+        financeApi.downloadOpenCurrentAccountsPdf().enqueue(new Callback<okhttp3.ResponseBody>() {
+            @Override
+            public void onResponse(Call<okhttp3.ResponseBody> call, Response<okhttp3.ResponseBody> response) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR, null,
+                            "Hata", "Cari PDF oluşturulamadı: " + response.code()));
+                    return;
+                }
+                try {
+                    byte[] pdf = response.body().bytes();
+                    Platform.runLater(() -> saveCurrentAccountsPdf(pdf));
+                } catch (Exception exception) {
+                    Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR, null,
+                            "Hata", "Cari PDF okunamadı: " + exception.getMessage()));
+                }
+            }
+
+            @Override
+            public void onFailure(Call<okhttp3.ResponseBody> call, Throwable throwable) {
+                Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR, null,
+                        "Hata", "Cari PDF indirilemedi: " + throwable.getMessage()));
+            }
+        });
+    }
+
+    private void saveCurrentAccountsPdf(byte[] pdf) {
+        try {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle("Açık Cari Hesaplar PDF Raporunu Kaydet");
+            chooser.setInitialFileName("Acik_Cari_Hesaplar.pdf");
+            chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF Dosyaları", "*.pdf"));
+            File file = chooser.showSaveDialog((Stage) currentAccountsTable.getScene().getWindow());
+            if (file != null) {
+                Files.write(file.toPath(), pdf);
+                AlertHelper.showAlert(Alert.AlertType.INFORMATION, null,
+                        "Başarılı", "Cari PDF başarıyla kaydedildi.");
+            }
+        } catch (Exception exception) {
+            AlertHelper.showAlert(Alert.AlertType.ERROR, null,
+                    "Hata", "Cari PDF kaydedilemedi: " + exception.getMessage());
+        }
+    }
+
     private void handleEditBalance(CurrentAccountDTO account) {
         // Create payment dialog with amount and discount fields
         Dialog<Map<String, Object>> dialog = new Dialog<>();

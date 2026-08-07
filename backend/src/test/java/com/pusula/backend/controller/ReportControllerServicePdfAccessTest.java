@@ -8,6 +8,7 @@ import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.ServiceTicketRepository;
 import com.pusula.backend.repository.UserRepository;
 import com.pusula.backend.service.ReportService;
+import com.pusula.backend.service.OpenBalanceReportService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
@@ -31,7 +32,9 @@ class ReportControllerServicePdfAccessTest {
     private final ServiceTicketRepository ticketRepository = mock(ServiceTicketRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
     private final ReportService reportService = mock(ReportService.class);
-    private final ReportController controller = new ReportController(ticketRepository, userRepository, reportService);
+    private final OpenBalanceReportService openBalanceReportService = mock(OpenBalanceReportService.class);
+    private final ReportController controller = new ReportController(
+            ticketRepository, userRepository, reportService, openBalanceReportService);
 
     @AfterEach
     void clearSecurityContext() {

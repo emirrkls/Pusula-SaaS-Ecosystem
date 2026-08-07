@@ -1,7 +1,9 @@
 package com.pusula.backend.controller;
 
 import com.pusula.backend.dto.CompanyDebtDTO;
+import com.pusula.backend.dto.CompanyDebtAdditionDTO;
 import com.pusula.backend.dto.CompanyDebtPaymentDTO;
+import com.pusula.backend.dto.DebtAdditionRequestDTO;
 import com.pusula.backend.dto.DebtPaymentRequestDTO;
 import com.pusula.backend.service.CompanyDebtService;
 import lombok.RequiredArgsConstructor;
@@ -94,6 +96,11 @@ public class CompanyDebtController {
         return ResponseEntity.ok(debtService.getPayments(id, getCompanyId()));
     }
 
+    @GetMapping("/{id}/additions")
+    public ResponseEntity<List<CompanyDebtAdditionDTO>> getAdditions(@PathVariable Long id) {
+        return ResponseEntity.ok(debtService.getAdditions(id, getCompanyId()));
+    }
+
     @DeleteMapping("/{id}/payments/{paymentId}")
     public ResponseEntity<CompanyDebtDTO> deletePayment(
             @PathVariable Long id,
@@ -107,10 +114,14 @@ public class CompanyDebtController {
     @PostMapping("/{id}/add")
     public ResponseEntity<?> addAmountToDebt(
             @PathVariable Long id,
-            @RequestParam BigDecimal amount,
-            @RequestParam(required = false) String notes) {
+            @RequestParam(required = false) BigDecimal amount,
+            @RequestParam(required = false) String notes,
+            @RequestBody(required = false) DebtAdditionRequestDTO request) {
         try {
-            CompanyDebtDTO updated = debtService.addAmountToDebt(id, getCompanyId(), amount, notes);
+            DebtAdditionRequestDTO effectiveRequest = request != null
+                    ? request
+                    : DebtAdditionRequestDTO.builder().amount(amount).notes(notes).build();
+            CompanyDebtDTO updated = debtService.addAmountToDebt(id, getCompanyId(), effectiveRequest);
             return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

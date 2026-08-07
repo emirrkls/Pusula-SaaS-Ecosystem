@@ -1,12 +1,15 @@
 package com.pusula.backend.service;
 
 import com.pusula.backend.dto.DebtPaymentRequestDTO;
+import com.pusula.backend.dto.DebtAdditionRequestDTO;
 import com.pusula.backend.entity.CompanyDebt;
+import com.pusula.backend.entity.CompanyDebtAddition;
 import com.pusula.backend.entity.CompanyDebtPayment;
 import com.pusula.backend.entity.Expense;
 import com.pusula.backend.entity.ExpenseCategory;
 import com.pusula.backend.entity.ExpenseTreatment;
 import com.pusula.backend.repository.CompanyDebtPaymentRepository;
+import com.pusula.backend.repository.CompanyDebtAdditionRepository;
 import com.pusula.backend.repository.CompanyDebtRepository;
 import com.pusula.backend.repository.ExpenseRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +33,7 @@ class CompanyDebtServicePaymentDateTest {
 
     @Mock CompanyDebtRepository debtRepository;
     @Mock CompanyDebtPaymentRepository paymentRepository;
+    @Mock CompanyDebtAdditionRepository additionRepository;
     @Mock ExpenseRepository expenseRepository;
     @Mock AuditLogService auditLogService;
     @Mock FinanceService financeService;
@@ -38,7 +42,7 @@ class CompanyDebtServicePaymentDateTest {
 
     @BeforeEach
     void setUp() {
-        service = new CompanyDebtService(debtRepository, paymentRepository, expenseRepository,
+        service = new CompanyDebtService(debtRepository, paymentRepository, additionRepository, expenseRepository,
                 auditLogService, financeService, "Europe/Istanbul");
     }
 
@@ -127,6 +131,30 @@ class CompanyDebtServicePaymentDateTest {
         assertThrows(IllegalStateException.class, () -> service.deleteDebt(20L, 7L));
 
         verify(debtRepository, never()).save(debt);
+    }
+
+    @Test
+    void additionStoresBusinessDateAndUpdatesOpenBalance() {
+        CompanyDebt debt = debt(new BigDecimal("70000.00"));
+        LocalDate additionDate = LocalDate.of(2026, 6, 3);
+        when(debtRepository.findByIdAndCompanyIdAndDeletedFalse(20L, 7L)).thenReturn(Optional.of(debt));
+        when(additionRepository.save(any(CompanyDebtAddition.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(debtRepository.save(any(CompanyDebt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.addAmountToDebt(20L, 7L, DebtAdditionRequestDTO.builder()
+                .amount(new BigDecimal("5000.00"))
+                .additionDate(additionDate)
+                .notes("Yeni malzeme")
+                .build());
+
+        verify(additionRepository).save(argThat(addition -> addition.getCompanyId().equals(7L)
+                && addition.getDebtId().equals(20L)
+                && addition.getAdditionDate().equals(additionDate)
+                && addition.getAmount().compareTo(new BigDecimal("5000.00")) == 0));
+        assertEquals(new BigDecimal("105000.00"), debt.getOriginalAmount());
+        assertEquals(new BigDecimal("75000.00"), debt.getRemainingAmount());
+        assertEquals(CompanyDebt.DebtStatus.PARTIAL, debt.getStatus());
     }
 
     private CompanyDebt debt(BigDecimal remainingAmount) {

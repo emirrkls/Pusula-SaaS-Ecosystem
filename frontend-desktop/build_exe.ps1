@@ -28,7 +28,7 @@ if (Test-Path "target\installer") {
 # Win-shortcut and win-menu added for MSI
 Write-Host "JPackage calisiyor... Lutfen bekleyin (Bu islem bir kac dakika surebilir)..." -ForegroundColor Magenta
 # app-version.properties ile senkron tutun
-jpackage --type msi --name "Pusula Servis Yonetimi" --app-version 3.2.18 --description "Pusula Desktop Application" --vendor "Pusula" --icon "src\main\resources\app.ico" --dest target\installer --input target\jpackage-input --main-jar frontend-desktop-1.0-SNAPSHOT.jar --main-class com.pusula.desktop.Launcher --win-shortcut --win-menu --win-dir-chooser
+jpackage --type msi --name "Pusula Servis Yonetimi" --app-version 3.2.19 --description "Pusula Desktop Application" --vendor "Pusula" --icon "src\main\resources\app.ico" --dest target\installer --input target\jpackage-input --main-jar frontend-desktop-1.0-SNAPSHOT.jar --main-class com.pusula.desktop.Launcher --win-shortcut --win-menu --win-dir-chooser
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[HATA] JPackage olusturma basarisiz oldu!" -ForegroundColor Red
@@ -36,12 +36,12 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-Copy-Item "target\installer\Pusula Servis Yonetimi-3.2.18.msi" `
-    -Destination "target\installer\Pusula-Servis-Yonetimi-3.2.18.msi" -Force
+Copy-Item "target\installer\Pusula Servis Yonetimi-3.2.19.msi" `
+    -Destination "target\installer\Pusula-Servis-Yonetimi-3.2.19.msi" -Force
 
 Write-Host ""
 Write-Host "========================================================" -ForegroundColor Green
 Write-Host "[BASARILI] Kurulum dosyasi basariyla olusturuldu!" -ForegroundColor Green
-Write-Host "Konum: frontend-desktop\target\installer\Pusula-Servis-Yonetimi-3.2.18.msi" -ForegroundColor Green
+Write-Host "Konum: frontend-desktop\target\installer\Pusula-Servis-Yonetimi-3.2.19.msi" -ForegroundColor Green
 Write-Host "========================================================" -ForegroundColor Green
 pause

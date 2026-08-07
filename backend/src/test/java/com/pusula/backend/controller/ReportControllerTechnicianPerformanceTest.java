@@ -5,6 +5,7 @@ import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.ServiceTicketRepository;
 import com.pusula.backend.repository.UserRepository;
 import com.pusula.backend.service.ReportService;
+import com.pusula.backend.service.OpenBalanceReportService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,12 +39,14 @@ class ReportControllerTechnicianPerformanceTest {
     private UserRepository userRepository;
     @Mock
     private ReportService reportService;
+    @Mock
+    private OpenBalanceReportService openBalanceReportService;
 
     private ReportController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new ReportController(ticketRepository, userRepository, reportService);
+        controller = new ReportController(ticketRepository, userRepository, reportService, openBalanceReportService);
 
         User admin = User.builder()
                 .id(1L)

@@ -35,6 +35,10 @@ public class CurrentAccount {
     @Column(name = "last_updated")
     private LocalDateTime lastUpdated;
 
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     @PrePersist
     @PreUpdate
     protected void onUpdate() {

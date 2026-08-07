@@ -87,7 +87,10 @@ public interface FinanceApi {
 
         @GET("/api/reports/finance/pdf")
         Call<okhttp3.ResponseBody> downloadMonthlyPDF(
-                        @Query("month") String month);
+                @Query("month") String month);
+
+        @GET("/api/reports/open-current-accounts/pdf")
+        Call<okhttp3.ResponseBody> downloadOpenCurrentAccountsPdf();
 
         @GET("/api/finance/inventory-value")
         Call<Map<String, BigDecimal>> getInventoryValue();

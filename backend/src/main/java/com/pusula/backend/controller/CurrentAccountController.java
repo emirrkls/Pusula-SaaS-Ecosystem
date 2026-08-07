@@ -10,6 +10,8 @@ import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/current-accounts")
+@PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
 public class CurrentAccountController {
 
     @Autowired
@@ -42,23 +45,24 @@ public class CurrentAccountController {
 
     @GetMapping("/by-customer/{customerId}")
     public ResponseEntity<CurrentAccount> getByCustomer(@PathVariable Long customerId) {
-        return currentAccountRepository.findByCustomerId(customerId)
+        return currentAccountRepository.findByCustomerIdAndCompanyId(customerId, getCompanyId())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
     public ResponseEntity<?> createOrUpdate(@RequestBody Map<String, Object> request) {
-        Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
+        Long companyId = getCompanyId();
         Long customerId = ((Number) request.get("customerId")).longValue();
         BigDecimal amount = new BigDecimal(request.get("amount").toString());
 
-        Customer customer = customerRepository.findById(customerId).orElse(null);
+        validateNonNegative(amount, "Cari tutar");
+        Customer customer = customerRepository.findByIdAndCompanyId(customerId, companyId).orElse(null);
         if (customer == null) {
             return ResponseEntity.badRequest().body("Customer not found");
         }
 
-        CurrentAccount account = currentAccountRepository.findByCustomerId(customerId)
+        CurrentAccount account = currentAccountRepository.findByCustomerIdAndCompanyId(customerId, companyId)
                 .orElse(CurrentAccount.builder()
                         .companyId(companyId)
                         .customer(customer)
@@ -72,10 +76,13 @@ public class CurrentAccountController {
     @PutMapping("/{id}/adjust")
     public ResponseEntity<CurrentAccount> adjustBalance(@PathVariable Long id,
             @RequestBody Map<String, Object> request) {
-        return currentAccountRepository.findById(id)
+        Long companyId = getCompanyId();
+        return currentAccountRepository.findByIdAndCompanyId(id, companyId)
                 .map(account -> {
                     BigDecimal amount = new BigDecimal(request.get("amount").toString());
-                    account.setBalance(account.getBalance().add(amount));
+                    BigDecimal newBalance = account.getBalance().add(amount);
+                    validateNonNegative(newBalance, "Cari bakiye");
+                    account.setBalance(newBalance);
                     return ResponseEntity.ok(currentAccountRepository.save(account));
                 })
                 .orElse(ResponseEntity.notFound().build());
@@ -84,9 +91,11 @@ public class CurrentAccountController {
     @PutMapping("/{id}/set")
     public ResponseEntity<CurrentAccount> setBalance(@PathVariable Long id,
             @RequestBody Map<String, Object> request) {
-        return currentAccountRepository.findById(id)
+        Long companyId = getCompanyId();
+        return currentAccountRepository.findByIdAndCompanyId(id, companyId)
                 .map(account -> {
                     BigDecimal balance = new BigDecimal(request.get("balance").toString());
+                    validateNonNegative(balance, "Cari bakiye");
                     account.setBalance(balance);
                     return ResponseEntity.ok(currentAccountRepository.save(account));
                 })
@@ -99,17 +108,28 @@ public class CurrentAccountController {
      * Request body: { "paymentAmount": 1000.00, "discount": 50.00 }
      */
     @PostMapping("/{id}/pay")
+    @Transactional
     public ResponseEntity<CurrentAccountDTO> payDebt(@PathVariable Long id,
             @RequestBody Map<String, Object> request) {
-        return currentAccountRepository.findById(id)
+        Long companyId = getCompanyId();
+        return currentAccountRepository.findByIdAndCompanyId(id, companyId)
                 .map(account -> {
                     BigDecimal paymentAmount = new BigDecimal(request.get("paymentAmount").toString());
                     BigDecimal discount = request.containsKey("discount")
                             ? new BigDecimal(request.get("discount").toString())
                             : BigDecimal.ZERO;
 
+                    validateNonNegative(paymentAmount, "Ödeme tutarı");
+                    validateNonNegative(discount, "İndirim");
+
                     // Apply payment and discount: reduce debt by payment + discount
                     BigDecimal totalReduction = paymentAmount.add(discount);
+                    if (totalReduction.compareTo(BigDecimal.ZERO) <= 0) {
+                        throw new IllegalArgumentException("Ödeme veya indirim tutarı sıfırdan büyük olmalıdır.");
+                    }
+                    if (totalReduction.compareTo(account.getBalance()) > 0) {
+                        throw new IllegalArgumentException("Ödeme ve indirim toplamı cari bakiyeyi aşamaz.");
+                    }
                     account.setBalance(account.getBalance().subtract(totalReduction));
 
                     // Create a ServiceTicket to record payment as income
@@ -152,5 +172,16 @@ public class CurrentAccountController {
                 .balance(account.getBalance())
                 .lastUpdated(account.getLastUpdated())
                 .build();
+    }
+
+    private Long getCompanyId() {
+        return ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getCompanyId();
+    }
+
+    private void validateNonNegative(BigDecimal amount, String label) {
+        if (amount == null || amount.signum() < 0) {
+            throw new IllegalArgumentException(label + " negatif olamaz.");
+        }
     }
 }

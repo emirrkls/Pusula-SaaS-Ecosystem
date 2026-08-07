@@ -14,5 +14,9 @@ public interface CurrentAccountRepository extends JpaRepository<CurrentAccount, 
 
     Optional<CurrentAccount> findByCustomerId(Long customerId);
 
+    Optional<CurrentAccount> findByCustomerIdAndCompanyId(Long customerId, Long companyId);
+
+    Optional<CurrentAccount> findByIdAndCompanyId(Long id, Long companyId);
+
     List<CurrentAccount> findByCompanyIdOrderByBalanceDesc(Long companyId);
 }

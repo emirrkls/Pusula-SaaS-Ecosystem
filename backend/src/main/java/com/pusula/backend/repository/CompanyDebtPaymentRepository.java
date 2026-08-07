@@ -14,4 +14,7 @@ public interface CompanyDebtPaymentRepository extends JpaRepository<CompanyDebtP
     boolean existsByExpenseId(Long expenseId);
 
     boolean existsByDebtIdAndCompanyId(Long debtId, Long companyId);
+
+    List<CompanyDebtPayment> findByCompanyIdAndDebtIdInOrderByPaymentDateAscIdAsc(
+            Long companyId, List<Long> debtIds);
 }
