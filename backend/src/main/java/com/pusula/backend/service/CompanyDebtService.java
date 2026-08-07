@@ -7,6 +7,7 @@ import com.pusula.backend.entity.CompanyDebt;
 import com.pusula.backend.entity.CompanyDebtPayment;
 import com.pusula.backend.entity.Expense;
 import com.pusula.backend.entity.ExpenseCategory;
+import com.pusula.backend.entity.ExpenseTreatment;
 import com.pusula.backend.repository.CompanyDebtPaymentRepository;
 import com.pusula.backend.repository.CompanyDebtRepository;
 import com.pusula.backend.repository.ExpenseRepository;
@@ -134,6 +135,7 @@ public class CompanyDebtService {
                                 : ""))
                 .date(paymentDate)
                 .category(debt.getExpenseCategory())
+                .financialTreatment(ExpenseTreatment.CASH_ONLY)
                 .build());
 
         paymentRepository.save(CompanyDebtPayment.builder()

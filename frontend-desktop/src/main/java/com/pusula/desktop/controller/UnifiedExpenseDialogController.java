@@ -40,6 +40,8 @@ public class UnifiedExpenseDialogController {
     @FXML
     private ComboBox<String> comboCategory;
     @FXML
+    private ComboBox<String> comboFinancialTreatment;
+    @FXML
     private CurrencyTextField txtAmount;
     @FXML
     private DatePicker datePicker;
@@ -125,6 +127,24 @@ public class UnifiedExpenseDialogController {
             }
         });
 
+        comboFinancialTreatment.setItems(FXCollections.observableArrayList(
+                "OPERATING_EXPENSE", "CASH_ONLY"));
+        comboFinancialTreatment.setConverter(new StringConverter<String>() {
+            @Override
+            public String toString(String value) {
+                if (value == null) return "";
+                return "CASH_ONLY".equals(value)
+                        ? "Yalnızca nakit hareketi"
+                        : "Faaliyet gideri (kâr ve nakit)";
+            }
+
+            @Override
+            public String fromString(String displayText) {
+                return displayText;
+            }
+        });
+        comboFinancialTreatment.setValue("OPERATING_EXPENSE");
+
         comboCategory.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && allFixedExpenses != null) {
                 List<FixedExpenseDefinitionDTO> filtered = allFixedExpenses.stream()
@@ -161,6 +181,7 @@ public class UnifiedExpenseDialogController {
         expense.setAmount(txtAmount.getRawValue());
         expense.setDescription(txtDescription.getText());
         expense.setDate(datePicker.getValue().toString());
+        expense.setFinancialTreatment(comboFinancialTreatment.getValue());
 
         if (comboLinkedFixedExpense.getValue() != null) {
             expense.setFixedExpenseId(comboLinkedFixedExpense.getValue().getId());
@@ -576,6 +597,9 @@ public class UnifiedExpenseDialogController {
         txtAmount.setRawValue(expense.getAmount());
         txtDescription.setText(expense.getDescription());
         datePicker.setValue(LocalDate.parse(expense.getDate()));
+        comboFinancialTreatment.setValue(expense.getFinancialTreatment() != null
+                ? expense.getFinancialTreatment()
+                : "OPERATING_EXPENSE");
 
         // Switch to daily tab
         modeTabPane.getSelectionModel().select(0);

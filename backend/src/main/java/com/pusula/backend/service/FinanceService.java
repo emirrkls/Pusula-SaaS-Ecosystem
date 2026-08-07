@@ -6,6 +6,7 @@ import com.pusula.backend.dto.DailySummaryDTO;
 import com.pusula.backend.entity.DailyClosing;
 import com.pusula.backend.entity.Expense;
 import com.pusula.backend.entity.ExpenseCategory;
+import com.pusula.backend.entity.ExpenseTreatment;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.FixedExpenseDefinition;
 import com.pusula.backend.repository.CustomerRepository;
@@ -162,6 +163,9 @@ public class FinanceService {
         }
 
         public Expense addExpense(Expense expense) {
+                if (expense.getFinancialTreatment() == null) {
+                        expense.setFinancialTreatment(ExpenseTreatment.OPERATING_EXPENSE);
+                }
                 Expense saved = expenseRepository.save(expense);
 
                 // Log expense creation
@@ -185,6 +189,9 @@ public class FinanceService {
                 existing.setAmount(updatedExpense.getAmount());
                 existing.setCategory(updatedExpense.getCategory());
                 existing.setDescription(updatedExpense.getDescription());
+                if (updatedExpense.getFinancialTreatment() != null) {
+                        existing.setFinancialTreatment(updatedExpense.getFinancialTreatment());
+                }
 
                 return expenseRepository.save(existing);
         }

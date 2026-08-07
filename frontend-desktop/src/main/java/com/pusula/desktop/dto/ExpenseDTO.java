@@ -14,6 +14,7 @@ public class ExpenseDTO {
     private String date; // String format: "YYYY-MM-DD"
     private String category; // RENT, SALARY, BILLS, FUEL, FOOD, OTHER
     private Long fixedExpenseId;
+    private String financialTreatment;
 
     public ExpenseDTO() {
     }
@@ -72,5 +73,13 @@ public class ExpenseDTO {
 
     public void setFixedExpenseId(Long fixedExpenseId) {
         this.fixedExpenseId = fixedExpenseId;
+    }
+
+    public String getFinancialTreatment() {
+        return financialTreatment;
+    }
+
+    public void setFinancialTreatment(String financialTreatment) {
+        this.financialTreatment = financialTreatment;
     }
 }

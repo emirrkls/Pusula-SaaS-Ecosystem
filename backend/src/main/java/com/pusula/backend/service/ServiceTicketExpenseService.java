@@ -3,6 +3,7 @@ package com.pusula.backend.service;
 import com.pusula.backend.dto.ServiceTicketExpenseDTO;
 import com.pusula.backend.entity.Expense;
 import com.pusula.backend.entity.ExpenseCategory;
+import com.pusula.backend.entity.ExpenseTreatment;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.ServiceTicketExpense;
 import com.pusula.backend.repository.ExpenseRepository;
@@ -75,6 +76,7 @@ public class ServiceTicketExpenseService {
                 .description("Servis Gideri #" + ticket.getId() + ": " + dto.getDescription().trim())
                 .date(expenseDate)
                 .category(ExpenseCategory.MATERIAL)
+                .financialTreatment(ExpenseTreatment.SERVICE_DIRECT_EXPENSE)
                 .build();
         Expense savedFinanceExpense = expenseRepository.save(financeExpense);
 

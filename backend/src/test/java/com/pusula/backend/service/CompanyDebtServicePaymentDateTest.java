@@ -5,6 +5,7 @@ import com.pusula.backend.entity.CompanyDebt;
 import com.pusula.backend.entity.CompanyDebtPayment;
 import com.pusula.backend.entity.Expense;
 import com.pusula.backend.entity.ExpenseCategory;
+import com.pusula.backend.entity.ExpenseTreatment;
 import com.pusula.backend.repository.CompanyDebtPaymentRepository;
 import com.pusula.backend.repository.CompanyDebtRepository;
 import com.pusula.backend.repository.ExpenseRepository;
@@ -65,6 +66,7 @@ class CompanyDebtServicePaymentDateTest {
         Expense reportExpense = expenseCaptor.getValue();
         assertEquals(paymentDate, reportExpense.getDate());
         assertEquals(ExpenseCategory.MATERIAL, reportExpense.getCategory());
+        assertEquals(ExpenseTreatment.CASH_ONLY, reportExpense.getFinancialTreatment());
         assertEquals("Borç Ödemesi: ABC Klima - Dış ünite alımı", reportExpense.getDescription());
 
         verify(paymentRepository).save(argThat(payment -> payment.getExpenseId().equals(800L)

@@ -39,4 +39,16 @@ public class Expense {
 
     @Column(name = "fixed_expense_id")
     private Long fixedExpenseId;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "financial_treatment", nullable = false)
+    private ExpenseTreatment financialTreatment = ExpenseTreatment.OPERATING_EXPENSE;
+
+    @PrePersist
+    void applyFinancialTreatmentDefault() {
+        if (financialTreatment == null) {
+            financialTreatment = ExpenseTreatment.OPERATING_EXPENSE;
+        }
+    }
 }

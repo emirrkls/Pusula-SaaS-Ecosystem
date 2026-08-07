@@ -2,6 +2,9 @@ package com.pusula.backend.service;
 
 import com.pusula.backend.dto.MonthlySummaryDTO;
 import com.pusula.backend.entity.Inventory;
+import com.pusula.backend.entity.Expense;
+import com.pusula.backend.entity.ExpenseCategory;
+import com.pusula.backend.entity.ExpenseTreatment;
 import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.ServiceUsedPart;
@@ -160,5 +163,61 @@ class ReportServiceStructuredPricingTest {
         assertEquals(new BigDecimal("85304.00"), summary.getCurrentAccountTransferred());
         assertEquals(new BigDecimal("185304.00"), summary.getNetProfit());
         assertEquals(new BigDecimal("100000.00"), summary.getNetCash());
+    }
+
+    @Test
+    void monthlyReportSeparatesProfitabilityFromCashMovements() {
+        LocalDate date = LocalDate.of(2026, 3, 9);
+        ServiceTicket sale = new ServiceTicket();
+        sale.setId(900L);
+        sale.setCompanyId(10L);
+        sale.setStatus(ServiceTicket.TicketStatus.COMPLETED);
+        sale.setCompletedAt(date.atTime(12, 0));
+        sale.setCollectionDate(date);
+        sale.setInvoiceTotal(new BigDecimal("10000.00"));
+        sale.setCollectedAmount(new BigDecimal("7000.00"));
+        sale.setOutstandingAmount(new BigDecimal("3000.00"));
+        sale.setPaymentMethod(PaymentMethod.CASH);
+
+        Expense serviceExpense = Expense.builder()
+                .companyId(10L)
+                .category(ExpenseCategory.MATERIAL)
+                .amount(new BigDecimal("1000.00"))
+                .date(date)
+                .financialTreatment(ExpenseTreatment.SERVICE_DIRECT_EXPENSE)
+                .build();
+        Expense operatingExpense = Expense.builder()
+                .companyId(10L)
+                .category(ExpenseCategory.RENT)
+                .amount(new BigDecimal("2000.00"))
+                .date(date)
+                .financialTreatment(ExpenseTreatment.OPERATING_EXPENSE)
+                .build();
+        Expense debtPrincipalPayment = Expense.builder()
+                .companyId(10L)
+                .category(ExpenseCategory.MATERIAL)
+                .amount(new BigDecimal("4000.00"))
+                .date(date)
+                .financialTreatment(ExpenseTreatment.CASH_ONLY)
+                .build();
+
+        when(ticketRepository.findAll()).thenReturn(List.of(sale));
+        when(expenseRepository.findByCompanyId(10L))
+                .thenReturn(List.of(serviceExpense, operatingExpense, debtPrincipalPayment));
+        when(usedPartRepository.findByServiceTicketId(900L)).thenReturn(List.of());
+
+        MonthlySummaryDTO summary = service.getMonthlyArchives(10L).get(0);
+
+        assertEquals(new BigDecimal("3000.00"), summary.getCurrentAccountTransferred());
+        assertEquals(new BigDecimal("7000.00"), summary.getCashCardCollections());
+        assertEquals(BigDecimal.ZERO, summary.getCurrentAccountCollections());
+        assertEquals(new BigDecimal("1000.00"), summary.getServiceDirectCost());
+        assertEquals(new BigDecimal("2000.00"), summary.getOtherOperatingExpenses());
+        assertEquals(new BigDecimal("3000.00"), summary.getTotalProfitExpenses());
+        assertEquals(new BigDecimal("7000.00"), summary.getNetProfit());
+        assertEquals(new BigDecimal("1000.00"), summary.getServiceCashExpenses());
+        assertEquals(new BigDecimal("6000.00"), summary.getOtherCashExpenses());
+        assertEquals(new BigDecimal("7000.00"), summary.getTotalCashExpenses());
+        assertEquals(BigDecimal.ZERO.setScale(2), summary.getNetCash());
     }
 }

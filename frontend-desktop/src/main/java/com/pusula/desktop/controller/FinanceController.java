@@ -21,6 +21,10 @@ import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import retrofit2.Call;
@@ -76,8 +80,6 @@ public class FinanceController {
     @FXML
     private TableColumn<MonthlySummaryDTO, String> colReportIncome;
     @FXML
-    private TableColumn<MonthlySummaryDTO, String> colReportCurrentAccount;
-    @FXML
     private TableColumn<MonthlySummaryDTO, String> colReportCollected;
     @FXML
     private TableColumn<MonthlySummaryDTO, String> colReportExpense;
@@ -86,7 +88,11 @@ public class FinanceController {
     @FXML
     private TableColumn<MonthlySummaryDTO, String> colReportProfit;
     @FXML
+    private TableColumn<MonthlySummaryDTO, String> colReportClosingCash;
+    @FXML
     private TableColumn<MonthlySummaryDTO, Void> colReportActions;
+    @FXML
+    private VBox reportDetailContainer;
     @FXML
     private Label todayIncomeLabel;
     @FXML
@@ -631,16 +637,17 @@ public class FinanceController {
         colReportIncome.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
                 formatCurrency(cellData.getValue().getTotalIncome())));
 
-        setupColoredCurrencyColumn(colReportCurrentAccount,
-                MonthlySummaryDTO::getCurrentAccountTransferred, "#f39c12");
         setupColoredCurrencyColumn(colReportCollected,
                 MonthlySummaryDTO::getTotalCollected, "#27ae60");
 
         colReportExpense.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
-                formatCurrency(cellData.getValue().getTotalExpense())));
+                formatCurrency(cellData.getValue().getTotalCashExpenses())));
 
-        colReportProfit.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
-                formatCurrency(cellData.getValue().getNetProfit())));
+        setupSignedCurrencyColumn(colReportProfit, MonthlySummaryDTO::getNetCash);
+        setupSignedCurrencyColumn(colReportClosingCash, MonthlySummaryDTO::getClosingCashBalance);
+
+        reportsTable.getSelectionModel().selectedItemProperty().addListener(
+                (observable, previous, selected) -> renderReportDetails(selected));
 
         // Actions column with PDF download button
         colReportActions.setCellFactory(param -> new TableCell<>() {
@@ -659,6 +666,97 @@ public class FinanceController {
                 setGraphic(empty ? null : btnPDF);
             }
         });
+    }
+
+    private void setupSignedCurrencyColumn(TableColumn<MonthlySummaryDTO, String> column,
+            java.util.function.Function<MonthlySummaryDTO, BigDecimal> valueExtractor) {
+        column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
+                formatCurrency(valueExtractor.apply(cellData.getValue()))));
+        column.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+                setText(item);
+                MonthlySummaryDTO row = getTableRow().getItem();
+                BigDecimal value = row != null ? valueExtractor.apply(row) : null;
+                if (value != null && value.signum() > 0) {
+                    setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+                } else if (value != null && value.signum() < 0) {
+                    setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                } else {
+                    setStyle("");
+                }
+            }
+        });
+    }
+
+    private void renderReportDetails(MonthlySummaryDTO summary) {
+        reportDetailContainer.getChildren().clear();
+        if (summary == null) {
+            Label empty = new Label("Detayları görmek için bir ay seçin.");
+            empty.setStyle("-fx-text-fill: #64748b; -fx-padding: 18;");
+            reportDetailContainer.getChildren().add(empty);
+            return;
+        }
+
+        Label title = new Label(summary.getDisplayPeriod() + " Finansal Özeti");
+        title.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
+        reportDetailContainer.getChildren().add(title);
+
+        addReportSection("KÂRLILIK");
+        addReportDetailRow("Geçmiş dönem birikimli kâr / zarar", summary.getCarryOver(), null);
+        addReportDetailRow("Satış / ciro", summary.getTotalIncome(), null);
+        addReportDetailRow("Cariye aktarılan (satışın alt kalemi)", summary.getCurrentAccountTransferred(), "#ea580c");
+        addReportDetailRow("Servis doğrudan maliyeti", summary.getServiceDirectCost(), null);
+        addReportDetailRow("Diğer faaliyet giderleri", summary.getOtherOperatingExpenses(), null);
+        addReportDetailRow("Toplam kârlılık gideri", summary.getTotalProfitExpenses(), null);
+        addReportDetailRow("Aylık faaliyet kâr / zarar", summary.getNetProfit(), signedColor(summary.getNetProfit()));
+        addReportDetailRow("Dönem sonu birikimli kâr / zarar", summary.getClosingCumulativeProfit(),
+                signedColor(summary.getClosingCumulativeProfit()));
+
+        addReportSection("NAKİT AKIŞI");
+        addReportDetailRow("Peşin / kart servis tahsilatı", summary.getCashCardCollections(), "#16a34a");
+        addReportDetailRow("Cari hesap tahsilatı", summary.getCurrentAccountCollections(), "#16a34a");
+        addReportDetailRow("Diğer nakit gelirleri", summary.getOtherCashIncome(), "#16a34a");
+        addReportDetailRow("Toplam tahsilat / nakit girişi", summary.getTotalCollected(), "#16a34a");
+        addReportDetailRow("Servis kaynaklı nakit giderleri", summary.getServiceCashExpenses(), null);
+        addReportDetailRow("Diğer nakit giderleri", summary.getOtherCashExpenses(), null);
+        addReportDetailRow("Toplam nakit gideri", summary.getTotalCashExpenses(), null);
+        addReportDetailRow("Ayın net nakit değişimi", summary.getNetCash(), signedColor(summary.getNetCash()));
+        addReportDetailRow("Dönem başı nakit bakiyesi", summary.getOpeningCashBalance(),
+                signedColor(summary.getOpeningCashBalance()));
+        addReportDetailRow("Dönem sonu devreden nakit", summary.getClosingCashBalance(),
+                signedColor(summary.getClosingCashBalance()));
+    }
+
+    private void addReportSection(String title) {
+        Label label = new Label(title);
+        label.setMaxWidth(Double.MAX_VALUE);
+        label.setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #0f172a; "
+                + "-fx-font-weight: bold; -fx-padding: 7 10 7 10;");
+        reportDetailContainer.getChildren().add(label);
+    }
+
+    private void addReportDetailRow(String labelText, BigDecimal amount, String color) {
+        HBox row = new HBox(10);
+        row.setStyle("-fx-padding: 3 10 3 10;");
+        Label label = new Label(labelText);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        Label value = new Label(formatCurrency(amount));
+        value.setStyle("-fx-font-weight: bold;" + (color != null ? " -fx-text-fill: " + color + ";" : ""));
+        row.getChildren().addAll(label, spacer, value);
+        reportDetailContainer.getChildren().add(row);
+    }
+
+    private String signedColor(BigDecimal value) {
+        if (value == null || value.signum() == 0) return null;
+        return value.signum() > 0 ? "#16a34a" : "#dc2626";
     }
 
     private void setupColoredCurrencyColumn(TableColumn<MonthlySummaryDTO, String> column,
@@ -692,6 +790,11 @@ public class FinanceController {
                 if (response.isSuccessful() && response.body() != null) {
                     Platform.runLater(() -> {
                         reportsTable.setItems(FXCollections.observableArrayList(response.body()));
+                        if (!reportsTable.getItems().isEmpty()) {
+                            reportsTable.getSelectionModel().selectFirst();
+                        } else {
+                            renderReportDetails(null);
+                        }
                     });
                 }
             }

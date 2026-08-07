@@ -945,9 +945,17 @@ public class ReportService {
                                         .map(this::calculateCurrentAccountTransfer)
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                        BigDecimal ticketCollections = collectionsByMonth
-                                        .getOrDefault(month, java.util.Collections.emptyList())
-                                        .stream()
+                        List<ServiceTicket> monthCollections = collectionsByMonth
+                                        .getOrDefault(month, java.util.Collections.emptyList());
+
+                        BigDecimal cashCardCollections = monthCollections.stream()
+                                        .filter(st -> !st.isCurrentAccountPayment())
+                                        .map(ServiceTicket::getCollectedAmount)
+                                        .filter(java.util.Objects::nonNull)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        BigDecimal currentAccountCollections = monthCollections.stream()
+                                        .filter(ServiceTicket::isCurrentAccountPayment)
                                         .map(ServiceTicket::getCollectedAmount)
                                         .filter(java.util.Objects::nonNull)
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -969,25 +977,54 @@ public class ReportService {
                                         .map(e -> e.getAmount().negate()) // Stored as negative, convert to positive
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                        BigDecimal regularExpenses = monthExpenses.stream()
+                        BigDecimal serviceCashExpenses = monthExpenses.stream()
                                         .filter(e -> !com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE
                                                         .equals(e.getCategory()))
+                                        .filter(e -> expenseTreatmentOf(e) == ExpenseTreatment.SERVICE_DIRECT_EXPENSE)
+                                        .map(Expense::getAmount)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        BigDecimal otherOperatingExpenses = monthExpenses.stream()
+                                        .filter(e -> !com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE
+                                                        .equals(e.getCategory()))
+                                        .filter(e -> expenseTreatmentOf(e) == ExpenseTreatment.OPERATING_EXPENSE)
+                                        .map(Expense::getAmount)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        BigDecimal cashOnlyExpenses = monthExpenses.stream()
+                                        .filter(e -> !com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE
+                                                        .equals(e.getCategory()))
+                                        .filter(e -> expenseTreatmentOf(e) == ExpenseTreatment.CASH_ONLY)
                                         .map(Expense::getAmount)
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                         BigDecimal totalIncome = ticketIncome.add(deviceSaleIncome);
-                        BigDecimal totalCollected = ticketCollections.add(deviceSaleIncome);
-                        BigDecimal totalExpense = regularExpenses.add(partsCost);
+                        BigDecimal totalCollected = cashCardCollections
+                                        .add(currentAccountCollections)
+                                        .add(deviceSaleIncome);
+                        BigDecimal serviceDirectCost = partsCost.add(serviceCashExpenses);
+                        BigDecimal totalProfitExpenses = serviceDirectCost.add(otherOperatingExpenses);
+                        BigDecimal otherCashExpenses = otherOperatingExpenses.add(cashOnlyExpenses);
+                        BigDecimal totalCashExpenses = serviceCashExpenses.add(otherCashExpenses);
 
                         summaries.add(com.pusula.backend.dto.MonthlySummaryDTO.builder()
                                         .period(month.toString())
                                         .displayPeriod(month.atDay(1).format(turkishFormat))
                                         .totalIncome(totalIncome)
                                         .currentAccountTransferred(currentAccountTransferred)
+                                        .cashCardCollections(cashCardCollections)
+                                        .currentAccountCollections(currentAccountCollections)
+                                        .otherCashIncome(deviceSaleIncome)
                                         .totalCollected(totalCollected)
-                                        .totalExpense(totalExpense)
-                                        .netProfit(totalIncome.subtract(totalExpense))
-                                        .netCash(totalCollected.subtract(regularExpenses))
+                                        .serviceDirectCost(serviceDirectCost)
+                                        .otherOperatingExpenses(otherOperatingExpenses)
+                                        .totalProfitExpenses(totalProfitExpenses)
+                                        .serviceCashExpenses(serviceCashExpenses)
+                                        .otherCashExpenses(otherCashExpenses)
+                                        .totalCashExpenses(totalCashExpenses)
+                                        .totalExpense(totalProfitExpenses)
+                                        .netProfit(totalIncome.subtract(totalProfitExpenses))
+                                        .netCash(totalCollected.subtract(totalCashExpenses))
                                         .carryOver(BigDecimal.ZERO) // Will be calculated below
                                         .build());
                 }
@@ -997,14 +1034,25 @@ public class ReportService {
 
                 // Calculate cumulative carryOver
                 BigDecimal cumulativeCarryOver = BigDecimal.ZERO;
+                BigDecimal cumulativeCash = BigDecimal.ZERO;
                 for (com.pusula.backend.dto.MonthlySummaryDTO summary : summaries) {
                         summary.setCarryOver(cumulativeCarryOver);
                         cumulativeCarryOver = cumulativeCarryOver.add(summary.getNetProfit());
+                        summary.setClosingCumulativeProfit(cumulativeCarryOver);
+                        summary.setOpeningCashBalance(cumulativeCash);
+                        cumulativeCash = cumulativeCash.add(summary.getNetCash());
+                        summary.setClosingCashBalance(cumulativeCash);
                 }
 
                 // Reverse to show newest first
                 summaries.sort(Comparator.comparing(com.pusula.backend.dto.MonthlySummaryDTO::getPeriod).reversed());
                 return summaries;
+        }
+
+        private ExpenseTreatment expenseTreatmentOf(Expense expense) {
+                return expense.getFinancialTreatment() != null
+                                ? expense.getFinancialTreatment()
+                                : ExpenseTreatment.OPERATING_EXPENSE;
         }
 
         public byte[] generateMonthlyPDF(java.time.YearMonth period, Long companyId) throws DocumentException {
@@ -1050,60 +1098,12 @@ public class ReportService {
 
                 List<Expense> expenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate);
 
-                // Calculate income from tickets
-                BigDecimal ticketIncome = completedTickets.stream()
-                                .map(ServiceTicket::getEffectiveInvoiceTotal)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                BigDecimal currentAccountTransferred = completedTickets.stream()
-                                .map(this::calculateCurrentAccountTransfer)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                BigDecimal ticketCollections = collectedTickets.stream()
-                                .map(ServiceTicket::getCollectedAmount)
-                                .filter(java.util.Objects::nonNull)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                BigDecimal partsCost = completedTickets.stream()
-                                .filter(ServiceTicket::usesStructuredPricing)
-                                .map(this::calculateTicketPartsCost)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                // Separate DEVICE_SALE income from regular expenses
-                BigDecimal deviceSaleIncome = expenses.stream()
-                                .filter(e -> com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
-                                .map(e -> e.getAmount().negate())
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                BigDecimal regularExpenses = expenses.stream()
-                                .filter(e -> !com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
-                                .map(Expense::getAmount)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                BigDecimal totalIncome = ticketIncome.add(deviceSaleIncome);
-                BigDecimal totalCollected = ticketCollections.add(deviceSaleIncome);
-                BigDecimal totalExpense = regularExpenses.add(partsCost);
-                BigDecimal netProfit = totalIncome.subtract(totalExpense);
-                BigDecimal netCash = totalCollected.subtract(regularExpenses);
-
-                // Calculate carryOver from all previous months
-                BigDecimal carryOver = calculateCarryOver(period, companyId);
-
-                PdfPTable summaryTable = new PdfPTable(2);
-                summaryTable.setWidthPercentage(100);
-                summaryTable.setSpacingBefore(10);
-                summaryTable.setSpacingAfter(20);
-
-                addFinancialRow(summaryTable, "Önceki Aydan Devir:", String.format("%.2f ₺", carryOver));
-                addFinancialRow(summaryTable, "Satış / Ciro:", String.format("%.2f ₺", totalIncome));
-                addFinancialRow(summaryTable, "Cariye Aktarılan:",
-                                String.format("%.2f ₺", currentAccountTransferred), ACCENT_ORANGE);
-                addFinancialRow(summaryTable, "Tahsilat / Gelir:",
-                                String.format("%.2f ₺", totalCollected), ACCENT_GREEN);
-                addFinancialRow(summaryTable, "Toplam Gider:", String.format("%.2f ₺", totalExpense));
-                addFinancialRow(summaryTable, "Net Kâr:", String.format("%.2f ₺", netProfit));
-                addFinancialRow(summaryTable, "Net Nakit:", String.format("%.2f ₺", netCash));
-                document.add(summaryTable);
+                com.pusula.backend.dto.MonthlySummaryDTO monthlySummary = getMonthlyArchives(companyId).stream()
+                                .filter(summary -> period.toString().equals(summary.getPeriod()))
+                                .findFirst()
+                                .orElseGet(() -> emptyMonthlySummary(period, displayPeriod));
+                BigDecimal netProfit = monthlySummary.getNetProfit();
+                document.add(createMonthlySummaryTable(monthlySummary));
 
                 // DAILY LEDGER
                 Paragraph ledgerTitle = new Paragraph("Günlük Maliyet Defteri", SECTION_FONT);
@@ -1138,7 +1138,8 @@ public class ReportService {
 
                         BigDecimal dailyIncome = BigDecimal.ZERO;
                         BigDecimal dailyCollections = BigDecimal.ZERO;
-                        BigDecimal dailyExpense = BigDecimal.ZERO;
+                        BigDecimal dailyProfitExpense = BigDecimal.ZERO;
+                        BigDecimal dailyCashExpense = BigDecimal.ZERO;
 
                         List<ServiceTicket> dayTickets = salesByDate.getOrDefault(date,
                                         java.util.Collections.emptyList());
@@ -1169,7 +1170,7 @@ public class ReportService {
                                 if (ticket.usesStructuredPricing()) {
                                         BigDecimal ticketPartsCost = calculateTicketPartsCost(ticket);
                                         if (ticketPartsCost.signum() > 0) {
-                                                dailyExpense = dailyExpense.add(ticketPartsCost);
+                                                dailyProfitExpense = dailyProfitExpense.add(ticketPartsCost);
                                                 String costLine = String.format("   Satılan parça maliyeti: #%d → %s ₺",
                                                                 ticket.getId(), currencyFormat.format(ticketPartsCost));
                                                 Font costFont = new Font(interBaseFont, 10, Font.NORMAL,
@@ -1225,9 +1226,18 @@ public class ReportService {
                                         continue;
                                 }
                                 String categoryName = getCategoryNameTurkish(expense.getCategory().name());
-                                dailyExpense = dailyExpense.add(expense.getAmount());
+                                ExpenseTreatment treatment = expenseTreatmentOf(expense);
+                                dailyCashExpense = dailyCashExpense.add(expense.getAmount());
+                                if (treatment != ExpenseTreatment.CASH_ONLY) {
+                                        dailyProfitExpense = dailyProfitExpense.add(expense.getAmount());
+                                }
 
-                                String line = String.format("   Gider: %s - %s → %s ₺", categoryName,
+                                String treatmentLabel = switch (treatment) {
+                                        case SERVICE_DIRECT_EXPENSE -> "Servis Kaynaklı Nakit Gideri";
+                                        case CASH_ONLY -> "Yalnız Nakit Gideri";
+                                        case OPERATING_EXPENSE -> "Faaliyet Gideri";
+                                };
+                                String line = String.format("   %s: %s - %s → %s ₺", treatmentLabel, categoryName,
                                                 expense.getDescription(),
                                                 currencyFormat.format(expense.getAmount()));
                                 Font redFont = new Font(interBaseFont, 10, Font.NORMAL, new Color(192, 0, 0));
@@ -1236,13 +1246,8 @@ public class ReportService {
                                 document.add(expenseLine);
                         }
 
-                        BigDecimal dailyNet = dailyIncome.subtract(dailyExpense);
-                        BigDecimal dailyNetCash = dailyCollections.subtract(
-                                        dayExpenses.stream()
-                                                        .filter(expense -> !ExpenseCategory.DEVICE_SALE
-                                                                        .equals(expense.getCategory()))
-                                                        .map(Expense::getAmount)
-                                                        .reduce(BigDecimal.ZERO, BigDecimal::add));
+                        BigDecimal dailyNet = dailyIncome.subtract(dailyProfitExpense);
+                        BigDecimal dailyNetCash = dailyCollections.subtract(dailyCashExpense);
                         String netLabel = dailyNet.compareTo(BigDecimal.ZERO) >= 0 ? "Günlük Net Kâr"
                                         : "Günlük Net Zarar";
 
@@ -1335,6 +1340,77 @@ public class ReportService {
                 return baos.toByteArray();
         }
 
+        private com.pusula.backend.dto.MonthlySummaryDTO emptyMonthlySummary(
+                        java.time.YearMonth period, String displayPeriod) {
+                return com.pusula.backend.dto.MonthlySummaryDTO.builder()
+                                .period(period.toString())
+                                .displayPeriod(displayPeriod)
+                                .totalIncome(BigDecimal.ZERO)
+                                .currentAccountTransferred(BigDecimal.ZERO)
+                                .cashCardCollections(BigDecimal.ZERO)
+                                .currentAccountCollections(BigDecimal.ZERO)
+                                .otherCashIncome(BigDecimal.ZERO)
+                                .totalCollected(BigDecimal.ZERO)
+                                .serviceDirectCost(BigDecimal.ZERO)
+                                .otherOperatingExpenses(BigDecimal.ZERO)
+                                .totalProfitExpenses(BigDecimal.ZERO)
+                                .serviceCashExpenses(BigDecimal.ZERO)
+                                .otherCashExpenses(BigDecimal.ZERO)
+                                .totalCashExpenses(BigDecimal.ZERO)
+                                .totalExpense(BigDecimal.ZERO)
+                                .netProfit(BigDecimal.ZERO)
+                                .netCash(BigDecimal.ZERO)
+                                .carryOver(BigDecimal.ZERO)
+                                .closingCumulativeProfit(BigDecimal.ZERO)
+                                .openingCashBalance(BigDecimal.ZERO)
+                                .closingCashBalance(BigDecimal.ZERO)
+                                .build();
+        }
+
+        private PdfPTable createMonthlySummaryTable(
+                        com.pusula.backend.dto.MonthlySummaryDTO summary) {
+                PdfPTable table = new PdfPTable(2);
+                table.setWidthPercentage(100);
+                table.setSpacingBefore(10);
+                table.setSpacingAfter(20);
+
+                addFinancialSection(table, "KÂRLILIK");
+                addFinancialRow(table, "Geçmiş Dönem Birikimli Kâr / Zarar:", money(summary.getCarryOver()));
+                addFinancialRow(table, "Satış / Ciro:", money(summary.getTotalIncome()));
+                addFinancialRow(table, "Cariye Aktarılan:", money(summary.getCurrentAccountTransferred()), ACCENT_ORANGE);
+                addFinancialRow(table, "Servis Doğrudan Maliyeti:", money(summary.getServiceDirectCost()));
+                addFinancialRow(table, "Diğer Faaliyet Giderleri:", money(summary.getOtherOperatingExpenses()));
+                addFinancialRow(table, "Toplam Kârlılık Gideri:", money(summary.getTotalProfitExpenses()));
+                addFinancialRow(table, "Aylık Faaliyet Kâr / Zarar:", money(summary.getNetProfit()));
+                addFinancialRow(table, "Dönem Sonu Birikimli Kâr / Zarar:",
+                                money(summary.getClosingCumulativeProfit()));
+
+                addFinancialSection(table, "NAKİT AKIŞI");
+                addFinancialRow(table, "Peşin / Kart Servis Tahsilatı:", money(summary.getCashCardCollections()), ACCENT_GREEN);
+                addFinancialRow(table, "Cari Hesap Tahsilatı:", money(summary.getCurrentAccountCollections()), ACCENT_GREEN);
+                addFinancialRow(table, "Diğer Nakit Gelirleri:", money(summary.getOtherCashIncome()), ACCENT_GREEN);
+                addFinancialRow(table, "Toplam Tahsilat / Nakit Girişi:", money(summary.getTotalCollected()), ACCENT_GREEN);
+                addFinancialRow(table, "Servis Kaynaklı Nakit Giderleri:", money(summary.getServiceCashExpenses()));
+                addFinancialRow(table, "Diğer Nakit Giderleri:", money(summary.getOtherCashExpenses()));
+                addFinancialRow(table, "Toplam Nakit Gideri:", money(summary.getTotalCashExpenses()));
+                addFinancialRow(table, "Ayın Net Nakit Değişimi:", money(summary.getNetCash()));
+                addFinancialRow(table, "Dönem Sonu Devreden Nakit:", money(summary.getClosingCashBalance()));
+                return table;
+        }
+
+        private String money(BigDecimal amount) {
+                return String.format("%.2f ₺", amount != null ? amount : BigDecimal.ZERO);
+        }
+
+        private void addFinancialSection(PdfPTable table, String title) {
+                PdfPCell cell = new PdfPCell(new Phrase(title, SECTION_FONT));
+                cell.setColspan(2);
+                cell.setBorder(Rectangle.NO_BORDER);
+                cell.setBackgroundColor(new Color(226, 232, 240));
+                cell.setPadding(7);
+                table.addCell(cell);
+        }
+
         private void addFinancialRow(PdfPTable table, String label, String value) {
                 addFinancialRow(table, label, value, null);
         }
@@ -1354,49 +1430,6 @@ public class ReportService {
 
                 table.addCell(labelCell);
                 table.addCell(valueCell);
-        }
-
-        /**
-         * Calculate cumulative net profit from all months before the given period
-         */
-        private BigDecimal calculateCarryOver(java.time.YearMonth targetPeriod, Long companyId) {
-                // Get all completed tickets BEFORE the target period
-                List<ServiceTicket> prevTickets = ticketRepository.findAll().stream()
-                                .filter(st -> st.getCompanyId().equals(companyId))
-                                .filter(st -> st.getStatus() != null
-                                                && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
-                                .filter(st -> !st.isCurrentAccountPayment())
-                                .filter(st -> st.getEffectiveCompletedAt() != null)
-                                .filter(st -> java.time.YearMonth.from(st.getEffectiveCompletedAt()).isBefore(targetPeriod))
-                                .collect(java.util.stream.Collectors.toList());
-
-                BigDecimal prevTicketIncome = prevTickets.stream()
-                                .map(ServiceTicket::getEffectiveInvoiceTotal)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                BigDecimal prevPartsCost = prevTickets.stream()
-                                .filter(ServiceTicket::usesStructuredPricing)
-                                .map(this::calculateTicketPartsCost)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                // Get all expenses BEFORE the target period
-                java.time.LocalDate cutoffDate = targetPeriod.atDay(1);
-                List<Expense> prevExpenses = expenseRepository.findByCompanyId(companyId).stream()
-                                .filter(e -> e.getDate().isBefore(cutoffDate))
-                                .collect(java.util.stream.Collectors.toList());
-
-                BigDecimal prevDeviceSaleIncome = prevExpenses.stream()
-                                .filter(e -> com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
-                                .map(e -> e.getAmount().negate())
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                BigDecimal prevRegularExpenses = prevExpenses.stream()
-                                .filter(e -> !com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
-                                .map(Expense::getAmount)
-                                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                BigDecimal prevTotalIncome = prevTicketIncome.add(prevDeviceSaleIncome);
-                return prevTotalIncome.subtract(prevRegularExpenses.add(prevPartsCost));
         }
 
         private String getCategoryNameTurkish(String category) {
