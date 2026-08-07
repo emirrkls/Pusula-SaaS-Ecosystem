@@ -634,14 +634,14 @@ public class FinanceController {
             }
         });
 
-        colReportIncome.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
-                formatCurrency(cellData.getValue().getTotalIncome())));
+        setupColoredCurrencyColumn(colReportIncome,
+                MonthlySummaryDTO::getTotalIncome, "#16a34a");
 
         setupColoredCurrencyColumn(colReportCurrentAccount,
                 MonthlySummaryDTO::getCurrentAccountTransferred, "#f39c12");
 
-        colReportExpense.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
-                formatCurrency(cellData.getValue().getTotalProfitExpenses())));
+        setupColoredCurrencyColumn(colReportExpense,
+                MonthlySummaryDTO::getTotalProfitExpenses, "#dc2626");
 
         setupSignedCurrencyColumn(colReportProfit, MonthlySummaryDTO::getNetProfit);
         setupSignedCurrencyColumn(colReportClosingProfit, MonthlySummaryDTO::getClosingCumulativeProfit);
@@ -709,12 +709,13 @@ public class FinanceController {
         reportDetailContainer.getChildren().add(title);
 
         addReportSection("ÖZET");
-        addReportDetailRow("Geçmiş dönem birikimli kâr / zarar", summary.getCarryOver(), null);
-        addReportDetailRow("Satış / ciro", summary.getTotalIncome(), null);
+        addReportDetailRow("Geçmiş dönem birikimli kâr / zarar", summary.getCarryOver(),
+                signedColor(summary.getCarryOver()));
+        addReportDetailRow("Satış / ciro", summary.getTotalIncome(), "#16a34a");
         addReportDetailRow("Cariye aktarılan (satışın alt kalemi)", summary.getCurrentAccountTransferred(), "#ea580c");
-        addReportDetailRow("Servis doğrudan maliyeti", summary.getServiceDirectCost(), null);
-        addReportDetailRow("Diğer faaliyet giderleri", summary.getOtherOperatingExpenses(), null);
-        addReportDetailRow("Toplam kârlılık gideri", summary.getTotalProfitExpenses(), null);
+        addReportDetailRow("Servis doğrudan maliyeti", summary.getServiceDirectCost(), "#dc2626");
+        addReportDetailRow("Diğer faaliyet giderleri", summary.getOtherOperatingExpenses(), "#dc2626");
+        addReportDetailRow("Toplam kârlılık gideri", summary.getTotalProfitExpenses(), "#dc2626");
         addReportDetailRow("Aylık faaliyet kâr / zarar", summary.getNetProfit(), signedColor(summary.getNetProfit()));
         addReportDetailRow("Dönem sonu birikimli kâr / zarar", summary.getClosingCumulativeProfit(),
                 signedColor(summary.getClosingCumulativeProfit()));

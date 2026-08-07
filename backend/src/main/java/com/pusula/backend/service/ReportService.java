@@ -1149,7 +1149,7 @@ public class ReportService {
                                                 ticket.getId(), customerName, serviceDesc,
                                                 currencyFormat.format(amount));
                                 Paragraph saleParagraph = new Paragraph(saleLine,
-                                                new Font(interBaseFont, 10, Font.BOLD, BRAND_COLOR));
+                                                new Font(interBaseFont, 10, Font.BOLD, ACCENT_GREEN));
                                 saleParagraph.setIndentationLeft(10);
                                 document.add(saleParagraph);
 
@@ -1221,7 +1221,9 @@ public class ReportService {
                         netTable.setSpacingAfter(5);
                         netTable.setWidths(new float[] { 3f, 1f });
 
-                        PdfPCell labelCell = new PdfPCell(new Paragraph(netLabel + ":", SMALL_BOLD_FONT));
+                        Color dailyNetColor = dailyNet.signum() >= 0 ? ACCENT_GREEN : ACCENT_RED;
+                        Font dailyNetFont = new Font(interBaseFont, 8, Font.BOLD, dailyNetColor);
+                        PdfPCell labelCell = new PdfPCell(new Paragraph(netLabel + ":", dailyNetFont));
                         labelCell.setBorder(Rectangle.TOP);
                         labelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
                         labelCell.setBackgroundColor(new Color(240, 248, 255));
@@ -1230,7 +1232,7 @@ public class ReportService {
                         String netSign = dailyNet.compareTo(BigDecimal.ZERO) >= 0 ? "+" : "";
                         PdfPCell amountCell = new PdfPCell(
                                         new Paragraph(netSign + currencyFormat.format(dailyNet) + " ₺",
-                                                        SMALL_BOLD_FONT));
+                                                        dailyNetFont));
                         amountCell.setBorder(Rectangle.TOP);
                         amountCell.setBackgroundColor(new Color(240, 248, 255));
                         amountCell.setPadding(5);
@@ -1322,17 +1324,24 @@ public class ReportService {
                 table.setSpacingAfter(20);
 
                 addFinancialSection(table, "ÖZET");
-                addFinancialRow(table, "Geçmiş Dönem Birikimli Kâr / Zarar:", money(summary.getCarryOver()));
-                addFinancialRow(table, "Satış / Ciro:", money(summary.getTotalIncome()));
+                addFinancialRow(table, "Geçmiş Dönem Birikimli Kâr / Zarar:", money(summary.getCarryOver()),
+                                financialResultColor(summary.getCarryOver()));
+                addFinancialRow(table, "Satış / Ciro:", money(summary.getTotalIncome()), ACCENT_GREEN);
                 addFinancialRow(table, "Cariye Aktarılan:", money(summary.getCurrentAccountTransferred()), ACCENT_ORANGE);
-                addFinancialRow(table, "Servis Doğrudan Maliyeti:", money(summary.getServiceDirectCost()));
-                addFinancialRow(table, "Diğer Faaliyet Giderleri:", money(summary.getOtherOperatingExpenses()));
-                addFinancialRow(table, "Toplam Kârlılık Gideri:", money(summary.getTotalProfitExpenses()));
-                addFinancialRow(table, "Aylık Faaliyet Kâr / Zarar:", money(summary.getNetProfit()));
+                addFinancialRow(table, "Servis Doğrudan Maliyeti:", money(summary.getServiceDirectCost()), ACCENT_RED);
+                addFinancialRow(table, "Diğer Faaliyet Giderleri:", money(summary.getOtherOperatingExpenses()), ACCENT_RED);
+                addFinancialRow(table, "Toplam Kârlılık Gideri:", money(summary.getTotalProfitExpenses()), ACCENT_RED);
+                addFinancialRow(table, "Aylık Faaliyet Kâr / Zarar:", money(summary.getNetProfit()),
+                                financialResultColor(summary.getNetProfit()));
                 addFinancialRow(table, "Dönem Sonu Birikimli Kâr / Zarar:",
-                                money(summary.getClosingCumulativeProfit()));
+                                money(summary.getClosingCumulativeProfit()),
+                                financialResultColor(summary.getClosingCumulativeProfit()));
 
                 return table;
+        }
+
+        private Color financialResultColor(BigDecimal amount) {
+                return amount != null && amount.signum() >= 0 ? ACCENT_GREEN : ACCENT_RED;
         }
 
         private String money(BigDecimal amount) {
