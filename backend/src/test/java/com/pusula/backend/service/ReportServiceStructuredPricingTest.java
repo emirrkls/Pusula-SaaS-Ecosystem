@@ -2,6 +2,7 @@ package com.pusula.backend.service;
 
 import com.pusula.backend.dto.MonthlySummaryDTO;
 import com.pusula.backend.entity.Inventory;
+import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.ServiceUsedPart;
 import com.pusula.backend.repository.*;
@@ -75,13 +76,16 @@ class ReportServiceStructuredPricingTest {
 
         assertEquals(1, summaries.size());
         assertEquals(new BigDecimal("500.00"), summaries.get(0).getTotalIncome());
+        assertEquals(new BigDecimal("500.00"), summaries.get(0).getTotalCollected());
+        assertEquals(BigDecimal.ZERO, summaries.get(0).getCurrentAccountTransferred());
         assertEquals(new BigDecimal("400.00"), summaries.get(0).getTotalExpense());
         assertEquals(new BigDecimal("100.00"), summaries.get(0).getNetProfit());
     }
 
     @Test
     void monthlyProfitDoesNotRecognizeCurrentAccountCollectionAsSecondSale() {
-        LocalDate completionDate = LocalDate.now().withDayOfMonth(2);
+        LocalDate completionDate = LocalDate.of(2025, 8, 5);
+        LocalDate collectionDate = LocalDate.of(2025, 9, 3);
 
         ServiceTicket originalSale = new ServiceTicket();
         originalSale.setId(100L);
@@ -90,12 +94,14 @@ class ReportServiceStructuredPricingTest {
         originalSale.setCompletedAt(completionDate.atTime(12, 0));
         originalSale.setInvoiceTotal(new BigDecimal("135000.00"));
         originalSale.setCollectedAmount(BigDecimal.ZERO);
+        originalSale.setPaymentMethod(PaymentMethod.CURRENT_ACCOUNT);
 
         ServiceTicket laterCollection = new ServiceTicket();
         laterCollection.setId(101L);
         laterCollection.setCompanyId(10L);
         laterCollection.setStatus(ServiceTicket.TicketStatus.COMPLETED);
-        laterCollection.setCompletedAt(completionDate.atTime(13, 0));
+        laterCollection.setCompletedAt(collectionDate.atTime(13, 0));
+        laterCollection.setCollectionDate(collectionDate);
         laterCollection.setCollectedAmount(new BigDecimal("135000.00"));
         laterCollection.setCurrentAccountPayment(true);
 
@@ -105,8 +111,22 @@ class ReportServiceStructuredPricingTest {
 
         List<MonthlySummaryDTO> summaries = service.getMonthlyArchives(10L);
 
-        assertEquals(1, summaries.size());
-        assertEquals(new BigDecimal("135000.00"), summaries.get(0).getTotalIncome());
-        assertEquals(new BigDecimal("135000.00"), summaries.get(0).getNetProfit());
+        assertEquals(2, summaries.size());
+
+        MonthlySummaryDTO collectionMonth = summaries.get(0);
+        assertEquals("2025-09", collectionMonth.getPeriod());
+        assertEquals(BigDecimal.ZERO, collectionMonth.getTotalIncome());
+        assertEquals(BigDecimal.ZERO, collectionMonth.getCurrentAccountTransferred());
+        assertEquals(new BigDecimal("135000.00"), collectionMonth.getTotalCollected());
+        assertEquals(BigDecimal.ZERO, collectionMonth.getNetProfit());
+        assertEquals(new BigDecimal("135000.00"), collectionMonth.getNetCash());
+
+        MonthlySummaryDTO saleMonth = summaries.get(1);
+        assertEquals("2025-08", saleMonth.getPeriod());
+        assertEquals(new BigDecimal("135000.00"), saleMonth.getTotalIncome());
+        assertEquals(new BigDecimal("135000.00"), saleMonth.getCurrentAccountTransferred());
+        assertEquals(BigDecimal.ZERO, saleMonth.getTotalCollected());
+        assertEquals(new BigDecimal("135000.00"), saleMonth.getNetProfit());
+        assertEquals(BigDecimal.ZERO, saleMonth.getNetCash());
     }
 }

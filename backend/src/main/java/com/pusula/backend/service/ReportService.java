@@ -37,6 +37,7 @@ public class ReportService {
         private static final Color BORDER_COLOR = new Color(203, 213, 225); // Slate-300
         private static final Color TEXT_MUTED = new Color(100, 116, 139); // Slate-500
         private static final Color ACCENT_GREEN = new Color(22, 163, 74); // Green-600
+        private static final Color ACCENT_ORANGE = new Color(234, 88, 12); // Orange-600
         private static final Color ACCENT_RED = new Color(185, 28, 28); // Red-700
 
         private static BaseFont interBaseFont;
@@ -880,22 +881,32 @@ public class ReportService {
         // ========== MONTHLY FINANCIAL REPORTS ==========
 
         public List<com.pusula.backend.dto.MonthlySummaryDTO> getMonthlyArchives(Long companyId) {
-                // Monthly profitability uses sales at completion time. Collection/cash
-                // reports continue to use collection_date in FinanceService.
-                List<ServiceTicket> allTickets = ticketRepository.findAll().stream()
+                List<ServiceTicket> completedTickets = ticketRepository.findAll().stream()
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
+                                .collect(java.util.stream.Collectors.toList());
+
+                // Profitability recognizes the service sale once, when the work is completed.
+                List<ServiceTicket> salesTickets = completedTickets.stream()
                                 .filter(st -> !st.isCurrentAccountPayment())
                                 .filter(st -> st.getEffectiveCompletedAt() != null)
                                 .collect(java.util.stream.Collectors.toList());
 
+                // Cash reporting recognizes money only on its actual collection date.
+                List<ServiceTicket> collectionTickets = completedTickets.stream()
+                                .filter(st -> st.getEffectiveCollectionDate() != null)
+                                .collect(java.util.stream.Collectors.toList());
+
                 List<Expense> allExpenses = expenseRepository.findByCompanyId(companyId);
 
-                // Group service sales by the date the work was completed.
-                Map<java.time.YearMonth, List<ServiceTicket>> ticketsByMonth = allTickets.stream()
+                Map<java.time.YearMonth, List<ServiceTicket>> salesByMonth = salesTickets.stream()
                                 .collect(java.util.stream.Collectors.groupingBy(
                                                 st -> java.time.YearMonth.from(st.getEffectiveCompletedAt())));
+
+                Map<java.time.YearMonth, List<ServiceTicket>> collectionsByMonth = collectionTickets.stream()
+                                .collect(java.util.stream.Collectors.groupingBy(
+                                                st -> java.time.YearMonth.from(st.getEffectiveCollectionDate())));
 
                 // Group expenses by month
                 Map<java.time.YearMonth, List<Expense>> expensesByMonth = allExpenses.stream()
@@ -904,7 +915,8 @@ public class ReportService {
 
                 // Collect all months that have any data
                 java.util.Set<java.time.YearMonth> allMonths = new java.util.TreeSet<>();
-                allMonths.addAll(ticketsByMonth.keySet());
+                allMonths.addAll(salesByMonth.keySet());
+                allMonths.addAll(collectionsByMonth.keySet());
                 allMonths.addAll(expensesByMonth.keySet());
 
                 DateTimeFormatter turkishFormat = DateTimeFormatter.ofPattern("MMMM yyyy", new Locale("tr", "TR"));
@@ -912,14 +924,26 @@ public class ReportService {
                 List<com.pusula.backend.dto.MonthlySummaryDTO> summaries = new ArrayList<>();
 
                 for (java.time.YearMonth month : allMonths) {
-                        // Calculate income from completed tickets
-                        BigDecimal ticketIncome = ticketsByMonth.getOrDefault(month, java.util.Collections.emptyList())
+                        List<ServiceTicket> monthSales = salesByMonth.getOrDefault(month,
+                                        java.util.Collections.emptyList());
+                        BigDecimal ticketIncome = monthSales
                                         .stream()
                                         .map(ServiceTicket::getEffectiveInvoiceTotal)
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                        BigDecimal partsCost = ticketsByMonth
+                        BigDecimal currentAccountTransferred = monthSales.stream()
+                                        .filter(st -> st.getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT)
+                                        .map(ServiceTicket::getEffectiveInvoiceTotal)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        BigDecimal ticketCollections = collectionsByMonth
                                         .getOrDefault(month, java.util.Collections.emptyList())
+                                        .stream()
+                                        .map(ServiceTicket::getCollectedAmount)
+                                        .filter(java.util.Objects::nonNull)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        BigDecimal partsCost = monthSales
                                         .stream()
                                         .filter(ServiceTicket::usesStructuredPricing)
                                         .map(this::calculateTicketPartsCost)
@@ -943,14 +967,18 @@ public class ReportService {
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                         BigDecimal totalIncome = ticketIncome.add(deviceSaleIncome);
+                        BigDecimal totalCollected = ticketCollections.add(deviceSaleIncome);
                         BigDecimal totalExpense = regularExpenses.add(partsCost);
 
                         summaries.add(com.pusula.backend.dto.MonthlySummaryDTO.builder()
                                         .period(month.toString())
                                         .displayPeriod(month.atDay(1).format(turkishFormat))
                                         .totalIncome(totalIncome)
+                                        .currentAccountTransferred(currentAccountTransferred)
+                                        .totalCollected(totalCollected)
                                         .totalExpense(totalExpense)
                                         .netProfit(totalIncome.subtract(totalExpense))
+                                        .netCash(totalCollected.subtract(regularExpenses))
                                         .carryOver(BigDecimal.ZERO) // Will be calculated below
                                         .build());
                 }
@@ -992,14 +1020,23 @@ public class ReportService {
                 java.time.LocalDate endDate = period.atEndOfMonth();
 
                 // Use direct ticket/expense queries instead of DailyClosing
-                List<ServiceTicket> completedTickets = ticketRepository.findAll().stream()
+                List<ServiceTicket> allCompletedTickets = ticketRepository.findAll().stream()
                                 .filter(st -> st.getCompanyId().equals(companyId))
                                 .filter(st -> st.getStatus() != null
                                                 && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
+                                .collect(java.util.stream.Collectors.toList());
+
+                List<ServiceTicket> completedTickets = allCompletedTickets.stream()
                                 .filter(st -> !st.isCurrentAccountPayment())
                                 .filter(st -> st.getEffectiveCompletedAt() != null &&
                                                 !st.getEffectiveCompletedAt().toLocalDate().isBefore(startDate) &&
                                                 !st.getEffectiveCompletedAt().toLocalDate().isAfter(endDate))
+                                .collect(java.util.stream.Collectors.toList());
+
+                List<ServiceTicket> collectedTickets = allCompletedTickets.stream()
+                                .filter(st -> st.getEffectiveCollectionDate() != null
+                                                && !st.getEffectiveCollectionDate().isBefore(startDate)
+                                                && !st.getEffectiveCollectionDate().isAfter(endDate))
                                 .collect(java.util.stream.Collectors.toList());
 
                 List<Expense> expenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate);
@@ -1007,6 +1044,16 @@ public class ReportService {
                 // Calculate income from tickets
                 BigDecimal ticketIncome = completedTickets.stream()
                                 .map(ServiceTicket::getEffectiveInvoiceTotal)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal currentAccountTransferred = completedTickets.stream()
+                                .filter(st -> st.getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT)
+                                .map(ServiceTicket::getEffectiveInvoiceTotal)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal ticketCollections = collectedTickets.stream()
+                                .map(ServiceTicket::getCollectedAmount)
+                                .filter(java.util.Objects::nonNull)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 BigDecimal partsCost = completedTickets.stream()
@@ -1026,8 +1073,10 @@ public class ReportService {
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 BigDecimal totalIncome = ticketIncome.add(deviceSaleIncome);
+                BigDecimal totalCollected = ticketCollections.add(deviceSaleIncome);
                 BigDecimal totalExpense = regularExpenses.add(partsCost);
                 BigDecimal netProfit = totalIncome.subtract(totalExpense);
+                BigDecimal netCash = totalCollected.subtract(regularExpenses);
 
                 // Calculate carryOver from all previous months
                 BigDecimal carryOver = calculateCarryOver(period, companyId);
@@ -1038,9 +1087,14 @@ public class ReportService {
                 summaryTable.setSpacingAfter(20);
 
                 addFinancialRow(summaryTable, "Önceki Aydan Devir:", String.format("%.2f ₺", carryOver));
-                addFinancialRow(summaryTable, "Toplam Gelir:", String.format("%.2f ₺", totalIncome));
+                addFinancialRow(summaryTable, "Satış / Ciro:", String.format("%.2f ₺", totalIncome));
+                addFinancialRow(summaryTable, "Cariye Aktarılan:",
+                                String.format("%.2f ₺", currentAccountTransferred), ACCENT_ORANGE);
+                addFinancialRow(summaryTable, "Tahsilat / Gelir:",
+                                String.format("%.2f ₺", totalCollected), ACCENT_GREEN);
                 addFinancialRow(summaryTable, "Toplam Gider:", String.format("%.2f ₺", totalExpense));
                 addFinancialRow(summaryTable, "Net Kâr:", String.format("%.2f ₺", netProfit));
+                addFinancialRow(summaryTable, "Net Nakit:", String.format("%.2f ₺", netCash));
                 document.add(summaryTable);
 
                 // DAILY LEDGER
@@ -1048,27 +1102,20 @@ public class ReportService {
                 ledgerTitle.setSpacingBefore(20);
                 document.add(ledgerTitle);
 
-                List<ServiceTicket> ledgerTickets = ticketRepository.findAll().stream()
-                                .filter(st -> st.getCompanyId().equals(companyId))
-                                .filter(st -> st.getStatus() != null
-                                                && st.getStatus().equals(ServiceTicket.TicketStatus.COMPLETED))
-                                .filter(st -> !st.isCurrentAccountPayment())
-                                .filter(st -> st.getEffectiveCompletedAt() != null &&
-                                                !st.getEffectiveCompletedAt().toLocalDate().isBefore(startDate) &&
-                                                !st.getEffectiveCompletedAt().toLocalDate().isAfter(endDate))
-                                .collect(java.util.stream.Collectors.toList());
-
-                List<Expense> ledgerExpenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate);
-
-                Map<java.time.LocalDate, List<ServiceTicket>> ticketsByDate = ledgerTickets.stream()
+                Map<java.time.LocalDate, List<ServiceTicket>> salesByDate = completedTickets.stream()
                                 .collect(java.util.stream.Collectors.groupingBy(
                                                 ticket -> ticket.getEffectiveCompletedAt().toLocalDate()));
 
-                Map<java.time.LocalDate, List<Expense>> expensesByDate = ledgerExpenses.stream()
+                Map<java.time.LocalDate, List<ServiceTicket>> collectionsByDate = collectedTickets.stream()
+                                .collect(java.util.stream.Collectors.groupingBy(
+                                                ServiceTicket::getEffectiveCollectionDate));
+
+                Map<java.time.LocalDate, List<Expense>> expensesByDate = expenses.stream()
                                 .collect(java.util.stream.Collectors.groupingBy(Expense::getDate));
 
                 java.util.Set<java.time.LocalDate> activeDates = new java.util.TreeSet<>();
-                activeDates.addAll(ticketsByDate.keySet());
+                activeDates.addAll(salesByDate.keySet());
+                activeDates.addAll(collectionsByDate.keySet());
                 activeDates.addAll(expensesByDate.keySet());
 
                 DateTimeFormatter dayFormatter = DateTimeFormatter.ofPattern("dd MMMM yyyy, EEEE",
@@ -1082,9 +1129,10 @@ public class ReportService {
                         document.add(dateHeader);
 
                         BigDecimal dailyIncome = BigDecimal.ZERO;
+                        BigDecimal dailyCollections = BigDecimal.ZERO;
                         BigDecimal dailyExpense = BigDecimal.ZERO;
 
-                        List<ServiceTicket> dayTickets = ticketsByDate.getOrDefault(date,
+                        List<ServiceTicket> dayTickets = salesByDate.getOrDefault(date,
                                         java.util.Collections.emptyList());
                         for (ServiceTicket ticket : dayTickets) {
                                 String customerName = ticket.getCustomerId() != null
@@ -1099,12 +1147,14 @@ public class ReportService {
                                 BigDecimal amount = ticket.getEffectiveInvoiceTotal();
                                 dailyIncome = dailyIncome.add(amount);
 
-                                String line = String.format("   Gelir: %s - %s → %s ₺", customerName, serviceDesc,
-                                                currencyFormat.format(amount));
-                                Font greenFont = new Font(interBaseFont, 10, Font.NORMAL, new Color(0, 128, 0));
-                                Paragraph incomeLine = new Paragraph(line, greenFont);
-                                incomeLine.setIndentationLeft(10);
-                                document.add(incomeLine);
+                                if (ticket.getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT) {
+                                        String line = String.format("   Cariye Aktarıldı: %s - %s → %s ₺",
+                                                        customerName, serviceDesc, currencyFormat.format(amount));
+                                        Paragraph accountLine = new Paragraph(line,
+                                                        new Font(interBaseFont, 10, Font.BOLD, ACCENT_ORANGE));
+                                        accountLine.setIndentationLeft(10);
+                                        document.add(accountLine);
+                                }
 
                                 if (ticket.usesStructuredPricing()) {
                                         BigDecimal ticketPartsCost = calculateTicketPartsCost(ticket);
@@ -1121,9 +1171,49 @@ public class ReportService {
                                 }
                         }
 
+                        List<ServiceTicket> dayCollections = collectionsByDate.getOrDefault(date,
+                                        java.util.Collections.emptyList());
+                        for (ServiceTicket ticket : dayCollections) {
+                                String customerName = ticket.getCustomerId() != null
+                                                ? customerRepository.findById(ticket.getCustomerId())
+                                                                .map(Customer::getName)
+                                                                .orElse("Bilinmiyor")
+                                                : "Bilinmiyor";
+                                String serviceDesc = ticket.getDescription() != null
+                                                && !ticket.getDescription().isEmpty()
+                                                                ? ticket.getDescription()
+                                                                : "Servis Hizmeti";
+                                BigDecimal amount = ticket.getCollectedAmount() != null
+                                                ? ticket.getCollectedAmount()
+                                                : BigDecimal.ZERO;
+                                dailyCollections = dailyCollections.add(amount);
+
+                                String movementLabel = ticket.isCurrentAccountPayment()
+                                                ? "Cari Tahsilat / Gelir"
+                                                : "Gelir / Tahsil Edildi";
+                                String line = String.format("   %s: %s - %s → %s ₺", movementLabel,
+                                                customerName, serviceDesc, currencyFormat.format(amount));
+                                Paragraph collectionLine = new Paragraph(line,
+                                                new Font(interBaseFont, 10, Font.BOLD, ACCENT_GREEN));
+                                collectionLine.setIndentationLeft(10);
+                                document.add(collectionLine);
+                        }
+
                         List<Expense> dayExpenses = expensesByDate.getOrDefault(date,
                                         java.util.Collections.emptyList());
                         for (Expense expense : dayExpenses) {
+                                if (ExpenseCategory.DEVICE_SALE.equals(expense.getCategory())) {
+                                        BigDecimal saleAmount = expense.getAmount().negate();
+                                        dailyIncome = dailyIncome.add(saleAmount);
+                                        dailyCollections = dailyCollections.add(saleAmount);
+                                        String line = String.format("   Cihaz Satışı / Gelir: %s → %s ₺",
+                                                        expense.getDescription(), currencyFormat.format(saleAmount));
+                                        Paragraph deviceSaleLine = new Paragraph(line,
+                                                        new Font(interBaseFont, 10, Font.BOLD, ACCENT_GREEN));
+                                        deviceSaleLine.setIndentationLeft(10);
+                                        document.add(deviceSaleLine);
+                                        continue;
+                                }
                                 String categoryName = getCategoryNameTurkish(expense.getCategory().name());
                                 dailyExpense = dailyExpense.add(expense.getAmount());
 
@@ -1137,6 +1227,12 @@ public class ReportService {
                         }
 
                         BigDecimal dailyNet = dailyIncome.subtract(dailyExpense);
+                        BigDecimal dailyNetCash = dailyCollections.subtract(
+                                        dayExpenses.stream()
+                                                        .filter(expense -> !ExpenseCategory.DEVICE_SALE
+                                                                        .equals(expense.getCategory()))
+                                                        .map(Expense::getAmount)
+                                                        .reduce(BigDecimal.ZERO, BigDecimal::add));
                         String netLabel = dailyNet.compareTo(BigDecimal.ZERO) >= 0 ? "Günlük Net Kâr"
                                         : "Günlük Net Zarar";
 
@@ -1163,6 +1259,24 @@ public class ReportService {
 
                         netTable.addCell(labelCell);
                         netTable.addCell(amountCell);
+
+                        PdfPCell cashLabelCell = new PdfPCell(new Paragraph("Günlük Net Nakit:", SMALL_BOLD_FONT));
+                        cashLabelCell.setBorder(Rectangle.NO_BORDER);
+                        cashLabelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                        cashLabelCell.setBackgroundColor(new Color(240, 248, 255));
+                        cashLabelCell.setPadding(5);
+
+                        String cashSign = dailyNetCash.compareTo(BigDecimal.ZERO) >= 0 ? "+" : "";
+                        PdfPCell cashAmountCell = new PdfPCell(
+                                        new Paragraph(cashSign + currencyFormat.format(dailyNetCash) + " ₺",
+                                                        SMALL_BOLD_FONT));
+                        cashAmountCell.setBorder(Rectangle.NO_BORDER);
+                        cashAmountCell.setBackgroundColor(new Color(240, 248, 255));
+                        cashAmountCell.setPadding(5);
+                        cashAmountCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+
+                        netTable.addCell(cashLabelCell);
+                        netTable.addCell(cashAmountCell);
                         document.add(netTable);
                 }
 
@@ -1212,11 +1326,18 @@ public class ReportService {
         }
 
         private void addFinancialRow(PdfPTable table, String label, String value) {
+                addFinancialRow(table, label, value, null);
+        }
+
+        private void addFinancialRow(PdfPTable table, String label, String value, Color valueColor) {
                 PdfPCell labelCell = new PdfPCell(new Phrase(label, SECTION_FONT));
                 labelCell.setBorder(Rectangle.NO_BORDER);
                 labelCell.setPadding(5);
 
-                PdfPCell valueCell = new PdfPCell(new Phrase(value, NORMAL_FONT));
+                Font valueFont = valueColor == null
+                                ? NORMAL_FONT
+                                : new Font(interBaseFont, NORMAL_FONT.getSize(), Font.BOLD, valueColor);
+                PdfPCell valueCell = new PdfPCell(new Phrase(value, valueFont));
                 valueCell.setBorder(Rectangle.NO_BORDER);
                 valueCell.setPadding(5);
                 valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);

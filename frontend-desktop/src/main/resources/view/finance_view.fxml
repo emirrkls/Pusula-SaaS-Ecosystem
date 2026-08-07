@@ -253,7 +253,9 @@
                          <columns>
                             <TableColumn fx:id="colReportPeriod" text="%reports.period" prefWidth="150.0" />
                             <TableColumn fx:id="colReportCarryOver" text="Devir" prefWidth="120.0" />
-                            <TableColumn fx:id="colReportIncome" text="%reports.total_income" prefWidth="120.0" />
+                            <TableColumn fx:id="colReportIncome" text="%reports.total_income" prefWidth="115.0" />
+                            <TableColumn fx:id="colReportCurrentAccount" text="%reports.current_account_transferred" prefWidth="130.0" />
+                            <TableColumn fx:id="colReportCollected" text="%reports.total_collected" prefWidth="125.0" />
                             <TableColumn fx:id="colReportExpense" text="%reports.total_expense" prefWidth="120.0" />
                             <TableColumn fx:id="colReportProfit" text="%reports.net_profit" prefWidth="120.0" />
                             <TableColumn fx:id="colReportActions" text="%table.actions" prefWidth="100.0" />

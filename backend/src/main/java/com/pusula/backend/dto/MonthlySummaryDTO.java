@@ -11,7 +11,10 @@ public class MonthlySummaryDTO {
     private String period; // "2025-11" (for backend)
     private String displayPeriod; // "Kasım 2025" (for display)
     private BigDecimal totalIncome;
+    private BigDecimal currentAccountTransferred;
+    private BigDecimal totalCollected;
     private BigDecimal totalExpense;
     private BigDecimal netProfit;
+    private BigDecimal netCash;
     private BigDecimal carryOver; // Önceki aydan devreden tutar
 }

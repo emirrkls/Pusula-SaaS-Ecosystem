@@ -76,6 +76,10 @@ public class FinanceController {
     @FXML
     private TableColumn<MonthlySummaryDTO, String> colReportIncome;
     @FXML
+    private TableColumn<MonthlySummaryDTO, String> colReportCurrentAccount;
+    @FXML
+    private TableColumn<MonthlySummaryDTO, String> colReportCollected;
+    @FXML
     private TableColumn<MonthlySummaryDTO, String> colReportExpense;
     @FXML
     private TableColumn<MonthlySummaryDTO, String> colReportCarryOver;
@@ -627,6 +631,11 @@ public class FinanceController {
         colReportIncome.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
                 formatCurrency(cellData.getValue().getTotalIncome())));
 
+        setupColoredCurrencyColumn(colReportCurrentAccount,
+                MonthlySummaryDTO::getCurrentAccountTransferred, "#f39c12");
+        setupColoredCurrencyColumn(colReportCollected,
+                MonthlySummaryDTO::getTotalCollected, "#27ae60");
+
         colReportExpense.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
                 formatCurrency(cellData.getValue().getTotalExpense())));
 
@@ -648,6 +657,30 @@ public class FinanceController {
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
                 setGraphic(empty ? null : btnPDF);
+            }
+        });
+    }
+
+    private void setupColoredCurrencyColumn(TableColumn<MonthlySummaryDTO, String> column,
+            java.util.function.Function<MonthlySummaryDTO, BigDecimal> valueExtractor,
+            String color) {
+        column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
+                formatCurrency(valueExtractor.apply(cellData.getValue()))));
+        column.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+                setText(item);
+                MonthlySummaryDTO row = getTableRow().getItem();
+                BigDecimal value = row != null ? valueExtractor.apply(row) : null;
+                setStyle(value != null && value.signum() > 0
+                        ? "-fx-text-fill: " + color + "; -fx-font-weight: bold;"
+                        : "");
             }
         });
     }
