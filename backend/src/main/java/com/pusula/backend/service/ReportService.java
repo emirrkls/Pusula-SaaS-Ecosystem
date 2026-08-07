@@ -878,6 +878,16 @@ public class ReportService {
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
 
+        private BigDecimal calculateCurrentAccountTransfer(ServiceTicket ticket) {
+                if (ticket.getOutstandingAmount() != null) {
+                        return ticket.getOutstandingAmount().max(BigDecimal.ZERO);
+                }
+                if (ticket.getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT) {
+                        return ticket.getEffectiveInvoiceTotal();
+                }
+                return BigDecimal.ZERO;
+        }
+
         // ========== MONTHLY FINANCIAL REPORTS ==========
 
         public List<com.pusula.backend.dto.MonthlySummaryDTO> getMonthlyArchives(Long companyId) {
@@ -932,8 +942,7 @@ public class ReportService {
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                         BigDecimal currentAccountTransferred = monthSales.stream()
-                                        .filter(st -> st.getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT)
-                                        .map(ServiceTicket::getEffectiveInvoiceTotal)
+                                        .map(this::calculateCurrentAccountTransfer)
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                         BigDecimal ticketCollections = collectionsByMonth
@@ -1047,8 +1056,7 @@ public class ReportService {
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 BigDecimal currentAccountTransferred = completedTickets.stream()
-                                .filter(st -> st.getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT)
-                                .map(ServiceTicket::getEffectiveInvoiceTotal)
+                                .map(this::calculateCurrentAccountTransfer)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 BigDecimal ticketCollections = collectedTickets.stream()
@@ -1147,9 +1155,11 @@ public class ReportService {
                                 BigDecimal amount = ticket.getEffectiveInvoiceTotal();
                                 dailyIncome = dailyIncome.add(amount);
 
-                                if (ticket.getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT) {
+                                BigDecimal currentAccountTransfer = calculateCurrentAccountTransfer(ticket);
+                                if (currentAccountTransfer.signum() > 0) {
                                         String line = String.format("   Cariye Aktarıldı: %s - %s → %s ₺",
-                                                        customerName, serviceDesc, currencyFormat.format(amount));
+                                                        customerName, serviceDesc,
+                                                        currencyFormat.format(currentAccountTransfer));
                                         Paragraph accountLine = new Paragraph(line,
                                                         new Font(interBaseFont, 10, Font.BOLD, ACCENT_ORANGE));
                                         accountLine.setIndentationLeft(10);

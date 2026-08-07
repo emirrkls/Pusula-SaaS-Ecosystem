@@ -129,4 +129,36 @@ class ReportServiceStructuredPricingTest {
         assertEquals(new BigDecimal("135000.00"), saleMonth.getNetProfit());
         assertEquals(BigDecimal.ZERO, saleMonth.getNetCash());
     }
+
+    @Test
+    void monthlyReportShowsPartialCashRemainderAsCurrentAccountTransfer() {
+        LocalDate completionDate = LocalDate.of(2026, 7, 23);
+
+        ServiceTicket ticket = new ServiceTicket();
+        ticket.setId(801L);
+        ticket.setCompanyId(10L);
+        ticket.setStatus(ServiceTicket.TicketStatus.COMPLETED);
+        ticket.setCompletedAt(completionDate.atTime(12, 0));
+        ticket.setCollectionDate(completionDate);
+        ticket.setPaymentMethod(PaymentMethod.CASH);
+        ticket.setPartsTotal(BigDecimal.ZERO);
+        ticket.setLaborFee(new BigDecimal("185304.00"));
+        ticket.setInvoiceTotal(new BigDecimal("185304.00"));
+        ticket.setCollectedAmount(new BigDecimal("100000.00"));
+        ticket.setOutstandingAmount(new BigDecimal("85304.00"));
+
+        when(ticketRepository.findAll()).thenReturn(List.of(ticket));
+        when(expenseRepository.findByCompanyId(10L)).thenReturn(List.of());
+        when(usedPartRepository.findByServiceTicketId(801L)).thenReturn(List.of());
+
+        List<MonthlySummaryDTO> summaries = service.getMonthlyArchives(10L);
+
+        assertEquals(1, summaries.size());
+        MonthlySummaryDTO summary = summaries.get(0);
+        assertEquals(new BigDecimal("185304.00"), summary.getTotalIncome());
+        assertEquals(new BigDecimal("100000.00"), summary.getTotalCollected());
+        assertEquals(new BigDecimal("85304.00"), summary.getCurrentAccountTransferred());
+        assertEquals(new BigDecimal("185304.00"), summary.getNetProfit());
+        assertEquals(new BigDecimal("100000.00"), summary.getNetCash());
+    }
 }
