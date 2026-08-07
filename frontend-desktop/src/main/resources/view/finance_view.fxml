@@ -254,10 +254,10 @@
                             <TableColumn fx:id="colReportPeriod" text="%reports.period" prefWidth="150.0" />
                             <TableColumn fx:id="colReportCarryOver" text="Geçmiş Birikimli K/Z" prefWidth="145.0" />
                             <TableColumn fx:id="colReportIncome" text="Satış / Ciro" prefWidth="115.0" />
-                            <TableColumn fx:id="colReportCollected" text="Toplam Nakit Girişi" prefWidth="135.0" />
-                            <TableColumn fx:id="colReportExpense" text="Toplam Nakit Gideri" prefWidth="135.0" />
-                            <TableColumn fx:id="colReportProfit" text="Net Nakit" prefWidth="115.0" />
-                            <TableColumn fx:id="colReportClosingCash" text="Devreden Nakit" prefWidth="125.0" />
+                            <TableColumn fx:id="colReportCurrentAccount" text="Cariye Aktarılan" prefWidth="130.0" />
+                            <TableColumn fx:id="colReportExpense" text="Toplam Kârlılık Gideri" prefWidth="145.0" />
+                            <TableColumn fx:id="colReportProfit" text="Aylık Kâr / Zarar" prefWidth="125.0" />
+                            <TableColumn fx:id="colReportClosingProfit" text="Dönem Sonu Birikimli K/Z" prefWidth="155.0" />
                             <TableColumn fx:id="colReportActions" text="%table.actions" prefWidth="100.0" />
                          </columns>
                          <columnResizePolicy>

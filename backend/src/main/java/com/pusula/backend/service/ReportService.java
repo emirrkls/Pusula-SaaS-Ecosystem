@@ -1090,12 +1090,6 @@ public class ReportService {
                                                 !st.getEffectiveCompletedAt().toLocalDate().isAfter(endDate))
                                 .collect(java.util.stream.Collectors.toList());
 
-                List<ServiceTicket> collectedTickets = allCompletedTickets.stream()
-                                .filter(st -> st.getEffectiveCollectionDate() != null
-                                                && !st.getEffectiveCollectionDate().isBefore(startDate)
-                                                && !st.getEffectiveCollectionDate().isAfter(endDate))
-                                .collect(java.util.stream.Collectors.toList());
-
                 List<Expense> expenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate);
 
                 com.pusula.backend.dto.MonthlySummaryDTO monthlySummary = getMonthlyArchives(companyId).stream()
@@ -1114,16 +1108,11 @@ public class ReportService {
                                 .collect(java.util.stream.Collectors.groupingBy(
                                                 ticket -> ticket.getEffectiveCompletedAt().toLocalDate()));
 
-                Map<java.time.LocalDate, List<ServiceTicket>> collectionsByDate = collectedTickets.stream()
-                                .collect(java.util.stream.Collectors.groupingBy(
-                                                ServiceTicket::getEffectiveCollectionDate));
-
                 Map<java.time.LocalDate, List<Expense>> expensesByDate = expenses.stream()
                                 .collect(java.util.stream.Collectors.groupingBy(Expense::getDate));
 
                 java.util.Set<java.time.LocalDate> activeDates = new java.util.TreeSet<>();
                 activeDates.addAll(salesByDate.keySet());
-                activeDates.addAll(collectionsByDate.keySet());
                 activeDates.addAll(expensesByDate.keySet());
 
                 DateTimeFormatter dayFormatter = DateTimeFormatter.ofPattern("dd MMMM yyyy, EEEE",
@@ -1137,9 +1126,7 @@ public class ReportService {
                         document.add(dateHeader);
 
                         BigDecimal dailyIncome = BigDecimal.ZERO;
-                        BigDecimal dailyCollections = BigDecimal.ZERO;
                         BigDecimal dailyProfitExpense = BigDecimal.ZERO;
-                        BigDecimal dailyCashExpense = BigDecimal.ZERO;
 
                         List<ServiceTicket> dayTickets = salesByDate.getOrDefault(date,
                                         java.util.Collections.emptyList());
@@ -1182,41 +1169,12 @@ public class ReportService {
                                 }
                         }
 
-                        List<ServiceTicket> dayCollections = collectionsByDate.getOrDefault(date,
-                                        java.util.Collections.emptyList());
-                        for (ServiceTicket ticket : dayCollections) {
-                                String customerName = ticket.getCustomerId() != null
-                                                ? customerRepository.findById(ticket.getCustomerId())
-                                                                .map(Customer::getName)
-                                                                .orElse("Bilinmiyor")
-                                                : "Bilinmiyor";
-                                String serviceDesc = ticket.getDescription() != null
-                                                && !ticket.getDescription().isEmpty()
-                                                                ? ticket.getDescription()
-                                                                : "Servis Hizmeti";
-                                BigDecimal amount = ticket.getCollectedAmount() != null
-                                                ? ticket.getCollectedAmount()
-                                                : BigDecimal.ZERO;
-                                dailyCollections = dailyCollections.add(amount);
-
-                                String movementLabel = ticket.isCurrentAccountPayment()
-                                                ? "Cari Tahsilat / Gelir"
-                                                : "Gelir / Tahsil Edildi";
-                                String line = String.format("   %s: %s - %s → %s ₺", movementLabel,
-                                                customerName, serviceDesc, currencyFormat.format(amount));
-                                Paragraph collectionLine = new Paragraph(line,
-                                                new Font(interBaseFont, 10, Font.BOLD, ACCENT_GREEN));
-                                collectionLine.setIndentationLeft(10);
-                                document.add(collectionLine);
-                        }
-
                         List<Expense> dayExpenses = expensesByDate.getOrDefault(date,
                                         java.util.Collections.emptyList());
                         for (Expense expense : dayExpenses) {
                                 if (ExpenseCategory.DEVICE_SALE.equals(expense.getCategory())) {
                                         BigDecimal saleAmount = expense.getAmount().negate();
                                         dailyIncome = dailyIncome.add(saleAmount);
-                                        dailyCollections = dailyCollections.add(saleAmount);
                                         String line = String.format("   Cihaz Satışı / Gelir: %s → %s ₺",
                                                         expense.getDescription(), currencyFormat.format(saleAmount));
                                         Paragraph deviceSaleLine = new Paragraph(line,
@@ -1227,14 +1185,14 @@ public class ReportService {
                                 }
                                 String categoryName = getCategoryNameTurkish(expense.getCategory().name());
                                 ExpenseTreatment treatment = expenseTreatmentOf(expense);
-                                dailyCashExpense = dailyCashExpense.add(expense.getAmount());
-                                if (treatment != ExpenseTreatment.CASH_ONLY) {
-                                        dailyProfitExpense = dailyProfitExpense.add(expense.getAmount());
+                                if (treatment == ExpenseTreatment.CASH_ONLY) {
+                                        continue;
                                 }
+                                dailyProfitExpense = dailyProfitExpense.add(expense.getAmount());
 
                                 String treatmentLabel = switch (treatment) {
-                                        case SERVICE_DIRECT_EXPENSE -> "Servis Kaynaklı Nakit Gideri";
-                                        case CASH_ONLY -> "Yalnız Nakit Gideri";
+                                        case SERVICE_DIRECT_EXPENSE -> "Servis Doğrudan Gideri";
+                                        case CASH_ONLY -> "";
                                         case OPERATING_EXPENSE -> "Faaliyet Gideri";
                                 };
                                 String line = String.format("   %s: %s - %s → %s ₺", treatmentLabel, categoryName,
@@ -1247,7 +1205,6 @@ public class ReportService {
                         }
 
                         BigDecimal dailyNet = dailyIncome.subtract(dailyProfitExpense);
-                        BigDecimal dailyNetCash = dailyCollections.subtract(dailyCashExpense);
                         String netLabel = dailyNet.compareTo(BigDecimal.ZERO) >= 0 ? "Günlük Net Kâr"
                                         : "Günlük Net Zarar";
 
@@ -1275,23 +1232,6 @@ public class ReportService {
                         netTable.addCell(labelCell);
                         netTable.addCell(amountCell);
 
-                        PdfPCell cashLabelCell = new PdfPCell(new Paragraph("Günlük Net Nakit:", SMALL_BOLD_FONT));
-                        cashLabelCell.setBorder(Rectangle.NO_BORDER);
-                        cashLabelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                        cashLabelCell.setBackgroundColor(new Color(240, 248, 255));
-                        cashLabelCell.setPadding(5);
-
-                        String cashSign = dailyNetCash.compareTo(BigDecimal.ZERO) >= 0 ? "+" : "";
-                        PdfPCell cashAmountCell = new PdfPCell(
-                                        new Paragraph(cashSign + currencyFormat.format(dailyNetCash) + " ₺",
-                                                        SMALL_BOLD_FONT));
-                        cashAmountCell.setBorder(Rectangle.NO_BORDER);
-                        cashAmountCell.setBackgroundColor(new Color(240, 248, 255));
-                        cashAmountCell.setPadding(5);
-                        cashAmountCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-
-                        netTable.addCell(cashLabelCell);
-                        netTable.addCell(cashAmountCell);
                         document.add(netTable);
                 }
 
@@ -1374,7 +1314,7 @@ public class ReportService {
                 table.setSpacingBefore(10);
                 table.setSpacingAfter(20);
 
-                addFinancialSection(table, "KÂRLILIK");
+                addFinancialSection(table, "ÖZET");
                 addFinancialRow(table, "Geçmiş Dönem Birikimli Kâr / Zarar:", money(summary.getCarryOver()));
                 addFinancialRow(table, "Satış / Ciro:", money(summary.getTotalIncome()));
                 addFinancialRow(table, "Cariye Aktarılan:", money(summary.getCurrentAccountTransferred()), ACCENT_ORANGE);
@@ -1385,16 +1325,6 @@ public class ReportService {
                 addFinancialRow(table, "Dönem Sonu Birikimli Kâr / Zarar:",
                                 money(summary.getClosingCumulativeProfit()));
 
-                addFinancialSection(table, "NAKİT AKIŞI");
-                addFinancialRow(table, "Peşin / Kart Servis Tahsilatı:", money(summary.getCashCardCollections()), ACCENT_GREEN);
-                addFinancialRow(table, "Cari Hesap Tahsilatı:", money(summary.getCurrentAccountCollections()), ACCENT_GREEN);
-                addFinancialRow(table, "Diğer Nakit Gelirleri:", money(summary.getOtherCashIncome()), ACCENT_GREEN);
-                addFinancialRow(table, "Toplam Tahsilat / Nakit Girişi:", money(summary.getTotalCollected()), ACCENT_GREEN);
-                addFinancialRow(table, "Servis Kaynaklı Nakit Giderleri:", money(summary.getServiceCashExpenses()));
-                addFinancialRow(table, "Diğer Nakit Giderleri:", money(summary.getOtherCashExpenses()));
-                addFinancialRow(table, "Toplam Nakit Gideri:", money(summary.getTotalCashExpenses()));
-                addFinancialRow(table, "Ayın Net Nakit Değişimi:", money(summary.getNetCash()));
-                addFinancialRow(table, "Dönem Sonu Devreden Nakit:", money(summary.getClosingCashBalance()));
                 return table;
         }
 

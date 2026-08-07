@@ -80,7 +80,7 @@ public class FinanceController {
     @FXML
     private TableColumn<MonthlySummaryDTO, String> colReportIncome;
     @FXML
-    private TableColumn<MonthlySummaryDTO, String> colReportCollected;
+    private TableColumn<MonthlySummaryDTO, String> colReportCurrentAccount;
     @FXML
     private TableColumn<MonthlySummaryDTO, String> colReportExpense;
     @FXML
@@ -88,7 +88,7 @@ public class FinanceController {
     @FXML
     private TableColumn<MonthlySummaryDTO, String> colReportProfit;
     @FXML
-    private TableColumn<MonthlySummaryDTO, String> colReportClosingCash;
+    private TableColumn<MonthlySummaryDTO, String> colReportClosingProfit;
     @FXML
     private TableColumn<MonthlySummaryDTO, Void> colReportActions;
     @FXML
@@ -637,14 +637,14 @@ public class FinanceController {
         colReportIncome.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
                 formatCurrency(cellData.getValue().getTotalIncome())));
 
-        setupColoredCurrencyColumn(colReportCollected,
-                MonthlySummaryDTO::getTotalCollected, "#27ae60");
+        setupColoredCurrencyColumn(colReportCurrentAccount,
+                MonthlySummaryDTO::getCurrentAccountTransferred, "#f39c12");
 
         colReportExpense.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
-                formatCurrency(cellData.getValue().getTotalCashExpenses())));
+                formatCurrency(cellData.getValue().getTotalProfitExpenses())));
 
-        setupSignedCurrencyColumn(colReportProfit, MonthlySummaryDTO::getNetCash);
-        setupSignedCurrencyColumn(colReportClosingCash, MonthlySummaryDTO::getClosingCashBalance);
+        setupSignedCurrencyColumn(colReportProfit, MonthlySummaryDTO::getNetProfit);
+        setupSignedCurrencyColumn(colReportClosingProfit, MonthlySummaryDTO::getClosingCumulativeProfit);
 
         reportsTable.getSelectionModel().selectedItemProperty().addListener(
                 (observable, previous, selected) -> renderReportDetails(selected));
@@ -708,7 +708,7 @@ public class FinanceController {
         title.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
         reportDetailContainer.getChildren().add(title);
 
-        addReportSection("KÂRLILIK");
+        addReportSection("ÖZET");
         addReportDetailRow("Geçmiş dönem birikimli kâr / zarar", summary.getCarryOver(), null);
         addReportDetailRow("Satış / ciro", summary.getTotalIncome(), null);
         addReportDetailRow("Cariye aktarılan (satışın alt kalemi)", summary.getCurrentAccountTransferred(), "#ea580c");
@@ -718,20 +718,6 @@ public class FinanceController {
         addReportDetailRow("Aylık faaliyet kâr / zarar", summary.getNetProfit(), signedColor(summary.getNetProfit()));
         addReportDetailRow("Dönem sonu birikimli kâr / zarar", summary.getClosingCumulativeProfit(),
                 signedColor(summary.getClosingCumulativeProfit()));
-
-        addReportSection("NAKİT AKIŞI");
-        addReportDetailRow("Peşin / kart servis tahsilatı", summary.getCashCardCollections(), "#16a34a");
-        addReportDetailRow("Cari hesap tahsilatı", summary.getCurrentAccountCollections(), "#16a34a");
-        addReportDetailRow("Diğer nakit gelirleri", summary.getOtherCashIncome(), "#16a34a");
-        addReportDetailRow("Toplam tahsilat / nakit girişi", summary.getTotalCollected(), "#16a34a");
-        addReportDetailRow("Servis kaynaklı nakit giderleri", summary.getServiceCashExpenses(), null);
-        addReportDetailRow("Diğer nakit giderleri", summary.getOtherCashExpenses(), null);
-        addReportDetailRow("Toplam nakit gideri", summary.getTotalCashExpenses(), null);
-        addReportDetailRow("Ayın net nakit değişimi", summary.getNetCash(), signedColor(summary.getNetCash()));
-        addReportDetailRow("Dönem başı nakit bakiyesi", summary.getOpeningCashBalance(),
-                signedColor(summary.getOpeningCashBalance()));
-        addReportDetailRow("Dönem sonu devreden nakit", summary.getClosingCashBalance(),
-                signedColor(summary.getClosingCashBalance()));
     }
 
     private void addReportSection(String title) {
