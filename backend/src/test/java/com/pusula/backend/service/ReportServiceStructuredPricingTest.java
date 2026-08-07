@@ -1,6 +1,9 @@
 package com.pusula.backend.service;
 
+import com.lowagie.text.pdf.PdfReader;
+import com.lowagie.text.pdf.parser.PdfTextExtractor;
 import com.pusula.backend.dto.MonthlySummaryDTO;
+import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.Inventory;
 import com.pusula.backend.entity.Expense;
 import com.pusula.backend.entity.ExpenseCategory;
@@ -17,9 +20,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -219,5 +226,65 @@ class ReportServiceStructuredPricingTest {
         assertEquals(new BigDecimal("6000.00"), summary.getOtherCashExpenses());
         assertEquals(new BigDecimal("7000.00"), summary.getTotalCashExpenses());
         assertEquals(BigDecimal.ZERO.setScale(2), summary.getNetCash());
+    }
+
+    @Test
+    void monthlyPdfListsSalesAndProfitExpensesWithoutCashOnlyMovements() throws Exception {
+        LocalDate date = LocalDate.of(2026, 8, 1);
+        ServiceTicket sale = new ServiceTicket();
+        sale.setId(787L);
+        sale.setCompanyId(10L);
+        sale.setCustomerId(50L);
+        sale.setStatus(ServiceTicket.TicketStatus.COMPLETED);
+        sale.setCompletedAt(date.atTime(12, 0));
+        sale.setCollectionDate(date);
+        sale.setDescription("2 Klima Bakım");
+        sale.setInvoiceTotal(new BigDecimal("1800.00"));
+        sale.setCollectedAmount(new BigDecimal("1800.00"));
+        sale.setPaymentMethod(PaymentMethod.CASH);
+
+        Expense rent = Expense.builder()
+                .companyId(10L)
+                .category(ExpenseCategory.RENT)
+                .description("Ağustos Kirası")
+                .amount(new BigDecimal("28000.00"))
+                .date(date)
+                .financialTreatment(ExpenseTreatment.OPERATING_EXPENSE)
+                .build();
+        Expense debtPayment = Expense.builder()
+                .companyId(10L)
+                .category(ExpenseCategory.MATERIAL)
+                .description("Borç Ödemesi: Tedarikçi")
+                .amount(new BigDecimal("36000.00"))
+                .date(date)
+                .financialTreatment(ExpenseTreatment.CASH_ONLY)
+                .build();
+
+        when(ticketRepository.findAll()).thenReturn(List.of(sale));
+        when(expenseRepository.findByCompanyId(10L)).thenReturn(List.of(rent, debtPayment));
+        when(expenseRepository.findByCompanyIdAndDateBetween(10L, date, date.withDayOfMonth(31)))
+                .thenReturn(List.of(rent, debtPayment));
+        when(customerRepository.findById(50L)).thenReturn(Optional.of(Customer.builder()
+                .id(50L)
+                .companyId(10L)
+                .name("Eren Taştan")
+                .build()));
+        when(usedPartRepository.findByServiceTicketId(787L)).thenReturn(List.of());
+
+        byte[] pdf = service.generateMonthlyPDF(YearMonth.of(2026, 8), 10L);
+        PdfReader reader = new PdfReader(pdf);
+        StringBuilder text = new StringBuilder();
+        PdfTextExtractor extractor = new PdfTextExtractor(reader);
+        for (int page = 1; page <= reader.getNumberOfPages(); page++) {
+            text.append(extractor.getTextFromPage(page));
+        }
+        reader.close();
+
+        String reportText = text.toString();
+        assertTrue(reportText.contains("Eren Taştan"));
+        assertTrue(reportText.contains("2 Klima Bakım"));
+        assertTrue(reportText.contains("Ağustos Kirası"));
+        assertFalse(reportText.contains("Borç Ödemesi"));
+        assertFalse(reportText.contains("Net Nakit"));
     }
 }

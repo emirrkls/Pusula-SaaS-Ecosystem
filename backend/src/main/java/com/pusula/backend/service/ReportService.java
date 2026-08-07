@@ -1100,7 +1100,7 @@ public class ReportService {
                 document.add(createMonthlySummaryTable(monthlySummary));
 
                 // DAILY LEDGER
-                Paragraph ledgerTitle = new Paragraph("Günlük Maliyet Defteri", SECTION_FONT);
+                Paragraph ledgerTitle = new Paragraph("Günlük Kârlılık Detayı", SECTION_FONT);
                 ledgerTitle.setSpacingBefore(20);
                 document.add(ledgerTitle);
 
@@ -1109,6 +1109,8 @@ public class ReportService {
                                                 ticket -> ticket.getEffectiveCompletedAt().toLocalDate()));
 
                 Map<java.time.LocalDate, List<Expense>> expensesByDate = expenses.stream()
+                                .filter(expense -> ExpenseCategory.DEVICE_SALE.equals(expense.getCategory())
+                                                || expenseTreatmentOf(expense) != ExpenseTreatment.CASH_ONLY)
                                 .collect(java.util.stream.Collectors.groupingBy(Expense::getDate));
 
                 java.util.Set<java.time.LocalDate> activeDates = new java.util.TreeSet<>();
@@ -1142,6 +1144,14 @@ public class ReportService {
                                                                 : "Servis Hizmeti";
                                 BigDecimal amount = ticket.getEffectiveInvoiceTotal();
                                 dailyIncome = dailyIncome.add(amount);
+
+                                String saleLine = String.format("   Satış / Ciro: #%d - %s - %s → %s ₺",
+                                                ticket.getId(), customerName, serviceDesc,
+                                                currencyFormat.format(amount));
+                                Paragraph saleParagraph = new Paragraph(saleLine,
+                                                new Font(interBaseFont, 10, Font.BOLD, BRAND_COLOR));
+                                saleParagraph.setIndentationLeft(10);
+                                document.add(saleParagraph);
 
                                 BigDecimal currentAccountTransfer = calculateCurrentAccountTransfer(ticket);
                                 if (currentAccountTransfer.signum() > 0) {
@@ -1185,14 +1195,11 @@ public class ReportService {
                                 }
                                 String categoryName = getCategoryNameTurkish(expense.getCategory().name());
                                 ExpenseTreatment treatment = expenseTreatmentOf(expense);
-                                if (treatment == ExpenseTreatment.CASH_ONLY) {
-                                        continue;
-                                }
                                 dailyProfitExpense = dailyProfitExpense.add(expense.getAmount());
 
                                 String treatmentLabel = switch (treatment) {
                                         case SERVICE_DIRECT_EXPENSE -> "Servis Doğrudan Gideri";
-                                        case CASH_ONLY -> "";
+                                        case CASH_ONLY -> "Gider"; // Filtered out from profitability reports.
                                         case OPERATING_EXPENSE -> "Faaliyet Gideri";
                                 };
                                 String line = String.format("   %s: %s - %s → %s ₺", treatmentLabel, categoryName,
