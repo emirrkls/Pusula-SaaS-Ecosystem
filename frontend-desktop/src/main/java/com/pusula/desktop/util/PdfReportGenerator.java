@@ -13,9 +13,16 @@ import java.awt.Color;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * PdfReportGenerator - Generates modern, professional PDF reports.
@@ -46,7 +53,13 @@ public class PdfReportGenerator {
     static {
         try {
             // Load Inter font with Turkish character support
-            interBaseFont = BaseFont.createFont("/fonts/Inter.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+            try (InputStream fontStream = PdfReportGenerator.class.getResourceAsStream("/fonts/Inter.ttf")) {
+                if (fontStream == null) {
+                    throw new IOException("Inter font resource not found");
+                }
+                interBaseFont = BaseFont.createFont("Inter.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED,
+                        true, fontStream.readAllBytes(), null);
+            }
 
             TITLE_FONT = new Font(interBaseFont, 20, Font.BOLD, BRAND_COLOR);
             SUBTITLE_FONT = new Font(interBaseFont, 12, Font.NORMAL, TEXT_MUTED);
@@ -77,10 +90,44 @@ public class PdfReportGenerator {
 
         File file = fileChooser.showSaveDialog(stage);
         if (file != null) {
+            Path temporaryFile = null;
             try {
-                Document document = new Document(PageSize.A4, 40, 40, 50, 50);
-                PdfWriter.getInstance(document, new FileOutputStream(file));
-                document.open();
+                Path target = file.toPath().toAbsolutePath();
+                temporaryFile = Files.createTempFile(target.getParent(), ".envanter-raporu-", ".pdf");
+                writeInventoryReport(temporaryFile.toFile(), inventoryList);
+
+                try {
+                    Files.move(temporaryFile, target, StandardCopyOption.REPLACE_EXISTING,
+                            StandardCopyOption.ATOMIC_MOVE);
+                } catch (AtomicMoveNotSupportedException e) {
+                    Files.move(temporaryFile, target, StandardCopyOption.REPLACE_EXISTING);
+                }
+
+                NotificationHelper.showSuccess("Rapor başarıyla kaydedildi!");
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                NotificationHelper.showError("Rapor oluşturulamadı: " + e.getMessage());
+            } finally {
+                if (temporaryFile != null) {
+                    try {
+                        Files.deleteIfExists(temporaryFile);
+                    } catch (IOException ignored) {
+                        // The target PDF is already safe; a temporary-file cleanup failure is non-fatal.
+                    }
+                }
+            }
+        }
+    }
+
+    static void writeInventoryReport(File file, List<InventoryDTO> inventoryList)
+            throws DocumentException, IOException {
+        Document document = new Document(PageSize.A4, 40, 40, 50, 50);
+        try (FileOutputStream outputStream = new FileOutputStream(file)) {
+            PdfWriter.getInstance(document, outputStream);
+            document.open();
+
+            try {
 
                 // ===== HEADER SECTION =====
                 addHeader(document);
@@ -111,7 +158,7 @@ public class PdfReportGenerator {
 
                 // Table data
                 for (InventoryDTO item : inventoryList) {
-                    boolean isCritical = item.getQuantity() <= item.getCriticalLevel();
+                    boolean isCritical = safeInt(item.getQuantity()) <= safeInt(item.getCriticalLevel());
                     addTableRow(table, item, isCritical);
                 }
 
@@ -119,20 +166,16 @@ public class PdfReportGenerator {
 
                 // ===== FOOTER =====
                 addFooter(document);
-
-                document.close();
-
-                NotificationHelper.showSuccess("Rapor başarıyla kaydedildi!");
-
-            } catch (DocumentException | IOException e) {
-                e.printStackTrace();
-                NotificationHelper.showError("Rapor oluşturulamadı: " + e.getMessage());
+            } finally {
+                if (document.isOpen()) {
+                    document.close();
+                }
             }
         }
     }
 
     private static void addHeader(Document document) throws DocumentException {
-        Paragraph title = new Paragraph("📦 Envanter Raporu", TITLE_FONT);
+        Paragraph title = new Paragraph("Envanter Raporu", TITLE_FONT);
         title.setAlignment(Element.ALIGN_CENTER);
         title.setSpacingAfter(5);
         document.add(title);
@@ -146,10 +189,10 @@ public class PdfReportGenerator {
     private static void addSummaryBox(Document document, List<InventoryDTO> inventoryList) throws DocumentException {
         int totalItems = inventoryList.size();
         long criticalCount = inventoryList.stream()
-                .filter(i -> i.getQuantity() <= i.getCriticalLevel())
+                .filter(i -> safeInt(i.getQuantity()) <= safeInt(i.getCriticalLevel()))
                 .count();
         int totalQuantity = inventoryList.stream()
-                .mapToInt(InventoryDTO::getQuantity)
+                .mapToInt(i -> safeInt(i.getQuantity()))
                 .sum();
 
         PdfPTable summaryTable = new PdfPTable(3);
@@ -200,11 +243,11 @@ public class PdfReportGenerator {
         Color bgColor = isCritical ? CRITICAL_BG : Color.WHITE;
         Font font = isCritical ? CRITICAL_FONT : NORMAL_FONT;
 
-        addCell(table, item.getPartName(), font, bgColor, Element.ALIGN_LEFT);
-        addCell(table, String.valueOf(item.getQuantity()), font, bgColor, Element.ALIGN_CENTER);
+        addCell(table, item.getPartName() == null ? "-" : item.getPartName(), font, bgColor, Element.ALIGN_LEFT);
+        addCell(table, String.valueOf(safeInt(item.getQuantity())), font, bgColor, Element.ALIGN_CENTER);
         addCell(table, formatCurrency(item.getBuyPrice()), NORMAL_FONT, bgColor, Element.ALIGN_RIGHT);
         addCell(table, formatCurrency(item.getSellPrice()), NORMAL_FONT, bgColor, Element.ALIGN_RIGHT);
-        addCell(table, String.valueOf(item.getCriticalLevel()), NORMAL_FONT, bgColor, Element.ALIGN_CENTER);
+        addCell(table, String.valueOf(safeInt(item.getCriticalLevel())), NORMAL_FONT, bgColor, Element.ALIGN_CENTER);
     }
 
     private static void addCell(PdfPTable table, String text, Font font, Color bgColor, int alignment) {
@@ -230,6 +273,13 @@ public class PdfReportGenerator {
     private static String formatCurrency(java.math.BigDecimal amount) {
         if (amount == null)
             return "0,00";
-        return String.format("%,.2f", amount).replace(",", " ").replace(".", ",").replace(" ", ".");
+        NumberFormat formatter = NumberFormat.getNumberInstance(Locale.forLanguageTag("tr-TR"));
+        formatter.setMinimumFractionDigits(2);
+        formatter.setMaximumFractionDigits(2);
+        return formatter.format(amount);
+    }
+
+    private static int safeInt(Integer value) {
+        return value == null ? 0 : value;
     }
 }

@@ -57,7 +57,7 @@ public class InventoryService {
                 .quantity(dto.getQuantity())
                 .buyPrice(dto.getBuyPrice())
                 .sellPrice(dto.getSellPrice())
-                .criticalLevel(dto.getCriticalLevel())
+                .criticalLevel(defaultCriticalLevel(dto.getCriticalLevel()))
                 .build();
         inventory.setBrand(dto.getBrand());
         inventory.setCategory(dto.getCategory());
@@ -94,7 +94,7 @@ public class InventoryService {
         inventory.setQuantity(dto.getQuantity());
         inventory.setBuyPrice(dto.getBuyPrice());
         inventory.setSellPrice(dto.getSellPrice());
-        inventory.setCriticalLevel(dto.getCriticalLevel());
+        inventory.setCriticalLevel(defaultCriticalLevel(dto.getCriticalLevel()));
         inventory.setBrand(dto.getBrand());
         inventory.setCategory(dto.getCategory());
         inventory.setBarcode(normalizeBarcode(dto.getBarcode()));
@@ -185,5 +185,9 @@ public class InventoryService {
         }
         String trimmed = barcode.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static int defaultCriticalLevel(Integer criticalLevel) {
+        return criticalLevel == null ? 0 : criticalLevel;
     }
 }

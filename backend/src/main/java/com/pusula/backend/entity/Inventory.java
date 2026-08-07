@@ -24,8 +24,8 @@ public class Inventory extends BaseEntity {
     @Column(name = "sell_price")
     private BigDecimal sellPrice;
 
-    @Column(name = "critical_level")
-    private Integer criticalLevel;
+    @Column(name = "critical_level", nullable = false)
+    private Integer criticalLevel = 0;
 
     @Column(name = "brand")
     private String brand;
