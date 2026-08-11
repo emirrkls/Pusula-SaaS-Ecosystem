@@ -18,4 +18,5 @@ public class ServiceUsedPartDTO {
     private String partName;
     private Integer quantityUsed;
     private BigDecimal sellingPriceSnapshot;
+    private Long sourceVehicleId;
 }

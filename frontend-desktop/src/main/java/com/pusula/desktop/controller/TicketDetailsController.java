@@ -60,6 +60,8 @@ public class TicketDetailsController {
     @FXML
     private TableColumn<ServiceUsedPartDTO, BigDecimal> colPrice;
     @FXML
+    private TableColumn<ServiceUsedPartDTO, Void> colPartActions;
+    @FXML
     private Button btnCompleteService;
     @FXML
     private Button btnCancelService;
@@ -133,6 +135,40 @@ public class TicketDetailsController {
         });
 
         partsTable.setItems(usedPartsList);
+        colPartActions.setCellFactory(col -> new TableCell<>() {
+            private final Button decreaseBtn = new Button("−");
+            private final Button increaseBtn = new Button("+");
+            private final Button editBtn = new Button("Düzenle");
+            private final Button deleteBtn = new Button("Sil");
+            private final HBox actions = new HBox(5, decreaseBtn, increaseBtn, editBtn, deleteBtn);
+
+            {
+                decreaseBtn.getStyleClass().add("btn-secondary");
+                increaseBtn.getStyleClass().add("btn-success");
+                editBtn.getStyleClass().add("btn-primary");
+                deleteBtn.getStyleClass().add("btn-danger");
+                decreaseBtn.setOnAction(event -> changePartQuantity(getCurrentPart(), -1));
+                increaseBtn.setOnAction(event -> changePartQuantity(getCurrentPart(), 1));
+                editBtn.setOnAction(event -> editPartQuantity(getCurrentPart()));
+                deleteBtn.setOnAction(event -> deleteUsedPart(getCurrentPart()));
+            }
+
+            private ServiceUsedPartDTO getCurrentPart() {
+                return getTableRow() != null ? getTableRow().getItem() : null;
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                ServiceUsedPartDTO part = empty ? null : getCurrentPart();
+                boolean disabled = part == null || !canModifyParts();
+                decreaseBtn.setDisable(disabled || part.getQuantityUsed() == null || part.getQuantityUsed() <= 1);
+                increaseBtn.setDisable(disabled);
+                editBtn.setDisable(disabled);
+                deleteBtn.setDisable(disabled);
+                setGraphic(part == null ? null : actions);
+            }
+        });
 
         // Setup external expenses table
         colExpenseDescription.setCellValueFactory(
@@ -141,12 +177,18 @@ public class TicketDetailsController {
                 cellData.getValue().getSupplier() != null ? cellData.getValue().getSupplier() : "-"));
         colExpenseAmount.setCellValueFactory(
                 cellData -> new javafx.beans.property.SimpleObjectProperty<>(cellData.getValue().getAmount()));
-        // Action column with delete button
+        // Action column with edit and delete buttons
         colExpenseActions.setCellFactory(col -> new TableCell<>() {
+            private final Button editBtn = new Button("Düzenle");
             private final Button deleteBtn = new Button("Sil");
+            private final HBox actions = new HBox(5, editBtn, deleteBtn);
             {
-                deleteBtn.setStyle(
-                        "-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 10px; -fx-padding: 2 8;");
+                editBtn.getStyleClass().add("btn-primary");
+                deleteBtn.getStyleClass().add("btn-danger");
+                editBtn.setOnAction(e -> {
+                    ServiceTicketExpenseDTO expense = getTableView().getItems().get(getIndex());
+                    showExpenseDialog(expense);
+                });
                 deleteBtn.setOnAction(e -> {
                     ServiceTicketExpenseDTO expense = getTableView().getItems().get(getIndex());
                     deleteExpense(expense);
@@ -156,7 +198,7 @@ public class TicketDetailsController {
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                setGraphic(empty ? null : deleteBtn);
+                setGraphic(empty ? null : actions);
             }
         });
         expensesTable.setItems(expensesList);
@@ -374,6 +416,7 @@ public class TicketDetailsController {
         btnCancelService.setVisible(!isClosed);
         btnCancelService.setManaged(!isClosed);
         btnAddPart.setDisable(isClosed);
+        partsTable.refresh();
 
         // Disable editing for closed tickets
         txtNotes.setEditable(!isClosed);
@@ -566,6 +609,101 @@ public class TicketDetailsController {
         });
     }
 
+    private boolean canModifyParts() {
+        return currentTicket != null
+                && !"COMPLETED".equals(currentTicket.getStatus())
+                && !"CANCELLED".equals(currentTicket.getStatus());
+    }
+
+    private void changePartQuantity(ServiceUsedPartDTO part, int change) {
+        if (part == null || !canModifyParts() || part.getQuantityUsed() == null) {
+            return;
+        }
+        int newQuantity = part.getQuantityUsed() + change;
+        if (newQuantity > 0) {
+            updatePartQuantity(part, newQuantity);
+        }
+    }
+
+    private void editPartQuantity(ServiceUsedPartDTO part) {
+        if (part == null || !canModifyParts()) {
+            return;
+        }
+        Dialog<Integer> dialog = new Dialog<>();
+        dialog.setTitle("Parça Adedini Düzenle");
+        dialog.setHeaderText(part.getPartName());
+        Spinner<Integer> quantitySpinner = new Spinner<>(1, 1_000_000,
+                part.getQuantityUsed() != null ? part.getQuantityUsed() : 1);
+        quantitySpinner.setEditable(true);
+        dialog.getDialogPane().setContent(new HBox(10, new Label("Adet:"), quantitySpinner));
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        dialog.setResultConverter(button -> button == ButtonType.OK ? quantitySpinner.getValue() : null);
+        dialog.showAndWait().ifPresent(quantity -> updatePartQuantity(part, quantity));
+    }
+
+    private void updatePartQuantity(ServiceUsedPartDTO part, int quantity) {
+        ServiceUsedPartDTO request = ServiceUsedPartDTO.builder()
+                .quantityUsed(quantity)
+                .build();
+        ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
+        api.updateUsedPart(currentTicket.getId(), part.getId(), request)
+                .enqueue(new Callback<ServiceUsedPartDTO>() {
+                    @Override
+                    public void onResponse(Call<ServiceUsedPartDTO> call, Response<ServiceUsedPartDTO> response) {
+                        Platform.runLater(() -> {
+                            if (response.isSuccessful()) {
+                                loadUsedParts();
+                            } else {
+                                AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                                        "Hata", "Parça adedi güncellenemedi: " + response.code());
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onFailure(Call<ServiceUsedPartDTO> call, Throwable t) {
+                        Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                lblStatus.getScene().getWindow(), "Hata", t.getMessage()));
+                    }
+                });
+    }
+
+    private void deleteUsedPart(ServiceUsedPartDTO part) {
+        if (part == null || !canModifyParts()) {
+            return;
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                part.getPartName() + " parçası fişten silinsin ve " + part.getQuantityUsed()
+                        + " adet stoğa iade edilsin mi?",
+                ButtonType.YES, ButtonType.NO);
+        confirm.setHeaderText("Kullanılan Parçayı Sil");
+        confirm.showAndWait().ifPresent(button -> {
+            if (button != ButtonType.YES) {
+                return;
+            }
+            ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
+            api.deleteUsedPart(currentTicket.getId(), part.getId()).enqueue(new Callback<Void>() {
+                @Override
+                public void onResponse(Call<Void> call, Response<Void> response) {
+                    Platform.runLater(() -> {
+                        if (response.isSuccessful()) {
+                            loadUsedParts();
+                        } else {
+                            AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                                    "Hata", "Parça silinemedi: " + response.code());
+                        }
+                    });
+                }
+
+                @Override
+                public void onFailure(Call<Void> call, Throwable t) {
+                    Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                            lblStatus.getScene().getWindow(), "Hata", t.getMessage()));
+                }
+            });
+        });
+    }
+
     private void loadCustomerInfo() {
         if (currentTicket == null || currentTicket.getCustomerId() == null)
             return;
@@ -634,13 +772,19 @@ public class TicketDetailsController {
 
     @FXML
     private void handleAddExpense() {
+        showExpenseDialog(null);
+    }
+
+    private void showExpenseDialog(ServiceTicketExpenseDTO existingExpense) {
         if (currentTicket == null)
             return;
 
-        // Create a dialog for adding expense
         Dialog<ServiceTicketExpenseDTO> dialog = new Dialog<>();
-        dialog.setTitle("Dış Gider Ekle");
-        dialog.setHeaderText("Servis için dış gider bilgilerini girin");
+        boolean editing = existingExpense != null;
+        dialog.setTitle(editing ? "Dış Gideri Düzenle" : "Dış Gider Ekle");
+        dialog.setHeaderText(editing
+                ? "Dış gider ve bağlı finans kaydı birlikte güncellenecek"
+                : "Servis için dış gider bilgilerini girin");
 
         // Form fields
         TextField descField = new TextField();
@@ -652,6 +796,12 @@ public class TicketDetailsController {
         TextArea notesField = new TextArea();
         notesField.setPromptText("Notlar (İsteğe bağlı)");
         notesField.setPrefRowCount(2);
+        if (editing) {
+            descField.setText(existingExpense.getDescription());
+            supplierField.setText(existingExpense.getSupplier());
+            amountField.setRawValue(existingExpense.getAmount());
+            notesField.setText(existingExpense.getNotes());
+        }
 
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -673,6 +823,7 @@ public class TicketDetailsController {
                 try {
                     BigDecimal amount = amountField.getRawValue();
                     return ServiceTicketExpenseDTO.builder()
+                            .id(editing ? existingExpense.getId() : null)
                             .serviceTicketId(currentTicket.getId())
                             .description(descField.getText())
                             .supplier(supplierField.getText().isEmpty() ? null : supplierField.getText())
@@ -690,9 +841,40 @@ public class TicketDetailsController {
 
         dialog.showAndWait().ifPresent(expense -> {
             if (expense != null && expense.getDescription() != null && !expense.getDescription().isEmpty()) {
-                saveExpense(expense);
+                if (editing) {
+                    updateExpense(expense);
+                } else {
+                    saveExpense(expense);
+                }
             }
         });
+    }
+
+    private void updateExpense(ServiceTicketExpenseDTO expense) {
+        ServiceTicketExpenseApi api = RetrofitClient.getClient().create(ServiceTicketExpenseApi.class);
+        api.updateExpense(currentTicket.getId(), expense.getId(), expense)
+                .enqueue(new Callback<ServiceTicketExpenseDTO>() {
+                    @Override
+                    public void onResponse(Call<ServiceTicketExpenseDTO> call,
+                            Response<ServiceTicketExpenseDTO> response) {
+                        Platform.runLater(() -> {
+                            if (response.isSuccessful()) {
+                                loadExpenses();
+                                AlertHelper.showAlert(Alert.AlertType.INFORMATION,
+                                        lblStatus.getScene().getWindow(), "Başarılı", "Dış gider güncellendi");
+                            } else {
+                                AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                                        "Hata", "Gider güncellenemedi: " + response.code());
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onFailure(Call<ServiceTicketExpenseDTO> call, Throwable t) {
+                        Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                lblStatus.getScene().getWindow(), "Hata", "Bağlantı hatası: " + t.getMessage()));
+                    }
+                });
     }
 
     private void saveExpense(ServiceTicketExpenseDTO expense) {
@@ -940,7 +1122,6 @@ public class TicketDetailsController {
         // Re-enable editing fields
         txtNotes.setEditable(true);
         comboTechnician.setDisable(false);
-        btnAddPart.setDisable(false);
 
         // Hide the edit button since we're now in edit mode
         btnEditCompleted.setVisible(false);
@@ -949,7 +1130,7 @@ public class TicketDetailsController {
         // Show a save button or update existing button
         AlertHelper.showAlert(Alert.AlertType.INFORMATION, lblStatus.getScene().getWindow(),
                 resourceBundle.getString("dialog.title.info"),
-                "Düzenleme modu etkinleştirildi. Değişiklikleri kaydetmek için 'Notları Kaydet' butonunu kullanın.");
+                "Not ve teknisyen düzenleme modu etkinleştirildi. Finansal tutarları korumak için kapanmış fişin parça adedi değiştirilemez.");
     }
 
     private void openParentTicket(Long parentId) {

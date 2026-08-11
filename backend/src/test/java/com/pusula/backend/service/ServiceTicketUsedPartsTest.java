@@ -4,6 +4,7 @@ import com.pusula.backend.dto.ServiceUsedPartDTO;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.ServiceUsedPart;
 import com.pusula.backend.entity.User;
+import com.pusula.backend.entity.Inventory;
 import com.pusula.backend.repository.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -109,6 +110,52 @@ class ServiceTicketUsedPartsTest {
         assertThrows(RuntimeException.class, () -> service.getUsedParts(404L));
 
         verify(usedPartRepository, never()).findByServiceTicketId(404L);
+    }
+
+    @Test
+    void decreasingUsedPartReturnsDifferenceToInventory() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = ticket(100L, 10L, null);
+        ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
+        Inventory inventory = Inventory.builder()
+                .id(50L).companyId(10L).partName("Kompresör").quantity(5)
+                .buyPrice(new BigDecimal("100")).sellPrice(new BigDecimal("200")).criticalLevel(1)
+                .build();
+        ServiceUsedPart part = ServiceUsedPart.builder()
+                .id(300L).companyId(10L).serviceTicket(ticket).inventory(inventory)
+                .quantityUsed(3).sellingPriceSnapshot(new BigDecimal("200")).build();
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByIdAndCompanyId(300L, 10L)).thenReturn(Optional.of(part));
+        when(usedPartRepository.save(part)).thenReturn(part);
+
+        ServiceUsedPartDTO result = service.updateUsedPart(100L, 300L,
+                ServiceUsedPartDTO.builder().quantityUsed(1).build());
+
+        assertEquals(7, inventory.getQuantity());
+        assertEquals(1, result.getQuantityUsed());
+        verify(inventoryRepository).save(inventory);
+    }
+
+    @Test
+    void deletingUsedPartReturnsAllQuantityToInventory() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = ticket(100L, 10L, null);
+        ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
+        Inventory inventory = Inventory.builder()
+                .id(50L).companyId(10L).partName("Kompresör").quantity(5)
+                .buyPrice(new BigDecimal("100")).sellPrice(new BigDecimal("200")).criticalLevel(1)
+                .build();
+        ServiceUsedPart part = ServiceUsedPart.builder()
+                .id(300L).companyId(10L).serviceTicket(ticket).inventory(inventory)
+                .quantityUsed(3).sellingPriceSnapshot(new BigDecimal("200")).build();
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByIdAndCompanyId(300L, 10L)).thenReturn(Optional.of(part));
+
+        service.deleteUsedPart(100L, 300L);
+
+        assertEquals(8, inventory.getQuantity());
+        verify(inventoryRepository).save(inventory);
+        verify(usedPartRepository).delete(part);
     }
 
     private ServiceTicket ticket(Long id, Long companyId, Long technicianId) {

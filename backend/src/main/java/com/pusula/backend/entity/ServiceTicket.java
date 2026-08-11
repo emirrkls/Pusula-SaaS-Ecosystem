@@ -29,6 +29,7 @@ public class ServiceTicket extends BaseEntity {
 
     private String description;
 
+    @Column(columnDefinition = "TEXT")
     private String notes;
 
     @Column(name = "collected_amount")

@@ -92,6 +92,20 @@ public class ServiceTicketController {
         return ResponseEntity.ok(service.getUsedParts(id));
     }
 
+    @PutMapping("/{id}/parts/{partId}")
+    public ResponseEntity<ServiceUsedPartDTO> updateUsedPart(
+            @PathVariable Long id,
+            @PathVariable Long partId,
+            @RequestBody ServiceUsedPartDTO dto) {
+        return ResponseEntity.ok(service.updateUsedPart(id, partId, dto));
+    }
+
+    @DeleteMapping("/{id}/parts/{partId}")
+    public ResponseEntity<Void> deleteUsedPart(@PathVariable Long id, @PathVariable Long partId) {
+        service.deleteUsedPart(id, partId);
+        return ResponseEntity.noContent().build();
+    }
+
     /**
      * PATCH /api/tickets/{id}/complete — complete service with separate sale and collection amounts.
      * Structured clients send laborFee; the server adds snapshotted part sales and

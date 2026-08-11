@@ -35,6 +35,14 @@ public class ServiceTicketExpenseController {
         return ResponseEntity.ok(expenseService.addExpense(dto));
     }
 
+    @PutMapping("/{ticketId}/expenses/{expenseId}")
+    public ResponseEntity<ServiceTicketExpenseDTO> updateExpense(
+            @PathVariable Long ticketId,
+            @PathVariable Long expenseId,
+            @RequestBody ServiceTicketExpenseDTO dto) {
+        return ResponseEntity.ok(expenseService.updateExpense(ticketId, expenseId, dto));
+    }
+
     /**
      * Delete an expense
      */

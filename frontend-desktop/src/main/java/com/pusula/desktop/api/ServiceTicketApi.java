@@ -30,6 +30,13 @@ public interface ServiceTicketApi {
     @GET("api/tickets/{id}/parts")
     Call<List<ServiceUsedPartDTO>> getUsedParts(@Path("id") Long id);
 
+    @PUT("api/tickets/{id}/parts/{partId}")
+    Call<ServiceUsedPartDTO> updateUsedPart(@Path("id") Long id, @Path("partId") Long partId,
+            @Body ServiceUsedPartDTO dto);
+
+    @DELETE("api/tickets/{id}/parts/{partId}")
+    Call<Void> deleteUsedPart(@Path("id") Long id, @Path("partId") Long partId);
+
     @PATCH("api/tickets/{id}/complete")
     Call<ServiceTicketDTO> completeService(@Path("id") Long id, @Body java.util.Map<String, Object> request);
 

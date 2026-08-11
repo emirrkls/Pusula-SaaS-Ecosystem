@@ -17,6 +17,10 @@ public interface ServiceTicketExpenseApi {
     @POST("/api/service-tickets/{ticketId}/expenses")
     Call<ServiceTicketExpenseDTO> addExpense(@Path("ticketId") Long ticketId, @Body ServiceTicketExpenseDTO dto);
 
+    @PUT("/api/service-tickets/{ticketId}/expenses/{expenseId}")
+    Call<ServiceTicketExpenseDTO> updateExpense(@Path("ticketId") Long ticketId,
+            @Path("expenseId") Long expenseId, @Body ServiceTicketExpenseDTO dto);
+
     @DELETE("/api/service-tickets/{ticketId}/expenses/{expenseId}")
     Call<Void> deleteExpense(@Path("ticketId") Long ticketId, @Path("expenseId") Long expenseId);
 }

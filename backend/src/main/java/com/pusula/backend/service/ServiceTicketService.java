@@ -389,6 +389,11 @@ public class ServiceTicketService {
         ServiceTicket ticket = repository.findById(ticketId)
                 .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
+        validatePartMutationAccess(ticket, currentUser);
+
+        if (dto.getQuantityUsed() == null || dto.getQuantityUsed() <= 0) {
+            throw new IllegalArgumentException("Parça adedi sıfırdan büyük olmalıdır.");
+        }
 
         com.pusula.backend.entity.Inventory inventory = inventoryRepository.findById(dto.getInventoryId())
                 .filter(i -> i.getCompanyId().equals(currentUser.getCompanyId()))
@@ -396,11 +401,15 @@ public class ServiceTicketService {
 
         Long sourceVehicleId = null;
         int quantityNeeded = dto.getQuantityUsed();
+        if (inventory.getQuantity() == null || inventory.getQuantity() < quantityNeeded) {
+            throw new RuntimeException("Yetersiz stok: " + inventory.getPartName());
+        }
 
         // Check if we should use vehicle stock
         if (dto.getSourceVehicleId() != null) {
             VehicleStock vehicleStock = vehicleStockRepository
                     .findByVehicleIdAndInventoryId(dto.getSourceVehicleId(), dto.getInventoryId())
+                    .filter(stock -> currentUser.getCompanyId().equals(stock.getCompanyId()))
                     .orElse(null);
 
             if (vehicleStock != null && vehicleStock.getQuantity() >= quantityNeeded) {
@@ -414,17 +423,11 @@ public class ServiceTicketService {
                 inventoryRepository.save(inventory);
             } else {
                 // Vehicle doesn't have enough, fall back to main inventory
-                if (inventory.getQuantity() < quantityNeeded) {
-                    throw new RuntimeException("Insufficient stock for item: " + inventory.getPartName());
-                }
                 inventory.setQuantity(inventory.getQuantity() - quantityNeeded);
                 inventoryRepository.save(inventory);
             }
         } else {
             // No vehicle specified, use main inventory directly
-            if (inventory.getQuantity() < quantityNeeded) {
-                throw new RuntimeException("Insufficient stock for item: " + inventory.getPartName());
-            }
             inventory.setQuantity(inventory.getQuantity() - quantityNeeded);
             inventoryRepository.save(inventory);
         }
@@ -456,6 +459,115 @@ public class ServiceTicketService {
                 saved.getQuantityUsed(),
                 saved.getSellingPriceSnapshot(),
                 saved.getSourceVehicleId());
+    }
+
+    @Transactional
+    public ServiceUsedPartDTO updateUsedPart(Long ticketId, Long partId, ServiceUsedPartDTO dto) {
+        User currentUser = getCurrentUser();
+        ServiceTicket ticket = repository.findById(ticketId)
+                .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Servis fişi bulunamadı veya erişim reddedildi."));
+        validatePartMutationAccess(ticket, currentUser);
+        if (dto.getQuantityUsed() == null || dto.getQuantityUsed() <= 0) {
+            throw new IllegalArgumentException("Parça adedi sıfırdan büyük olmalıdır.");
+        }
+
+        com.pusula.backend.entity.ServiceUsedPart part = serviceUsedPartRepository
+                .findByIdAndCompanyId(partId, currentUser.getCompanyId())
+                .filter(p -> p.getServiceTicket() != null && ticketId.equals(p.getServiceTicket().getId()))
+                .orElseThrow(() -> new RuntimeException("Kullanılan parça bulunamadı."));
+
+        int oldQuantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
+        int delta = dto.getQuantityUsed() - oldQuantity;
+        adjustUsedPartStock(part, delta, currentUser.getCompanyId());
+        part.setQuantityUsed(dto.getQuantityUsed());
+        com.pusula.backend.entity.ServiceUsedPart saved = serviceUsedPartRepository.save(part);
+
+        auditLogService.log("UPDATE", "TICKET", ticketId,
+                "Parça adedi güncellendi: " + partDisplayName(saved) + " x" + oldQuantity + " → x"
+                        + saved.getQuantityUsed());
+        return mapUsedPart(saved, ticketId);
+    }
+
+    @Transactional
+    public void deleteUsedPart(Long ticketId, Long partId) {
+        User currentUser = getCurrentUser();
+        ServiceTicket ticket = repository.findById(ticketId)
+                .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Servis fişi bulunamadı veya erişim reddedildi."));
+        validatePartMutationAccess(ticket, currentUser);
+
+        com.pusula.backend.entity.ServiceUsedPart part = serviceUsedPartRepository
+                .findByIdAndCompanyId(partId, currentUser.getCompanyId())
+                .filter(p -> p.getServiceTicket() != null && ticketId.equals(p.getServiceTicket().getId()))
+                .orElseThrow(() -> new RuntimeException("Kullanılan parça bulunamadı."));
+        int quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
+        String partName = partDisplayName(part);
+        adjustUsedPartStock(part, -quantity, currentUser.getCompanyId());
+        serviceUsedPartRepository.delete(part);
+        auditLogService.log("DELETE", "TICKET", ticketId,
+                "Kullanılan parça silindi ve stoğa iade edildi: " + partName + " x" + quantity);
+    }
+
+    private void validatePartMutationAccess(ServiceTicket ticket, User currentUser) {
+        if (!isAdmin(currentUser)
+                && (ticket.getAssignedTechnicianId() == null
+                        || !ticket.getAssignedTechnicianId().equals(currentUser.getId()))) {
+            throw new AccessDeniedException("Yalnızca size atanmış servisin parçalarını değiştirebilirsiniz.");
+        }
+        if (ticket.getStatus() == ServiceTicket.TicketStatus.COMPLETED
+                || ticket.getStatus() == ServiceTicket.TicketStatus.CANCELLED) {
+            throw new IllegalStateException("Kapanmış veya iptal edilmiş servisin parçaları değiştirilemez.");
+        }
+    }
+
+    private void adjustUsedPartStock(com.pusula.backend.entity.ServiceUsedPart part, int delta, Long companyId) {
+        if (delta == 0) {
+            return;
+        }
+        Inventory inventory = part.getInventory();
+        if (inventory == null || !companyId.equals(inventory.getCompanyId())) {
+            throw new IllegalStateException("Parçanın bağlı olduğu envanter kaydı bulunamadı.");
+        }
+        int currentInventory = inventory.getQuantity() != null ? inventory.getQuantity() : 0;
+        if (delta > 0 && currentInventory < delta) {
+            throw new IllegalStateException("Yetersiz stok: " + inventory.getPartName());
+        }
+
+        VehicleStock vehicleStock = null;
+        if (part.getSourceVehicleId() != null) {
+            vehicleStock = vehicleStockRepository
+                    .findByVehicleIdAndInventoryId(part.getSourceVehicleId(), inventory.getId())
+                    .filter(stock -> companyId.equals(stock.getCompanyId()))
+                    .orElseThrow(() -> new IllegalStateException("Aracın parça stok kaydı bulunamadı."));
+            int currentVehicleStock = vehicleStock.getQuantity() != null ? vehicleStock.getQuantity() : 0;
+            if (delta > 0 && currentVehicleStock < delta) {
+                throw new IllegalStateException("Araçta yeterli parça stoğu yok.");
+            }
+            vehicleStock.setQuantity(currentVehicleStock - delta);
+            vehicleStockRepository.save(vehicleStock);
+        }
+
+        inventory.setQuantity(currentInventory - delta);
+        inventoryRepository.save(inventory);
+    }
+
+    private String partDisplayName(com.pusula.backend.entity.ServiceUsedPart part) {
+        return part.getInventory() != null && part.getInventory().getPartName() != null
+                ? part.getInventory().getPartName()
+                : "Yedek Parça";
+    }
+
+    private ServiceUsedPartDTO mapUsedPart(com.pusula.backend.entity.ServiceUsedPart part, Long ticketId) {
+        Inventory inventory = part.getInventory();
+        return new ServiceUsedPartDTO(
+                part.getId(),
+                ticketId,
+                inventory != null ? inventory.getId() : part.getInventoryId(),
+                partDisplayName(part),
+                part.getQuantityUsed(),
+                part.getSellingPriceSnapshot(),
+                part.getSourceVehicleId());
     }
 
     public List<ServiceUsedPartDTO> getUsedParts(Long ticketId) {

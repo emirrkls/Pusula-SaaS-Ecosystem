@@ -6,12 +6,15 @@ import com.pusula.backend.entity.ExpenseCategory;
 import com.pusula.backend.entity.ExpenseTreatment;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.ServiceTicketExpense;
+import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.ExpenseRepository;
 import com.pusula.backend.repository.ServiceTicketExpenseRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -47,8 +50,10 @@ public class ServiceTicketExpenseService {
      * Get all expenses for a service ticket
      */
     public List<ServiceTicketExpenseDTO> getExpensesForTicket(Long ticketId) {
+        ServiceTicket ticket = getAccessibleTicket(ticketId);
         return repository.findByServiceTicketId(ticketId)
                 .stream()
+                .filter(expense -> ticket.getCompanyId().equals(expense.getCompanyId()))
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
@@ -65,8 +70,7 @@ public class ServiceTicketExpenseService {
         if (dto.getAmount() == null || dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Gider tutarı sıfırdan büyük olmalıdır.");
         }
-        ServiceTicket ticket = ticketRepository.findById(dto.getServiceTicketId())
-                .orElseThrow(() -> new RuntimeException("Servis fişi bulunamadı: " + dto.getServiceTicketId()));
+        ServiceTicket ticket = getAccessibleTicket(dto.getServiceTicketId());
         LocalDate expenseDate = resolveExpenseDate(ticket);
 
         // Create the finance row first so the service expense retains an exact link.
@@ -101,12 +105,49 @@ public class ServiceTicketExpenseService {
         return mapToDTO(saved);
     }
 
+    @Transactional
+    public ServiceTicketExpenseDTO updateExpense(Long ticketId, Long id, ServiceTicketExpenseDTO dto) {
+        validateExpense(dto);
+        ServiceTicket ticket = getAccessibleTicket(ticketId);
+        ServiceTicketExpense expense = repository.findByIdAndServiceTicketId(id, ticketId)
+                .filter(row -> ticket.getCompanyId().equals(row.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Gider bulunamadı: " + id));
+
+        String oldSummary = expense.getDescription() + " (" + expense.getAmount() + " ₺)";
+        expense.setDescription(dto.getDescription().trim());
+        expense.setAmount(dto.getAmount());
+        expense.setSupplier(blankToNull(dto.getSupplier()));
+        expense.setNotes(blankToNull(dto.getNotes()));
+
+        if (expense.getFinanceExpenseId() == null) {
+            throw new IllegalStateException("Giderin finans kaydı bulunamadı; düzenleme güvenli biçimde yapılamıyor.");
+        }
+        Expense financeExpense = expenseRepository
+                .findByIdAndCompanyId(expense.getFinanceExpenseId(), ticket.getCompanyId())
+                .orElseThrow(() -> new IllegalStateException("Giderin bağlı finans kaydı bulunamadı."));
+        financeExpense.setAmount(expense.getAmount());
+        financeExpense.setDescription("Servis Gideri #" + ticket.getId() + ": " + expense.getDescription());
+        financeExpense.setDate(expense.getExpenseDate());
+        financeExpense.setCategory(ExpenseCategory.MATERIAL);
+        financeExpense.setFinancialTreatment(ExpenseTreatment.SERVICE_DIRECT_EXPENSE);
+        expenseRepository.save(financeExpense);
+
+        ServiceTicketExpense saved = repository.save(expense);
+        financeService.reconcileClosedDay(saved.getCompanyId(), saved.getExpenseDate());
+        auditLogService.log("UPDATE", "SERVICE_EXPENSE", saved.getId(),
+                "Servis gideri güncellendi", oldSummary,
+                saved.getDescription() + " (" + saved.getAmount() + " ₺)");
+        return mapToDTO(saved);
+    }
+
     /**
      * Delete an expense
      */
     @Transactional
     public void deleteExpense(Long ticketId, Long id) {
+        ServiceTicket ticket = getAccessibleTicket(ticketId);
         ServiceTicketExpense expense = repository.findByIdAndServiceTicketId(id, ticketId)
+                .filter(row -> ticket.getCompanyId().equals(row.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Gider bulunamadı: " + id));
 
         auditLogService.log("DELETE", "SERVICE_EXPENSE", id,
@@ -141,5 +182,31 @@ public class ServiceTicketExpenseService {
             return ticket.getScheduledDate().toLocalDate();
         }
         return LocalDate.now(businessZone);
+    }
+
+    private void validateExpense(ServiceTicketExpenseDTO dto) {
+        if (dto == null || dto.getDescription() == null || dto.getDescription().isBlank()) {
+            throw new IllegalArgumentException("Gider açıklaması zorunludur.");
+        }
+        if (dto.getAmount() == null || dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Gider tutarı sıfırdan büyük olmalıdır.");
+        }
+    }
+
+    private ServiceTicket getAccessibleTicket(Long ticketId) {
+        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        ServiceTicket ticket = ticketRepository.findById(ticketId)
+                .filter(row -> row.getCompanyId().equals(currentUser.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Servis fişi bulunamadı veya erişim reddedildi."));
+        if ("TECHNICIAN".equals(currentUser.getRole())
+                && (ticket.getAssignedTechnicianId() == null
+                        || !ticket.getAssignedTechnicianId().equals(currentUser.getId()))) {
+            throw new AccessDeniedException("Yalnızca size atanmış servisin giderlerini değiştirebilirsiniz.");
+        }
+        return ticket;
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }
