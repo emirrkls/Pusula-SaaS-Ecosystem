@@ -525,9 +525,9 @@ public class ReportService {
         /**
          * Generate Proposal PDF with items table and signature
          */
-        public byte[] generateProposalForm(Long proposalId) {
+        public byte[] generateProposalForm(Long proposalId, Long companyId) {
                 try {
-                        Proposal proposal = proposalRepository.findById(proposalId)
+                        Proposal proposal = proposalRepository.findByIdAndCompanyId(proposalId, companyId)
                                         .orElseThrow(() -> new RuntimeException("Teklif bulunamadı: " + proposalId));
 
                         Customer customer = customerRepository.findById(proposal.getCustomerId())

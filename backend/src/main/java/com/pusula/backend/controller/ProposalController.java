@@ -34,7 +34,8 @@ public class ProposalController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ProposalDTO> getById(@PathVariable Long id) {
-        ProposalDTO dto = proposalService.getById(id);
+        User user = getCurrentUser();
+        ProposalDTO dto = proposalService.getById(id, user.getCompanyId());
         if (dto == null) {
             return ResponseEntity.notFound().build();
         }
@@ -50,7 +51,8 @@ public class ProposalController {
     @PutMapping("/{id}")
     public ResponseEntity<ProposalDTO> update(@PathVariable Long id, @RequestBody ProposalDTO dto) {
         try {
-            ProposalDTO updated = proposalService.update(id, dto);
+            User user = getCurrentUser();
+            ProposalDTO updated = proposalService.update(id, user.getCompanyId(), dto);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build();
@@ -59,7 +61,8 @@ public class ProposalController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        proposalService.delete(id);
+        User user = getCurrentUser();
+        proposalService.delete(id, user.getCompanyId());
         return ResponseEntity.noContent().build();
     }
 
@@ -67,7 +70,8 @@ public class ProposalController {
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ProposalDTO> convertToJob(@PathVariable Long id) {
         try {
-            ProposalDTO result = proposalService.convertToJob(id);
+            User user = getCurrentUser();
+            ProposalDTO result = proposalService.convertToJob(id, user.getCompanyId());
             return ResponseEntity.ok(result);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build();
@@ -77,7 +81,8 @@ public class ProposalController {
     @GetMapping("/{id}/pdf")
     public ResponseEntity<byte[]> generatePdf(@PathVariable Long id) {
         try {
-            byte[] pdfBytes = reportService.generateProposalForm(id);
+            User user = getCurrentUser();
+            byte[] pdfBytes = reportService.generateProposalForm(id, user.getCompanyId());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);

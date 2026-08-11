@@ -3,6 +3,7 @@ package com.pusula.desktop.controller;
 import com.pusula.desktop.api.*;
 import com.pusula.desktop.dto.*;
 import com.pusula.desktop.network.RetrofitClient;
+import com.pusula.desktop.util.CustomerSearchSupport;
 import com.pusula.desktop.util.CurrencyTextField;
 import com.pusula.desktop.util.SessionManager;
 import javafx.application.Platform;
@@ -11,6 +12,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
@@ -23,6 +25,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.function.Function;
 
 public class ProposalEditorController {
 
@@ -64,6 +68,8 @@ public class ProposalEditorController {
     private CurrencyTextField itemCostField;
     @FXML
     private CurrencyTextField itemPriceField;
+    @FXML
+    private Button addItemButton;
 
     @FXML
     private Label subtotalLabel;
@@ -85,18 +91,26 @@ public class ProposalEditorController {
 
     @FXML
     private TextArea noteArea;
+    @FXML
+    private Button saveButton;
 
     private ProposalApi proposalApi;
     private CustomerApi customerApi;
     private UserApi userApi;
     private CommercialDeviceApi deviceApi;
+    private InventoryApi inventoryApi;
 
     private ProposalDTO currentProposal;
     private ObservableList<ProposalItemDTO> items = FXCollections.observableArrayList();
     private Runnable onSaveCallback;
     private boolean isAdmin;
+    private boolean saveInProgress;
+    private ProposalItemDTO editingItem;
 
     private List<CommercialDeviceDTO> devices = new ArrayList<>();
+    private List<InventoryDTO> inventoryItems = new ArrayList<>();
+    private final ObservableList<CustomerDTO> allCustomers = FXCollections.observableArrayList();
+    private final ObservableList<CustomerDTO> filteredCustomers = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
@@ -104,6 +118,7 @@ public class ProposalEditorController {
         customerApi = RetrofitClient.getClient().create(CustomerApi.class);
         userApi = RetrofitClient.getClient().create(UserApi.class);
         deviceApi = RetrofitClient.getClient().create(CommercialDeviceApi.class);
+        inventoryApi = RetrofitClient.getClient().create(InventoryApi.class);
 
         // Check if admin (static method)
         isAdmin = SessionManager.isAdmin();
@@ -128,11 +143,21 @@ public class ProposalEditorController {
                 String.format("%.2f ₺", d.getValue().getTotalPrice())));
 
         colItemActions.setCellFactory(param -> new TableCell<>() {
-            private final Button deleteBtn = new Button("❌");
+            private final Button editBtn = new Button("Düzenle");
+            private final Button deleteBtn = new Button("Sil");
+            private final javafx.scene.layout.HBox actions = new javafx.scene.layout.HBox(5, editBtn, deleteBtn);
             {
-                deleteBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand;");
+                editBtn.getStyleClass().add("btn-secondary");
+                deleteBtn.getStyleClass().add("btn-danger");
+                editBtn.setStyle("-fx-font-size: 10px; -fx-padding: 4 7;");
+                deleteBtn.setStyle("-fx-font-size: 10px; -fx-padding: 4 7;");
+                editBtn.setOnAction(e -> startEditingItem(getTableRow().getItem()));
                 deleteBtn.setOnAction(e -> {
-                    items.remove(getIndex());
+                    ProposalItemDTO rowItem = getTableRow().getItem();
+                    if (rowItem == editingItem) {
+                        cancelItemEditing();
+                    }
+                    items.remove(rowItem);
                     recalculateTotals();
                 });
             }
@@ -140,17 +165,26 @@ public class ProposalEditorController {
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                setGraphic(empty ? null : deleteBtn);
+                setGraphic(empty ? null : actions);
             }
         });
 
         itemsTable.setItems(items);
+        itemsTable.setPlaceholder(new Label("Henüz teklif kalemi eklenmedi."));
+        itemsTable.setRowFactory(table -> {
+            TableRow<ProposalItemDTO> row = new TableRow<>();
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2 && !row.isEmpty()) {
+                    startEditingItem(row.getItem());
+                }
+            });
+            return row;
+        });
     }
 
     private void setupComboBoxes() {
         // Status with Turkish labels
-        statusComboBox.setItems(FXCollections.observableArrayList("DRAFT", "SENT", "APPROVED", "REJECTED"));
-        statusComboBox.setValue("DRAFT");
+        configureAllowedStatuses("DRAFT", true);
         statusComboBox.setConverter(new StringConverter<>() {
             @Override
             public String toString(String s) {
@@ -178,20 +212,45 @@ public class ProposalEditorController {
 
         validUntilPicker.setValue(LocalDate.now().plusDays(30));
 
-        // Source types: Device or manual Service
-        sourceTypeComboBox.setItems(FXCollections.observableArrayList("Cihaz", "Hizmet"));
+        sourceTypeComboBox.setItems(FXCollections.observableArrayList("Yedek Parça", "Cihaz", "Hizmet"));
         sourceTypeComboBox.setOnAction(e -> loadSourceItems());
+        sourceTypeComboBox.setValue("Hizmet");
+        sourceItemComboBox.valueProperty().addListener((obs, oldValue, newValue) -> populateSourcePricing(newValue));
 
+        customerComboBox.setEditable(true);
+        customerComboBox.setItems(filteredCustomers);
         customerComboBox.setConverter(new StringConverter<>() {
             @Override
             public String toString(CustomerDTO c) {
-                return c == null ? "" : c.getName();
+                return CustomerSearchSupport.displayText(c);
             }
 
             @Override
             public CustomerDTO fromString(String s) {
-                return null;
+                if (s == null || s.isBlank()) {
+                    return null;
+                }
+                return allCustomers.stream()
+                        .filter(c -> CustomerSearchSupport.displayText(c).equalsIgnoreCase(s.trim()))
+                        .findFirst()
+                        .orElse(null);
             }
+        });
+        customerComboBox.getEditor().setOnKeyReleased(event -> {
+            if (event.getCode() == KeyCode.UP || event.getCode() == KeyCode.DOWN
+                    || event.getCode() == KeyCode.ENTER || event.getCode() == KeyCode.TAB
+                    || event.getCode() == KeyCode.ESCAPE) {
+                return;
+            }
+            String query = customerComboBox.getEditor().getText();
+            CustomerDTO selected = customerComboBox.getSelectionModel().getSelectedItem();
+            if (selected != null && !CustomerSearchSupport.displayText(selected).equals(query)) {
+                customerComboBox.getSelectionModel().clearSelection();
+                customerComboBox.setValue(null);
+                customerComboBox.getEditor().setText(query);
+                customerComboBox.getEditor().positionCaret(query.length());
+            }
+            applyCustomerFilter(query);
         });
 
         preparedByComboBox.setConverter(new StringConverter<>() {
@@ -205,6 +264,37 @@ public class ProposalEditorController {
                 return null;
             }
         });
+
+        loadSourceItems();
+    }
+
+    private void configureAllowedStatuses(String currentStatus, boolean isNewProposal) {
+        List<String> allowed;
+        if (isNewProposal) {
+            allowed = List.of("DRAFT");
+        } else if ("DRAFT".equals(currentStatus)) {
+            allowed = List.of("DRAFT", "SENT", "REJECTED");
+        } else if ("SENT".equals(currentStatus)) {
+            allowed = List.of("SENT", "APPROVED", "REJECTED");
+        } else if ("APPROVED".equals(currentStatus)) {
+            allowed = List.of("APPROVED");
+        } else {
+            allowed = List.of("REJECTED");
+        }
+        statusComboBox.setItems(FXCollections.observableArrayList(allowed));
+        statusComboBox.setValue(currentStatus);
+        statusComboBox.setDisable(allowed.size() == 1);
+    }
+
+    private void applyCustomerFilter(String query) {
+        filteredCustomers.setAll(allCustomers.stream()
+                .filter(customer -> CustomerSearchSupport.matches(customer, query))
+                .toList());
+        if (filteredCustomers.isEmpty()) {
+            customerComboBox.hide();
+        } else if (!customerComboBox.isShowing() && customerComboBox.isFocused()) {
+            customerComboBox.show();
+        }
     }
 
     private void setupCalculationListeners() {
@@ -218,7 +308,8 @@ public class ProposalEditorController {
             public void onResponse(Call<List<CustomerDTO>> call, Response<List<CustomerDTO>> response) {
                 Platform.runLater(() -> {
                     if (response.isSuccessful() && response.body() != null) {
-                        customerComboBox.setItems(FXCollections.observableArrayList(response.body()));
+                        allCustomers.setAll(response.body());
+                        filteredCustomers.setAll(allCustomers);
                         // Pre-select customer if editing an existing proposal
                         if (currentProposal != null && currentProposal.getCustomerId() != null) {
                             customerComboBox.getItems().stream()
@@ -232,6 +323,7 @@ public class ProposalEditorController {
 
             @Override
             public void onFailure(Call<List<CustomerDTO>> call, Throwable t) {
+                Platform.runLater(() -> showError("Müşteriler yüklenemedi: " + t.getMessage()));
             }
         });
 
@@ -263,6 +355,7 @@ public class ProposalEditorController {
 
             @Override
             public void onFailure(Call<List<UserDTO>> call, Throwable t) {
+                Platform.runLater(() -> showError("Kullanıcılar yüklenemedi: " + t.getMessage()));
             }
         });
     }
@@ -272,9 +365,34 @@ public class ProposalEditorController {
         if (sourceType == null)
             return;
 
+        sourceItemComboBox.getEditor().setOnKeyReleased(null);
         sourceItemComboBox.getItems().clear();
+        sourceItemComboBox.setValue(null);
+        sourceItemComboBox.getEditor().clear();
 
-        if ("Cihaz".equals(sourceType)) {
+        if ("Yedek Parça".equals(sourceType)) {
+            inventoryApi.getAllInventory().enqueue(new Callback<>() {
+                @Override
+                public void onResponse(Call<List<InventoryDTO>> call, Response<List<InventoryDTO>> response) {
+                    Platform.runLater(() -> {
+                        if (response.isSuccessful() && response.body() != null) {
+                            inventoryItems = response.body();
+                            configureSelectableSourceItems(new ArrayList<>(inventoryItems), value -> {
+                                InventoryDTO item = (InventoryDTO) value;
+                                return item.getPartName();
+                            });
+                        } else {
+                            showError("Yedek parçalar yüklenemedi.");
+                        }
+                    });
+                }
+
+                @Override
+                public void onFailure(Call<List<InventoryDTO>> call, Throwable t) {
+                    Platform.runLater(() -> showError("Yedek parçalar yüklenemedi: " + t.getMessage()));
+                }
+            });
+        } else if ("Cihaz".equals(sourceType)) {
             deviceApi.getAll().enqueue(new Callback<>() {
                 @Override
                 public void onResponse(Call<List<CommercialDeviceDTO>> call,
@@ -282,32 +400,23 @@ public class ProposalEditorController {
                     Platform.runLater(() -> {
                         if (response.isSuccessful() && response.body() != null) {
                             devices = response.body();
-                            sourceItemComboBox.setItems(FXCollections.observableArrayList(devices));
-                            sourceItemComboBox.setConverter(new StringConverter<>() {
-                                @Override
-                                public String toString(Object o) {
-                                    if (o instanceof CommercialDeviceDTO) {
-                                        CommercialDeviceDTO d = (CommercialDeviceDTO) o;
-                                        return d.getBrand() + " " + d.getModel();
-                                    }
-                                    return "";
-                                }
-
-                                @Override
-                                public Object fromString(String s) {
-                                    return null;
-                                }
+                            configureSelectableSourceItems(new ArrayList<>(devices), value -> {
+                                CommercialDeviceDTO device = (CommercialDeviceDTO) value;
+                                return device.getBrand() + " " + device.getModel();
                             });
+                        } else {
+                            showError("Cihazlar yüklenemedi.");
                         }
                     });
                 }
 
                 @Override
                 public void onFailure(Call<List<CommercialDeviceDTO>> call, Throwable t) {
+                    Platform.runLater(() -> showError("Cihazlar yüklenemedi: " + t.getMessage()));
                 }
             });
         } else {
-            // Manual service entry - clear converter
+            sourceItemComboBox.setItems(FXCollections.observableArrayList());
             sourceItemComboBox.setConverter(new StringConverter<>() {
                 @Override
                 public String toString(Object o) {
@@ -324,6 +433,59 @@ public class ProposalEditorController {
         }
     }
 
+    private void configureSelectableSourceItems(List<?> sourceItems, Function<Object, String> displayText) {
+        ObservableList<Object> allItems = FXCollections.observableArrayList(sourceItems);
+        sourceItemComboBox.setItems(allItems);
+        sourceItemComboBox.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Object value) {
+                return value == null ? "" : displayText.apply(value);
+            }
+
+            @Override
+            public Object fromString(String text) {
+                if (text == null || text.isBlank()) {
+                    return null;
+                }
+                return allItems.stream()
+                        .filter(value -> displayText.apply(value).equalsIgnoreCase(text.trim()))
+                        .findFirst()
+                        .orElse(null);
+            }
+        });
+        sourceItemComboBox.getEditor().setOnKeyReleased(event -> {
+            if (event.getCode() == KeyCode.UP || event.getCode() == KeyCode.DOWN
+                    || event.getCode() == KeyCode.ENTER || event.getCode() == KeyCode.TAB
+                    || event.getCode() == KeyCode.ESCAPE) {
+                return;
+            }
+            String query = sourceItemComboBox.getEditor().getText();
+            Object selected = sourceItemComboBox.getSelectionModel().getSelectedItem();
+            if (selected != null && !displayText.apply(selected).equals(query)) {
+                sourceItemComboBox.getSelectionModel().clearSelection();
+                sourceItemComboBox.setValue(null);
+                sourceItemComboBox.getEditor().setText(query);
+                sourceItemComboBox.getEditor().positionCaret(query.length());
+            }
+            String normalized = query == null ? "" : query.trim().toLowerCase(Locale.forLanguageTag("tr-TR"));
+            sourceItemComboBox.setItems(allItems.filtered(value ->
+                    displayText.apply(value).toLowerCase(Locale.forLanguageTag("tr-TR")).contains(normalized)));
+            if (!sourceItemComboBox.getItems().isEmpty() && !sourceItemComboBox.isShowing()) {
+                sourceItemComboBox.show();
+            }
+        });
+    }
+
+    private void populateSourcePricing(Object selected) {
+        if (selected instanceof InventoryDTO inventory) {
+            itemCostField.setRawValue(inventory.getBuyPrice() != null ? inventory.getBuyPrice() : BigDecimal.ZERO);
+            itemPriceField.setRawValue(inventory.getSellPrice() != null ? inventory.getSellPrice() : BigDecimal.ZERO);
+        } else if (selected instanceof CommercialDeviceDTO device) {
+            itemCostField.setRawValue(device.getBuyingPrice() != null ? device.getBuyingPrice() : BigDecimal.ZERO);
+            itemPriceField.setRawValue(device.getSellingPrice() != null ? device.getSellingPrice() : BigDecimal.ZERO);
+        }
+    }
+
     @FXML
     private void handleAddItem() {
         try {
@@ -331,11 +493,21 @@ public class ProposalEditorController {
             BigDecimal unitCost = BigDecimal.ZERO;
             BigDecimal unitPrice;
             int quantity = Integer.parseInt(itemQtyField.getText().trim());
+            if (quantity <= 0) {
+                showError("Adet sıfırdan büyük olmalıdır.");
+                return;
+            }
 
             Object selected = sourceItemComboBox.getValue();
             String sourceType = sourceTypeComboBox.getValue();
 
-            if ("Cihaz".equals(sourceType) && selected instanceof CommercialDeviceDTO) {
+            if ("Yedek Parça".equals(sourceType) && selected instanceof InventoryDTO inventory) {
+                description = inventory.getPartName();
+                unitCost = inventory.getBuyPrice() != null ? inventory.getBuyPrice() : BigDecimal.ZERO;
+                unitPrice = !itemPriceField.isEmpty()
+                        ? itemPriceField.getRawValue()
+                        : (inventory.getSellPrice() != null ? inventory.getSellPrice() : BigDecimal.ZERO);
+            } else if ("Cihaz".equals(sourceType) && selected instanceof CommercialDeviceDTO) {
                 CommercialDeviceDTO device = (CommercialDeviceDTO) selected;
                 description = device.getBrand() + " " + device.getModel();
                 unitCost = device.getBuyingPrice() != null ? device.getBuyingPrice() : BigDecimal.ZERO;
@@ -355,16 +527,29 @@ public class ProposalEditorController {
                 unitPrice = itemPriceField.getRawValue();
             }
 
-            ProposalItemDTO item = new ProposalItemDTO();
+            if (unitCost.compareTo(BigDecimal.ZERO) < 0 || unitPrice.compareTo(BigDecimal.ZERO) < 0) {
+                showError("Maliyet ve fiyat negatif olamaz.");
+                return;
+            }
+
+            ProposalItemDTO item = editingItem != null ? editingItem : new ProposalItemDTO();
             item.setDescription(description);
             item.setQuantity(quantity);
             item.setUnitCost(unitCost);
             item.setUnitPrice(unitPrice);
             item.setTotalPrice(unitPrice.multiply(new BigDecimal(quantity)));
 
-            items.add(item);
+            if (editingItem == null) {
+                items.add(item);
+            } else {
+                itemsTable.refresh();
+            }
             recalculateTotals();
             clearItemFields();
+            Platform.runLater(() -> {
+                itemsTable.getSelectionModel().select(item);
+                itemsTable.scrollTo(item);
+            });
 
         } catch (Exception e) {
             showError("Kalem eklenemedi: " + e.getMessage());
@@ -372,11 +557,32 @@ public class ProposalEditorController {
     }
 
     private void clearItemFields() {
+        editingItem = null;
+        addItemButton.setText("+ Ekle");
         sourceItemComboBox.setValue(null);
         sourceItemComboBox.getEditor().clear();
         itemQtyField.clear();
         itemCostField.clear();
         itemPriceField.clear();
+    }
+
+    private void startEditingItem(ProposalItemDTO item) {
+        if (item == null) {
+            return;
+        }
+        editingItem = item;
+        sourceTypeComboBox.setValue("Hizmet");
+        sourceItemComboBox.getEditor().setText(item.getDescription());
+        itemQtyField.setText(String.valueOf(item.getQuantity()));
+        itemCostField.setRawValue(item.getUnitCost() != null ? item.getUnitCost() : BigDecimal.ZERO);
+        itemPriceField.setRawValue(item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO);
+        addItemButton.setText("Güncelle");
+        sourceItemComboBox.requestFocus();
+        sourceItemComboBox.getEditor().positionCaret(sourceItemComboBox.getEditor().getText().length());
+    }
+
+    private void cancelItemEditing() {
+        clearItemFields();
     }
 
     private void recalculateTotals() {
@@ -410,7 +616,7 @@ public class ProposalEditorController {
                     .map(i -> i.getUnitCost() != null ? i.getUnitCost().multiply(new BigDecimal(i.getQuantity()))
                             : BigDecimal.ZERO)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
-            BigDecimal profit = subtotal.subtract(totalCost);
+            BigDecimal profit = subtotal.subtract(discount).subtract(totalCost);
 
             totalCostLabel.setText(String.format("%.2f ₺", totalCost));
             profitLabel.setText(String.format("%.2f ₺", profit));
@@ -425,7 +631,7 @@ public class ProposalEditorController {
         if (proposal != null) {
             titleLabel.setText("Teklif Düzenle #" + proposal.getId());
             titleField.setText(proposal.getTitle());
-            statusComboBox.setValue(proposal.getStatus());
+            configureAllowedStatuses(proposal.getStatus(), false);
             validUntilPicker.setValue(proposal.getValidUntil());
             noteArea.setText(proposal.getNote());
             taxRateField.setRawValue(proposal.getTaxRate() != null ? proposal.getTaxRate() : new BigDecimal("20"));
@@ -496,12 +702,24 @@ public class ProposalEditorController {
 
     @FXML
     private void handleSave() {
+        if (saveInProgress) {
+            return;
+        }
+        if (customerComboBox.getValue() == null && customerComboBox.getEditor().getText() != null) {
+            CustomerDTO typedCustomer = customerComboBox.getConverter()
+                    .fromString(customerComboBox.getEditor().getText());
+            customerComboBox.setValue(typedCustomer);
+        }
         if (customerComboBox.getValue() == null) {
-            showError("Lütfen müşteri seçin.");
+            showError("Lütfen listeden geçerli bir müşteri seçin.");
             return;
         }
         if (items.isEmpty()) {
             showError("Lütfen en az bir kalem ekleyin.");
+            return;
+        }
+        if (validUntilPicker.getValue() == null) {
+            showError("Lütfen teklif geçerlilik tarihini seçin.");
             return;
         }
 
@@ -514,14 +732,25 @@ public class ProposalEditorController {
         dto.setTitle(titleField.getText());
 
         try {
-            dto.setTaxRate(taxRateField.getRawValue());
-            dto.setDiscount(discountField.getRawValue());
+            BigDecimal taxRate = taxRateField.getRawValue();
+            BigDecimal discount = discountField.getRawValue();
+            if (taxRate.compareTo(BigDecimal.ZERO) < 0 || taxRate.compareTo(new BigDecimal("100")) > 0) {
+                showError("KDV oranı 0 ile 100 arasında olmalıdır.");
+                return;
+            }
+            if (discount.compareTo(BigDecimal.ZERO) < 0) {
+                showError("İndirim negatif olamaz.");
+                return;
+            }
+            dto.setTaxRate(taxRate);
+            dto.setDiscount(discount);
         } catch (Exception e) {
-            dto.setTaxRate(new BigDecimal("20"));
-            dto.setDiscount(BigDecimal.ZERO);
+            showError("KDV ve indirim alanlarını kontrol edin.");
+            return;
         }
 
         dto.setItems(new ArrayList<>(items));
+        setSaving(true);
 
         Callback<ProposalDTO> callback = new Callback<>() {
             @Override
@@ -532,14 +761,18 @@ public class ProposalEditorController {
                             onSaveCallback.run();
                         closeWindow();
                     } else {
-                        showError("Kaydetme başarısız.");
+                        setSaving(false);
+                        showError("Kaydetme başarısız (HTTP " + response.code() + ").");
                     }
                 });
             }
 
             @Override
             public void onFailure(Call<ProposalDTO> call, Throwable t) {
-                Platform.runLater(() -> showError("Hata: " + t.getMessage()));
+                Platform.runLater(() -> {
+                    setSaving(false);
+                    showError("Hata: " + t.getMessage());
+                });
             }
         };
 
@@ -548,6 +781,12 @@ public class ProposalEditorController {
         } else {
             proposalApi.create(dto).enqueue(callback);
         }
+    }
+
+    private void setSaving(boolean saving) {
+        saveInProgress = saving;
+        saveButton.setDisable(saving);
+        saveButton.setText(saving ? "Kaydediliyor..." : "Kaydet");
     }
 
     @FXML

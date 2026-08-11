@@ -8,12 +8,15 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.stage.Modality;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -26,6 +29,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
@@ -151,7 +155,9 @@ public class ProposalViewController {
             return;
 
         String statusFilterValue = statusFilter.getValue();
-        String searchText = searchField.getText() != null ? searchField.getText().toLowerCase() : "";
+        String searchText = searchField.getText() != null
+                ? searchField.getText().trim().toLowerCase(Locale.forLanguageTag("tr-TR"))
+                : "";
 
         List<ProposalDTO> filtered = allProposals.stream()
                 .filter(p -> {
@@ -161,15 +167,24 @@ public class ProposalViewController {
                             return false;
                     }
                     if (!searchText.isEmpty()) {
-                        String customer = p.getCustomerName() != null ? p.getCustomerName().toLowerCase() : "";
-                        String preparedBy = p.getPreparedByName() != null ? p.getPreparedByName().toLowerCase() : "";
-                        return customer.contains(searchText) || preparedBy.contains(searchText);
+                        String customer = searchable(p.getCustomerName());
+                        String preparedBy = searchable(p.getPreparedByName());
+                        String title = searchable(p.getTitle());
+                        String proposalNo = p.getId() != null ? String.valueOf(p.getId()) : "";
+                        return customer.contains(searchText)
+                                || preparedBy.contains(searchText)
+                                || title.contains(searchText)
+                                || proposalNo.contains(searchText);
                     }
                     return true;
                 })
                 .collect(Collectors.toList());
 
         proposalsTable.setItems(FXCollections.observableArrayList(filtered));
+    }
+
+    private String searchable(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.forLanguageTag("tr-TR"));
     }
 
     @FXML
@@ -270,8 +285,21 @@ public class ProposalViewController {
 
             Stage stage = new Stage();
             stage.initModality(Modality.APPLICATION_MODAL);
+            Window owner = proposalsTable.getScene().getWindow();
+            stage.initOwner(owner);
             stage.setTitle(proposal == null ? "Yeni Teklif" : "Teklif Düzenle");
             stage.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root));
+            Rectangle2D visualBounds = Screen.getScreensForRectangle(
+                            owner.getX(), owner.getY(), owner.getWidth(), owner.getHeight())
+                    .stream()
+                    .findFirst()
+                    .orElse(Screen.getPrimary())
+                    .getVisualBounds();
+            stage.setMinWidth(Math.min(560, visualBounds.getWidth() - 32));
+            stage.setMinHeight(Math.min(460, visualBounds.getHeight() - 32));
+            stage.setWidth(Math.min(980, visualBounds.getWidth() - 32));
+            stage.setHeight(Math.min(820, visualBounds.getHeight() - 32));
+            stage.centerOnScreen();
             stage.showAndWait();
         } catch (IOException e) {
             showError("Editor açılamadı: " + e.getMessage());

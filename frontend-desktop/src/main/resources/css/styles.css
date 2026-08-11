@@ -1378,6 +1378,24 @@
     -fx-spacing: 16;
 }
 
+.dialog-scroll-pane,
+.dialog-scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.dialog-scroll-pane {
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+}
+
+.dialog-action-bar {
+    -fx-padding: 14 0 0 0;
+    -fx-border-color: #E2E8F0 transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-background-color: #FFFFFF;
+}
+
 .dialog-title {
     -fx-font-size: 20px;
     -fx-font-weight: bold;
@@ -1448,6 +1466,11 @@
 
 .dark-theme .dialog-root {
     -fx-background-color: #1E293B;
+}
+
+.dark-theme .dialog-action-bar {
+    -fx-background-color: #1E293B;
+    -fx-border-color: #334155 transparent transparent transparent;
 }
 
 /* Filter chips */

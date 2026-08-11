@@ -44,8 +44,8 @@ public class ProposalService {
                 .collect(Collectors.toList());
     }
 
-    public ProposalDTO getById(Long id) {
-        return proposalRepository.findById(id)
+    public ProposalDTO getById(Long id, Long companyId) {
+        return proposalRepository.findByIdAndCompanyId(id, companyId)
                 .map(this::mapToDTO)
                 .orElse(null);
     }
@@ -54,6 +54,7 @@ public class ProposalService {
     @CheckQuota("PROPOSALS")
     public ProposalDTO create(ProposalDTO dto) {
         User currentUser = getCurrentUser();
+        validateCustomerOwnership(dto.getCustomerId(), currentUser.getCompanyId());
 
         Proposal proposal = new Proposal();
         proposal.setCompanyId(currentUser.getCompanyId());
@@ -93,9 +94,10 @@ public class ProposalService {
     }
 
     @Transactional
-    public ProposalDTO update(Long id, ProposalDTO dto) {
-        Proposal proposal = proposalRepository.findById(id)
+    public ProposalDTO update(Long id, Long companyId, ProposalDTO dto) {
+        Proposal proposal = proposalRepository.findByIdAndCompanyId(id, companyId)
                 .orElseThrow(() -> new RuntimeException("Teklif bulunamadı"));
+        validateCustomerOwnership(dto.getCustomerId(), companyId);
 
         Proposal.ProposalStatus oldStatus = proposal.getStatus();
         Proposal.ProposalStatus newStatus = parseStatus(dto.getStatus());
@@ -174,17 +176,19 @@ public class ProposalService {
     }
 
     @Transactional
-    public void delete(Long id) {
-        proposalRepository.deleteById(id);
+    public void delete(Long id, Long companyId) {
+        proposalRepository.delete(getOwnedProposal(id, companyId));
     }
 
     @Transactional
-    public ProposalDTO convertToJob(Long id) {
-        Proposal proposal = proposalRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Teklif bulunamadı"));
+    public ProposalDTO convertToJob(Long id, Long companyId) {
+        Proposal proposal = getOwnedProposal(id, companyId);
 
         if (proposal.getStatus() == Proposal.ProposalStatus.APPROVED) {
             throw new RuntimeException("Teklif zaten işe dönüştürülmüş");
+        }
+        if (proposal.getStatus() == Proposal.ProposalStatus.REJECTED) {
+            throw new RuntimeException("Reddedilen teklif işe dönüştürülemez");
         }
 
         proposal.setStatus(Proposal.ProposalStatus.APPROVED);
@@ -272,6 +276,17 @@ public class ProposalService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    private Proposal getOwnedProposal(Long id, Long companyId) {
+        return proposalRepository.findByIdAndCompanyId(id, companyId)
+                .orElseThrow(() -> new RuntimeException("Teklif bulunamadı"));
+    }
+
+    private void validateCustomerOwnership(Long customerId, Long companyId) {
+        if (customerId == null || customerRepository.findByIdAndCompanyId(customerId, companyId).isEmpty()) {
+            throw new RuntimeException("Müşteri bulunamadı");
+        }
     }
 
     private Proposal.ProposalStatus parseStatus(String status) {

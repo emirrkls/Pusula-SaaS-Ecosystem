@@ -5,106 +5,127 @@
 <?import javafx.scene.layout.*?>
 <?import com.pusula.desktop.util.CurrencyTextField?>
 
-<VBox fx:controller="com.pusula.desktop.controller.ProposalEditorController"
-      prefHeight="700" prefWidth="900" spacing="15.0" styleClass="dialog-root"
-      xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
-    <padding>
-        <Insets bottom="20" left="20" right="20" top="20"/>
-    </padding>
+<BorderPane fx:controller="com.pusula.desktop.controller.ProposalEditorController"
+            prefHeight="700" prefWidth="900" minHeight="460" minWidth="560"
+            styleClass="dialog-root" xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1">
+    <center>
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" pannable="true"
+                    styleClass="dialog-scroll-pane" vbarPolicy="AS_NEEDED">
+            <content>
+                <VBox spacing="12.0">
+                    <padding>
+                        <Insets bottom="12" left="2" right="2" top="2"/>
+                    </padding>
 
-    <HBox alignment="CENTER_LEFT" spacing="15">
-        <Label fx:id="titleLabel" styleClass="dialog-title" text="Yeni Teklif"/>
-    </HBox>
-    <Separator/>
+                    <HBox alignment="CENTER_LEFT" spacing="15">
+                        <Label fx:id="titleLabel" styleClass="dialog-title" text="Yeni Teklif"/>
+                    </HBox>
+                    <Separator/>
 
-    <GridPane hgap="15" vgap="10">
-        <columnConstraints>
-            <ColumnConstraints percentWidth="15"/>
-            <ColumnConstraints percentWidth="35"/>
-            <ColumnConstraints percentWidth="15"/>
-            <ColumnConstraints percentWidth="35"/>
-        </columnConstraints>
-        <Label GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="field-label" text="Başlık:"/>
-        <TextField fx:id="titleField" GridPane.columnIndex="1" GridPane.columnSpan="3" GridPane.rowIndex="0"
-                   promptText="Teklif Başlığı (opsiyonel)"/>
-        <Label GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="field-label" text="Müşteri:"/>
-        <HBox GridPane.columnIndex="1" GridPane.rowIndex="1" spacing="5">
-            <ComboBox fx:id="customerComboBox" prefWidth="200"/>
-            <Button onAction="#handleAddCustomer" styleClass="btn-secondary" text="+"/>
+                    <GridPane hgap="12" vgap="10">
+                        <columnConstraints>
+                            <ColumnConstraints percentWidth="15"/>
+                            <ColumnConstraints hgrow="ALWAYS" percentWidth="35"/>
+                            <ColumnConstraints percentWidth="15"/>
+                            <ColumnConstraints hgrow="ALWAYS" percentWidth="35"/>
+                        </columnConstraints>
+                        <Label GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="field-label" text="Başlık:"/>
+                        <TextField fx:id="titleField" GridPane.columnIndex="1" GridPane.columnSpan="3"
+                                   GridPane.hgrow="ALWAYS" GridPane.rowIndex="0" maxWidth="Infinity"
+                                   promptText="Teklif başlığı (opsiyonel)"/>
+                        <Label GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="field-label" text="Müşteri:"/>
+                        <HBox GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" spacing="5">
+                            <ComboBox fx:id="customerComboBox" editable="true" HBox.hgrow="ALWAYS"
+                                      maxWidth="Infinity" promptText="İsim veya telefon ile ara"/>
+                            <Button onAction="#handleAddCustomer" styleClass="btn-secondary" text="+"/>
+                        </HBox>
+                        <Label GridPane.columnIndex="2" GridPane.rowIndex="1" styleClass="field-label" text="Hazırlayan:"/>
+                        <ComboBox fx:id="preparedByComboBox" disable="true" GridPane.columnIndex="3"
+                                  GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" maxWidth="Infinity"/>
+                        <Label GridPane.columnIndex="0" GridPane.rowIndex="2" styleClass="field-label" text="Geçerlilik:"/>
+                        <DatePicker fx:id="validUntilPicker" GridPane.columnIndex="1" GridPane.hgrow="ALWAYS"
+                                    GridPane.rowIndex="2" maxWidth="Infinity"/>
+                        <Label GridPane.columnIndex="2" GridPane.rowIndex="2" styleClass="field-label" text="Durum:"/>
+                        <ComboBox fx:id="statusComboBox" GridPane.columnIndex="3" GridPane.hgrow="ALWAYS"
+                                  GridPane.rowIndex="2" maxWidth="Infinity"/>
+                    </GridPane>
+
+                    <HBox alignment="CENTER_LEFT" spacing="8">
+                        <Label styleClass="section-title" text="Kalemler"/>
+                        <Label styleClass="hint-label" text="Yeni kalem eklendiğinde tablo son satıra kayar."/>
+                    </HBox>
+                    <TableView fx:id="itemsTable" minHeight="190" prefHeight="260" styleClass="premium-table">
+                        <columns>
+                            <TableColumn fx:id="colItemDesc" minWidth="180" prefWidth="300" text="Açıklama"/>
+                            <TableColumn fx:id="colItemQty" minWidth="60" prefWidth="70" text="Adet"/>
+                            <TableColumn fx:id="colItemCost" minWidth="85" prefWidth="100" text="Maliyet"/>
+                            <TableColumn fx:id="colItemPrice" minWidth="90" prefWidth="105" text="Birim Fiyat"/>
+                            <TableColumn fx:id="colItemTotal" minWidth="90" prefWidth="105" text="Tutar"/>
+                            <TableColumn fx:id="colItemActions" minWidth="118" prefWidth="125" text="İşlemler"/>
+                        </columns>
+                        <columnResizePolicy>
+                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN"/>
+                        </columnResizePolicy>
+                    </TableView>
+
+                    <FlowPane alignment="CENTER_LEFT" hgap="10" prefWrapLength="790" vgap="8">
+                        <ComboBox fx:id="sourceTypeComboBox" prefWidth="125" promptText="Kaynak"/>
+                        <ComboBox fx:id="sourceItemComboBox" editable="true" prefWidth="250"
+                                  promptText="Parça, cihaz veya açıklama"/>
+                        <TextField fx:id="itemQtyField" prefWidth="70" promptText="Adet"/>
+                        <CurrencyTextField fx:id="itemCostField" prefWidth="95" promptText="Maliyet"/>
+                        <CurrencyTextField fx:id="itemPriceField" prefWidth="95" promptText="Fiyat"/>
+                        <Button fx:id="addItemButton" onAction="#handleAddItem" styleClass="btn-success" text="+ Ekle"/>
+                    </FlowPane>
+                    <Label styleClass="hint-label"
+                           text="Kaynak seçin; yedek parça ve cihazlarda yazdıkça sonuçlar filtrelenir."/>
+                    <Separator/>
+
+                    <FlowPane alignment="TOP_RIGHT" hgap="30" vgap="10">
+                        <VBox alignment="TOP_RIGHT" spacing="5">
+                            <HBox alignment="CENTER_RIGHT" spacing="10">
+                                <Label text="Ara Toplam:"/>
+                                <Label fx:id="subtotalLabel" styleClass="field-value" text="0,00 ₺"/>
+                            </HBox>
+                            <HBox alignment="CENTER_RIGHT" spacing="10">
+                                <Label text="KDV %:"/>
+                                <CurrencyTextField fx:id="taxRateField" prefWidth="60" text="20"/>
+                                <Label fx:id="taxAmountLabel" text="0,00 ₺"/>
+                            </HBox>
+                            <HBox alignment="CENTER_RIGHT" spacing="10">
+                                <Label text="İndirim:"/>
+                                <CurrencyTextField fx:id="discountField" prefWidth="90" text="0"/>
+                            </HBox>
+                            <HBox alignment="CENTER_RIGHT" spacing="10">
+                                <Label styleClass="section-title" text="TOPLAM:"/>
+                                <Label fx:id="totalLabel" styleClass="amount-highlight" text="0,00 ₺"/>
+                            </HBox>
+                        </VBox>
+                        <VBox fx:id="profitBox" alignment="TOP_RIGHT" spacing="5" styleClass="profit-panel">
+                            <Label styleClass="field-label" text="MALİYET ANALİZİ"/>
+                            <HBox spacing="10">
+                                <Label text="Toplam Maliyet:"/>
+                                <Label fx:id="totalCostLabel" styleClass="amount-danger" text="0,00 ₺"/>
+                            </HBox>
+                            <HBox spacing="10">
+                                <Label text="İndirim Sonrası Kâr:"/>
+                                <Label fx:id="profitLabel" styleClass="amount-highlight" text="0,00 ₺"/>
+                            </HBox>
+                        </VBox>
+                    </FlowPane>
+
+                    <Label styleClass="field-label" text="Notlar:"/>
+                    <TextArea fx:id="noteArea" minHeight="60" prefHeight="80" wrapText="true"/>
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+
+    <bottom>
+        <HBox alignment="CENTER_RIGHT" spacing="15" styleClass="dialog-action-bar">
+            <Button onAction="#handleCancel" styleClass="btn-secondary" text="İptal"/>
+            <Button fx:id="saveButton" onAction="#handleSave" styleClass="btn-primary" text="Kaydet"/>
         </HBox>
-        <Label GridPane.columnIndex="2" GridPane.rowIndex="1" styleClass="field-label" text="Hazırlayan:"/>
-        <ComboBox fx:id="preparedByComboBox" GridPane.columnIndex="3" GridPane.rowIndex="1" prefWidth="250"/>
-        <Label GridPane.columnIndex="0" GridPane.rowIndex="2" styleClass="field-label" text="Geçerlilik:"/>
-        <DatePicker fx:id="validUntilPicker" GridPane.columnIndex="1" GridPane.rowIndex="2" prefWidth="200"/>
-        <Label GridPane.columnIndex="2" GridPane.rowIndex="2" styleClass="field-label" text="Durum:"/>
-        <ComboBox fx:id="statusComboBox" GridPane.columnIndex="3" GridPane.rowIndex="2" prefWidth="250"/>
-    </GridPane>
-
-    <Label styleClass="section-title" text="Kalemler"/>
-    <TableView fx:id="itemsTable" prefHeight="200" styleClass="premium-table" VBox.vgrow="ALWAYS">
-        <columns>
-            <TableColumn fx:id="colItemDesc" prefWidth="300" text="Açıklama"/>
-            <TableColumn fx:id="colItemQty" prefWidth="80" text="Adet"/>
-            <TableColumn fx:id="colItemCost" prefWidth="100" text="Maliyet"/>
-            <TableColumn fx:id="colItemPrice" prefWidth="100" text="Birim Fiyat"/>
-            <TableColumn fx:id="colItemTotal" prefWidth="100" text="Tutar"/>
-            <TableColumn fx:id="colItemActions" prefWidth="60" text=""/>
-        </columns>
-        <columnResizePolicy>
-            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
-        </columnResizePolicy>
-    </TableView>
-
-    <HBox alignment="CENTER_LEFT" spacing="10">
-        <ComboBox fx:id="sourceTypeComboBox" prefWidth="100" promptText="Kaynak"/>
-        <ComboBox fx:id="sourceItemComboBox" editable="true" prefWidth="220" promptText="Cihaz/Açıklama"/>
-        <TextField fx:id="itemQtyField" prefWidth="60" promptText="Adet"/>
-        <CurrencyTextField fx:id="itemCostField" prefWidth="80" promptText="Maliyet"/>
-        <CurrencyTextField fx:id="itemPriceField" prefWidth="80" promptText="Fiyat"/>
-        <Button onAction="#handleAddItem" styleClass="btn-success" text="+ Ekle"/>
-    </HBox>
-    <Label styleClass="hint-label" text="💡 Kaynak: Cihaz seçin veya Hizmet için açıklama yazın"/>
-    <Separator/>
-
-    <HBox alignment="CENTER_RIGHT" spacing="30">
-        <VBox alignment="TOP_RIGHT" spacing="5">
-            <HBox alignment="CENTER_RIGHT" spacing="10">
-                <Label text="Ara Toplam:"/>
-                <Label fx:id="subtotalLabel" styleClass="field-value" text="0,00 ₺"/>
-            </HBox>
-            <HBox alignment="CENTER_RIGHT" spacing="10">
-                <Label text="KDV %:"/>
-                <CurrencyTextField fx:id="taxRateField" prefWidth="50" text="20"/>
-                <Label fx:id="taxAmountLabel" text="0,00 ₺"/>
-            </HBox>
-            <HBox alignment="CENTER_RIGHT" spacing="10">
-                <Label text="İndirim:"/>
-                <CurrencyTextField fx:id="discountField" prefWidth="80" text="0"/>
-            </HBox>
-            <HBox alignment="CENTER_RIGHT" spacing="10">
-                <Label styleClass="section-title" text="TOPLAM:"/>
-                <Label fx:id="totalLabel" styleClass="amount-highlight" text="0,00 ₺"/>
-            </HBox>
-        </VBox>
-        <VBox fx:id="profitBox" alignment="TOP_RIGHT" spacing="5" styleClass="profit-panel">
-            <Label styleClass="field-label" text="MALİYET ANALİZİ"/>
-            <HBox spacing="10">
-                <Label text="Toplam Maliyet:"/>
-                <Label fx:id="totalCostLabel" styleClass="amount-danger" text="0,00 ₺"/>
-            </HBox>
-            <HBox spacing="10">
-                <Label text="Kar:"/>
-                <Label fx:id="profitLabel" styleClass="amount-highlight" text="0,00 ₺"/>
-            </HBox>
-        </VBox>
-    </HBox>
-
-    <Label styleClass="field-label" text="Notlar:"/>
-    <TextArea fx:id="noteArea" prefHeight="80" wrapText="true"/>
-    <Separator/>
-
-    <HBox alignment="CENTER_RIGHT" spacing="15">
-        <Button onAction="#handleCancel" styleClass="btn-secondary" text="İptal"/>
-        <Button onAction="#handleSave" styleClass="btn-primary" text="Kaydet"/>
-    </HBox>
-</VBox>
+    </bottom>
+</BorderPane>

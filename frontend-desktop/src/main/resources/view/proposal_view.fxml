@@ -19,12 +19,11 @@
         </HBox>
     </HBox>
 
-    <HBox alignment="CENTER_LEFT" spacing="15">
+    <FlowPane alignment="CENTER_LEFT" hgap="15" vgap="10">
         <Label text="Durum:"/>
         <ComboBox fx:id="statusFilter" onAction="#handleFilterChange" prefWidth="150"/>
-        <Region HBox.hgrow="ALWAYS"/>
-        <TextField fx:id="searchField" prefWidth="250" promptText="Ara..."/>
-    </HBox>
+        <TextField fx:id="searchField" prefWidth="300" promptText="No, başlık, müşteri veya hazırlayan ara..."/>
+    </FlowPane>
 
     <Separator/>
 

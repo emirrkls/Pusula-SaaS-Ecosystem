@@ -151,7 +151,8 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<byte[]> downloadProposal(@PathVariable Long proposalId) {
         try {
-            byte[] pdfBytes = reportService.generateProposalForm(proposalId);
+            User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            byte[] pdfBytes = reportService.generateProposalForm(proposalId, user.getCompanyId());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);

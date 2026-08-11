@@ -23,7 +23,10 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,9 +56,11 @@ class ProposalServicePreparedByTest {
                 userRepository,
                 serviceTicketRepository,
                 featureService);
-        when(proposalRepository.save(any(Proposal.class)))
+        lenient().when(proposalRepository.save(any(Proposal.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(customerRepository.findById(20L))
+        lenient().when(customerRepository.findById(20L))
+                .thenReturn(Optional.of(Customer.builder().id(20L).companyId(10L).name("Müşteri").build()));
+        lenient().when(customerRepository.findByIdAndCompanyId(20L, 10L))
                 .thenReturn(Optional.of(Customer.builder().id(20L).companyId(10L).name("Müşteri").build()));
     }
 
@@ -82,10 +87,10 @@ class ProposalServicePreparedByTest {
     void update_keepsOriginalPreparerWhenClientOmitsPreparedById() {
         Proposal proposal = proposal(7L);
         User originalPreparer = user(7L, "original", "İlk Hazırlayan");
-        when(proposalRepository.findById(30L)).thenReturn(Optional.of(proposal));
+        when(proposalRepository.findByIdAndCompanyId(30L, 10L)).thenReturn(Optional.of(proposal));
         when(userRepository.findById(7L)).thenReturn(Optional.of(originalPreparer));
 
-        ProposalDTO result = service.update(30L, updateRequest(null));
+        ProposalDTO result = service.update(30L, 10L, updateRequest(null));
 
         assertEquals(7L, proposal.getPreparedById());
         assertEquals("İlk Hazırlayan", result.getPreparedByName());
@@ -97,14 +102,28 @@ class ProposalServicePreparedByTest {
         User currentUser = user(9L, "admin", "Güncel Hazırlayan");
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("admin", "password"));
-        when(proposalRepository.findById(30L)).thenReturn(Optional.of(proposal));
+        when(proposalRepository.findByIdAndCompanyId(30L, 10L)).thenReturn(Optional.of(proposal));
         when(userRepository.findByUsername("admin")).thenReturn(Optional.of(currentUser));
         when(userRepository.findById(9L)).thenReturn(Optional.of(currentUser));
 
-        ProposalDTO result = service.update(30L, updateRequest(999L));
+        ProposalDTO result = service.update(30L, 10L, updateRequest(999L));
 
         assertEquals(9L, proposal.getPreparedById());
         assertEquals("Güncel Hazırlayan", result.getPreparedByName());
+    }
+
+    @Test
+    void getById_doesNotReturnAnotherCompanyProposal() {
+        when(proposalRepository.findByIdAndCompanyId(30L, 99L)).thenReturn(Optional.empty());
+
+        assertNull(service.getById(30L, 99L));
+    }
+
+    @Test
+    void update_rejectsAnotherCompanyProposal() {
+        when(proposalRepository.findByIdAndCompanyId(30L, 99L)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> service.update(30L, 99L, updateRequest(null)));
     }
 
     private Proposal proposal(Long preparedById) {
