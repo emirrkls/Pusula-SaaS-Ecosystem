@@ -5,9 +5,11 @@ import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.Proposal;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.CustomerRepository;
+import com.pusula.backend.repository.InventoryRepository;
 import com.pusula.backend.repository.ProposalItemRepository;
 import com.pusula.backend.repository.ProposalRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
+import com.pusula.backend.repository.ServiceUsedPartRepository;
 import com.pusula.backend.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +45,10 @@ class ProposalServicePreparedByTest {
     @Mock
     private ServiceTicketRepository serviceTicketRepository;
     @Mock
+    private InventoryRepository inventoryRepository;
+    @Mock
+    private ServiceUsedPartRepository serviceUsedPartRepository;
+    @Mock
     private FeatureService featureService;
 
     private ProposalService service;
@@ -55,8 +61,12 @@ class ProposalServicePreparedByTest {
                 customerRepository,
                 userRepository,
                 serviceTicketRepository,
+                inventoryRepository,
+                serviceUsedPartRepository,
                 featureService);
         lenient().when(proposalRepository.save(any(Proposal.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(proposalItemRepository.save(any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(customerRepository.findById(20L))
                 .thenReturn(Optional.of(Customer.builder().id(20L).companyId(10L).name("Müşteri").build()));

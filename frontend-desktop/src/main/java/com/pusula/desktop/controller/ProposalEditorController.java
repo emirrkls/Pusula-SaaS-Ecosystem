@@ -106,6 +106,7 @@ public class ProposalEditorController {
     private boolean isAdmin;
     private boolean saveInProgress;
     private ProposalItemDTO editingItem;
+    private Long pendingInventorySelectionId;
 
     private List<CommercialDeviceDTO> devices = new ArrayList<>();
     private List<InventoryDTO> inventoryItems = new ArrayList<>();
@@ -381,6 +382,7 @@ public class ProposalEditorController {
                                 InventoryDTO item = (InventoryDTO) value;
                                 return item.getPartName();
                             });
+                            selectPendingInventoryItem();
                         } else {
                             showError("Yedek parçalar yüklenemedi.");
                         }
@@ -533,6 +535,7 @@ public class ProposalEditorController {
             }
 
             ProposalItemDTO item = editingItem != null ? editingItem : new ProposalItemDTO();
+            item.setInventoryId(selected instanceof InventoryDTO inventory ? inventory.getId() : null);
             item.setDescription(description);
             item.setQuantity(quantity);
             item.setUnitCost(unitCost);
@@ -558,6 +561,7 @@ public class ProposalEditorController {
 
     private void clearItemFields() {
         editingItem = null;
+        pendingInventorySelectionId = null;
         addItemButton.setText("+ Ekle");
         sourceItemComboBox.setValue(null);
         sourceItemComboBox.getEditor().clear();
@@ -571,14 +575,40 @@ public class ProposalEditorController {
             return;
         }
         editingItem = item;
-        sourceTypeComboBox.setValue("Hizmet");
-        sourceItemComboBox.getEditor().setText(item.getDescription());
+        if (item.getInventoryId() != null) {
+            pendingInventorySelectionId = item.getInventoryId();
+            if ("Yedek Parça".equals(sourceTypeComboBox.getValue())) {
+                loadSourceItems();
+            } else {
+                sourceTypeComboBox.setValue("Yedek Parça");
+            }
+        } else {
+            sourceTypeComboBox.setValue("Hizmet");
+            sourceItemComboBox.getEditor().setText(item.getDescription());
+        }
         itemQtyField.setText(String.valueOf(item.getQuantity()));
         itemCostField.setRawValue(item.getUnitCost() != null ? item.getUnitCost() : BigDecimal.ZERO);
         itemPriceField.setRawValue(item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO);
         addItemButton.setText("Güncelle");
         sourceItemComboBox.requestFocus();
         sourceItemComboBox.getEditor().positionCaret(sourceItemComboBox.getEditor().getText().length());
+    }
+
+    private void selectPendingInventoryItem() {
+        if (pendingInventorySelectionId == null || editingItem == null) {
+            return;
+        }
+        inventoryItems.stream()
+                .filter(inventory -> pendingInventorySelectionId.equals(inventory.getId()))
+                .findFirst()
+                .ifPresent(inventory -> {
+                    sourceItemComboBox.setValue(inventory);
+                    itemCostField.setRawValue(editingItem.getUnitCost() != null
+                            ? editingItem.getUnitCost() : BigDecimal.ZERO);
+                    itemPriceField.setRawValue(editingItem.getUnitPrice() != null
+                            ? editingItem.getUnitPrice() : BigDecimal.ZERO);
+                });
+        pendingInventorySelectionId = null;
     }
 
     private void cancelItemEditing() {

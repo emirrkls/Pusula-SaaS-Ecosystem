@@ -69,13 +69,9 @@ public class ProposalController {
     @PostMapping("/{id}/convert")
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ProposalDTO> convertToJob(@PathVariable Long id) {
-        try {
-            User user = getCurrentUser();
-            ProposalDTO result = proposalService.convertToJob(id, user.getCompanyId());
-            return ResponseEntity.ok(result);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        User user = getCurrentUser();
+        ProposalDTO result = proposalService.convertToJob(id, user.getCompanyId());
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/{id}/pdf")

@@ -91,7 +91,11 @@ public final class UpdateService {
                         listener.onProgress(downloaded, totalBytes);
                     }
                 }
+                if (totalBytes > 0 && downloaded != totalBytes) {
+                    throw new IOException("Güncelleme dosyası eksik indirildi.");
+                }
             }
+            validateMsi(target);
             return target.toAbsolutePath().normalize();
         } finally {
             connection.disconnect();
@@ -102,25 +106,57 @@ public final class UpdateService {
         Path updatesDir = getUpdatesDirectory();
         Files.createDirectories(updatesDir);
 
-        Path batchFile = updatesDir.resolve("pusula-update.bat");
-        String batchContent = """
-                @echo off
-                start /wait msiexec.exe /i "%~1" /passive /norestart
-                if exist "%~2" start "" "%~2"
+        Path scriptFile = updatesDir.resolve("pusula-update.ps1");
+        Path logFile = updatesDir.resolve("pusula-update.log");
+        String scriptContent = """
+                param(
+                    [Parameter(Mandatory=$true)][string]$MsiPath,
+                    [Parameter(Mandatory=$true)][string]$ExePath,
+                    [Parameter(Mandatory=$true)][string]$LogPath
+                )
+                try {
+                    "$(Get-Date -Format o) Update starting: $MsiPath" | Out-File -FilePath $LogPath -Encoding utf8
+                    $arguments = @('/i', ('"' + $MsiPath + '"'), '/passive', '/norestart')
+                    $installer = Start-Process -FilePath "$env:SystemRoot\\System32\\msiexec.exe" -ArgumentList $arguments -Verb RunAs -Wait -PassThru
+                    "$(Get-Date -Format o) MSI exit code: $($installer.ExitCode)" | Out-File -FilePath $LogPath -Append -Encoding utf8
+                    if ($installer.ExitCode -notin @(0, 1641, 3010)) { exit $installer.ExitCode }
+                    if (Test-Path -LiteralPath $ExePath) {
+                        Start-Process -FilePath $ExePath
+                    }
+                } catch {
+                    "$(Get-Date -Format o) Update failed: $($_.Exception.Message)" | Out-File -FilePath $LogPath -Append -Encoding utf8
+                    exit 1
+                }
                 """;
-        Files.writeString(batchFile, batchContent, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        Files.writeString(scriptFile, scriptContent, StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
         new ProcessBuilder(
-                "cmd.exe",
-                "/c",
-                "start",
-                "",
-                "cmd.exe",
-                "/c",
-                batchFile.toString(),
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                scriptFile.toString(),
                 msiPath.toString(),
-                exePath.toString()
+                exePath.toString(),
+                logFile.toString()
         ).start();
+    }
+
+    private static void validateMsi(Path target) throws IOException {
+        byte[] expectedHeader = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0,
+                (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1};
+        if (Files.size(target) < expectedHeader.length) {
+            throw new IOException("İndirilen güncelleme geçerli bir MSI dosyası değil.");
+        }
+        try (InputStream input = Files.newInputStream(target)) {
+            for (byte expected : expectedHeader) {
+                if (input.read() != Byte.toUnsignedInt(expected)) {
+                    throw new IOException("İndirilen güncelleme geçerli bir MSI dosyası değil.");
+                }
+            }
+        }
     }
 
     private static String fileNameFromUrl(String downloadUrl) {

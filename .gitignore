@@ -64,6 +64,7 @@ build/
 
 # Custom project output and logs
 error.txt
+/outputs/
 frontend-desktop/portable/
 frontend-desktop/installer/Output/
 .vercel/

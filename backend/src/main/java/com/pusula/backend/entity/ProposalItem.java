@@ -19,6 +19,9 @@ public class ProposalItem extends BaseEntity {
     @Column(nullable = false)
     private String description;
 
+    @Column(name = "inventory_id")
+    private Long inventoryId;
+
     @Column(nullable = false)
     private Integer quantity;
 
@@ -48,6 +51,14 @@ public class ProposalItem extends BaseEntity {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Long getInventoryId() {
+        return inventoryId;
+    }
+
+    public void setInventoryId(Long inventoryId) {
+        this.inventoryId = inventoryId;
     }
 
     public Integer getQuantity() {

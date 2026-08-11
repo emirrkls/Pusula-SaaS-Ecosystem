@@ -11,7 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,6 +24,8 @@ public class ProposalService {
     private final CustomerRepository customerRepository;
     private final UserRepository userRepository;
     private final ServiceTicketRepository serviceTicketRepository;
+    private final InventoryRepository inventoryRepository;
+    private final ServiceUsedPartRepository serviceUsedPartRepository;
     private final FeatureService featureService;
 
     public ProposalService(ProposalRepository proposalRepository,
@@ -29,12 +33,16 @@ public class ProposalService {
             CustomerRepository customerRepository,
             UserRepository userRepository,
             ServiceTicketRepository serviceTicketRepository,
+            InventoryRepository inventoryRepository,
+            ServiceUsedPartRepository serviceUsedPartRepository,
             FeatureService featureService) {
         this.proposalRepository = proposalRepository;
         this.proposalItemRepository = proposalItemRepository;
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
         this.serviceTicketRepository = serviceTicketRepository;
+        this.inventoryRepository = inventoryRepository;
+        this.serviceUsedPartRepository = serviceUsedPartRepository;
         this.featureService = featureService;
     }
 
@@ -74,15 +82,8 @@ public class ProposalService {
         // Save items
         if (dto.getItems() != null) {
             for (ProposalItemDTO itemDto : dto.getItems()) {
-                ProposalItem item = new ProposalItem();
-                item.setProposal(saved);
-                item.setCompanyId(currentUser.getCompanyId());
-                item.setDescription(itemDto.getDescription());
-                item.setQuantity(itemDto.getQuantity());
-                item.setUnitCost(itemDto.getUnitCost());
-                item.setUnitPrice(itemDto.getUnitPrice());
-                item.setTotalPrice(itemDto.getUnitPrice().multiply(new BigDecimal(itemDto.getQuantity())));
-                proposalItemRepository.save(item);
+                ProposalItem item = buildItem(saved, currentUser.getCompanyId(), itemDto);
+                saved.getItems().add(proposalItemRepository.save(item));
             }
         }
 
@@ -125,15 +126,8 @@ public class ProposalService {
 
         if (dto.getItems() != null) {
             for (ProposalItemDTO itemDto : dto.getItems()) {
-                ProposalItem item = new ProposalItem();
-                item.setProposal(proposal);
-                item.setCompanyId(proposal.getCompanyId());
-                item.setDescription(itemDto.getDescription());
-                item.setQuantity(itemDto.getQuantity());
-                item.setUnitCost(itemDto.getUnitCost());
-                item.setUnitPrice(itemDto.getUnitPrice());
-                item.setTotalPrice(itemDto.getUnitPrice().multiply(new BigDecimal(itemDto.getQuantity())));
-                proposalItemRepository.save(item);
+                ProposalItem item = buildItem(proposal, proposal.getCompanyId(), itemDto);
+                proposal.getItems().add(proposalItemRepository.save(item));
             }
         }
 
@@ -156,6 +150,28 @@ public class ProposalService {
      */
     private void createServiceTicketFromProposal(Proposal proposal) {
         featureService.checkQuota(proposal.getCompanyId(), "TICKETS");
+
+        Map<Long, Integer> requiredStock = new LinkedHashMap<>();
+        for (ProposalItem item : proposal.getItems()) {
+            if (item.getInventoryId() != null) {
+                requiredStock.merge(item.getInventoryId(), item.getQuantity(), Integer::sum);
+            }
+        }
+
+        Map<Long, Inventory> lockedInventory = new LinkedHashMap<>();
+        for (Map.Entry<Long, Integer> requirement : requiredStock.entrySet()) {
+            Inventory inventory = inventoryRepository
+                    .findByIdAndCompanyIdForUpdate(requirement.getKey(), proposal.getCompanyId())
+                    .orElseThrow(() -> new RuntimeException("Teklifteki envanter ürünü artık bulunamıyor (ID: "
+                            + requirement.getKey() + ")"));
+            int available = inventory.getQuantity() != null ? inventory.getQuantity() : 0;
+            if (available < requirement.getValue()) {
+                throw new RuntimeException(inventory.getPartName() + " için stok yetersiz. Gerekli: "
+                        + requirement.getValue() + ", mevcut: " + available);
+            }
+            lockedInventory.put(requirement.getKey(), inventory);
+        }
+
         // Build description from items
         StringBuilder description = new StringBuilder("Teklif #" + proposal.getId() + "\n");
         for (ProposalItem item : proposal.getItems()) {
@@ -171,7 +187,30 @@ public class ProposalService {
         ticket.setScheduledDate(LocalDateTime.now());
         ticket.setCollectedAmount(BigDecimal.ZERO);
 
-        serviceTicketRepository.save(ticket);
+        ServiceTicket savedTicket = serviceTicketRepository.save(ticket);
+
+        for (Map.Entry<Long, Integer> requirement : requiredStock.entrySet()) {
+            Inventory inventory = lockedInventory.get(requirement.getKey());
+            inventory.setQuantity(inventory.getQuantity() - requirement.getValue());
+            inventoryRepository.save(inventory);
+        }
+
+        for (ProposalItem item : proposal.getItems()) {
+            if (item.getInventoryId() == null) {
+                continue;
+            }
+            Inventory inventory = lockedInventory.get(item.getInventoryId());
+            ServiceUsedPart usedPart = ServiceUsedPart.builder()
+                    .companyId(proposal.getCompanyId())
+                    .serviceTicket(savedTicket)
+                    .inventory(inventory)
+                    .quantityUsed(item.getQuantity())
+                    .sellingPriceSnapshot(item.getUnitPrice())
+                    .buyingPriceSnapshot(item.getUnitCost())
+                    .sourceVehicleId(null)
+                    .build();
+            serviceUsedPartRepository.save(usedPart);
+        }
         featureService.incrementUsage(proposal.getCompanyId(), "TICKETS");
     }
 
@@ -238,6 +277,7 @@ public class ProposalService {
         List<ProposalItemDTO> items = proposal.getItems().stream()
                 .map(item -> ProposalItemDTO.builder()
                         .id(item.getId())
+                        .inventoryId(item.getInventoryId())
                         .description(item.getDescription())
                         .quantity(item.getQuantity())
                         .unitCost(isAdmin() ? item.getUnitCost() : null) // Filter for non-admins
@@ -264,6 +304,46 @@ public class ProposalService {
                 .totalPrice(proposal.getTotalPrice())
                 .items(items)
                 .build();
+    }
+
+    private ProposalItem buildItem(Proposal proposal, Long companyId, ProposalItemDTO dto) {
+        if (dto.getQuantity() == null || dto.getQuantity() <= 0) {
+            throw new RuntimeException("Teklif kalemi adedi sıfırdan büyük olmalıdır");
+        }
+
+        ProposalItem item = new ProposalItem();
+        item.setProposal(proposal);
+        item.setCompanyId(companyId);
+        item.setQuantity(dto.getQuantity());
+        item.setInventoryId(dto.getInventoryId());
+
+        BigDecimal unitPrice = dto.getUnitPrice();
+        if (dto.getInventoryId() != null) {
+            Inventory inventory = inventoryRepository.findByIdAndCompanyId(dto.getInventoryId(), companyId)
+                    .orElseThrow(() -> new RuntimeException("Seçilen envanter ürünü bulunamadı"));
+            item.setDescription(inventory.getPartName());
+            item.setUnitCost(defaultMoney(inventory.getBuyPrice()));
+            if (unitPrice == null) {
+                unitPrice = defaultMoney(inventory.getSellPrice());
+            }
+        } else {
+            if (dto.getDescription() == null || dto.getDescription().isBlank()) {
+                throw new RuntimeException("Teklif kalemi açıklaması boş olamaz");
+            }
+            item.setDescription(dto.getDescription().trim());
+            item.setUnitCost(defaultMoney(dto.getUnitCost()));
+        }
+
+        if (unitPrice == null || unitPrice.compareTo(BigDecimal.ZERO) < 0) {
+            throw new RuntimeException("Teklif kalemi fiyatı negatif olamaz");
+        }
+        item.setUnitPrice(unitPrice);
+        item.setTotalPrice(unitPrice.multiply(BigDecimal.valueOf(dto.getQuantity())));
+        return item;
+    }
+
+    private BigDecimal defaultMoney(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 
     private boolean isAdmin() {

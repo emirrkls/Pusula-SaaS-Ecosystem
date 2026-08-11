@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class ProposalItemDTO {
     private Long id;
+    private Long inventoryId;
     private String description;
     private Integer quantity;
     private BigDecimal unitCost; // Admin-only, will be filtered

@@ -27,6 +27,7 @@ public class ServiceTicket extends BaseEntity {
     @Column(name = "scheduled_date")
     private LocalDateTime scheduledDate;
 
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Column(columnDefinition = "TEXT")

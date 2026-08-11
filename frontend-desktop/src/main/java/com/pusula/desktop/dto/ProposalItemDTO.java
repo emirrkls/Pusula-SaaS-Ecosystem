@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 public class ProposalItemDTO {
     private Long id;
+    private Long inventoryId;
     private String description;
     private Integer quantity;
     private BigDecimal unitCost;
@@ -16,6 +17,14 @@ public class ProposalItemDTO {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getInventoryId() {
+        return inventoryId;
+    }
+
+    public void setInventoryId(Long inventoryId) {
+        this.inventoryId = inventoryId;
     }
 
     public String getDescription() {
