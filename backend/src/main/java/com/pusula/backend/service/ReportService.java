@@ -456,10 +456,11 @@ public class ReportService {
                 boolean customerSignatureLoaded = false;
                 if (ticket != null && ticket.getCompanyId() != null) {
                         try {
-                                java.nio.file.Path customerSigPath = java.nio.file.Paths.get(
-                                                "uploads", "signatures",
-                                                ticket.getCompanyId().toString(),
-                                                ticket.getId() + ".png");
+                                java.nio.file.Path customerSigPath = ticket.getCustomerSignaturePath() != null
+                                                ? java.nio.file.Paths.get("uploads", ticket.getCustomerSignaturePath())
+                                                : java.nio.file.Paths.get("uploads", "signatures",
+                                                                ticket.getCompanyId().toString(),
+                                                                ticket.getId() + ".png");
                                 if (java.nio.file.Files.exists(customerSigPath)) {
                                         Image customerSigImg = Image.getInstance(
                                                         customerSigPath.toAbsolutePath().toString());
@@ -977,6 +978,20 @@ public class ReportService {
                                         .map(e -> e.getAmount().negate()) // Stored as negative, convert to positive
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+                        BigDecimal immediateDeviceSaleCollections = monthExpenses.stream()
+                                        .filter(e -> ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
+                                        .filter(this::isImmediateDeviceSale)
+                                        .map(e -> e.getAmount().negate())
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        BigDecimal deviceSalesTransferredToCurrentAccount = monthExpenses.stream()
+                                        .filter(e -> ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
+                                        .filter(e -> e.getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT)
+                                        .map(e -> e.getAmount().negate())
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                        currentAccountTransferred = currentAccountTransferred
+                                        .add(deviceSalesTransferredToCurrentAccount);
+
                         BigDecimal serviceCashExpenses = monthExpenses.stream()
                                         .filter(e -> !com.pusula.backend.entity.ExpenseCategory.DEVICE_SALE
                                                         .equals(e.getCategory()))
@@ -1001,7 +1016,7 @@ public class ReportService {
                         BigDecimal totalIncome = ticketIncome.add(deviceSaleIncome);
                         BigDecimal totalCollected = cashCardCollections
                                         .add(currentAccountCollections)
-                                        .add(deviceSaleIncome);
+                                        .add(immediateDeviceSaleCollections);
                         BigDecimal serviceDirectCost = partsCost.add(serviceCashExpenses);
                         BigDecimal totalProfitExpenses = serviceDirectCost.add(otherOperatingExpenses);
                         BigDecimal otherCashExpenses = otherOperatingExpenses.add(cashOnlyExpenses);
@@ -1014,7 +1029,7 @@ public class ReportService {
                                         .currentAccountTransferred(currentAccountTransferred)
                                         .cashCardCollections(cashCardCollections)
                                         .currentAccountCollections(currentAccountCollections)
-                                        .otherCashIncome(deviceSaleIncome)
+                                        .otherCashIncome(immediateDeviceSaleCollections)
                                         .totalCollected(totalCollected)
                                         .serviceDirectCost(serviceDirectCost)
                                         .otherOperatingExpenses(otherOperatingExpenses)
@@ -1053,6 +1068,13 @@ public class ReportService {
                 return expense.getFinancialTreatment() != null
                                 ? expense.getFinancialTreatment()
                                 : ExpenseTreatment.OPERATING_EXPENSE;
+        }
+
+        /** Legacy device-sale rows have no payment method and were cash-only. */
+        private boolean isImmediateDeviceSale(Expense expense) {
+                return expense.getPaymentMethod() == null
+                                || expense.getPaymentMethod() == PaymentMethod.CASH
+                                || expense.getPaymentMethod() == PaymentMethod.CREDIT_CARD;
         }
 
         public byte[] generateMonthlyPDF(java.time.YearMonth period, Long companyId) throws DocumentException {

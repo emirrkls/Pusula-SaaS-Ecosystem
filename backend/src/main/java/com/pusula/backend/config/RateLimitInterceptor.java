@@ -37,6 +37,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      * ConcurrentHashMap thread-safe erişim sağlar.
      */
     private final Map<String, RequestBucket> requestCounts = new ConcurrentHashMap<>();
+    private final AtomicInteger cleanupCounter = new AtomicInteger();
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
@@ -48,6 +49,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         }
 
         String clientIp = extractClientIp(request);
+        cleanupExpiredBuckets();
 
         RequestBucket bucket = requestCounts.compute(clientIp, (ip, existing) -> {
             long now = System.currentTimeMillis();
@@ -81,11 +83,23 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      */
     private String extractClientIp(HttpServletRequest request) {
         String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+        String remoteAddress = request.getRemoteAddr();
+        boolean trustedLocalProxy = "127.0.0.1".equals(remoteAddress)
+                || "0:0:0:0:0:0:0:1".equals(remoteAddress)
+                || "::1".equals(remoteAddress);
+        if (trustedLocalProxy && xForwardedFor != null && !xForwardedFor.isEmpty()) {
             // İlk IP gerçek istemci IP'sidir (proxy zincirinde)
             return xForwardedFor.split(",")[0].trim();
         }
-        return request.getRemoteAddr();
+        return remoteAddress;
+    }
+
+    private void cleanupExpiredBuckets() {
+        if (cleanupCounter.incrementAndGet() % 256 != 0 && requestCounts.size() < 10_000) {
+            return;
+        }
+        long cutoff = System.currentTimeMillis() - (WINDOW_MS * 2);
+        requestCounts.entrySet().removeIf(entry -> entry.getValue().windowStart < cutoff);
     }
 
     /**

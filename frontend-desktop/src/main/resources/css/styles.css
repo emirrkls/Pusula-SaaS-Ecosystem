@@ -30,6 +30,61 @@
     -fx-faint-focus-color: transparent;
 }
 
+/* Global viewport policy: text remains readable; smaller screens gain space
+   through consistent density changes and horizontal escape scrolling. */
+.responsive-page-viewport,
+.responsive-page-viewport > .viewport {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.responsive-page-viewport {
+    -fx-padding: 0;
+}
+
+.compact-ui .sidebar {
+    -fx-min-width: 190;
+    -fx-pref-width: 190;
+}
+
+.compact-ui .sidebar .button {
+    -fx-padding: 11 14 11 14;
+    -fx-font-size: 13px;
+}
+
+.compact-ui .sidebar-brand,
+.compact-ui .sidebar-footer {
+    -fx-padding: 14 10 14 10;
+}
+
+.compact-ui .content-area {
+    -fx-padding: 0 12 12 12;
+}
+
+.compact-ui .button {
+    -fx-padding: 8 12 8 12;
+    -fx-font-size: 13px;
+}
+
+.compact-ui .filter-bar {
+    -fx-padding: 10;
+}
+
+.narrow-ui .sidebar {
+    -fx-min-width: 164;
+    -fx-pref-width: 164;
+}
+
+.narrow-ui .sidebar-brand-subtitle,
+.narrow-ui .page-subtitle {
+    visibility: hidden;
+    -fx-managed: false;
+}
+
+.narrow-ui .page-header-title {
+    -fx-font-size: 20px;
+}
+
 /* =========================================
    2. BUTTONS - Modern Flat Design
    ========================================= */

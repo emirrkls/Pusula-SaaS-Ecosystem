@@ -3,6 +3,7 @@ package com.pusula.desktop.dto;
 public class UpdateInfoDTO {
     private String latestVersion;
     private String downloadUrl;
+    private String sha256;
     private boolean mandatory;
     private String releaseNotes;
 
@@ -10,6 +11,8 @@ public class UpdateInfoDTO {
     public void setLatestVersion(String latestVersion) { this.latestVersion = latestVersion; }
     public String getDownloadUrl() { return downloadUrl; }
     public void setDownloadUrl(String downloadUrl) { this.downloadUrl = downloadUrl; }
+    public String getSha256() { return sha256; }
+    public void setSha256(String sha256) { this.sha256 = sha256; }
     public boolean isMandatory() { return mandatory; }
     public void setMandatory(boolean mandatory) { this.mandatory = mandatory; }
     public String getReleaseNotes() { return releaseNotes; }

@@ -14,6 +14,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Locale;
 import java.util.Optional;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 
 public final class UpdateService {
 
@@ -49,7 +52,8 @@ public final class UpdateService {
         return base.resolve(UPDATES_DIR);
     }
 
-    public static Path downloadMsi(String downloadUrl, UpdateProgressListener listener) throws IOException {
+    public static Path downloadMsi(String downloadUrl, String expectedSha256,
+                                   UpdateProgressListener listener) throws IOException {
         if (downloadUrl == null || downloadUrl.isBlank()) {
             throw new IOException("İndirme adresi tanımlı değil.");
         }
@@ -96,6 +100,7 @@ public final class UpdateService {
                 }
             }
             validateMsi(target);
+            validateSha256(target, expectedSha256);
             return target.toAbsolutePath().normalize();
         } finally {
             connection.disconnect();
@@ -156,6 +161,30 @@ public final class UpdateService {
                     throw new IOException("İndirilen güncelleme geçerli bir MSI dosyası değil.");
                 }
             }
+        }
+    }
+
+    private static void validateSha256(Path target, String expectedSha256) throws IOException {
+        if (expectedSha256 == null || expectedSha256.isBlank()) {
+            throw new IOException("Güncelleme doğrulama özeti sunucu tarafından sağlanmadı.");
+        }
+        String normalized = expectedSha256.trim().toLowerCase(Locale.ROOT);
+        if (!normalized.matches("[0-9a-f]{64}")) {
+            throw new IOException("Güncelleme doğrulama özeti geçersiz.");
+        }
+        try (InputStream input = Files.newInputStream(target)) {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) != -1) digest.update(buffer, 0, read);
+            String actual = HexFormat.of().formatHex(digest.digest());
+            if (!MessageDigest.isEqual(actual.getBytes(StandardCharsets.US_ASCII),
+                    normalized.getBytes(StandardCharsets.US_ASCII))) {
+                Files.deleteIfExists(target);
+                throw new IOException("Güncelleme dosyasının güvenlik doğrulaması başarısız oldu.");
+            }
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IOException("SHA-256 doğrulaması kullanılamıyor.", ex);
         }
     }
 

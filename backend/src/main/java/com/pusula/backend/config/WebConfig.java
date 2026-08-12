@@ -10,6 +10,8 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.beans.factory.annotation.Value;
+import java.util.Arrays;
 
 /**
  * Consolidated Web MVC Configuration
@@ -26,10 +28,15 @@ public class WebConfig implements WebMvcConfigurer {
 
     private final RateLimitInterceptor rateLimitInterceptor;
     private final TenantInterceptor tenantInterceptor;
+    private final String[] allowedOriginPatterns;
 
-    public WebConfig(RateLimitInterceptor rateLimitInterceptor, TenantInterceptor tenantInterceptor) {
+    public WebConfig(RateLimitInterceptor rateLimitInterceptor, TenantInterceptor tenantInterceptor,
+            @Value("${app.cors.allowed-origins:https://pusulaiklimlendirme.com,https://www.pusulaiklimlendirme.com,http://localhost:*}")
+            String allowedOrigins) {
         this.rateLimitInterceptor = rateLimitInterceptor;
         this.tenantInterceptor = tenantInterceptor;
+        this.allowedOriginPatterns = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim).filter(value -> !value.isBlank()).toArray(String[]::new);
     }
 
     /**
@@ -75,7 +82,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         // CORS configuration consolidated from CorsConfig
         registry.addMapping("/api/**")
-                .allowedOrigins("*") // Allow all origins for desktop app
+                .allowedOriginPatterns(allowedOriginPatterns)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(false)

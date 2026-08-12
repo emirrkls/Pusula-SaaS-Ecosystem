@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,8 +39,14 @@ public class AuthController {
      * Requires COMPANY_ADMIN role.
      */
     @PostMapping("/register")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<AuthResponse> register(
             @RequestBody RegisterRequest request) {
+        User currentUser = getCurrentUser();
+        request.setCompanyId(currentUser.getCompanyId());
+        if ("SUPER_ADMIN".equalsIgnoreCase(request.getRole())) {
+            throw new IllegalArgumentException("Şirket kullanıcısına süper yönetici rolü verilemez.");
+        }
         return ResponseEntity.ok(service.register(request));
     }
 

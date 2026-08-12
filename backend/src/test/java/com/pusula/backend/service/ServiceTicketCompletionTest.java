@@ -45,6 +45,7 @@ class ServiceTicketCompletionTest {
     @Mock FileUploadService fileUploadService;
     @Mock ApplicationEventPublisher publisher;
     @Mock FinanceService financeService;
+    @Mock UploadUrlSigner uploadUrlSigner;
 
     private ServiceTicketService service;
 
@@ -53,7 +54,7 @@ class ServiceTicketCompletionTest {
         service = new ServiceTicketService(ticketRepository, customerRepository, userRepository,
                 inventoryRepository, usedPartRepository, auditLogService, currentAccountRepository,
                 vehicleStockRepository, whatsAppNotificationService, featureService, photoRepository,
-                fileUploadService, publisher, financeService, "Europe/Istanbul");
+                fileUploadService, publisher, financeService, uploadUrlSigner, "Europe/Istanbul");
     }
 
     @AfterEach

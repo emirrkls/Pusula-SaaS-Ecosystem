@@ -251,7 +251,8 @@ public class CommercialDeviceSalesDialogController {
                         }
                     } else {
                         AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
-                                "Satış başarısız oldu.");
+                                com.pusula.desktop.util.ApiErrorHelper.message(
+                                        response, "Satış başarısız oldu."));
                     }
                 });
             }

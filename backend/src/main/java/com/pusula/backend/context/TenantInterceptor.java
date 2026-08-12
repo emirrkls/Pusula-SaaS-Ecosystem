@@ -2,6 +2,7 @@ package com.pusula.backend.context;
 
 import com.pusula.backend.entity.User;
 import com.pusula.backend.service.JwtService;
+import com.pusula.backend.repository.CompanyRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
@@ -20,9 +21,11 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class TenantInterceptor implements HandlerInterceptor {
 
     private final JwtService jwtService;
+    private final CompanyRepository companyRepository;
 
-    public TenantInterceptor(JwtService jwtService) {
+    public TenantInterceptor(JwtService jwtService, CompanyRepository companyRepository) {
         this.jwtService = jwtService;
+        this.companyRepository = companyRepository;
     }
 
     @Override
@@ -45,6 +48,21 @@ public class TenantInterceptor implements HandlerInterceptor {
             } else {
                 TenantContext.setTenantId(user.getCompanyId());
                 TenantContext.setReadOnlyImpersonation(false);
+                if (isMutationMethod(request.getMethod())
+                        && !request.getRequestURI().startsWith("/api/payment/")
+                        && companyRepository.findById(user.getCompanyId())
+                                .map(company -> Boolean.TRUE.equals(company.getIsReadOnly()))
+                                .orElse(false)) {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json;charset=UTF-8");
+                    try {
+                        response.getWriter().write("{\"status\":403,\"code\":\"COMPANY_READ_ONLY\","
+                                + "\"message\":\"Abonelik salt okunur durumda; veri değiştirilemez.\"}");
+                    } catch (java.io.IOException ignored) {
+                        // The response status still blocks the mutation.
+                    }
+                    return false;
+                }
             }
         }
         return true;

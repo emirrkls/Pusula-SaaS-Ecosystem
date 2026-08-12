@@ -68,6 +68,7 @@ public class AuthenticationService {
          * Auto-assigns CIRAK plan with 14-day trial.
          */
         public AuthResponse registerIndividual(RegisterRequest request) {
+                com.pusula.backend.util.PasswordPolicy.requireStrong(request.getPassword());
                 // 1. Generate unique org code
                 String orgCode = generateOrgCode();
 
@@ -122,6 +123,7 @@ public class AuthenticationService {
          * Used by B2B enterprise clients org admin to add technicians.
          */
         public AuthResponse register(RegisterRequest request) {
+                com.pusula.backend.util.PasswordPolicy.requireStrong(request.getPassword());
                 var user = User.builder()
                                 .companyId(request.getCompanyId())
                                 .username(request.getUsername())

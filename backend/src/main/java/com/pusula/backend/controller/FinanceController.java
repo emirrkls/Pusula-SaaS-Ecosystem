@@ -84,12 +84,12 @@ public class FinanceController {
     public ResponseEntity<Expense> updateExpense(
             @PathVariable Long id,
             @RequestBody Expense expense) {
-        return ResponseEntity.ok(financeService.updateExpense(id, expense));
+        return ResponseEntity.ok(financeService.updateExpense(id, getCompanyId(), expense));
     }
 
     @DeleteMapping("/expenses/{id}")
     public ResponseEntity<Void> deleteExpense(@PathVariable Long id) {
-        financeService.deleteExpense(id);
+        financeService.deleteExpense(id, getCompanyId());
         return ResponseEntity.ok().build();
     }
 
@@ -130,6 +130,7 @@ public class FinanceController {
     @PostMapping("/fixed-expenses")
     public ResponseEntity<FixedExpenseDefinition> createFixedExpense(
             @RequestBody FixedExpenseDefinition definition) {
+        definition.setCompanyId(getCompanyId());
         return ResponseEntity.ok(financeService.createFixedExpense(definition));
     }
 
@@ -137,12 +138,12 @@ public class FinanceController {
     public ResponseEntity<FixedExpenseDefinition> updateFixedExpense(
             @PathVariable Long id,
             @RequestBody FixedExpenseDefinition definition) {
-        return ResponseEntity.ok(financeService.updateFixedExpense(id, definition));
+        return ResponseEntity.ok(financeService.updateFixedExpense(id, getCompanyId(), definition));
     }
 
     @DeleteMapping("/fixed-expenses/{id}")
     public ResponseEntity<Void> deleteFixedExpense(@PathVariable Long id) {
-        financeService.deleteFixedExpense(id);
+        financeService.deleteFixedExpense(id, getCompanyId());
         return ResponseEntity.ok().build();
     }
 

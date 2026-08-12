@@ -46,6 +46,13 @@ public class Proposal extends BaseEntity {
     @Column
     private String title;
 
+    @Column(name = "generated_service_ticket_id", unique = true)
+    private Long generatedServiceTicketId;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     public Proposal() {
     }
 
@@ -127,6 +134,18 @@ public class Proposal extends BaseEntity {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public Long getGeneratedServiceTicketId() {
+        return generatedServiceTicketId;
+    }
+
+    public void setGeneratedServiceTicketId(Long generatedServiceTicketId) {
+        this.generatedServiceTicketId = generatedServiceTicketId;
+    }
+
+    public Long getVersion() {
+        return version;
     }
 
     public enum ProposalStatus {

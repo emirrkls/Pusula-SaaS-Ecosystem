@@ -92,9 +92,7 @@ public class UserController {
         User currentUser = getCurrentUser();
 
         // Validate password is provided
-        if (userDTO.getPassword() == null || userDTO.getPassword().isEmpty()) {
-            return ResponseEntity.badRequest().build();
-        }
+        com.pusula.backend.util.PasswordPolicy.requireStrong(userDTO.getPassword());
 
         // Create new user
         User newUser = User.builder()
@@ -133,6 +131,7 @@ public class UserController {
 
         // Update password only if provided
         if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
+            com.pusula.backend.util.PasswordPolicy.requireStrong(userDTO.getPassword());
             existingUser.setPasswordHash(passwordEncoder.encode(userDTO.getPassword()));
         }
 
@@ -202,9 +201,7 @@ public class UserController {
         User currentUser = getCurrentUser();
 
         String newPassword = payload.get("password");
-        if (newPassword == null || newPassword.isEmpty()) {
-            return ResponseEntity.badRequest().build();
-        }
+        com.pusula.backend.util.PasswordPolicy.requireStrong(newPassword);
 
         User userToReset = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));

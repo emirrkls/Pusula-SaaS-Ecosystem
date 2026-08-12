@@ -43,6 +43,7 @@ class ServiceTicketUsedPartsTest {
     @Mock FileUploadService fileUploadService;
     @Mock ApplicationEventPublisher publisher;
     @Mock FinanceService financeService;
+    @Mock UploadUrlSigner uploadUrlSigner;
 
     private ServiceTicketService service;
 
@@ -51,7 +52,7 @@ class ServiceTicketUsedPartsTest {
         service = new ServiceTicketService(ticketRepository, customerRepository, userRepository,
                 inventoryRepository, usedPartRepository, auditLogService, currentAccountRepository,
                 vehicleStockRepository, whatsAppNotificationService, featureService, photoRepository,
-                fileUploadService, publisher, financeService, "Europe/Istanbul");
+                fileUploadService, publisher, financeService, uploadUrlSigner, "Europe/Istanbul");
     }
 
     @AfterEach
@@ -126,6 +127,7 @@ class ServiceTicketUsedPartsTest {
                 .quantityUsed(3).sellingPriceSnapshot(new BigDecimal("200")).build();
         when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
         when(usedPartRepository.findByIdAndCompanyId(300L, 10L)).thenReturn(Optional.of(part));
+        when(inventoryRepository.findByIdAndCompanyIdForUpdate(50L, 10L)).thenReturn(Optional.of(inventory));
         when(usedPartRepository.save(part)).thenReturn(part);
 
         ServiceUsedPartDTO result = service.updateUsedPart(100L, 300L,
@@ -150,6 +152,7 @@ class ServiceTicketUsedPartsTest {
                 .quantityUsed(3).sellingPriceSnapshot(new BigDecimal("200")).build();
         when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
         when(usedPartRepository.findByIdAndCompanyId(300L, 10L)).thenReturn(Optional.of(part));
+        when(inventoryRepository.findByIdAndCompanyIdForUpdate(50L, 10L)).thenReturn(Optional.of(inventory));
 
         service.deleteUsedPart(100L, 300L);
 

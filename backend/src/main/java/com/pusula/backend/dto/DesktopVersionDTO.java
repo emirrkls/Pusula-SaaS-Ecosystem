@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 public class DesktopVersionDTO {
     private String latestVersion;
     private String downloadUrl;
+    private String sha256;
     private boolean mandatory;
     private String releaseNotes;
 }

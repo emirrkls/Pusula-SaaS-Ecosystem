@@ -104,7 +104,7 @@ class FinanceServiceCollectionDateTest {
     void linkedDebtPaymentExpenseCannotBeDeletedFromGenericFinanceFlow() {
         when(companyDebtPaymentRepository.existsByExpenseId(88L)).thenReturn(true);
 
-        assertThrows(IllegalStateException.class, () -> service.deleteExpense(88L));
+        assertThrows(IllegalStateException.class, () -> service.deleteExpense(88L, 1L));
 
         verify(expenseRepository, never()).deleteById(88L);
     }

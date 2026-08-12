@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.math.BigDecimal;
 import java.util.stream.Collectors;
 
 @Service
@@ -51,6 +52,7 @@ public class InventoryService {
     @CheckQuota("INVENTORY")
     public InventoryDTO createInventory(InventoryDTO dto) {
         User user = getCurrentUser();
+        validateInventory(dto, user.getCompanyId(), null);
         Inventory inventory = Inventory.builder()
                 .companyId(user.getCompanyId())
                 .partName(dto.getPartName())
@@ -79,6 +81,7 @@ public class InventoryService {
             return Optional.empty();
         }
         Inventory inventory = existing.get();
+        validateInventory(dto, user.getCompanyId(), id);
 
         // Capture old values for audit
         Map<String, Object> oldValues = new HashMap<>();
@@ -141,7 +144,8 @@ public class InventoryService {
 
     public InventoryDTO mapToDTO(Inventory inventory) {
         // Get vehicle stock distribution for this inventory item
-        List<VehicleStock> vehicleStocks = vehicleStockRepository.findByInventoryId(inventory.getId());
+        List<VehicleStock> vehicleStocks = vehicleStockRepository
+                .findByInventoryIdAndCompanyId(inventory.getId(), inventory.getCompanyId());
 
         int inVehicleTotal = 0;
         List<VehicleStockInfo> distribution = new ArrayList<>();
@@ -185,6 +189,29 @@ public class InventoryService {
         }
         String trimmed = barcode.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private void validateInventory(InventoryDTO dto, Long companyId, Long currentId) {
+        if (dto.getPartName() == null || dto.getPartName().isBlank()) {
+            throw new IllegalArgumentException("Ürün adı zorunludur.");
+        }
+        if (dto.getQuantity() == null || dto.getQuantity() < 0) {
+            throw new IllegalArgumentException("Stok adedi negatif olamaz.");
+        }
+        if (dto.getBuyPrice() != null && dto.getBuyPrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Alış fiyatı negatif olamaz.");
+        }
+        if (dto.getSellPrice() != null && dto.getSellPrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Satış fiyatı negatif olamaz.");
+        }
+        String barcode = normalizeBarcode(dto.getBarcode());
+        if (barcode != null) {
+            repository.findByBarcodeNormalized(barcode, companyId)
+                    .filter(existing -> currentId == null || !existing.getId().equals(currentId))
+                    .ifPresent(existing -> {
+                        throw new IllegalArgumentException("Bu barkod başka bir aktif üründe kullanılıyor.");
+                    });
+        }
     }
 
     private static int defaultCriticalLevel(Integer criticalLevel) {

@@ -49,17 +49,15 @@ public class ProposalController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ProposalDTO> update(@PathVariable Long id, @RequestBody ProposalDTO dto) {
-        try {
-            User user = getCurrentUser();
-            ProposalDTO updated = proposalService.update(id, user.getCompanyId(), dto);
-            return ResponseEntity.ok(updated);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        User user = getCurrentUser();
+        ProposalDTO updated = proposalService.update(id, user.getCompanyId(), dto);
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         User user = getCurrentUser();
         proposalService.delete(id, user.getCompanyId());
@@ -76,20 +74,16 @@ public class ProposalController {
 
     @GetMapping("/{id}/pdf")
     public ResponseEntity<byte[]> generatePdf(@PathVariable Long id) {
-        try {
-            User user = getCurrentUser();
-            byte[] pdfBytes = reportService.generateProposalForm(id, user.getCompanyId());
+        User user = getCurrentUser();
+        byte[] pdfBytes = reportService.generateProposalForm(id, user.getCompanyId());
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.setContentDispositionFormData("attachment", "teklif-" + id + ".pdf");
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "teklif-" + id + ".pdf");
 
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .body(pdfBytes);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 
     private User getCurrentUser() {

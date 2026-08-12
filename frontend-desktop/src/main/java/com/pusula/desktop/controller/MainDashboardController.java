@@ -181,7 +181,8 @@ public class MainDashboardController {
         setActiveNav(navButton);
         pageTitleLabel.setText(title);
         pageSubtitleLabel.setText(subtitle != null ? subtitle : "");
-        ViewTransitionHelper.swapContent(contentArea, view);
+        ViewTransitionHelper.swapContent(contentArea,
+                com.pusula.desktop.util.ResponsiveLayoutSupport.wrapPage(view));
     }
 
     private java.util.ResourceBundle bundle() {

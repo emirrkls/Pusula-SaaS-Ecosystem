@@ -66,34 +66,24 @@ public class CommercialDeviceController {
     }
 
     @PostMapping("/{id}/sell")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<CommercialDeviceDTO> sell(@PathVariable Long id, @RequestBody Map<String, Integer> payload) {
         Integer quantity = payload.get("quantity");
         if (quantity == null || quantity <= 0) {
             return ResponseEntity.badRequest().build();
         }
-        try {
-            CommercialDeviceDTO result = commercialDeviceService.sellDevice(id, quantity);
-            return ResponseEntity.ok(result);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        CommercialDeviceDTO result = commercialDeviceService.sellDevice(id, quantity);
+        return ResponseEntity.ok(result);
     }
 
     /**
      * Process a full device sale with customer, service ticket, and payment
      */
     @PostMapping("/sale")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<SaleResponseDTO> processSale(@RequestBody SaleRequestDTO request) {
-        try {
-            SaleResponseDTO response = commercialDeviceService.processSale(request);
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(
-                    SaleResponseDTO.builder()
-                            .success(false)
-                            .message(e.getMessage())
-                            .build());
-        }
+        SaleResponseDTO response = commercialDeviceService.processSale(request);
+        return ResponseEntity.ok(response);
     }
 
     private User getCurrentUser() {

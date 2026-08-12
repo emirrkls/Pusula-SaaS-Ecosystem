@@ -72,6 +72,7 @@ public class ServiceTicketService {
     private final FileUploadService fileUploadService;
     private final ApplicationEventPublisher eventPublisher;
     private final FinanceService financeService;
+    private final UploadUrlSigner uploadUrlSigner;
 
     public ServiceTicketService(ServiceTicketRepository repository,
             CustomerRepository customerRepository,
@@ -86,7 +87,7 @@ public class ServiceTicketService {
             ServicePhotoRepository servicePhotoRepository,
             FileUploadService fileUploadService,
             ApplicationEventPublisher eventPublisher,
-            FinanceService financeService,
+            FinanceService financeService, UploadUrlSigner uploadUrlSigner,
             @Value("${app.business.timezone:Europe/Istanbul}") String businessTimezone) {
         this.repository = repository;
         this.customerRepository = customerRepository;
@@ -102,6 +103,7 @@ public class ServiceTicketService {
         this.fileUploadService = fileUploadService;
         this.eventPublisher = eventPublisher;
         this.financeService = financeService;
+        this.uploadUrlSigner = uploadUrlSigner;
         this.businessZone = ZoneId.of(businessTimezone);
     }
 
@@ -148,6 +150,11 @@ public class ServiceTicketService {
     @Transactional
     public ServiceTicketDTO createTicket(ServiceTicketDTO dto) {
         User user = getCurrentUser();
+        if (dto.getCustomerId() == null) {
+            throw new IllegalArgumentException("Müşteri seçimi zorunludur.");
+        }
+        customerRepository.findByIdAndCompanyId(dto.getCustomerId(), user.getCompanyId())
+                .orElseThrow(() -> new IllegalArgumentException("Müşteri bulunamadı veya erişim reddedildi."));
         if (dto.getStatus() == ServiceTicket.TicketStatus.COMPLETED
                 || dto.getStatus() == ServiceTicket.TicketStatus.CANCELLED) {
             throw new IllegalArgumentException("Yeni servis kaydı kapalı durumla oluşturulamaz.");
@@ -395,8 +402,8 @@ public class ServiceTicketService {
             throw new IllegalArgumentException("Parça adedi sıfırdan büyük olmalıdır.");
         }
 
-        com.pusula.backend.entity.Inventory inventory = inventoryRepository.findById(dto.getInventoryId())
-                .filter(i -> i.getCompanyId().equals(currentUser.getCompanyId()))
+        com.pusula.backend.entity.Inventory inventory = inventoryRepository
+                .findByIdAndCompanyIdForUpdate(dto.getInventoryId(), currentUser.getCompanyId())
                 .orElseThrow(() -> new RuntimeException("Inventory item not found"));
 
         Long sourceVehicleId = null;
@@ -408,8 +415,8 @@ public class ServiceTicketService {
         // Check if we should use vehicle stock
         if (dto.getSourceVehicleId() != null) {
             VehicleStock vehicleStock = vehicleStockRepository
-                    .findByVehicleIdAndInventoryId(dto.getSourceVehicleId(), dto.getInventoryId())
-                    .filter(stock -> currentUser.getCompanyId().equals(stock.getCompanyId()))
+                    .findForUpdate(
+                            dto.getSourceVehicleId(), dto.getInventoryId(), currentUser.getCompanyId())
                     .orElse(null);
 
             if (vehicleStock != null && vehicleStock.getQuantity() >= quantityNeeded) {
@@ -525,10 +532,13 @@ public class ServiceTicketService {
         if (delta == 0) {
             return;
         }
-        Inventory inventory = part.getInventory();
-        if (inventory == null || !companyId.equals(inventory.getCompanyId())) {
+        Inventory linkedInventory = part.getInventory();
+        if (linkedInventory == null || !companyId.equals(linkedInventory.getCompanyId())) {
             throw new IllegalStateException("Parçanın bağlı olduğu envanter kaydı bulunamadı.");
         }
+        Inventory inventory = inventoryRepository
+                .findByIdAndCompanyIdForUpdate(linkedInventory.getId(), companyId)
+                .orElseThrow(() -> new IllegalStateException("Parçanın envanter kaydı bulunamadı."));
         int currentInventory = inventory.getQuantity() != null ? inventory.getQuantity() : 0;
         if (delta > 0 && currentInventory < delta) {
             throw new IllegalStateException("Yetersiz stok: " + inventory.getPartName());
@@ -537,8 +547,8 @@ public class ServiceTicketService {
         VehicleStock vehicleStock = null;
         if (part.getSourceVehicleId() != null) {
             vehicleStock = vehicleStockRepository
-                    .findByVehicleIdAndInventoryId(part.getSourceVehicleId(), inventory.getId())
-                    .filter(stock -> companyId.equals(stock.getCompanyId()))
+                    .findForUpdate(
+                            part.getSourceVehicleId(), inventory.getId(), companyId)
                     .orElseThrow(() -> new IllegalStateException("Aracın parça stok kaydı bulunamadı."));
             int currentVehicleStock = vehicleStock.getQuantity() != null ? vehicleStock.getQuantity() : 0;
             if (delta > 0 && currentVehicleStock < delta) {
@@ -790,7 +800,10 @@ public class ServiceTicketService {
                 .findByServiceTicketId(ticketId);
 
         for (com.pusula.backend.entity.ServiceUsedPart usedPart : usedParts) {
-            com.pusula.backend.entity.Inventory inventory = usedPart.getInventory();
+            com.pusula.backend.entity.Inventory linkedInventory = usedPart.getInventory();
+            com.pusula.backend.entity.Inventory inventory = inventoryRepository
+                    .findByIdAndCompanyIdForUpdate(linkedInventory.getId(), ticket.getCompanyId())
+                    .orElseThrow(() -> new IllegalStateException("Parçanın envanter kaydı bulunamadı."));
             // Add the quantity back to main inventory
             inventory.setQuantity(inventory.getQuantity() + usedPart.getQuantityUsed());
             inventoryRepository.save(inventory);
@@ -798,7 +811,8 @@ public class ServiceTicketService {
             // If part came from a vehicle, also restore vehicle stock
             if (usedPart.getSourceVehicleId() != null) {
                 VehicleStock vehicleStock = vehicleStockRepository
-                        .findByVehicleIdAndInventoryId(usedPart.getSourceVehicleId(), inventory.getId())
+                        .findForUpdate(
+                                usedPart.getSourceVehicleId(), inventory.getId(), ticket.getCompanyId())
                         .orElse(null);
                 if (vehicleStock != null) {
                     vehicleStock.setQuantity(vehicleStock.getQuantity() + usedPart.getQuantityUsed());
@@ -942,16 +956,44 @@ public class ServiceTicketService {
         User user = getCurrentUser();
         Long companyId = user.getCompanyId();
 
+        ServiceTicket ticket = repository.findById(ticketId)
+                .filter(t -> companyId.equals(t.getCompanyId()))
+                .orElseThrow(() -> new RuntimeException("Servis fişi bulunamadı veya erişim reddedildi."));
+        if (!isAdmin(user)
+                && (ticket.getAssignedTechnicianId() == null
+                        || !ticket.getAssignedTechnicianId().equals(user.getId()))) {
+            throw new AccessDeniedException("Yalnızca size atanmış servis için imza kaydedebilirsiniz.");
+        }
+
         try {
             Path dir = Paths.get("uploads", "signatures", companyId.toString());
             Files.createDirectories(dir);
 
-            byte[] imageBytes = Base64.getDecoder().decode(signatureBase64);
-            Path filePath = dir.resolve(ticketId + ".png");
+            if (signatureBase64 == null || signatureBase64.isBlank()) {
+                throw new IllegalArgumentException("İmza görseli boş olamaz.");
+            }
+            byte[] imageBytes;
+            try {
+                imageBytes = Base64.getDecoder().decode(signatureBase64);
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("İmza verisi geçerli Base64 formatında değil.", ex);
+            }
+            if (imageBytes.length == 0 || imageBytes.length > 2L * 1024L * 1024L) {
+                throw new IllegalArgumentException("İmza görseli 2 MB'dan büyük olamaz.");
+            }
+            if (imageBytes.length < 8
+                    || (imageBytes[0] & 0xFF) != 0x89 || imageBytes[1] != 0x50
+                    || imageBytes[2] != 0x4E || imageBytes[3] != 0x47) {
+                throw new IllegalArgumentException("İmza gerçek bir PNG görseli olmalıdır.");
+            }
+            String fileName = ticketId + "_" + java.util.UUID.randomUUID() + ".png";
+            Path filePath = dir.resolve(fileName);
 
             try (OutputStream os = Files.newOutputStream(filePath)) {
                 os.write(imageBytes);
             }
+            ticket.setCustomerSignaturePath("signatures/" + companyId + "/" + fileName);
+            repository.save(ticket);
 
             auditLogService.log(
                     "UPDATE",
@@ -959,7 +1001,7 @@ public class ServiceTicketService {
                     ticketId,
                     "Müşteri imzası kaydedildi");
 
-            return "/uploads/signatures/" + companyId + "/" + ticketId + ".png";
+            return uploadUrlSigner.sign("/uploads/" + ticket.getCustomerSignaturePath());
         } catch (IOException e) {
             throw new RuntimeException("İmza kaydedilemedi: " + e.getMessage(), e);
         }
@@ -1058,7 +1100,7 @@ public class ServiceTicketService {
         return new ServicePhotoDTO(
                 photo.getId(),
                 photo.getTicketId(),
-                photo.getUrl(),
+                uploadUrlSigner.sign(photo.getUrl()),
                 photo.getType(),
                 photo.getUploadedAt()
         );

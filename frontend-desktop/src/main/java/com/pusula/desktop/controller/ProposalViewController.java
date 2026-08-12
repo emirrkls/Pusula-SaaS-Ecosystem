@@ -257,7 +257,8 @@ public class ProposalViewController {
                     public void onResponse(Call<ProposalDTO> call, Response<ProposalDTO> response) {
                         String errorMessage = response.isSuccessful()
                                 ? null
-                                : extractErrorMessage(response, "Dönüştürme başarısız.");
+                                : com.pusula.desktop.util.ApiErrorHelper.message(
+                                        response, "Dönüştürme başarısız.");
                         Platform.runLater(() -> {
                             if (response.isSuccessful()) {
                                 showInfo("Teklif başarıyla işe dönüştürüldü!");
@@ -275,23 +276,6 @@ public class ProposalViewController {
                 });
             }
         });
-    }
-
-    private String extractErrorMessage(Response<?> response, String fallback) {
-        if (response.errorBody() == null) {
-            return fallback;
-        }
-        try {
-            String body = response.errorBody().string();
-            var json = JsonParser.parseString(body);
-            if (json.isJsonObject() && json.getAsJsonObject().has("message")) {
-                String message = json.getAsJsonObject().get("message").getAsString();
-                return message == null || message.isBlank() ? fallback : message;
-            }
-        } catch (Exception ignored) {
-            // Keep the user-facing fallback when the server response is not JSON.
-        }
-        return fallback;
     }
 
     private void openEditor(ProposalDTO proposal) {

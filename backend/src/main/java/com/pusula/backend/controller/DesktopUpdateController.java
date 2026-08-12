@@ -17,6 +17,9 @@ public class DesktopUpdateController {
     @Value("${pusula.desktop.download-url:}")
     private String downloadUrl;
 
+    @Value("${pusula.desktop.sha256:}")
+    private String sha256;
+
     @Value("${pusula.desktop.mandatory:false}")
     private boolean mandatory;
 
@@ -28,6 +31,7 @@ public class DesktopUpdateController {
         DesktopVersionDTO updateInfo = DesktopVersionDTO.builder()
                 .latestVersion(latestVersion)
                 .downloadUrl(downloadUrl)
+                .sha256(sha256)
                 .mandatory(mandatory)
                 .releaseNotes(releaseNotes)
                 .build();

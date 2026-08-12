@@ -169,6 +169,7 @@ public class SuperAdminController {
             return conflict("USERNAME_CONFLICT", "Bu kullanıcı adı zaten kullanımda.");
         }
 
+        com.pusula.backend.util.PasswordPolicy.requireStrong(request.adminPassword);
         PlanType planType = parsePlanType(request.planType);
         Company company = new Company();
         company.setName(request.name.trim());
@@ -261,6 +262,7 @@ public class SuperAdminController {
         if (request == null || request.newPassword == null || request.newPassword.isBlank()) {
             return badRequest("VALIDATION_ERROR", "Yeni şifre zorunludur.");
         }
+        com.pusula.backend.util.PasswordPolicy.requireStrong(request.newPassword);
         if (!hasReason(request.reason)) {
             return badRequest("REASON_REQUIRED", "En az 5 karakterlik işlem gerekçesi zorunludur.");
         }

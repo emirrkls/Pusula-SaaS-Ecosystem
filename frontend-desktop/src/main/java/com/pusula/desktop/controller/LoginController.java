@@ -184,7 +184,7 @@ public class LoginController {
 
         Thread downloadThread = new Thread(() -> {
             try {
-                Path msiPath = UpdateService.downloadMsi(dto.getDownloadUrl(), (downloaded, total) ->
+                Path msiPath = UpdateService.downloadMsi(dto.getDownloadUrl(), dto.getSha256(), (downloaded, total) ->
                         Platform.runLater(() -> {
                             if (total > 0) {
                                 progressBar.setProgress((double) downloaded / total);

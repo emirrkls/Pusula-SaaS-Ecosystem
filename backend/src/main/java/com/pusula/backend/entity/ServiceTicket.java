@@ -60,6 +60,9 @@ public class ServiceTicket extends BaseEntity {
     @Column(name = "collection_date")
     private LocalDate collectionDate;
 
+    @Column(name = "customer_signature_path", length = 500)
+    private String customerSignaturePath;
+
     @Column(name = "parent_ticket_id")
     private Long parentTicketId;
 
@@ -213,6 +216,14 @@ public class ServiceTicket extends BaseEntity {
 
     public LocalDate getCollectionDate() {
         return collectionDate;
+    }
+
+    public String getCustomerSignaturePath() {
+        return customerSignaturePath;
+    }
+
+    public void setCustomerSignaturePath(String customerSignaturePath) {
+        this.customerSignaturePath = customerSignaturePath;
     }
 
     public void setCollectionDate(LocalDate collectionDate) {

@@ -96,7 +96,7 @@ public class ProposalService {
 
     @Transactional
     public ProposalDTO update(Long id, Long companyId, ProposalDTO dto) {
-        Proposal proposal = proposalRepository.findByIdAndCompanyId(id, companyId)
+        Proposal proposal = proposalRepository.findByIdAndCompanyIdForUpdate(id, companyId)
                 .orElseThrow(() -> new RuntimeException("Teklif bulunamadı"));
         validateCustomerOwnership(dto.getCustomerId(), companyId);
 
@@ -149,6 +149,9 @@ public class ProposalService {
      * APPROVED.
      */
     private void createServiceTicketFromProposal(Proposal proposal) {
+        if (proposal.getGeneratedServiceTicketId() != null) {
+            throw new IllegalStateException("Teklif daha önce servis fişine dönüştürülmüş.");
+        }
         featureService.checkQuota(proposal.getCompanyId(), "TICKETS");
 
         Map<Long, Integer> requiredStock = new LinkedHashMap<>();
@@ -188,6 +191,8 @@ public class ProposalService {
         ticket.setCollectedAmount(BigDecimal.ZERO);
 
         ServiceTicket savedTicket = serviceTicketRepository.save(ticket);
+        proposal.setGeneratedServiceTicketId(savedTicket.getId());
+        proposalRepository.save(proposal);
 
         for (Map.Entry<Long, Integer> requirement : requiredStock.entrySet()) {
             Inventory inventory = lockedInventory.get(requirement.getKey());
@@ -221,7 +226,8 @@ public class ProposalService {
 
     @Transactional
     public ProposalDTO convertToJob(Long id, Long companyId) {
-        Proposal proposal = getOwnedProposal(id, companyId);
+        Proposal proposal = proposalRepository.findByIdAndCompanyIdForUpdate(id, companyId)
+                .orElseThrow(() -> new RuntimeException("Teklif bulunamadı veya erişim reddedildi."));
 
         if (proposal.getStatus() == Proposal.ProposalStatus.APPROVED) {
             throw new RuntimeException("Teklif zaten işe dönüştürülmüş");
@@ -302,6 +308,7 @@ public class ProposalService {
                 .subtotal(subtotal)
                 .taxAmount(taxAmount)
                 .totalPrice(proposal.getTotalPrice())
+                .generatedServiceTicketId(proposal.getGeneratedServiceTicketId())
                 .items(items)
                 .build();
     }

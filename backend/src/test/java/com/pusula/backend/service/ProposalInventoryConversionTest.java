@@ -84,7 +84,7 @@ class ProposalInventoryConversionTest {
         User admin = User.builder().id(9L).companyId(10L).username("admin")
                 .passwordHash("hash").role("COMPANY_ADMIN").fullName("Admin").build();
 
-        when(proposalRepository.findByIdAndCompanyId(16L, 10L)).thenReturn(Optional.of(proposal));
+        when(proposalRepository.findByIdAndCompanyIdForUpdate(16L, 10L)).thenReturn(Optional.of(proposal));
         when(proposalRepository.save(any(Proposal.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(inventoryRepository.findByIdAndCompanyIdForUpdate(5L, 10L)).thenReturn(Optional.of(inventory));
         lenient().when(serviceTicketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> {

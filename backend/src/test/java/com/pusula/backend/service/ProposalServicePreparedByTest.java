@@ -97,7 +97,7 @@ class ProposalServicePreparedByTest {
     void update_keepsOriginalPreparerWhenClientOmitsPreparedById() {
         Proposal proposal = proposal(7L);
         User originalPreparer = user(7L, "original", "İlk Hazırlayan");
-        when(proposalRepository.findByIdAndCompanyId(30L, 10L)).thenReturn(Optional.of(proposal));
+        when(proposalRepository.findByIdAndCompanyIdForUpdate(30L, 10L)).thenReturn(Optional.of(proposal));
         when(userRepository.findById(7L)).thenReturn(Optional.of(originalPreparer));
 
         ProposalDTO result = service.update(30L, 10L, updateRequest(null));
@@ -112,7 +112,7 @@ class ProposalServicePreparedByTest {
         User currentUser = user(9L, "admin", "Güncel Hazırlayan");
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("admin", "password"));
-        when(proposalRepository.findByIdAndCompanyId(30L, 10L)).thenReturn(Optional.of(proposal));
+        when(proposalRepository.findByIdAndCompanyIdForUpdate(30L, 10L)).thenReturn(Optional.of(proposal));
         when(userRepository.findByUsername("admin")).thenReturn(Optional.of(currentUser));
         when(userRepository.findById(9L)).thenReturn(Optional.of(currentUser));
 
@@ -131,7 +131,7 @@ class ProposalServicePreparedByTest {
 
     @Test
     void update_rejectsAnotherCompanyProposal() {
-        when(proposalRepository.findByIdAndCompanyId(30L, 99L)).thenReturn(Optional.empty());
+        when(proposalRepository.findByIdAndCompanyIdForUpdate(30L, 99L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> service.update(30L, 99L, updateRequest(null)));
     }

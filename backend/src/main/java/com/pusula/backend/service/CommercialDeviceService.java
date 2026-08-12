@@ -54,8 +54,9 @@ public class CommercialDeviceService {
     }
 
     public CommercialDeviceDTO getById(Long id) {
+        User currentUser = getCurrentUser();
         boolean isTechnician = isTechnicianRole();
-        return commercialDeviceRepository.findById(id)
+        return commercialDeviceRepository.findByIdAndCompanyId(id, currentUser.getCompanyId())
                 .map(device -> mapToDTO(device, isTechnician))
                 .orElse(null);
     }
@@ -63,6 +64,7 @@ public class CommercialDeviceService {
     @Transactional
     public CommercialDeviceDTO create(CommercialDeviceDTO dto) {
         User currentUser = getCurrentUser();
+        validateDevice(dto);
 
         CommercialDevice device = new CommercialDevice();
         device.setCompanyId(currentUser.getCompanyId());
@@ -75,7 +77,9 @@ public class CommercialDeviceService {
         device.setSellingPrice(dto.getSellingPrice());
 
         if (dto.getDeviceTypeId() != null) {
-            DeviceType deviceType = deviceTypeRepository.findById(dto.getDeviceTypeId()).orElse(null);
+            DeviceType deviceType = deviceTypeRepository
+                    .findByIdAndCompanyId(dto.getDeviceTypeId(), currentUser.getCompanyId())
+                    .orElseThrow(() -> new IllegalArgumentException("Cihaz türü bulunamadı."));
             device.setDeviceType(deviceType);
         }
 
@@ -85,8 +89,10 @@ public class CommercialDeviceService {
 
     @Transactional
     public CommercialDeviceDTO update(Long id, CommercialDeviceDTO dto) {
-        CommercialDevice device = commercialDeviceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Device not found"));
+        User currentUser = getCurrentUser();
+        validateDevice(dto);
+        CommercialDevice device = commercialDeviceRepository.findByIdAndCompanyId(id, currentUser.getCompanyId())
+                .orElseThrow(() -> new RuntimeException("Cihaz bulunamadı veya erişim reddedildi."));
 
         device.setBrand(dto.getBrand());
         device.setModel(dto.getModel());
@@ -97,7 +103,9 @@ public class CommercialDeviceService {
         device.setSellingPrice(dto.getSellingPrice());
 
         if (dto.getDeviceTypeId() != null) {
-            DeviceType deviceType = deviceTypeRepository.findById(dto.getDeviceTypeId()).orElse(null);
+            DeviceType deviceType = deviceTypeRepository
+                    .findByIdAndCompanyId(dto.getDeviceTypeId(), currentUser.getCompanyId())
+                    .orElseThrow(() -> new IllegalArgumentException("Cihaz türü bulunamadı."));
             device.setDeviceType(deviceType);
         }
 
@@ -107,13 +115,21 @@ public class CommercialDeviceService {
 
     @Transactional
     public void delete(Long id) {
-        commercialDeviceRepository.deleteById(id);
+        User currentUser = getCurrentUser();
+        CommercialDevice device = commercialDeviceRepository.findByIdAndCompanyId(id, currentUser.getCompanyId())
+                .orElseThrow(() -> new RuntimeException("Cihaz bulunamadı veya erişim reddedildi."));
+        commercialDeviceRepository.delete(device);
     }
 
     @Transactional
     public CommercialDeviceDTO sellDevice(Long id, Integer quantityToSell) {
-        CommercialDevice device = commercialDeviceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Device not found"));
+        User currentUser = getCurrentUser();
+        if (quantityToSell == null || quantityToSell <= 0) {
+            throw new IllegalArgumentException("Satış adedi sıfırdan büyük olmalıdır.");
+        }
+        CommercialDevice device = commercialDeviceRepository
+                .findByIdAndCompanyIdForUpdate(id, currentUser.getCompanyId())
+                .orElseThrow(() -> new RuntimeException("Cihaz bulunamadı veya erişim reddedildi."));
 
         if (device.getQuantity() < quantityToSell) {
             throw new RuntimeException("Insufficient stock");
@@ -136,7 +152,8 @@ public class CommercialDeviceService {
         User currentUser = getCurrentUser();
 
         // 1. Get and validate device
-        CommercialDevice device = commercialDeviceRepository.findById(request.getDeviceId())
+        CommercialDevice device = commercialDeviceRepository
+                .findByIdAndCompanyIdForUpdate(request.getDeviceId(), currentUser.getCompanyId())
                 .orElseThrow(() -> new RuntimeException("Cihaz bulunamadı"));
 
         if (device.getQuantity() < 1) {
@@ -144,7 +161,7 @@ public class CommercialDeviceService {
         }
 
         // 2. Get customer
-        Customer customer = customerRepository.findById(request.getCustomerId())
+        Customer customer = customerRepository.findByIdAndCompanyId(request.getCustomerId(), currentUser.getCompanyId())
                 .orElseThrow(() -> new RuntimeException("Müşteri bulunamadı"));
 
         // 3. Calculate sale price
@@ -155,7 +172,17 @@ public class CommercialDeviceService {
         String paymentMethod = request.getPaymentMethod();
         LocalDate saleDate = request.getSaleDate() != null ? request.getSaleDate() : LocalDate.now();
 
-        // 4. Calculate profit (sale price - buy price) for income recording
+        if (salePrice == null || salePrice.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Satış fiyatı sıfırdan büyük olmalıdır.");
+        }
+        PaymentMethod normalizedPaymentMethod;
+        try {
+            normalizedPaymentMethod = PaymentMethod.valueOf(paymentMethod.toUpperCase(java.util.Locale.ROOT));
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Geçersiz ödeme yöntemi.");
+        }
+
+        // 4. Recognize the full sale and its cost separately. Profit is derived in reports.
         BigDecimal buyPrice = device.getBuyingPrice() != null ? device.getBuyingPrice() : BigDecimal.ZERO;
         BigDecimal profit = salePrice.subtract(buyPrice);
 
@@ -164,17 +191,34 @@ public class CommercialDeviceService {
                 device.getBtu() != null ? device.getBtu() : "",
                 customer.getName(), profit);
 
-        // Record sale as income ONLY for CASH payments (money enters register immediately)
-        // For CREDIT_CARD and CURRENT_ACCOUNT, income will be recorded when cari is paid
-        if ("CASH".equalsIgnoreCase(paymentMethod)) {
-            Expense saleIncome = Expense.builder()
+        Expense saleIncome = Expense.builder()
+                .companyId(currentUser.getCompanyId())
+                .amount(salePrice.negate())
+                .description(saleDescription)
+                .date(saleDate)
+                .category(ExpenseCategory.DEVICE_SALE)
+                .paymentMethod(normalizedPaymentMethod)
+                .customerId(customer.getId())
+                .sourceType("COMMERCIAL_DEVICE")
+                .sourceId(device.getId())
+                .financialTreatment(ExpenseTreatment.CASH_ONLY)
+                .build();
+        expenseRepository.save(saleIncome);
+
+        if (buyPrice.compareTo(BigDecimal.ZERO) > 0) {
+            Expense saleCost = Expense.builder()
                     .companyId(currentUser.getCompanyId())
-                    .amount(profit.negate()) // Negative = income, using PROFIT not full sale price
-                    .description(saleDescription)
+                    .amount(buyPrice)
+                    .description("Cihaz satış maliyeti: " + device.getBrand() + " " + device.getModel())
                     .date(saleDate)
-                    .category(ExpenseCategory.DEVICE_SALE)
+                    .category(ExpenseCategory.MATERIAL)
+                    .paymentMethod(normalizedPaymentMethod)
+                    .customerId(customer.getId())
+                    .sourceType("COMMERCIAL_DEVICE_COST")
+                    .sourceId(device.getId())
+                    .financialTreatment(ExpenseTreatment.SERVICE_DIRECT_EXPENSE)
                     .build();
-            expenseRepository.save(saleIncome);
+            expenseRepository.save(saleCost);
         }
 
         // 5. Create service ticket for installation (PENDING, amount = 0)
@@ -190,30 +234,16 @@ public class CommercialDeviceService {
         ticket.setCollectedAmount(BigDecimal.ZERO); // Installation starts at 0
 
         // Set payment method reference and handle cari account creation
-        if ("CASH".equalsIgnoreCase(paymentMethod)) {
+        if (normalizedPaymentMethod == PaymentMethod.CASH) {
             ticket.setPaymentMethod(PaymentMethod.CASH);
-        } else if ("CREDIT_CARD".equalsIgnoreCase(paymentMethod)) {
+        } else if (normalizedPaymentMethod == PaymentMethod.CREDIT_CARD) {
             ticket.setPaymentMethod(PaymentMethod.CREDIT_CARD);
-
-            // Auto-create cari account for credit card payments
-            CurrentAccount account = currentAccountRepository.findByCustomerId(customer.getId())
-                    .orElseGet(() -> {
-                        CurrentAccount newAccount = CurrentAccount.builder()
-                                .companyId(currentUser.getCompanyId())
-                                .customer(customer)
-                                .balance(BigDecimal.ZERO)
-                                .build();
-                        return currentAccountRepository.save(newAccount);
-                    });
-
-            // Add debt (positive balance = customer owes us)
-            account.setBalance(account.getBalance().add(salePrice));
-            currentAccountRepository.save(account);
-        } else if ("CURRENT_ACCOUNT".equalsIgnoreCase(paymentMethod)) {
+        } else if (normalizedPaymentMethod == PaymentMethod.CURRENT_ACCOUNT) {
             ticket.setPaymentMethod(PaymentMethod.CURRENT_ACCOUNT);
 
             // Add to current account (create if not exists)
-            CurrentAccount account = currentAccountRepository.findByCustomerId(customer.getId())
+            CurrentAccount account = currentAccountRepository
+                    .findByCustomerIdAndCompanyId(customer.getId(), currentUser.getCompanyId())
                     .orElseGet(() -> {
                         CurrentAccount newAccount = CurrentAccount.builder()
                                 .companyId(currentUser.getCompanyId())
@@ -289,5 +319,19 @@ public class CommercialDeviceService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    private void validateDevice(CommercialDeviceDTO dto) {
+        if (dto == null || dto.getBrand() == null || dto.getBrand().isBlank()
+                || dto.getModel() == null || dto.getModel().isBlank()) {
+            throw new IllegalArgumentException("Marka ve model zorunludur.");
+        }
+        if (dto.getQuantity() == null || dto.getQuantity() < 0) {
+            throw new IllegalArgumentException("Cihaz stoğu negatif olamaz.");
+        }
+        if (dto.getBuyingPrice() == null || dto.getBuyingPrice().compareTo(BigDecimal.ZERO) < 0
+                || dto.getSellingPrice() == null || dto.getSellingPrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Cihaz alış ve satış fiyatları negatif olamaz.");
+        }
     }
 }

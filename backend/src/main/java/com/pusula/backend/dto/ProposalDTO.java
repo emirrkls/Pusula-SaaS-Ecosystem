@@ -29,5 +29,6 @@ public class ProposalDTO {
     private BigDecimal subtotal;
     private BigDecimal taxAmount;
     private BigDecimal totalPrice;
+    private Long generatedServiceTicketId;
     private List<ProposalItemDTO> items;
 }

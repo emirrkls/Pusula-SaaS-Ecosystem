@@ -9,56 +9,92 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
+import java.io.ByteArrayInputStream;
+import java.util.Locale;
 
 @Service
 public class FileUploadService {
 
     private static final String UPLOAD_DIR = "uploads";
+    private static final long MAX_IMAGE_SIZE_BYTES = 5L * 1024L * 1024L;
 
     public String uploadCompanyLogo(Long companyId, MultipartFile file) throws IOException {
-        String fileName = "logo_" + UUID.randomUUID() + getFileExtension(file.getOriginalFilename());
+        ValidatedImage image = validateImage(file);
+        String fileName = "logo_" + UUID.randomUUID() + image.extension();
         Path uploadPath = Paths.get(UPLOAD_DIR, "companies", companyId.toString());
 
         // Create directories if they don't exist
         Files.createDirectories(uploadPath);
 
         Path filePath = uploadPath.resolve(fileName);
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(new ByteArrayInputStream(image.bytes()), filePath, StandardCopyOption.REPLACE_EXISTING);
 
         // Return relative path
         return "companies/" + companyId + "/" + fileName;
     }
 
     public String uploadUserSignature(Long userId, MultipartFile file) throws IOException {
-        String fileName = "signature_" + UUID.randomUUID() + getFileExtension(file.getOriginalFilename());
+        ValidatedImage image = validateImage(file);
+        String fileName = "signature_" + UUID.randomUUID() + image.extension();
         Path uploadPath = Paths.get(UPLOAD_DIR, "signatures", userId.toString());
 
         // Create directories if they don't exist
         Files.createDirectories(uploadPath);
 
         Path filePath = uploadPath.resolve(fileName);
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(new ByteArrayInputStream(image.bytes()), filePath, StandardCopyOption.REPLACE_EXISTING);
 
         // Return relative path
         return "signatures/" + userId + "/" + fileName;
     }
 
     public String uploadServicePhoto(Long companyId, Long ticketId, String type, MultipartFile file) throws IOException {
-        String fileName = type.toLowerCase() + "_" + UUID.randomUUID() + getFileExtension(file.getOriginalFilename());
+        ValidatedImage image = validateImage(file);
+        String safeType = type == null ? "photo" : type.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_-]", "");
+        String fileName = safeType + "_" + UUID.randomUUID() + image.extension();
         Path uploadPath = Paths.get(UPLOAD_DIR, "service-photos", companyId.toString(), ticketId.toString());
 
         Files.createDirectories(uploadPath);
 
         Path filePath = uploadPath.resolve(fileName);
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(new ByteArrayInputStream(image.bytes()), filePath, StandardCopyOption.REPLACE_EXISTING);
 
         return "service-photos/" + companyId + "/" + ticketId + "/" + fileName;
     }
 
-    private String getFileExtension(String filename) {
-        if (filename == null || filename.lastIndexOf(".") == -1) {
-            return "";
+    private ValidatedImage validateImage(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Yüklenecek görsel bulunamadı.");
         }
-        return filename.substring(filename.lastIndexOf("."));
+        if (file.getSize() > MAX_IMAGE_SIZE_BYTES) {
+            throw new IllegalArgumentException("Görsel boyutu 5 MB'dan büyük olamaz.");
+        }
+        byte[] bytes = file.getBytes();
+        String extension = detectImageExtension(bytes);
+        if (extension == null) {
+            throw new IllegalArgumentException("Yalnızca gerçek JPG, PNG veya WEBP görselleri yüklenebilir.");
+        }
+        return new ValidatedImage(bytes, extension);
     }
+
+    private String detectImageExtension(byte[] bytes) {
+        if (bytes.length >= 8
+                && (bytes[0] & 0xFF) == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E
+                && bytes[3] == 0x47 && bytes[4] == 0x0D && bytes[5] == 0x0A
+                && bytes[6] == 0x1A && bytes[7] == 0x0A) {
+            return ".png";
+        }
+        if (bytes.length >= 3 && (bytes[0] & 0xFF) == 0xFF
+                && (bytes[1] & 0xFF) == 0xD8 && (bytes[2] & 0xFF) == 0xFF) {
+            return ".jpg";
+        }
+        if (bytes.length >= 12 && bytes[0] == 'R' && bytes[1] == 'I'
+                && bytes[2] == 'F' && bytes[3] == 'F'
+                && bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P') {
+            return ".webp";
+        }
+        return null;
+    }
+
+    private record ValidatedImage(byte[] bytes, String extension) {}
 }

@@ -68,7 +68,7 @@ class InventoryServiceTenantSecurityTest {
             inventory.setId(1L);
             return inventory;
         });
-        when(vehicleStockRepository.findByInventoryId(1L)).thenReturn(List.of());
+        when(vehicleStockRepository.findByInventoryIdAndCompanyId(1L, 10L)).thenReturn(List.of());
 
         inventoryService.createInventory(request);
 
@@ -83,7 +83,7 @@ class InventoryServiceTenantSecurityTest {
         Inventory inventory = inventory(1L, 10L, "Old Filter", 2);
         when(inventoryRepository.findByIdAndCompanyId(1L, 10L)).thenReturn(Optional.of(inventory));
         when(inventoryRepository.save(inventory)).thenReturn(inventory);
-        when(vehicleStockRepository.findByInventoryId(1L)).thenReturn(List.of());
+        when(vehicleStockRepository.findByInventoryIdAndCompanyId(1L, 10L)).thenReturn(List.of());
 
         Optional<InventoryDTO> updated = inventoryService.updateInventory(1L, inventoryDto("New Filter", 7));
         boolean deleted = inventoryService.deleteInventory(1L);

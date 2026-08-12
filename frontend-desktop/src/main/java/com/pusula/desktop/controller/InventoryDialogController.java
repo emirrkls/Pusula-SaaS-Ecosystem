@@ -167,7 +167,8 @@ public class InventoryDialogController {
                     } else {
                         Platform.runLater(() -> {
                             AlertHelper.showAlert(Alert.AlertType.ERROR, partNameField.getScene().getWindow(),
-                                    "Error", "Failed to save item: " + response.code());
+                                    "Hata", com.pusula.desktop.util.ApiErrorHelper.message(
+                                            response, "Ürün kaydedilemedi (HTTP " + response.code() + ")."));
                         });
                     }
                 }

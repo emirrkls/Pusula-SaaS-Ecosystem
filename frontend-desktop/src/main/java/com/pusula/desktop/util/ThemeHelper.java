@@ -26,6 +26,7 @@ public final class ThemeHelper {
         applyGlobalTheme(dark);
         ensureStylesheets(scene);
         toggleDarkClass(scene.getRoot(), dark);
+        ResponsiveLayoutSupport.install(scene);
     }
 
     public static void ensureStylesheets(Scene scene) {
@@ -64,6 +65,7 @@ public final class ThemeHelper {
         Scene scene = new Scene(root);
         ensureStylesheets(scene);
         toggleDarkClass(root, isDarkMode());
+        ResponsiveLayoutSupport.install(scene);
         return scene;
     }
 
@@ -71,6 +73,7 @@ public final class ThemeHelper {
         Scene scene = new Scene(root, width, height);
         ensureStylesheets(scene);
         toggleDarkClass(root, isDarkMode());
+        ResponsiveLayoutSupport.install(scene);
         return scene;
     }
 }

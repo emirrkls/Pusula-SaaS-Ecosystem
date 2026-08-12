@@ -3,6 +3,7 @@ package com.pusula.backend.service;
 import com.pusula.backend.dto.ServiceTicketDTO;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.User;
+import com.pusula.backend.entity.Customer;
 import com.pusula.backend.event.TicketAssignedEvent;
 import com.pusula.backend.repository.*;
 import org.junit.jupiter.api.AfterEach;
@@ -41,6 +42,7 @@ class ServiceTicketAssignmentNotificationTest {
     @Mock FileUploadService fileUploadService;
     @Mock ApplicationEventPublisher publisher;
     @Mock FinanceService financeService;
+    @Mock UploadUrlSigner uploadUrlSigner;
     private ServiceTicketService service;
 
     @BeforeEach
@@ -48,7 +50,7 @@ class ServiceTicketAssignmentNotificationTest {
         service = new ServiceTicketService(ticketRepository, customerRepository, userRepository,
                 inventoryRepository, usedPartRepository, auditLogService, currentAccountRepository,
                 vehicleStockRepository, whatsAppNotificationService, featureService, photoRepository,
-                fileUploadService, publisher, financeService, "Europe/Istanbul");
+                fileUploadService, publisher, financeService, uploadUrlSigner, "Europe/Istanbul");
         authenticate(1L, 10L, "COMPANY_ADMIN");
     }
 
@@ -98,7 +100,11 @@ class ServiceTicketAssignmentNotificationTest {
             return saved;
         });
         ServiceTicketDTO request = new ServiceTicketDTO();
+        request.setCustomerId(20L);
         request.setAssignedTechnicianId(7L);
+        Customer customer = Customer.builder().id(20L).companyId(10L).name("Müşteri").build();
+        when(customerRepository.findByIdAndCompanyId(20L, 10L)).thenReturn(Optional.of(customer));
+        when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
 
         ServiceTicketDTO result = service.createTicket(request);
 

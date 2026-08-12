@@ -180,9 +180,9 @@ public class FinanceService {
                 return expenseRepository.findByCompanyId(companyId);
         }
 
-        public Expense updateExpense(Long id, Expense updatedExpense) {
+        public Expense updateExpense(Long id, Long companyId, Expense updatedExpense) {
                 rejectManagedExpenseMutation(id);
-                Expense existing = expenseRepository.findById(id)
+                Expense existing = expenseRepository.findByIdAndCompanyId(id, companyId)
                                 .orElseThrow(() -> new IllegalArgumentException("Expense not found: " + id));
 
                 existing.setDate(updatedExpense.getDate());
@@ -196,16 +196,19 @@ public class FinanceService {
                 return expenseRepository.save(existing);
         }
 
-        public void deleteExpense(Long id) {
+        public void deleteExpense(Long id, Long companyId) {
                 rejectManagedExpenseMutation(id);
                 // Log before deletion
-                Expense expense = expenseRepository.findById(id).orElse(null);
+                Expense expense = expenseRepository.findByIdAndCompanyId(id, companyId).orElse(null);
                 if (expense != null) {
                         auditLogService.log("DELETE", "EXPENSE", id,
                                         "Gider silindi: " + expense.getDescription() + " (" + expense.getAmount()
                                                         + " ₺)");
                 }
-                expenseRepository.deleteById(id);
+                if (expense == null) {
+                        throw new IllegalArgumentException("Expense not found: " + id);
+                }
+                expenseRepository.delete(expense);
         }
 
         private void rejectManagedExpenseMutation(Long expenseId) {
@@ -267,6 +270,9 @@ public class FinanceService {
                 // Separate DEVICE_SALE (income) from regular expenses
                 List<Expense> deviceSales = allExpenses.stream()
                                 .filter(e -> ExpenseCategory.DEVICE_SALE.equals(e.getCategory()))
+                                .filter(e -> e.getPaymentMethod() == null
+                                                || e.getPaymentMethod() == com.pusula.backend.entity.PaymentMethod.CASH
+                                                || e.getPaymentMethod() == com.pusula.backend.entity.PaymentMethod.CREDIT_CARD)
                                 .collect(Collectors.toList());
 
                 List<Expense> regularExpenses = allExpenses.stream()
@@ -505,7 +511,8 @@ public class FinanceService {
          */
         public Expense payFixedExpense(Long definitionId, Long companyId, LocalDate paymentDate,
                         BigDecimal customAmount) {
-                FixedExpenseDefinition definition = fixedExpenseDefinitionRepository.findById(definitionId)
+                FixedExpenseDefinition definition = fixedExpenseDefinitionRepository
+                                .findByIdAndCompanyId(definitionId, companyId)
                                 .orElseThrow(() -> new IllegalArgumentException(
                                                 "Fixed expense definition not found: " + definitionId));
 
@@ -579,8 +586,9 @@ public class FinanceService {
         /**
          * Update an existing fixed expense definition
          */
-        public FixedExpenseDefinition updateFixedExpense(Long id, FixedExpenseDefinition definition) {
-                FixedExpenseDefinition existing = fixedExpenseDefinitionRepository.findById(id)
+        public FixedExpenseDefinition updateFixedExpense(Long id, Long companyId,
+                        FixedExpenseDefinition definition) {
+                FixedExpenseDefinition existing = fixedExpenseDefinitionRepository.findByIdAndCompanyId(id, companyId)
                                 .orElseThrow(() -> new IllegalArgumentException(
                                                 "Fixed expense definition not found: " + id));
 
@@ -596,8 +604,11 @@ public class FinanceService {
         /**
          * Delete a fixed expense definition
          */
-        public void deleteFixedExpense(Long id) {
-                fixedExpenseDefinitionRepository.deleteById(id);
+        public void deleteFixedExpense(Long id, Long companyId) {
+                FixedExpenseDefinition existing = fixedExpenseDefinitionRepository.findByIdAndCompanyId(id, companyId)
+                                .orElseThrow(() -> new IllegalArgumentException(
+                                                "Fixed expense definition not found: " + id));
+                fixedExpenseDefinitionRepository.delete(existing);
         }
 
         /**
