@@ -297,7 +297,7 @@ public class CustomerController {
 
             AlertHelper.showAlert(Alert.AlertType.ERROR, customersListView.getScene().getWindow(),
 
-                    "Error", "Could not open details: " + e.getMessage());
+                    "Hata", "Müşteri detayları açılamadı: " + e.getMessage());
 
         }
 
@@ -345,7 +345,7 @@ public class CustomerController {
 
             AlertHelper.showAlert(Alert.AlertType.ERROR, customersListView.getScene().getWindow(),
 
-                    "Error", "Could not open dialog: " + e.getMessage());
+                    "Hata", "Müşteri formu açılamadı: " + e.getMessage());
 
         }
 
@@ -379,9 +379,9 @@ public class CustomerController {
 
                     Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
 
-                            customersListView.getScene().getWindow(), "Error",
+                            customersListView.getScene().getWindow(), "Hata",
 
-                            "Failed to load customers: " + response.code()));
+                            "Müşteriler yüklenemedi: " + response.code()));
 
                 }
 
@@ -395,7 +395,7 @@ public class CustomerController {
 
                 Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
 
-                        customersListView.getScene().getWindow(), "Network Error",
+                        customersListView.getScene().getWindow(), "Bağlantı Hatası",
 
                         "Could not connect to server: " + t.getMessage()));
 

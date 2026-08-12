@@ -2,6 +2,7 @@ package com.pusula.desktop.controller;
 
 import com.pusula.desktop.dto.FixedExpenseDefinitionDTO;
 import com.pusula.desktop.util.CurrencyTextField;
+import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.UTF8Control;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -261,10 +262,6 @@ public class FixedExpenseDialogController {
     }
 
     private void showError(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Hata");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+        AlertHelper.showAlert(Alert.AlertType.ERROR, nameField.getScene().getWindow(), "Hata", message);
     }
 }

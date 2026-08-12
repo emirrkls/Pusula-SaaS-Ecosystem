@@ -16,6 +16,8 @@ class ResponsiveLayoutContractTest {
             assertTrue(css.contains(".compact-ui .sidebar"));
             assertTrue(css.contains(".narrow-ui .sidebar"));
             assertTrue(css.contains(".responsive-page-viewport"));
+            assertTrue(css.contains(".narrow-ui .page-header-title"));
+            assertTrue(css.contains("-fx-min-height: 38"));
         }
     }
 }

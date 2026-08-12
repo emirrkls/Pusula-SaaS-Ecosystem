@@ -225,11 +225,8 @@ public class CommercialDeviceViewController {
             return;
         }
 
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Silme Onayı");
-        confirm.setHeaderText(selected.getBrand() + " " + selected.getModel() + " cihazını silmek istiyor musunuz?");
-        confirm.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
+        if (AlertHelper.showConfirmation(devicesTable.getScene().getWindow(), "Cihazı Sil",
+                selected.getBrand() + " " + selected.getModel() + " cihazını silmek istiyor musunuz?")) {
                 api.delete(selected.getId()).enqueue(new Callback<Void>() {
                     @Override
                     public void onResponse(Call<Void> call, Response<Void> response) {
@@ -248,8 +245,7 @@ public class CommercialDeviceViewController {
                         });
                     }
                 });
-            }
-        });
+        }
     }
 
     @FXML

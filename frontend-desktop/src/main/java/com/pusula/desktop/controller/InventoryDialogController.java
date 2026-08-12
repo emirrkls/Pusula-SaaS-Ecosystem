@@ -134,7 +134,7 @@ public class InventoryDialogController {
 
         if (partName.isEmpty() || quantityStr.isEmpty() || buyPriceField.isEmpty()) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, partNameField.getScene().getWindow(),
-                    "Validation Error", "Part Name, Quantity, and Buy Price are required.");
+                    "Eksik Bilgi", "Parça adı, adet ve alış fiyatı zorunludur.");
             return;
         }
 
@@ -177,7 +177,7 @@ public class InventoryDialogController {
                 public void onFailure(Call<InventoryDTO> call, Throwable t) {
                     Platform.runLater(() -> {
                         AlertHelper.showAlert(Alert.AlertType.ERROR, partNameField.getScene().getWindow(),
-                                "Network Error", "Could not connect to server: " + t.getMessage());
+                                "Bağlantı Hatası", "Sunucuya bağlanılamadı: " + t.getMessage());
                     });
                 }
             };
@@ -190,7 +190,7 @@ public class InventoryDialogController {
 
         } catch (NumberFormatException e) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, partNameField.getScene().getWindow(),
-                    "Validation Error", "Please enter valid numbers for Quantity and Price.");
+                    "Geçersiz Bilgi", "Adet ve fiyat alanlarına geçerli sayılar girin.");
         }
     }
 

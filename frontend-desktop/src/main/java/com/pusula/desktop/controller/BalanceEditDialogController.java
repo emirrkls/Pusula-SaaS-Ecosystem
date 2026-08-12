@@ -2,6 +2,7 @@ package com.pusula.desktop.controller;
 
 import com.pusula.desktop.dto.CurrentAccountDTO;
 import com.pusula.desktop.util.CurrencyTextField;
+import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.UTF8Control;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -89,13 +90,13 @@ public class BalanceEditDialogController {
                     newBalance = amount;
                 }
 
-                // Color-code the preview
+                newBalanceLabel.getStyleClass().removeAll("amount-positive", "amount-negative", "amount-info");
                 if (newBalance.compareTo(originalBalance) > 0) {
-                    newBalanceLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px; -fx-text-fill: #4CAF50;"); // Green
+                    newBalanceLabel.getStyleClass().add("amount-positive");
                 } else if (newBalance.compareTo(originalBalance) < 0) {
-                    newBalanceLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px; -fx-text-fill: #f44336;"); // Red
+                    newBalanceLabel.getStyleClass().add("amount-negative");
                 } else {
-                    newBalanceLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 16px; -fx-text-fill: #2196F3;"); // Blue
+                    newBalanceLabel.getStyleClass().add("amount-info");
                 }
 
                 newBalanceLabel.setText("₺" + newBalance.toString());
@@ -151,10 +152,7 @@ public class BalanceEditDialogController {
     }
 
     private void showError(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(bundle.getString("error.title"));
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+        AlertHelper.showAlert(Alert.AlertType.ERROR, amountField.getScene().getWindow(),
+                bundle.getString("error.title"), message);
     }
 }

@@ -7,6 +7,7 @@
 <?import javafx.scene.chart.CategoryAxis?>
 <?import javafx.scene.chart.NumberAxis?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.Region?>
@@ -33,9 +34,9 @@
    </HBox>
 
    <!-- 2. Summary Cards -->
-   <HBox spacing="20.0">
+   <FlowPane hgap="20.0" prefWrapLength="900.0" vgap="14.0" styleClass="dashboard-summary-grid">
       <children>
-         <HBox fx:id="activeTicketsCard" onMouseClicked="#handleActiveTicketsClick" alignment="CENTER_LEFT" prefHeight="120.0" styleClass="card-modern, card-accent-blue" HBox.hgrow="ALWAYS">
+         <HBox fx:id="activeTicketsCard" onMouseClicked="#handleActiveTicketsClick" alignment="CENTER_LEFT" prefHeight="112.0" prefWidth="280.0" styleClass="card-modern, card-accent-blue">
             <padding><Insets left="20" right="20"/></padding>
             <VBox alignment="CENTER" styleClass="dashboard-stat-icon, dashboard-stat-icon-blue">
                 <Label styleClass="dashboard-stat-emoji" text="🔧" />
@@ -47,7 +48,7 @@
             </VBox>
          </HBox>
 
-         <HBox fx:id="criticalStockCard" onMouseClicked="#handleCriticalStockClick" alignment="CENTER_LEFT" prefHeight="120.0" styleClass="card-modern, card-accent-red" HBox.hgrow="ALWAYS">
+         <HBox fx:id="criticalStockCard" onMouseClicked="#handleCriticalStockClick" alignment="CENTER_LEFT" prefHeight="112.0" prefWidth="280.0" styleClass="card-modern, card-accent-red">
             <padding><Insets left="20" right="20"/></padding>
             <VBox alignment="CENTER" styleClass="dashboard-stat-icon, dashboard-stat-icon-red">
                 <Label styleClass="dashboard-stat-emoji" text="⚠️" />
@@ -59,7 +60,7 @@
             </VBox>
          </HBox>
 
-         <HBox fx:id="pendingProposalsCard" onMouseClicked="#handlePendingProposalsClick" alignment="CENTER_LEFT" prefHeight="120.0" styleClass="card-modern, card-accent-green" HBox.hgrow="ALWAYS">
+         <HBox fx:id="pendingProposalsCard" onMouseClicked="#handlePendingProposalsClick" alignment="CENTER_LEFT" prefHeight="112.0" prefWidth="280.0" styleClass="card-modern, card-accent-green">
             <padding><Insets left="20" right="20"/></padding>
             <VBox alignment="CENTER" styleClass="dashboard-stat-icon, dashboard-stat-icon-green">
                 <Label styleClass="dashboard-stat-emoji" text="📄" />
@@ -71,7 +72,7 @@
             </VBox>
          </HBox>
       </children>
-   </HBox>
+   </FlowPane>
 
    <!-- 3. Main Content Area without SplitPane -->
    <HBox spacing="20.0" VBox.vgrow="ALWAYS">

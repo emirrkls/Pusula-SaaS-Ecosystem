@@ -4,6 +4,7 @@ import com.pusula.desktop.util.TableUiHelper;
 import com.pusula.desktop.util.ThemeHelper;
 import com.pusula.desktop.util.UTF8Control;
 import com.pusula.desktop.util.AnimationHelper;
+import com.pusula.desktop.util.AlertHelper;
 
 import com.pusula.desktop.api.CustomerApi;
 import com.pusula.desktop.api.FinanceApi;
@@ -258,11 +259,8 @@ public class DashboardController {
                 public void onResponse(retrofit2.Call<CustomerDTO> call, retrofit2.Response<CustomerDTO> response) {
                     if (response.isSuccessful() && response.body() != null) {
                         Platform.runLater(() -> {
-                            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                            alert.setTitle("Müşteri İletişim");
-                            alert.setHeaderText("Müşteri: " + response.body().getName());
-                            alert.setContentText("Telefon: " + response.body().getPhone());
-                            alert.showAndWait();
+                            AlertHelper.showAlert(Alert.AlertType.INFORMATION, welcomeLabel.getScene().getWindow(),
+                                    "Müşteri İletişim", response.body().getName() + " · " + response.body().getPhone());
                         });
                     }
                 }
@@ -270,10 +268,8 @@ public class DashboardController {
                 @Override
                 public void onFailure(retrofit2.Call<CustomerDTO> call, Throwable t) {
                     Platform.runLater(() -> {
-                        Alert alert = new Alert(Alert.AlertType.ERROR);
-                        alert.setTitle("Hata");
-                        alert.setContentText("Müşteri bilgisi alınamadı.");
-                        alert.showAndWait();
+                        AlertHelper.showAlert(Alert.AlertType.ERROR, welcomeLabel.getScene().getWindow(),
+                                "Hata", "Müşteri bilgisi alınamadı.");
                     });
                 }
             });
@@ -309,10 +305,8 @@ public class DashboardController {
             loadDashboardData();
         } catch (Exception e) {
             e.printStackTrace();
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error");
-            alert.setContentText("Could not open details: " + e.getMessage());
-            alert.showAndWait();
+            AlertHelper.showAlert(Alert.AlertType.ERROR, welcomeLabel.getScene().getWindow(),
+                    "Detaylar Açılamadı", e.getMessage());
         }
     }
 
@@ -406,7 +400,7 @@ public class DashboardController {
                             if (delayedCount > 0) {
                                 alertContainer.getChildren().clear();
                                 Label alertText = new Label("🔥 " + delayedCount + " adet servis fişi 48 saatten uzun süredir müdahale bekliyor!");
-                                alertText.setStyle("-fx-text-fill: #991B1B; -fx-font-weight: bold; -fx-font-size: 14px;");
+                                alertText.getStyleClass().add("dashboard-alert-critical");
                                 alertContainer.getChildren().add(alertText);
                                 alertContainer.setVisible(true);
                                 alertContainer.setManaged(true);

@@ -142,28 +142,22 @@ public class SettingsController {
             }
 
             private void updateRowStyle(FixedExpenseDefinitionDTO item, boolean selected) {
+                getStyleClass().removeAll("row-paid", "row-overdue");
                 if (item == null) {
-                    setStyle("");
                     return;
                 }
 
                 if (selected) {
-                    // Force dark blue background with white text when selected
-                    setStyle("-fx-background-color: #334155; -fx-text-fill: white;");
+                    return;
                 } else {
                     int currentDay = java.time.LocalDate.now().getDayOfMonth();
                     Integer dueDay = item.getDayOfMonth();
                     boolean isOverdue = !item.isPaidThisMonth() && dueDay != null && dueDay < currentDay;
 
                     if (isOverdue) {
-                        // Red background for overdue unpaid expenses
-                        setStyle("-fx-background-color: #ffcccc;");
+                        getStyleClass().add("row-overdue");
                     } else if (item.isPaidThisMonth()) {
-                        // Light green for paid expenses
-                        setStyle("-fx-background-color: #ccffcc;");
-                    } else {
-                        // Default style
-                        setStyle("");
+                        getStyleClass().add("row-paid");
                     }
                 }
             }
@@ -270,16 +264,10 @@ public class SettingsController {
             return;
         }
 
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Silme Onayı");
-        confirmation.setHeaderText(selected.getName() + " sabit giderini silmek istediğinize emin misiniz?");
-        confirmation.setContentText("Bu işlem geri alınamaz.");
-
-        confirmation.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                deleteFixedExpense(selected.getId());
-            }
-        });
+        if (AlertHelper.showConfirmation(fixedExpensesTable.getScene().getWindow(), "Sabit Gideri Sil",
+                selected.getName() + " sabit giderini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
+            deleteFixedExpense(selected.getId());
+        }
     }
 
     private void createFixedExpense(FixedExpenseDefinitionDTO expense) {
@@ -474,16 +462,10 @@ public class SettingsController {
             return;
         }
 
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Silme Onayı");
-        confirmation.setHeaderText(selected.getUsername() + " kullanıcısını silmek istediğinize emin misiniz?");
-        confirmation.setContentText("Bu işlem geri alınamaz.");
-
-        confirmation.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                deleteUser(selected.getId());
-            }
-        });
+        if (AlertHelper.showConfirmation(usersTable.getScene().getWindow(), "Kullanıcıyı Sil",
+                selected.getUsername() + " kullanıcısını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
+            deleteUser(selected.getId());
+        }
     }
 
     private void createUser(UserDTO user) {
@@ -766,16 +748,10 @@ public class SettingsController {
             return;
         }
 
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmation.setTitle("Silme Onayı");
-        confirmation.setHeaderText(selected.getLicensePlate() + " plakalı aracı silmek istediğinize emin misiniz?");
-        confirmation.setContentText("Bu işlem geri alınamaz.");
-
-        confirmation.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                deleteVehicle(selected.getId());
-            }
-        });
+        if (AlertHelper.showConfirmation(vehiclesTable.getScene().getWindow(), "Aracı Sil",
+                selected.getLicensePlate() + " plakalı aracı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
+            deleteVehicle(selected.getId());
+        }
     }
 
     private void deleteVehicle(Long id) {

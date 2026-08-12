@@ -178,7 +178,7 @@ public class LoginController {
         progressBar.setProgress(ProgressBar.INDETERMINATE_PROGRESS);
 
         VBox progressRoot = new VBox(12, statusLabel, progressBar);
-        progressRoot.setStyle("-fx-padding: 20;");
+        progressRoot.getStyleClass().add("update-progress-panel");
         progressStage.setScene(ThemeHelper.createDialogScene(progressRoot, 420, 120));
         progressStage.show();
 
@@ -257,7 +257,7 @@ public class LoginController {
                             stage.setMaximized(true);
                         } catch (Exception e) {
                             e.printStackTrace();
-                            AlertHelper.showAlert(Alert.AlertType.ERROR, usernameField.getScene().getWindow(), "Error",
+                            AlertHelper.showAlert(Alert.AlertType.ERROR, usernameField.getScene().getWindow(), "Hata",
                                     "Could not load dashboard: " + e.getMessage());
                         }
                     });

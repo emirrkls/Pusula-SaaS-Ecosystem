@@ -49,7 +49,7 @@ public class CustomerDialogController {
 
         if (name.isEmpty() || phone.isEmpty()) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, nameField.getScene().getWindow(),
-                    "Validation Error", "Name and Phone are required.");
+                    "Eksik Bilgi", "Ad ve telefon alanları zorunludur.");
             return;
         }
 
@@ -74,7 +74,7 @@ public class CustomerDialogController {
                 } else {
                     Platform.runLater(() -> {
                         AlertHelper.showAlert(Alert.AlertType.ERROR, nameField.getScene().getWindow(),
-                                "Error", "Failed to create customer: " + response.code());
+                                "Hata", "Müşteri oluşturulamadı: " + response.code());
                     });
                 }
             }
@@ -83,7 +83,7 @@ public class CustomerDialogController {
             public void onFailure(Call<CustomerDTO> call, Throwable t) {
                 Platform.runLater(() -> {
                     AlertHelper.showAlert(Alert.AlertType.ERROR, nameField.getScene().getWindow(),
-                            "Network Error", "Could not connect to server: " + t.getMessage());
+                            "Bağlantı Hatası", "Sunucuya bağlanılamadı: " + t.getMessage());
                 });
             }
         });

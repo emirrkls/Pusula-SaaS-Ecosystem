@@ -425,6 +425,7 @@ public class MainDashboardController {
 
     private void showPasswordVerificationDialog(Runnable onSuccess) {
         Dialog<String> dialog = new Dialog<>();
+        ThemeHelper.applyToDialog(dialog, contentArea.getScene().getWindow());
         dialog.setTitle("Şifre Doğrulama");
         dialog.setHeaderText("Bu alana erişmek için şifrenizi giriniz");
 

@@ -173,7 +173,7 @@ public class TicketDialogController {
         } catch (Exception e) {
             e.printStackTrace();
             AlertHelper.showAlert(Alert.AlertType.ERROR, customerComboBox.getScene().getWindow(),
-                    "Error", "Could not open customer dialog: " + e.getMessage());
+                    "Hata", "Müşteri formu açılamadı: " + e.getMessage());
         }
     }
 
@@ -184,13 +184,13 @@ public class TicketDialogController {
 
         if (selectedCustomer == null) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, descriptionField.getScene().getWindow(),
-                    "Validation Error", "Please select a customer.");
+                    "Eksik Bilgi", "Lütfen bir müşteri seçin.");
             return;
         }
 
         if (description.isEmpty()) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, descriptionField.getScene().getWindow(),
-                    "Validation Error", "Description is required.");
+                    "Eksik Bilgi", "Servis açıklaması zorunludur.");
             return;
         }
 
@@ -218,7 +218,7 @@ public class TicketDialogController {
                 } else {
                     Platform.runLater(() -> {
                         AlertHelper.showAlert(Alert.AlertType.ERROR, descriptionField.getScene().getWindow(),
-                                "Error", "Failed to create ticket: " + response.code());
+                                "Hata", "Servis fişi oluşturulamadı: " + response.code());
                     });
                 }
             }
@@ -227,7 +227,7 @@ public class TicketDialogController {
             public void onFailure(Call<ServiceTicketDTO> call, Throwable t) {
                 Platform.runLater(() -> {
                     AlertHelper.showAlert(Alert.AlertType.ERROR, descriptionField.getScene().getWindow(),
-                            "Network Error", "Could not connect to server: " + t.getMessage());
+                            "Bağlantı Hatası", "Sunucuya bağlanılamadı: " + t.getMessage());
                 });
             }
         });

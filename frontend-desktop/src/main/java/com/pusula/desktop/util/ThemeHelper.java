@@ -5,6 +5,9 @@ import atlantafx.base.theme.PrimerLight;
 import javafx.application.Application;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.DialogPane;
+import javafx.stage.Window;
 
 /**
  * Central theme management — AtlantaFX base + Pusula brand CSS overlay + dark mode class.
@@ -58,6 +61,19 @@ public final class ThemeHelper {
 
     public static boolean isDarkMode() {
         return PreferencesHelper.isDarkMode();
+    }
+
+    /** Applies the same branded shell to programmatically constructed form dialogs. */
+    public static void applyToDialog(Dialog<?> dialog, Window owner) {
+        if (dialog == null) return;
+        if (owner != null && dialog.getOwner() == null) dialog.initOwner(owner);
+        DialogPane pane = dialog.getDialogPane();
+        String stylesUrl = ThemeHelper.class.getResource(STYLES).toExternalForm();
+        String tableUrl = ThemeHelper.class.getResource(TABLE_OVERRIDE).toExternalForm();
+        if (!pane.getStylesheets().contains(stylesUrl)) pane.getStylesheets().add(stylesUrl);
+        if (!pane.getStylesheets().contains(tableUrl)) pane.getStylesheets().add(tableUrl);
+        if (!pane.getStyleClass().contains("modern-form-dialog")) pane.getStyleClass().add("modern-form-dialog");
+        if (isDarkMode() && !pane.getStyleClass().contains("dark-theme")) pane.getStyleClass().add("dark-theme");
     }
 
     /** Scene for modal dialogs — stylesheets + current dark/light preference. */

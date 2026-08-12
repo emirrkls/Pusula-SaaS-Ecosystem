@@ -7,7 +7,6 @@ import com.pusula.desktop.dto.CustomerDTO;
 import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.dto.UserDTO;
 import com.pusula.desktop.network.RetrofitClient;
-import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.WhatsAppHelper;
 import javafx.application.Platform;
@@ -98,7 +97,7 @@ public class CustomerDetailController {
                 super.updateItem(status, empty);
                 if (empty || status == null) {
                     setText(null);
-                    setStyle("");
+                    getStyleClass().removeIf(c -> c.startsWith("status-text-"));
                 } else {
                     // Translate status
                     String translatedStatus = switch (status) {
@@ -110,17 +109,14 @@ public class CustomerDetailController {
                         default -> status;
                     };
 
-                    // Apply colors
-                    String color = switch (status) {
-                        case "COMPLETED" -> "-fx-text-fill: #2ecc71; -fx-font-weight: bold;";
-                        case "IN_PROGRESS", "ASSIGNED" -> "-fx-text-fill: #3498db; -fx-font-weight: bold;";
-                        case "CANCELLED" -> "-fx-text-fill: #e74c3c; -fx-font-weight: bold;";
-                        case "PENDING" -> "-fx-text-fill: #f39c12; -fx-font-weight: bold;";
-                        default -> "";
-                    };
-
                     setText(translatedStatus);
-                    setStyle(color);
+                    getStyleClass().removeIf(c -> c.startsWith("status-text-"));
+                    getStyleClass().add(switch (status) {
+                        case "COMPLETED" -> "status-text-completed";
+                        case "IN_PROGRESS", "ASSIGNED" -> "status-text-active";
+                        case "CANCELLED" -> "status-text-cancelled";
+                        default -> "status-text-pending";
+                    });
                 }
             }
         });
@@ -209,14 +205,14 @@ public class CustomerDetailController {
                     });
                 } else {
                     Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
-                            nameField.getScene().getWindow(), "Error", "Failed to save"));
+                            nameField.getScene().getWindow(), "Hata", "Müşteri bilgileri kaydedilemedi."));
                 }
             }
 
             @Override
             public void onFailure(Call<CustomerDTO> call, Throwable t) {
                 Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR, nameField.getScene().getWindow(),
-                        "Error", "Network error"));
+                        "Bağlantı Hatası", "Sunucuya bağlanılamadı."));
             }
         });
     }

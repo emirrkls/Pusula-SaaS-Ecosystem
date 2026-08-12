@@ -6,6 +6,7 @@ import com.pusula.desktop.api.PageResponse;
 import com.pusula.desktop.api.UserApi;
 import com.pusula.desktop.dto.UserDTO;
 import com.pusula.desktop.network.RetrofitClient;
+import com.pusula.desktop.util.AlertHelper;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -133,8 +134,7 @@ public class ActivityLogController {
             private final Button detailBtn = new Button("Detay");
 
             {
-                detailBtn.setStyle(
-                        "-fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand; -fx-font-size: 11px; -fx-padding: 4 8 4 8;");
+                detailBtn.getStyleClass().addAll("btn-secondary", "btn-sm");
                 detailBtn.setMinWidth(60);
                 detailBtn.setOnAction(event -> {
                     AuditLog log = getTableView().getItems().get(getIndex());
@@ -158,6 +158,7 @@ public class ActivityLogController {
 
     private void showDetailDialog(AuditLog log) {
         Dialog<Void> dialog = new Dialog<>();
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, auditLogTable.getScene().getWindow());
         dialog.setTitle("Aktivite Detayı");
         dialog.setHeaderText(translateAction(log.getActionType()) + " - " + translateEntity(log.getEntityType()));
 
@@ -201,7 +202,7 @@ public class ActivityLogController {
             // Side by side TextAreas
             VBox oldBox = new VBox(5);
             Label oldLabel = new Label("Eski Değer:");
-            oldLabel.setStyle("-fx-font-weight: bold;");
+            oldLabel.getStyleClass().add("section-heading");
             TextArea oldArea = new TextArea(formatJson(log.getOldValue()));
             oldArea.setEditable(false);
             oldArea.setPrefRowCount(8);
@@ -212,7 +213,7 @@ public class ActivityLogController {
 
             VBox newBox = new VBox(5);
             Label newLabel = new Label("Yeni Değer:");
-            newLabel.setStyle("-fx-font-weight: bold;");
+            newLabel.getStyleClass().add("section-heading");
             TextArea newArea = new TextArea(formatJson(log.getNewValue()));
             newArea.setEditable(false);
             newArea.setPrefRowCount(8);
@@ -458,11 +459,8 @@ public class ActivityLogController {
                     @Override
                     public void onFailure(Call<PageResponse<AuditLog>> call, Throwable t) {
                         Platform.runLater(() -> {
-                            Alert alert = new Alert(Alert.AlertType.ERROR);
-                            alert.setTitle("Hata");
-                            alert.setHeaderText("Veri yüklenemedi");
-                            alert.setContentText(t.getMessage());
-                            alert.show();
+                            AlertHelper.showAlert(Alert.AlertType.ERROR, auditLogTable.getScene().getWindow(),
+                                    "Veri Yüklenemedi", t.getMessage());
                         });
                     }
                 });

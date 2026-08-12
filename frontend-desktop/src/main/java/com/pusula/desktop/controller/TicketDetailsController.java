@@ -43,6 +43,9 @@ import java.nio.file.Files;
 
 public class TicketDetailsController {
 
+    @FXML private Button btnSaveNotes;
+    @FXML private Button btnAssign;
+
     @FXML
     private Label lblStatus;
     @FXML
@@ -264,7 +267,7 @@ public class TicketDetailsController {
                     Platform.runLater(() -> {
                         if (timelineContainer != null) {
                             Label noAccessLabel = new Label("Geçmiş görüntüleme yetkiniz bulunmamaktadır.");
-                            noAccessLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #95a5a6;");
+                            noAccessLabel.getStyleClass().add("empty-state-label");
                             timelineContainer.getChildren().add(noAccessLabel);
                         }
                     });
@@ -277,7 +280,7 @@ public class TicketDetailsController {
                 Platform.runLater(() -> {
                     if (timelineContainer != null) {
                         Label errorLabel = new Label("Geçmiş yüklenemedi.");
-                        errorLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #95a5a6;");
+                        errorLabel.getStyleClass().add("empty-state-label");
                         timelineContainer.getChildren().add(errorLabel);
                     }
                 });
@@ -292,7 +295,7 @@ public class TicketDetailsController {
 
         if (logs.isEmpty()) {
             Label emptyLabel = new Label(resourceBundle.getString("timeline.no_events"));
-            emptyLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #7f8c8d;");
+            emptyLabel.getStyleClass().add("empty-state-label");
             timelineContainer.getChildren().add(emptyLabel);
             return;
         }
@@ -304,40 +307,39 @@ public class TicketDetailsController {
 
     private javafx.scene.Node createTimelineEntry(com.pusula.desktop.dto.AuditLogDTO log) {
         VBox entry = new VBox(5);
-        entry.setStyle(
-                "-fx-background-color: white; -fx-padding: 15; -fx-border-color: #e0e0e0; -fx-border-radius: 5; -fx-background-radius: 5;");
+        entry.getStyleClass().add("timeline-entry-card");
 
         // Header: timestamp and user
         HBox header = new HBox(10);
         header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
         Label timeLabel = new Label(formatTimestamp(log.getTimestamp()));
-        timeLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+        timeLabel.getStyleClass().add("timeline-time");
 
         Label userLabel = new Label("👤 " + (log.getUserName() != null ? log.getUserName() : "Sistem"));
-        userLabel.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 12px;");
+        userLabel.getStyleClass().add("timeline-user");
 
         header.getChildren().addAll(timeLabel, userLabel);
 
         // Description
         Label descLabel = new Label(translateAction(log.getActionType()) + ": " + log.getDescription());
         descLabel.setWrapText(true);
-        descLabel.setStyle("-fx-font-size: 13px;");
+        descLabel.getStyleClass().add("timeline-description");
 
         entry.getChildren().addAll(header, descLabel);
 
         // Old/New values if present
         if (log.getOldValue() != null || log.getNewValue() != null) {
             HBox values = new HBox(20);
-            values.setStyle("-fx-padding: 10 0 0 0;");
+            values.getStyleClass().add("timeline-values");
 
             if (log.getOldValue() != null && !log.getOldValue().isEmpty()) {
                 VBox oldBox = new VBox(3);
                 Label oldLabel = new Label("Öncesi:");
-                oldLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #95a5a6;");
+                oldLabel.getStyleClass().add("timeline-meta");
                 Label oldValueLabel = new Label(log.getOldValue());
                 oldValueLabel.setWrapText(true);
-                oldValueLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #e74c3c;");
+                oldValueLabel.getStyleClass().add("timeline-before");
                 oldBox.getChildren().addAll(oldLabel, oldValueLabel);
                 values.getChildren().add(oldBox);
             }
@@ -345,10 +347,10 @@ public class TicketDetailsController {
             if (log.getNewValue() != null && !log.getNewValue().isEmpty()) {
                 VBox newBox = new VBox(3);
                 Label newLabel = new Label("Sonrası:");
-                newLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #95a5a6;");
+                newLabel.getStyleClass().add("timeline-meta");
                 Label newValueLabel = new Label(log.getNewValue());
                 newValueLabel.setWrapText(true);
-                newValueLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #27ae60;");
+                newValueLabel.getStyleClass().add("timeline-after");
                 newBox.getChildren().addAll(newLabel, newValueLabel);
                 values.getChildren().add(newBox);
             }
@@ -574,7 +576,7 @@ public class TicketDetailsController {
             @Override
             public void onFailure(Call<List<UserDTO>> call, Throwable t) {
                 Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                        "Error", "Failed to load technicians"));
+                        "Hata", "Teknisyenler yüklenemedi."));
             }
         });
     }
@@ -604,7 +606,7 @@ public class TicketDetailsController {
             public void onFailure(Call<List<ServiceUsedPartDTO>> call, Throwable t) {
                 System.err.println("getUsedParts failed: " + t.getMessage());
                 Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                        "Error", "Failed to load parts"));
+                        "Hata", "Yedek parçalar yüklenemedi."));
             }
         });
     }
@@ -630,6 +632,7 @@ public class TicketDetailsController {
             return;
         }
         Dialog<Integer> dialog = new Dialog<>();
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow());
         dialog.setTitle("Parça Adedini Düzenle");
         dialog.setHeaderText(part.getPartName());
         Spinner<Integer> quantitySpinner = new Spinner<>(1, 1_000_000,
@@ -672,15 +675,9 @@ public class TicketDetailsController {
         if (part == null || !canModifyParts()) {
             return;
         }
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+        if (AlertHelper.showConfirmation(lblStatus.getScene().getWindow(), "Kullanılan Parçayı Sil",
                 part.getPartName() + " parçası fişten silinsin ve " + part.getQuantityUsed()
-                        + " adet stoğa iade edilsin mi?",
-                ButtonType.YES, ButtonType.NO);
-        confirm.setHeaderText("Kullanılan Parçayı Sil");
-        confirm.showAndWait().ifPresent(button -> {
-            if (button != ButtonType.YES) {
-                return;
-            }
+                        + " adet stoğa iade edilsin mi?")) {
             ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
             api.deleteUsedPart(currentTicket.getId(), part.getId()).enqueue(new Callback<Void>() {
                 @Override
@@ -701,7 +698,7 @@ public class TicketDetailsController {
                             lblStatus.getScene().getWindow(), "Hata", t.getMessage()));
                 }
             });
-        });
+        }
     }
 
     private void loadCustomerInfo() {
@@ -780,6 +777,7 @@ public class TicketDetailsController {
             return;
 
         Dialog<ServiceTicketExpenseDTO> dialog = new Dialog<>();
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow());
         boolean editing = existingExpense != null;
         dialog.setTitle(editing ? "Dış Gideri Düzenle" : "Dış Gider Ekle");
         dialog.setHeaderText(editing
@@ -903,12 +901,8 @@ public class TicketDetailsController {
     }
 
     private void deleteExpense(ServiceTicketExpenseDTO expense) {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
-                "Bu dış gideri silmek istediğinizden emin misiniz?",
-                ButtonType.YES, ButtonType.NO);
-        confirm.setHeaderText("Gider Silme Onayı");
-        confirm.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.YES) {
+        if (AlertHelper.showConfirmation(lblStatus.getScene().getWindow(), "Dış Gideri Sil",
+                "Bu dış gideri silmek istediğinizden emin misiniz?")) {
                 ServiceTicketExpenseApi api = RetrofitClient.getClient().create(ServiceTicketExpenseApi.class);
                 api.deleteExpense(currentTicket.getId(), expense.getId()).enqueue(new Callback<Void>() {
                     @Override
@@ -927,30 +921,39 @@ public class TicketDetailsController {
                                 lblStatus.getScene().getWindow(), "Hata", t.getMessage()));
                     }
                 });
-            }
-        });
+        }
     }
 
     @FXML
     private void handleSaveNotes() {
         if (currentTicket == null)
             return;
+        setButtonBusy(btnSaveNotes, true, "Kaydediliyor…", "Notları Kaydet");
         currentTicket.setNotes(txtNotes.getText());
 
         ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
         api.updateTicket(currentTicket.getId(), currentTicket).enqueue(new Callback<ServiceTicketDTO>() {
             @Override
             public void onResponse(Call<ServiceTicketDTO> call, Response<ServiceTicketDTO> response) {
-                if (response.isSuccessful()) {
-                    Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.INFORMATION,
-                            lblStatus.getScene().getWindow(), "Success", "Notes updated."));
-                }
+                Platform.runLater(() -> {
+                    setButtonBusy(btnSaveNotes, false, "Kaydediliyor…", "Notları Kaydet");
+                    if (response.isSuccessful()) {
+                        AlertHelper.showSuccess(lblStatus.getScene().getWindow(), "Kaydedildi",
+                                "Teknisyen notları güncellendi.");
+                    } else {
+                        AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                                "Notlar Kaydedilemedi", "Sunucu yanıtı: " + response.code());
+                    }
+                });
             }
 
             @Override
             public void onFailure(Call<ServiceTicketDTO> call, Throwable t) {
-                Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                        "Error", t.getMessage()));
+                Platform.runLater(() -> {
+                    setButtonBusy(btnSaveNotes, false, "Kaydediliyor…", "Notları Kaydet");
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                            "Notlar Kaydedilemedi", t.getMessage());
+                });
             }
         });
     }
@@ -961,27 +964,44 @@ public class TicketDetailsController {
         if (selectedTech == null || currentTicket == null)
             return;
 
+        setButtonBusy(btnAssign, true, "Atanıyor…", "Ata");
+
         ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
         api.assignTechnician(currentTicket.getId(), selectedTech.getId()).enqueue(new Callback<ServiceTicketDTO>() {
             @Override
             public void onResponse(Call<ServiceTicketDTO> call, Response<ServiceTicketDTO> response) {
-                if (response.isSuccessful()) {
-                    Platform.runLater(() -> {
+                Platform.runLater(() -> {
+                    setButtonBusy(btnAssign, false, "Atanıyor…", "Ata");
+                    if (response.isSuccessful()) {
                         currentTicket = response.body();
                         updateUI();
-                        AlertHelper.showAlert(Alert.AlertType.INFORMATION, lblStatus.getScene().getWindow(),
+                        AlertHelper.showSuccess(lblStatus.getScene().getWindow(),
                                 resourceBundle.getString("dialog.assign.title"),
                                 resourceBundle.getString("dialog.assign.message"));
-                    });
-                }
+                    } else {
+                        AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                                "Atama Başarısız", "Sunucu yanıtı: " + response.code());
+                    }
+                });
             }
 
             @Override
             public void onFailure(Call<ServiceTicketDTO> call, Throwable t) {
-                Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                        "Error", t.getMessage()));
+                Platform.runLater(() -> {
+                    setButtonBusy(btnAssign, false, "Atanıyor…", "Ata");
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                            "Atama Başarısız", t.getMessage());
+                });
             }
         });
+    }
+
+    private void setButtonBusy(Button button, boolean busy, String busyText, String idleText) {
+        if (button == null) return;
+        button.setDisable(busy);
+        button.setText(busy ? busyText : idleText);
+        if (busy && !button.getStyleClass().contains("button-busy")) button.getStyleClass().add("button-busy");
+        if (!busy) button.getStyleClass().remove("button-busy");
     }
 
     @FXML
@@ -1016,7 +1036,7 @@ public class TicketDetailsController {
             e.printStackTrace();
             AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
                     resourceBundle.getString("dialog.title.error"),
-                    "Failed to open part selection: " + e.getMessage());
+                    "Yedek parça seçim ekranı açılamadı: " + e.getMessage());
         }
     }
 
@@ -1040,7 +1060,7 @@ public class TicketDetailsController {
                     Platform.runLater(
                             () -> AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
                                     resourceBundle.getString("dialog.title.error"),
-                                    "Failed to add part: " + response.code()));
+                                    "Yedek parça eklenemedi: " + response.code()));
                 }
             }
 
@@ -1061,6 +1081,7 @@ public class TicketDetailsController {
         // Show password dialog
         // Create custom dialog
         Dialog<String> dialog = new Dialog<>();
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow());
         dialog.setTitle("Admin Doğrulama");
         dialog.setHeaderText("Admin şifresi gerekli");
         // Create PasswordField
@@ -1191,11 +1212,8 @@ public class TicketDetailsController {
         if (currentTicket == null)
             return;
 
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Cancel Service");
-        confirm.setHeaderText("Are you sure you want to cancel this service?");
-        confirm.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
+        if (AlertHelper.showConfirmation(lblStatus.getScene().getWindow(), "Servisi İptal Et",
+                "Bu servisi iptal etmek istediğinizden emin misiniz? Kullanılan parçalar stoğa iade edilecektir.")) {
                 ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
                 api.cancelService(currentTicket.getId()).enqueue(new Callback<ServiceTicketDTO>() {
                     @Override
@@ -1213,11 +1231,10 @@ public class TicketDetailsController {
                     @Override
                     public void onFailure(Call<ServiceTicketDTO> call, Throwable t) {
                         Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
-                                lblStatus.getScene().getWindow(), "Error", t.getMessage()));
+                                lblStatus.getScene().getWindow(), "Hata", t.getMessage()));
                     }
                 });
-            }
-        });
+        }
     }
 
     private String formatMoney(BigDecimal amount) {
@@ -1232,6 +1249,7 @@ public class TicketDetailsController {
 
         // Create custom dialog with GridPane
         Dialog<java.util.Map<String, Object>> dialog = new Dialog<>();
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow());
         dialog.setTitle(resourceBundle.getString("dialog.complete.title"));
         dialog.setHeaderText(resourceBundle.getString("dialog.complete.header"));
 
@@ -1396,12 +1414,12 @@ public class TicketDetailsController {
                     @Override
                     public void onFailure(Call<ServiceTicketDTO> call, Throwable t) {
                         Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
-                                lblStatus.getScene().getWindow(), "Error", t.getMessage()));
+                                lblStatus.getScene().getWindow(), "Hata", t.getMessage()));
                     }
                 });
             } catch (Exception e) {
                 AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                        "Error", "Invalid amount: " + e.getMessage());
+                        "Geçersiz Tutar", "Tutar alanını kontrol edin: " + e.getMessage());
             }
         });
     }

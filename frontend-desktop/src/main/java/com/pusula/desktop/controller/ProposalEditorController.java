@@ -6,6 +6,7 @@ import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.CustomerSearchSupport;
 import com.pusula.desktop.util.CurrencyTextField;
 import com.pusula.desktop.util.SessionManager;
+import com.pusula.desktop.util.AlertHelper;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -150,8 +151,8 @@ public class ProposalEditorController {
             {
                 editBtn.getStyleClass().add("btn-secondary");
                 deleteBtn.getStyleClass().add("btn-danger");
-                editBtn.setStyle("-fx-font-size: 10px; -fx-padding: 4 7;");
-                deleteBtn.setStyle("-fx-font-size: 10px; -fx-padding: 4 7;");
+                editBtn.getStyleClass().add("btn-sm");
+                deleteBtn.getStyleClass().add("btn-sm");
                 editBtn.setOnAction(e -> startEditingItem(getTableRow().getItem()));
                 deleteBtn.setOnAction(e -> {
                     ProposalItemDTO rowItem = getTableRow().getItem();
@@ -650,9 +651,9 @@ public class ProposalEditorController {
 
             totalCostLabel.setText(String.format("%.2f ₺", totalCost));
             profitLabel.setText(String.format("%.2f ₺", profit));
-            profitLabel.setStyle(profit.compareTo(BigDecimal.ZERO) >= 0
-                    ? "-fx-font-weight: bold; -fx-text-fill: #27ae60;"
-                    : "-fx-font-weight: bold; -fx-text-fill: #e74c3c;");
+            profitLabel.getStyleClass().removeAll("amount-positive", "amount-negative");
+            profitLabel.getStyleClass().add(profit.compareTo(BigDecimal.ZERO) >= 0
+                    ? "amount-positive" : "amount-negative");
         }
     }
 
@@ -829,14 +830,10 @@ public class ProposalEditorController {
     }
 
     private void showError(String msg) {
-        Alert a = new Alert(Alert.AlertType.ERROR);
-        a.setContentText(msg);
-        a.showAndWait();
+        AlertHelper.showAlert(Alert.AlertType.ERROR, titleLabel.getScene().getWindow(), "Hata", msg);
     }
 
     private void showInfo(String msg) {
-        Alert a = new Alert(Alert.AlertType.INFORMATION);
-        a.setContentText(msg);
-        a.showAndWait();
+        AlertHelper.showSuccess(titleLabel.getScene().getWindow(), "Başarılı", msg);
     }
 }

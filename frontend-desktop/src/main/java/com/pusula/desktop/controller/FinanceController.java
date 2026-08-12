@@ -198,10 +198,9 @@ public class FinanceController {
             private final javafx.scene.layout.HBox hbox = new javafx.scene.layout.HBox(5, btnEdit, btnDelete);
 
             {
-                btnEdit.setStyle(
-                        "-fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand; -fx-font-size: 14px;");
-                btnDelete.setStyle(
-                        "-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand; -fx-font-size: 14px;");
+                btnEdit.getStyleClass().addAll("inline-icon-button", "button-secondary");
+                btnDelete.getStyleClass().addAll("inline-icon-button", "button-danger");
+                hbox.getStyleClass().add("inline-action-group");
 
                 btnEdit.setOnAction(event -> {
                     DailySummaryDTO.ExpenseItemDTO expense = getTableView().getItems().get(getIndex());
@@ -270,19 +269,17 @@ public class FinanceController {
         closeDayButton.setDisable(isDayClosed);
         if (isDayClosed) {
             closeDayButton.setText(bundle.getString("finance.already_closed"));
-            closeDayButton.setStyle(
-                    "-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 12;");
+            if (!closeDayButton.getStyleClass().contains("day-closed")) {
+                closeDayButton.getStyleClass().add("day-closed");
+            }
+        } else {
+            closeDayButton.setText(bundle.getString("finance.close_day"));
+            closeDayButton.getStyleClass().remove("day-closed");
         }
     }
 
     private void updateNetCashColor(BigDecimal netCash) {
-        if (netCash.compareTo(BigDecimal.ZERO) > 0) {
-            netCashLabel.setStyle("-fx-text-fill: #27ae60;");
-        } else if (netCash.compareTo(BigDecimal.ZERO) < 0) {
-            netCashLabel.setStyle("-fx-text-fill: #e74c3c;");
-        } else {
-            netCashLabel.setStyle("-fx-text-fill: #34495e;");
-        }
+        applyAmountClass(netCashLabel, netCash, null);
     }
 
     private void checkUpcomingPayments() {
@@ -468,8 +465,8 @@ public class FinanceController {
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
-            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Error",
-                    "Could not open expense dialog: " + e.getMessage());
+            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
+                    "Gider formu açılamadı: " + e.getMessage());
         }
     }
 
@@ -501,19 +498,14 @@ public class FinanceController {
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
-            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Error",
-                    "Could not open expense dialog: " + e.getMessage());
+            AlertHelper.showAlert(Alert.AlertType.ERROR, null, "Hata",
+                    "Gider formu açılamadı: " + e.getMessage());
         }
     }
 
     private void handleDeleteExpense(DailySummaryDTO.ExpenseItemDTO expenseItem) {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Gider Sil");
-        confirm.setHeaderText("Bu gideri silmek istediğinizden emin misiniz?");
-        confirm.setContentText(expenseItem.getDescription() + " - " + formatCurrency(expenseItem.getAmount()));
-
-        confirm.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
+        if (AlertHelper.showConfirmation(todayExpensesTable.getScene().getWindow(), "Gideri Sil",
+                expenseItem.getDescription() + " · " + formatCurrency(expenseItem.getAmount()))) {
                 financeApi.deleteExpense(expenseItem.getId()).enqueue(new Callback<Void>() {
                     @Override
                     public void onResponse(Call<Void> call, Response<Void> response) {
@@ -537,8 +529,7 @@ public class FinanceController {
                                 null, "Hata", "Bağlantı hatası: " + t.getMessage()));
                     }
                 });
-            }
-        });
+        }
     }
 
     @FXML
@@ -550,19 +541,11 @@ public class FinanceController {
             return;
         }
 
-        Alert confirmationAlert = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmationAlert.setTitle(bundle.getString("finance.close_day"));
-        confirmationAlert.setHeaderText(bundle.getString("dialog.close_day.confirm"));
-        confirmationAlert.setContentText(String.format(
-                "Gider: %s\nNet Kasa: %s",
-                todayExpenseLabel.getText(),
-                netCashLabel.getText()));
-
-        confirmationAlert.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                performDayClosing();
-            }
-        });
+        if (AlertHelper.showConfirmation(todayExpensesTable.getScene().getWindow(),
+                bundle.getString("finance.close_day"), String.format("%s\nGider: %s\nNet Kasa: %s",
+                        bundle.getString("dialog.close_day.confirm"), todayExpenseLabel.getText(), netCashLabel.getText()))) {
+            performDayClosing();
+        }
     }
 
     private void performDayClosing() {
@@ -617,31 +600,23 @@ public class FinanceController {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
-                    setStyle("");
+                    clearAmountClasses(this);
                 } else {
                     setText(item);
                     MonthlySummaryDTO dto = getTableRow().getItem();
-                    if (dto != null && dto.getCarryOver() != null) {
-                        if (dto.getCarryOver().compareTo(java.math.BigDecimal.ZERO) > 0) {
-                            setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                        } else if (dto.getCarryOver().compareTo(java.math.BigDecimal.ZERO) < 0) {
-                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                        } else {
-                            setStyle("");
-                        }
-                    }
+                    applyAmountClass(this, dto != null ? dto.getCarryOver() : null, null);
                 }
             }
         });
 
         setupColoredCurrencyColumn(colReportIncome,
-                MonthlySummaryDTO::getTotalIncome, "#16a34a");
+                MonthlySummaryDTO::getTotalIncome, "amount-positive");
 
         setupColoredCurrencyColumn(colReportCurrentAccount,
-                MonthlySummaryDTO::getCurrentAccountTransferred, "#f39c12");
+                MonthlySummaryDTO::getCurrentAccountTransferred, "amount-warning");
 
         setupColoredCurrencyColumn(colReportExpense,
-                MonthlySummaryDTO::getTotalProfitExpenses, "#dc2626");
+                MonthlySummaryDTO::getTotalProfitExpenses, "amount-negative");
 
         setupSignedCurrencyColumn(colReportProfit, MonthlySummaryDTO::getNetProfit);
         setupSignedCurrencyColumn(colReportClosingProfit, MonthlySummaryDTO::getClosingCumulativeProfit);
@@ -653,7 +628,7 @@ public class FinanceController {
         colReportActions.setCellFactory(param -> new TableCell<>() {
             private final Button btnPDF = new Button("📄 PDF");
             {
-                btnPDF.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand;");
+                btnPDF.getStyleClass().addAll("button-sm", "button-danger");
                 btnPDF.setOnAction(event -> {
                     MonthlySummaryDTO summary = getTableView().getItems().get(getIndex());
                     handleDownloadPDF(summary.getPeriod());
@@ -678,19 +653,13 @@ public class FinanceController {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
-                    setStyle("");
+                    clearAmountClasses(this);
                     return;
                 }
                 setText(item);
                 MonthlySummaryDTO row = getTableRow().getItem();
                 BigDecimal value = row != null ? valueExtractor.apply(row) : null;
-                if (value != null && value.signum() > 0) {
-                    setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                } else if (value != null && value.signum() < 0) {
-                    setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
-                } else {
-                    setStyle("");
-                }
+                applyAmountClass(this, value, null);
             }
         });
     }
@@ -699,23 +668,23 @@ public class FinanceController {
         reportDetailContainer.getChildren().clear();
         if (summary == null) {
             Label empty = new Label("Detayları görmek için bir ay seçin.");
-            empty.setStyle("-fx-text-fill: #64748b; -fx-padding: 18;");
+            empty.getStyleClass().add("empty-state");
             reportDetailContainer.getChildren().add(empty);
             return;
         }
 
         Label title = new Label(summary.getDisplayPeriod() + " Finansal Özeti");
-        title.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
+        title.getStyleClass().add("report-detail-title");
         reportDetailContainer.getChildren().add(title);
 
         addReportSection("ÖZET");
         addReportDetailRow("Geçmiş dönem birikimli kâr / zarar", summary.getCarryOver(),
                 signedColor(summary.getCarryOver()));
-        addReportDetailRow("Satış / ciro", summary.getTotalIncome(), "#16a34a");
-        addReportDetailRow("Cariye aktarılan (satışın alt kalemi)", summary.getCurrentAccountTransferred(), "#ea580c");
-        addReportDetailRow("Servis doğrudan maliyeti", summary.getServiceDirectCost(), "#dc2626");
-        addReportDetailRow("Diğer faaliyet giderleri", summary.getOtherOperatingExpenses(), "#dc2626");
-        addReportDetailRow("Toplam kârlılık gideri", summary.getTotalProfitExpenses(), "#dc2626");
+        addReportDetailRow("Satış / ciro", summary.getTotalIncome(), "amount-positive");
+        addReportDetailRow("Cariye aktarılan (satışın alt kalemi)", summary.getCurrentAccountTransferred(), "amount-warning");
+        addReportDetailRow("Servis doğrudan maliyeti", summary.getServiceDirectCost(), "amount-negative");
+        addReportDetailRow("Diğer faaliyet giderleri", summary.getOtherOperatingExpenses(), "amount-negative");
+        addReportDetailRow("Toplam kârlılık gideri", summary.getTotalProfitExpenses(), "amount-negative");
         addReportDetailRow("Aylık faaliyet kâr / zarar", summary.getNetProfit(), signedColor(summary.getNetProfit()));
         addReportDetailRow("Dönem sonu birikimli kâr / zarar", summary.getClosingCumulativeProfit(),
                 signedColor(summary.getClosingCumulativeProfit()));
@@ -724,31 +693,47 @@ public class FinanceController {
     private void addReportSection(String title) {
         Label label = new Label(title);
         label.setMaxWidth(Double.MAX_VALUE);
-        label.setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #0f172a; "
-                + "-fx-font-weight: bold; -fx-padding: 7 10 7 10;");
+        label.getStyleClass().add("report-section-title");
         reportDetailContainer.getChildren().add(label);
     }
 
     private void addReportDetailRow(String labelText, BigDecimal amount, String color) {
         HBox row = new HBox(10);
-        row.setStyle("-fx-padding: 3 10 3 10;");
+        row.getStyleClass().add("report-detail-row");
         Label label = new Label(labelText);
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         Label value = new Label(formatCurrency(amount));
-        value.setStyle("-fx-font-weight: bold;" + (color != null ? " -fx-text-fill: " + color + ";" : ""));
+        value.getStyleClass().add("report-detail-value");
+        value.getStyleClass().add(color != null ? color : "amount-neutral");
         row.getChildren().addAll(label, spacer, value);
         reportDetailContainer.getChildren().add(row);
     }
 
     private String signedColor(BigDecimal value) {
         if (value == null || value.signum() == 0) return null;
-        return value.signum() > 0 ? "#16a34a" : "#dc2626";
+        return value.signum() > 0 ? "amount-positive" : "amount-negative";
+    }
+
+    private void applyAmountClass(javafx.scene.Node node, BigDecimal value, String positiveOverride) {
+        clearAmountClasses(node);
+        if (value == null || value.signum() == 0) {
+            node.getStyleClass().add("amount-neutral");
+        } else if (value.signum() > 0) {
+            node.getStyleClass().add(positiveOverride != null ? positiveOverride : "amount-positive");
+        } else {
+            node.getStyleClass().add("amount-negative");
+        }
+    }
+
+    private void clearAmountClasses(javafx.scene.Node node) {
+        node.getStyleClass().removeAll(
+                "amount-positive", "amount-negative", "amount-warning", "amount-neutral");
     }
 
     private void setupColoredCurrencyColumn(TableColumn<MonthlySummaryDTO, String> column,
             java.util.function.Function<MonthlySummaryDTO, BigDecimal> valueExtractor,
-            String color) {
+            String amountStyleClass) {
         column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
                 formatCurrency(valueExtractor.apply(cellData.getValue()))));
         column.setCellFactory(col -> new TableCell<>() {
@@ -757,15 +742,14 @@ public class FinanceController {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
-                    setStyle("");
+                    clearAmountClasses(this);
                     return;
                 }
                 setText(item);
                 MonthlySummaryDTO row = getTableRow().getItem();
                 BigDecimal value = row != null ? valueExtractor.apply(row) : null;
-                setStyle(value != null && value.signum() > 0
-                        ? "-fx-text-fill: " + color + "; -fx-font-weight: bold;"
-                        : "");
+                clearAmountClasses(this);
+                if (value != null && value.signum() > 0) getStyleClass().add(amountStyleClass);
             }
         });
     }
@@ -865,7 +849,7 @@ public class FinanceController {
             private final Button btnEdit = new Button("Düzenle");
 
             {
-                btnEdit.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand;");
+                btnEdit.getStyleClass().addAll("button-sm", "button-secondary");
                 btnEdit.setOnAction(event -> {
                     CurrentAccountDTO account = getTableView().getItems().get(getIndex());
                     handleEditBalance(account);
@@ -962,6 +946,7 @@ public class FinanceController {
     private void handleEditBalance(CurrentAccountDTO account) {
         // Create payment dialog with amount and discount fields
         Dialog<Map<String, Object>> dialog = new Dialog<>();
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, todayExpensesTable.getScene().getWindow());
         dialog.setTitle("Cari Hesap Ödemesi");
         dialog.setHeaderText(account.getCustomerName() + " - Borç: " +
                 String.format("%.2f TL", account.getBalance()));

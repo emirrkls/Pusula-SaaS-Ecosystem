@@ -4,6 +4,7 @@ import com.pusula.desktop.api.CompanyDebtApi;
 import com.pusula.desktop.dto.CompanyDebtDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.CurrencyTextField;
+import com.pusula.desktop.util.AlertHelper;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -128,11 +129,7 @@ public class CompanyDebtDialogController {
     }
 
     private void showError(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Hata");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+        AlertHelper.showAlert(Alert.AlertType.ERROR, creditorField.getScene().getWindow(), "Hata", message);
     }
 
     private record CategoryOption(String code, String label) {

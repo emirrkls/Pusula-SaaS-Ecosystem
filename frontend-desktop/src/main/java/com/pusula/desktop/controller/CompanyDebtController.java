@@ -6,6 +6,7 @@ import com.pusula.desktop.dto.CompanyDebtPaymentDTO;
 import com.pusula.desktop.dto.DebtAdditionRequestDTO;
 import com.pusula.desktop.dto.DebtPaymentRequestDTO;
 import com.pusula.desktop.network.RetrofitClient;
+import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.CurrencyTextField;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -104,15 +105,16 @@ public class CompanyDebtController {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
-                    setStyle("");
+                    getStyleClass().removeAll("amount-positive", "amount-negative");
                 } else {
                     setText(item);
+                    getStyleClass().removeAll("amount-positive", "amount-negative");
                     CompanyDebtDTO debt = getTableRow().getItem();
                     if (debt != null && debt.getRemainingAmount() != null) {
                         if (debt.getRemainingAmount().compareTo(BigDecimal.ZERO) > 0) {
-                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                            getStyleClass().add("amount-negative");
                         } else {
-                            setStyle("-fx-text-fill: #27ae60;");
+                            getStyleClass().add("amount-positive");
                         }
                     }
                 }
@@ -132,11 +134,11 @@ public class CompanyDebtController {
             private final HBox box = new HBox(6, payBtn, historyBtn, addBtn, deleteBtn);
 
             {
-                box.setStyle("-fx-alignment: center;");
-                payBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 11; -fx-cursor: hand; -fx-padding: 5 10; -fx-min-width: 50;");
-                historyBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 11; -fx-cursor: hand; -fx-padding: 5 10; -fx-min-width: 58;");
-                addBtn.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white; -fx-font-size: 11; -fx-cursor: hand; -fx-padding: 5 10; -fx-min-width: 50;");
-                deleteBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 11; -fx-cursor: hand; -fx-padding: 5 10; -fx-min-width: 50;");
+                box.getStyleClass().add("table-actions");
+                payBtn.getStyleClass().addAll("btn-success", "btn-sm");
+                historyBtn.getStyleClass().addAll("btn-secondary", "btn-sm");
+                addBtn.getStyleClass().addAll("btn-warning", "btn-sm");
+                deleteBtn.getStyleClass().addAll("btn-danger", "btn-sm");
 
                 payBtn.setOnAction(e -> {
                     CompanyDebtDTO debt = getTableRow().getItem();
@@ -288,6 +290,7 @@ public class CompanyDebtController {
 
     private void handlePayDebt(CompanyDebtDTO debt) {
         Dialog<DebtPaymentRequestDTO> dialog = new Dialog<>();
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, debtTable.getScene().getWindow());
         dialog.setTitle("Borç Öde");
         dialog.setHeaderText(debt.getCreditorName() + " - Kalan: " + formatCurrency(debt.getRemainingAmount()));
         ButtonType payButtonType = new ButtonType("Ödemeyi Kaydet", ButtonBar.ButtonData.OK_DONE);
@@ -388,6 +391,7 @@ public class CompanyDebtController {
 
     private void showPaymentHistoryDialog(CompanyDebtDTO debt, List<CompanyDebtPaymentDTO> payments) {
         Dialog<Void> dialog = new Dialog<>();
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, debtTable.getScene().getWindow());
         dialog.setTitle("Ödeme Geçmişi");
         dialog.setHeaderText(debt.getCreditorName() + " - " + getCategoryText(debt.getExpenseCategory()));
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
@@ -432,12 +436,10 @@ public class CompanyDebtController {
     }
 
     private void undoPayment(CompanyDebtDTO debt, CompanyDebtPaymentDTO payment, Dialog<Void> historyDialog) {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+        if (!AlertHelper.showConfirmation(debtTable.getScene().getWindow(), "Ödemeyi Geri Al",
                 payment.getPaymentDate().format(dateFormatter) + " tarihli "
-                        + formatCurrency(payment.getAmount()) + " ödeme geri alınsın mı?",
-                ButtonType.YES, ButtonType.NO);
-        confirm.setHeaderText("Ödeme ve bağlı finans gideri silinecek");
-        if (confirm.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) {
+                        + formatCurrency(payment.getAmount())
+                        + " ödeme ve bağlı finans gideri geri alınsın mı?")) {
             return;
         }
 
@@ -465,6 +467,7 @@ public class CompanyDebtController {
 
     private void handleAddAmountToDebt(CompanyDebtDTO debt) {
         Dialog<DebtAdditionRequestDTO> dialog = new Dialog<>();
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, debtTable.getScene().getWindow());
         dialog.setTitle("Borca İlave Yap");
         dialog.setHeaderText(debt.getCreditorName() + " borcuna ilave tutar ekleniyor.");
 
@@ -587,13 +590,8 @@ public class CompanyDebtController {
     }
 
     private void handleDeleteDebt(CompanyDebtDTO debt) {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Borç Sil");
-        confirm.setHeaderText("Bu borcu silmek istediğinize emin misiniz?");
-        confirm.setContentText(debt.getCreditorName() + " - " + formatCurrency(debt.getOriginalAmount()));
-
-        confirm.showAndWait().ifPresent(result -> {
-            if (result == ButtonType.OK) {
+        if (AlertHelper.showConfirmation(debtTable.getScene().getWindow(), "Borcu Sil",
+                debt.getCreditorName() + " · " + formatCurrency(debt.getOriginalAmount()))) {
                 api.deleteDebt(debt.getId()).enqueue(new Callback<>() {
                     @Override
                     public void onResponse(Call<Void> call, Response<Void> response) {
@@ -612,8 +610,7 @@ public class CompanyDebtController {
                         Platform.runLater(() -> showError("Silme hatası: " + t.getMessage()));
                     }
                 });
-            }
-        });
+        }
     }
 
     private String getStatusText(String status) {
@@ -651,18 +648,10 @@ public class CompanyDebtController {
     }
 
     private void showError(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Hata");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+        AlertHelper.showAlert(Alert.AlertType.ERROR, debtTable.getScene().getWindow(), "Hata", message);
     }
 
     private void showInfo(String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Bilgi");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+        AlertHelper.showSuccess(debtTable.getScene().getWindow(), "Başarılı", message);
     }
 }

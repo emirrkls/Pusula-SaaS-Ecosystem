@@ -4,6 +4,7 @@ import com.google.gson.JsonParser;
 import com.pusula.desktop.api.ProposalApi;
 import com.pusula.desktop.dto.ProposalDTO;
 import com.pusula.desktop.network.RetrofitClient;
+import com.pusula.desktop.util.AlertHelper;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -100,13 +101,14 @@ public class ProposalViewController {
             private final HBox box = new HBox(5, editBtn, pdfBtn, convertBtn);
 
             {
-                editBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 10px;");
-                pdfBtn.setStyle("-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-size: 10px;");
-                convertBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 10px;");
+                editBtn.getStyleClass().addAll("button-sm", "button-secondary");
+                pdfBtn.getStyleClass().addAll("button-sm", "btn-purple");
+                convertBtn.getStyleClass().addAll("button-sm", "button-success");
+                box.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
                 editBtn.setOnAction(e -> handleEdit(getTableRow().getItem()));
                 pdfBtn.setOnAction(e -> handlePdf(getTableRow().getItem()));
-                convertBtn.setOnAction(e -> handleConvert(getTableRow().getItem()));
+                convertBtn.setOnAction(e -> handleConvert(getTableRow().getItem(), convertBtn));
             }
 
             @Override
@@ -244,14 +246,11 @@ public class ProposalViewController {
         });
     }
 
-    private void handleConvert(ProposalDTO proposal) {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Onay");
-        confirm.setHeaderText("Teklifi işe dönüştür");
-        confirm.setContentText("Bu teklif onaylanıp servis fişine dönüştürülsün mü?");
-
-        confirm.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
+    private void handleConvert(ProposalDTO proposal, Button actionButton) {
+        if (AlertHelper.showConfirmation(proposalsTable.getScene().getWindow(), "Teklifi İşe Dönüştür",
+                "Bu teklif onaylanıp servis fişine dönüştürülsün mü?")) {
+                actionButton.setDisable(true);
+                actionButton.setText("Dönüştürülüyor…");
                 proposalApi.convertToJob(proposal.getId()).enqueue(new Callback<>() {
                     @Override
                     public void onResponse(Call<ProposalDTO> call, Response<ProposalDTO> response) {
@@ -260,10 +259,12 @@ public class ProposalViewController {
                                 : com.pusula.desktop.util.ApiErrorHelper.message(
                                         response, "Dönüştürme başarısız.");
                         Platform.runLater(() -> {
+                            actionButton.setText("İşe Dönüştür");
                             if (response.isSuccessful()) {
                                 showInfo("Teklif başarıyla işe dönüştürüldü!");
                                 loadProposals();
                             } else {
+                                actionButton.setDisable(false);
                                 showError(errorMessage);
                             }
                         });
@@ -271,11 +272,14 @@ public class ProposalViewController {
 
                     @Override
                     public void onFailure(Call<ProposalDTO> call, Throwable t) {
-                        Platform.runLater(() -> showError("Hata: " + t.getMessage()));
+                        Platform.runLater(() -> {
+                            actionButton.setDisable(false);
+                            actionButton.setText("İşe Dönüştür");
+                            showError("Hata: " + t.getMessage());
+                        });
                     }
                 });
-            }
-        });
+        }
     }
 
     private void openEditor(ProposalDTO proposal) {
@@ -307,7 +311,7 @@ public class ProposalViewController {
             stage.centerOnScreen();
             stage.showAndWait();
         } catch (IOException e) {
-            showError("Editor açılamadı: " + e.getMessage());
+            showError("Teklif formu açılamadı: " + e.getMessage());
         }
     }
 
@@ -329,16 +333,10 @@ public class ProposalViewController {
     }
 
     private void showError(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Hata");
-        alert.setContentText(message);
-        alert.showAndWait();
+        AlertHelper.showAlert(Alert.AlertType.ERROR, proposalsTable.getScene().getWindow(), "Hata", message);
     }
 
     private void showInfo(String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Bilgi");
-        alert.setContentText(message);
-        alert.showAndWait();
+        AlertHelper.showSuccess(proposalsTable.getScene().getWindow(), "Başarılı", message);
     }
 }

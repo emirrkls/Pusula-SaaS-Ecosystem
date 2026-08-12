@@ -11,15 +11,18 @@
     </padding>
 
     <HBox alignment="CENTER_LEFT" spacing="16.0" styleClass="page-header">
-        <Label styleClass="page-header-title" text="Teklifler"/>
+        <VBox spacing="3">
+            <Label styleClass="page-header-title" text="Teklifler"/>
+            <Label styleClass="page-subtitle" text="Teklifleri hazırlayın, takip edin ve güvenle işe dönüştürün."/>
+        </VBox>
         <Region HBox.hgrow="ALWAYS"/>
-        <HBox spacing="10.0" styleClass="page-header-actions">
+        <FlowPane hgap="10.0" vgap="8.0" styleClass="page-header-actions">
             <Button fx:id="refreshBtn" onAction="#handleRefresh" styleClass="btn-secondary" text="Yenile"/>
             <Button fx:id="newProposalBtn" onAction="#handleNewProposal" styleClass="btn-primary" text="+ Yeni Teklif"/>
-        </HBox>
+        </FlowPane>
     </HBox>
 
-    <FlowPane alignment="CENTER_LEFT" hgap="15" vgap="10">
+    <FlowPane alignment="CENTER_LEFT" hgap="15" vgap="10" styleClass="filter-bar">
         <Label text="Durum:"/>
         <ComboBox fx:id="statusFilter" onAction="#handleFilterChange" prefWidth="150"/>
         <TextField fx:id="searchField" prefWidth="300" promptText="No, başlık, müşteri veya hazırlayan ara..."/>
@@ -28,6 +31,9 @@
     <Separator/>
 
     <TableView fx:id="proposalsTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
+        <placeholder>
+            <Label styleClass="empty-state" text="Aramanızla eşleşen teklif bulunamadı."/>
+        </placeholder>
         <columns>
             <TableColumn fx:id="colId" prefWidth="60" text="No"/>
             <TableColumn fx:id="colCustomer" prefWidth="180" text="Müşteri"/>

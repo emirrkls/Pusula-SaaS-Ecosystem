@@ -692,7 +692,7 @@ public class InventoryController {
 
             Stage stage = new Stage();
 
-            stage.setTitle(item == null ? "Add Inventory Item" : "Edit Inventory Item");
+            stage.setTitle(item == null ? "Envanter Ürünü Ekle" : "Envanter Ürününü Düzenle");
 
             stage.setScene(ThemeHelper.createDialogScene(root));
 
@@ -706,7 +706,7 @@ public class InventoryController {
 
             AlertHelper.showAlert(Alert.AlertType.ERROR, inventoryTable.getScene().getWindow(),
 
-                    "Error", "Could not open dialog: " + e.getMessage());
+                    "Hata", "Envanter formu açılamadı: " + e.getMessage());
 
         }
 
@@ -760,9 +760,9 @@ public class InventoryController {
 
                     Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
 
-                            inventoryTable.getScene().getWindow(), "Error",
+                            inventoryTable.getScene().getWindow(), "Hata",
 
-                            "Failed to load inventory: " + response.code()));
+                            "Envanter yüklenemedi: " + response.code()));
 
                 }
 
@@ -776,7 +776,7 @@ public class InventoryController {
 
                 Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
 
-                        inventoryTable.getScene().getWindow(), "Network Error",
+                        inventoryTable.getScene().getWindow(), "Bağlantı Hatası",
 
                         "Could not connect to server: " + t.getMessage()));
 

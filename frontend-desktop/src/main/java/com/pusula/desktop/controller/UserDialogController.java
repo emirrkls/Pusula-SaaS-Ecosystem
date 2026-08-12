@@ -140,11 +140,7 @@ public class UserDialogController {
     }
 
     private void showAlert(String message) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle("Uyarı");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+        AlertHelper.showAlert(Alert.AlertType.WARNING, txtUsername.getScene().getWindow(), "Uyarı", message);
     }
 
     private void closeDialog() {

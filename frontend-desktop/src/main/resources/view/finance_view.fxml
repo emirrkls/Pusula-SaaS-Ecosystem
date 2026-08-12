@@ -24,7 +24,7 @@
                   </padding>
                   <children>
                      <!-- Header with Date -->
-                     <HBox alignment="CENTER_LEFT" spacing="10.0">
+                     <HBox alignment="CENTER_LEFT" spacing="10.0" styleClass="detail-header">
                         <children>
                            <Label text="%finance.daily_operations" styleClass="section-title">
                               <font>
@@ -88,6 +88,7 @@
                                     </children>
                                  </HBox>
                                  <TableView fx:id="todayExpensesTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
+                                    <placeholder><Label styleClass="empty-state" text="Bugün gider kaydı yok." /></placeholder>
                                     <columns>
                                        <TableColumn fx:id="colTodayCategory" prefWidth="90.0" text="%table.category" />
                                        <TableColumn fx:id="colTodayDescription" prefWidth="120.0" text="%table.description" />
@@ -128,6 +129,7 @@
                                     </children>
                                  </HBox>
                                  <TableView fx:id="todayIncomesTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
+                                    <placeholder><Label styleClass="empty-state" text="Bugün tahsilat kaydı yok." /></placeholder>
                                     <columns>
                                        <TableColumn fx:id="colIncomeCustomer" prefWidth="120.0" text="%table.customer" />
                                        <TableColumn fx:id="colIncomeTicket" prefWidth="80.0" text="%finance.ticket_id" />
@@ -250,6 +252,7 @@
 
                                            <!-- Monthly Reports Table -->
                         <TableView fx:id="reportsTable" prefHeight="245.0" styleClass="premium-table">
+                         <placeholder><Label styleClass="empty-state" text="Henüz aylık rapor oluşmadı." /></placeholder>
                          <columns>
                             <TableColumn fx:id="colReportPeriod" text="%reports.period" prefWidth="150.0" />
                             <TableColumn fx:id="colReportCarryOver" text="Geçmiş Birikimli K/Z" prefWidth="145.0" />
@@ -266,7 +269,7 @@
                         </TableView>
                         <ScrollPane fitToWidth="true" prefHeight="390.0" VBox.vgrow="ALWAYS">
                            <content>
-                              <VBox fx:id="reportDetailContainer" spacing="5.0" style="-fx-background-color: white; -fx-padding: 14;" />
+                              <VBox fx:id="reportDetailContainer" spacing="5.0" styleClass="report-detail-panel" />
                            </content>
                         </ScrollPane>
                   </children>
@@ -293,6 +296,7 @@
                      <Separator />
                      
                      <TableView fx:id="currentAccountsTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
+                        <placeholder><Label styleClass="empty-state" text="Açık cari hesap bulunmuyor." /></placeholder>
                         <columns>
                            <TableColumn fx:id="colAccountCustomer" text="%current_account.customer" prefWidth="200.0" />
                            <TableColumn fx:id="colAccountBalance" text="%current_account.balance" prefWidth="150.0" />

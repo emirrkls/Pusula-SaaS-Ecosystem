@@ -21,13 +21,9 @@
                                 <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
                             </padding>
                             <children>
-                                <Label text="%settings.user_management">
-                                    <font>
-                                        <Font name="System Bold" size="16.0" />
-                                    </font>
-                                </Label>
+                                <Label text="%settings.user_management" styleClass="section-heading" />
                                 
-                                <HBox spacing="10.0" alignment="CENTER_LEFT">
+                                <FlowPane hgap="10.0" vgap="8.0" alignment="CENTER_LEFT" styleClass="page-header-actions">
                                     <children>
                                         <Button text="%settings.add_user" onAction="#handleAddUser"
                                                 styleClass="btn-success" />
@@ -38,9 +34,10 @@
                                         <Button text="%settings.delete_user" onAction="#handleDeleteUser"
                                                 styleClass="btn-danger" />
                                     </children>
-                                </HBox>
+                                </FlowPane>
                                 
                                 <TableView fx:id="usersTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
+                                    <placeholder><Label text="Henüz kullanıcı kaydı yok." styleClass="empty-state" /></placeholder>
                                     <columns>
                                         <TableColumn fx:id="colUsername" prefWidth="150.0" text="%settings.username" />
                                         <TableColumn fx:id="colFullName" prefWidth="200.0" text="%settings.full_name" />
@@ -63,11 +60,7 @@
                                 <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
                             </padding>
                             <children>
-                                <Label text="%settings.company_profile">
-                                    <font>
-                                        <Font name="System Bold" size="16.0" />
-                                    </font>
-                                </Label>
+                                <Label text="%settings.company_profile" styleClass="section-heading" />
                                 
                                 <GridPane hgap="15.0" vgap="12.0" maxWidth="600.0">
                                     <columnConstraints>
@@ -125,13 +118,9 @@
                                 <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
                             </padding>
                             <children>
-                                <Label text="%settings.vehicles">
-                                    <font>
-                                        <Font name="System Bold" size="16.0" />
-                                    </font>
-                                </Label>
+                                <Label text="%settings.vehicles" styleClass="section-heading" />
                                 
-                                <HBox spacing="10.0" alignment="CENTER_LEFT">
+                                <FlowPane hgap="10.0" vgap="8.0" alignment="CENTER_LEFT" styleClass="page-header-actions">
                                     <children>
                                         <Button text="%vehicle.add" onAction="#handleAddVehicle"
                                                 styleClass="btn-success" />
@@ -140,9 +129,10 @@
                                         <Button text="%button.delete" onAction="#handleDeleteVehicle"
                                                 styleClass="btn-danger" />
                                     </children>
-                                </HBox>
+                                </FlowPane>
                                 
                                 <TableView fx:id="vehiclesTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
+                                    <placeholder><Label text="Henüz araç kaydı yok." styleClass="empty-state" /></placeholder>
                                     <columns>
                                         <TableColumn fx:id="colVehicleId" prefWidth="60.0" text="ID" />
                                         <TableColumn fx:id="colLicensePlate" prefWidth="150.0" text="%vehicle.license_plate" />
@@ -166,13 +156,9 @@
                                 <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
                             </padding>
                             <children>
-                                <Label text="%settings.fixed_expenses">
-                                    <font>
-                                        <Font name="System Bold" size="16.0" />
-                                    </font>
-                                </Label>
+                                <Label text="%settings.fixed_expenses" styleClass="section-heading" />
                                 
-                                <HBox spacing="10.0" alignment="CENTER_LEFT">
+                                <FlowPane hgap="10.0" vgap="8.0" alignment="CENTER_LEFT" styleClass="page-header-actions">
                                     <children>
                                         <Button text="%settings.add_fixed_expense" onAction="#handleAddFixedExpense"
                                                 styleClass="btn-success" />
@@ -181,9 +167,10 @@
                                         <Button text="%settings.delete_fixed_expense" onAction="#handleDeleteFixedExpense"
                                                 styleClass="btn-danger" />
                                     </children>
-                                </HBox>
+                                </FlowPane>
                                 
                                 <TableView fx:id="fixedExpensesTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
+                                    <placeholder><Label text="Henüz sabit gider tanımı yok." styleClass="empty-state" /></placeholder>
                                     <columns>
                                         <TableColumn fx:id="colName" prefWidth="200.0" text="%settings.name" />
                                         <TableColumn fx:id="colAmount" prefWidth="120.0" text="%settings.default_amount" />

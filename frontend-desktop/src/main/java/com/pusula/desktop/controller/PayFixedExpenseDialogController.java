@@ -90,22 +90,19 @@ public class PayFixedExpenseDialogController {
             }
 
             private void updateRowStyle(FixedExpenseRow item, boolean selected) {
+                getStyleClass().removeAll("row-paid", "row-overdue", "row-upcoming");
                 if (item == null) {
-                    setStyle("");
                     return;
                 }
 
                 if (selected) {
-                    // Force dark blue background with white text when selected
-                    setStyle("-fx-background-color: #334155; -fx-text-fill: white;");
+                    return;
                 } else if (item.getDto().isPaidThisMonth()) {
-                    setStyle("-fx-background-color: #dcfce7;"); // Light green for paid
+                    getStyleClass().add("row-paid");
                 } else if (item.getDaysUntilDue() < 0) {
-                    setStyle("-fx-background-color: #fee2e2;"); // Light red for overdue
+                    getStyleClass().add("row-overdue");
                 } else if (item.getDaysUntilDue() >= 0 && item.getDaysUntilDue() <= 3) {
-                    setStyle("-fx-background-color: #fef3c7;"); // Light yellow for upcoming
-                } else {
-                    setStyle("");
+                    getStyleClass().add("row-upcoming");
                 }
             }
         });
@@ -132,7 +129,7 @@ public class PayFixedExpenseDialogController {
         colPayAmount.setCellFactory(column -> new TableCell<FixedExpenseRow, String>() {
             private final TextField textField = new TextField();
             {
-                textField.setStyle("-fx-padding: 2; -fx-font-size: 12px;");
+                textField.getStyleClass().add("compact-table-input");
                 textField.textProperty().addListener((obs, oldVal, newVal) -> {
                     if (getTableRow() != null && getTableRow().getItem() != null) {
                         FixedExpenseRow row = getTableRow().getItem();

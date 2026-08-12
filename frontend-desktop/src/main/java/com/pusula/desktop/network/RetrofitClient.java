@@ -1,7 +1,7 @@
 package com.pusula.desktop.network;
 
 import javafx.application.Platform;
-import javafx.scene.control.Alert;
+import com.pusula.desktop.util.NotificationService;
 import okhttp3.Interceptor;
 import okhttp3.Response;
 import retrofit2.Retrofit;
@@ -87,13 +87,9 @@ public class RetrofitClient {
                                                 && shouldShowForbiddenAlert()) {
                                         Platform.runLater(() -> {
                                                 try {
-                                                        Alert alert = new Alert(Alert.AlertType.ERROR);
-                                                        alert.setTitle("Eri\u015fim Reddedildi");
-                                                        alert.setHeaderText("Yetki Hatas\u0131");
-                                                        alert.setContentText(
-                                                                        "Eri\u015fim Reddedildi: Bu i\u015flem i\u00e7in yetkiniz bulunmamaktad\u0131r.\nURL: "
-                                                                                        + url);
-                                                        alert.showAndWait();
+                                                        NotificationService.modal(null, NotificationService.Kind.ERROR,
+                                                                        "Eri\u015fim Reddedildi",
+                                                                        "Bu i\u015flem i\u00e7in yetkiniz bulunmamaktad\u0131r.");
                                                 } finally {
                                                         markForbiddenAlertClosed();
                                                 }

@@ -198,6 +198,8 @@ public class UnifiedExpenseDialogController {
                         : comboCategory.getValue();
 
                 Dialog<ButtonType> dialog = new Dialog<>();
+                com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog,
+                        comboCategory.getScene().getWindow());
                 dialog.setTitle("Akıllı Eşleştirme Önerisi");
                 dialog.setHeaderText("Ödenmemiş Sabit Giderler Bulundu");
                 
@@ -215,7 +217,7 @@ public class UnifiedExpenseDialogController {
                 choiceBox.getItems().addAll(unpaidMatches);
                 choiceBox.getSelectionModel().selectFirst();
                 choiceBox.setMaxWidth(Double.MAX_VALUE);
-                choiceBox.setStyle("-fx-font-size: 14px; -fx-padding: 5px;");
+                choiceBox.getStyleClass().add("form-control-tall");
                 
                 choiceBox.setConverter(new StringConverter<FixedExpenseDefinitionDTO>() {
                     @Override
@@ -328,22 +330,20 @@ public class UnifiedExpenseDialogController {
             }
 
             private void updateRowStyle(FixedExpenseRow item, boolean selected) {
+                getStyleClass().removeAll("row-paid", "row-partial", "row-overdue", "row-upcoming");
                 if (item == null) {
-                    setStyle("");
                     return;
                 }
                 if (selected) {
-                    setStyle("-fx-background-color: #334155; -fx-text-fill: white;");
+                    return;
                 } else if (item.getDto().isPaidThisMonth()) {
-                    setStyle("-fx-background-color: #dcfce7;");
+                    getStyleClass().add("row-paid");
                 } else if (item.getDto().getPaidAmountThisMonth() != null && item.getDto().getPaidAmountThisMonth().compareTo(BigDecimal.ZERO) > 0) {
-                    setStyle("-fx-background-color: #fef08a;"); // Yellow for partial
+                    getStyleClass().add("row-partial");
                 } else if (item.getDaysUntilDue() < 0) {
-                    setStyle("-fx-background-color: #fee2e2;");
+                    getStyleClass().add("row-overdue");
                 } else if (item.getDaysUntilDue() >= 0 && item.getDaysUntilDue() <= 3) {
-                    setStyle("-fx-background-color: #fef3c7;");
-                } else {
-                    setStyle("");
+                    getStyleClass().add("row-upcoming");
                 }
             }
         });
@@ -376,7 +376,7 @@ public class UnifiedExpenseDialogController {
         colFixedPayAmount.setCellFactory(column -> new TableCell<FixedExpenseRow, String>() {
             private final CurrencyTextField textField = new CurrencyTextField();
             {
-                textField.setStyle("-fx-padding: 2; -fx-font-size: 12px;");
+                textField.getStyleClass().add("compact-table-input");
                 textField.textProperty().addListener((obs, oldVal, newVal) -> {
                     if (getTableRow() != null && getTableRow().getItem() != null) {
                         getTableRow().getItem().setPayAmount(newVal);

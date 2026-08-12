@@ -3,6 +3,7 @@ package com.pusula.desktop.controller;
 import com.pusula.desktop.api.InventoryApi;
 import com.pusula.desktop.dto.InventoryDTO;
 import com.pusula.desktop.network.RetrofitClient;
+import com.pusula.desktop.util.AlertHelper;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -95,11 +96,8 @@ public class PartSelectionDialogController {
             @Override
             public void onFailure(Call<List<InventoryDTO>> call, Throwable t) {
                 Platform.runLater(() -> {
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Error");
-                    alert.setHeaderText("Failed to load inventory");
-                    alert.setContentText(t.getMessage());
-                    alert.showAndWait();
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, partsTable.getScene().getWindow(),
+                            "Envanter Yüklenemedi", t.getMessage());
                 });
             }
         });
@@ -109,11 +107,8 @@ public class PartSelectionDialogController {
     private void handleSelect() {
         selectedPart = partsTable.getSelectionModel().getSelectedItem();
         if (selectedPart == null) {
-            Alert alert = new Alert(Alert.AlertType.WARNING);
-            alert.setTitle("Warning");
-            alert.setHeaderText("No part selected");
-            alert.setContentText("Please select a part from the list.");
-            alert.showAndWait();
+            AlertHelper.showAlert(Alert.AlertType.WARNING, partsTable.getScene().getWindow(),
+                    "Parça Seçilmedi", "Lütfen listeden bir parça seçin.");
             return;
         }
 
@@ -121,11 +116,8 @@ public class PartSelectionDialogController {
 
         // Check if enough stock is available
         if (selectedQuantity > selectedPart.getQuantity()) {
-            Alert alert = new Alert(Alert.AlertType.WARNING);
-            alert.setTitle("Insufficient Stock");
-            alert.setHeaderText("Not enough stock available");
-            alert.setContentText("Available: " + selectedPart.getQuantity() + ", Requested: " + selectedQuantity);
-            alert.showAndWait();
+            AlertHelper.showAlert(Alert.AlertType.WARNING, partsTable.getScene().getWindow(),
+                    "Yetersiz Stok", "Mevcut: " + selectedPart.getQuantity() + ", İstenen: " + selectedQuantity);
             return;
         }
 

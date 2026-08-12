@@ -20,7 +20,7 @@
       <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
    </padding>
    <children>
-      <HBox alignment="CENTER_LEFT" spacing="20.0">
+      <HBox alignment="CENTER_LEFT" spacing="20.0" styleClass="detail-header">
          <children>
             <Label styleClass="dialog-title" text="%ticket.details.title" />
             <Label fx:id="lblStatus" styleClass="page-subtitle" text="STATUS" />
@@ -88,7 +88,7 @@
                                           <TextArea fx:id="txtDescription" editable="false" prefHeight="70.0" wrapText="true" />
                                           <Label styleClass="muted-label" text="%ticket.notes" />
                                           <TextArea fx:id="txtNotes" prefHeight="70.0" wrapText="true" />
-                                          <Button mnemonicParsing="false" onAction="#handleSaveNotes" styleClass="btn-secondary" text="%ticket.save.notes" />
+                                          <Button fx:id="btnSaveNotes" mnemonicParsing="false" onAction="#handleSaveNotes" styleClass="btn-secondary" text="%ticket.save.notes" />
                                        </children>
                                     </VBox>
                                     
@@ -98,7 +98,7 @@
                                           <HBox spacing="10.0">
                                              <children>
                                                 <ComboBox fx:id="comboTechnician" prefWidth="180.0" promptText="%ticket.select.technician" />
-                                                <Button minWidth="70.0" mnemonicParsing="false" onAction="#handleAssign" prefWidth="80.0" styleClass="btn-primary" text="%btn.assign" />
+                                                <Button fx:id="btnAssign" minWidth="70.0" mnemonicParsing="false" onAction="#handleAssign" prefWidth="80.0" styleClass="btn-primary" text="%btn.assign" />
                                              </children>
                                           </HBox>
                                        </children>
@@ -110,11 +110,7 @@
                                  <children>
                                     <HBox alignment="CENTER_LEFT" spacing="10.0">
                                        <children>
-                                          <Label text="%ticket.used.parts">
-                                             <font>
-                                                <Font name="System Bold" size="16.0" />
-                                             </font>
-                                          </Label>
+                                          <Label styleClass="section-heading" text="%ticket.used.parts" />
                                           <Button fx:id="btnAddPart" mnemonicParsing="false" onAction="#handleAddPart" styleClass="btn-success" text="%ticket.add.part" />
                                        </children>
                                     </HBox>
@@ -137,11 +133,7 @@
                                  <children>
                                     <HBox alignment="CENTER_LEFT" spacing="10.0">
                                        <children>
-                                          <Label text="Dış Giderler">
-                                             <font>
-                                                <Font name="System Bold" size="16.0" />
-                                             </font>
-                                          </Label>
+                                          <Label styleClass="section-heading" text="Dış Giderler" />
                                           <Button fx:id="btnAddExpense" mnemonicParsing="false" onAction="#handleAddExpense" styleClass="btn-warning" text="+ Dış Gider Ekle" />
                                        </children>
                                     </HBox>
@@ -180,7 +172,7 @@
          </tabs>
       </TabPane>
       
-      <HBox alignment="CENTER_RIGHT" spacing="10.0">
+      <HBox alignment="CENTER_RIGHT" spacing="10.0" styleClass="ticket-action-bar">
          <children>
             <Button fx:id="btnPrintPdf" onAction="#handlePrintPdf" prefWidth="120.0" styleClass="btn-purple" text="%btn.print" />
             <Button fx:id="btnCreateRecall" managed="false" onAction="#handleCreateRecall" prefWidth="180.0" styleClass="btn-warning" text="%ticket.recall" visible="false" />

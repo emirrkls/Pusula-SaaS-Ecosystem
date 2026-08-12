@@ -214,14 +214,14 @@ public class ServiceTicketController {
         }
 
         private void applyAccentColor(Region region, String status) {
-            String color = switch (status != null ? status.trim().toUpperCase() : "") {
-                case "COMPLETED" -> "#0F766E";
-                case "IN_PROGRESS" -> "#00B6EB";
-                case "CANCELLED" -> "#B91C1C";
-                case "ASSIGNED" -> "#6D28D9";
-                default -> "#B45309";
-            };
-            region.setStyle("-fx-background-color: " + color + ";");
+            region.getStyleClass().removeIf(c -> c.startsWith("ticket-accent-"));
+            region.getStyleClass().add(switch (status != null ? status.trim().toUpperCase() : "") {
+                case "COMPLETED" -> "ticket-accent-completed";
+                case "IN_PROGRESS" -> "ticket-accent-in-progress";
+                case "CANCELLED" -> "ticket-accent-cancelled";
+                case "ASSIGNED" -> "ticket-accent-assigned";
+                default -> "ticket-accent-pending";
+            });
         }
     }
 
@@ -444,7 +444,7 @@ public class ServiceTicketController {
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
-            NotificationHelper.showError("Dialog açılamadı: " + e.getMessage());
+            NotificationHelper.showError("Servis formu açılamadı: " + e.getMessage());
         }
     }
 
