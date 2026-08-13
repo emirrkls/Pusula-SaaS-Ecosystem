@@ -254,7 +254,12 @@ public class ReportService {
                 dateCell.setVerticalAlignment(Element.ALIGN_TOP);
 
                 DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-                String startDate = ticket.getCreatedAt() != null ? ticket.getCreatedAt().format(fmt) : "-";
+                // The application date is the business date selected when the service
+                // ticket is opened. createdAt only describes when the row was persisted,
+                // which can be today for a historical ticket entered later.
+                String startDate = ticket.getScheduledDate() != null
+                                ? ticket.getScheduledDate().format(fmt)
+                                : ticket.getCreatedAt() != null ? ticket.getCreatedAt().format(fmt) : "-";
                 String endDate = "-";
                 if (ticket.getStatus() == ServiceTicket.TicketStatus.COMPLETED
                                 && ticket.getEffectiveCompletedAt() != null) {
