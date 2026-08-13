@@ -56,6 +56,10 @@ public class ServiceTicket extends BaseEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    /** Last time an administrator reopened this completed ticket for correction. */
+    @Column(name = "reopened_at")
+    private LocalDateTime reopenedAt;
+
     /** Business date on which liquid payment was collected. Null for current account. */
     @Column(name = "collection_date")
     private LocalDate collectionDate;
@@ -212,6 +216,14 @@ public class ServiceTicket extends BaseEntity {
 
     public void setCompletedAt(LocalDateTime completedAt) {
         this.completedAt = completedAt;
+    }
+
+    public LocalDateTime getReopenedAt() {
+        return reopenedAt;
+    }
+
+    public void setReopenedAt(LocalDateTime reopenedAt) {
+        this.reopenedAt = reopenedAt;
     }
 
     public LocalDate getCollectionDate() {

@@ -22,6 +22,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.List;
 
@@ -254,6 +255,85 @@ class ServiceTicketCompletionTest {
 
         assertThrows(IllegalArgumentException.class, () -> service.createTicket(request));
         verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    void adminCanSafelyReopenCompletedTicketAndReverseItsOutstandingBalance() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        LocalDate completedDate = LocalDate.now().minusDays(8);
+        ServiceTicket ticket = openTicket(100L, 10L, null);
+        ticket.setCustomerId(20L);
+        ticket.setStatus(ServiceTicket.TicketStatus.COMPLETED);
+        ticket.setCompletedAt(completedDate.atTime(16, 30));
+        ticket.setLaborFee(new BigDecimal("700.00"));
+        ticket.setPartsTotal(new BigDecimal("300.00"));
+        ticket.setInvoiceTotal(new BigDecimal("1000.00"));
+        ticket.setCollectedAmount(new BigDecimal("700.00"));
+        ticket.setOutstandingAmount(new BigDecimal("300.00"));
+        ticket.setPaymentMethod(PaymentMethod.CASH);
+
+        Customer customer = Customer.builder().id(20L).companyId(10L).name("Test Müşteri").build();
+        CurrentAccount account = CurrentAccount.builder()
+                .id(5L).companyId(10L).customer(customer).balance(new BigDecimal("500.00")).build();
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
+        when(currentAccountRepository.findByCustomerIdAndCompanyIdForUpdate(20L, 10L))
+                .thenReturn(Optional.of(account));
+        when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
+        when(currentAccountRepository.findByCustomerId(20L)).thenReturn(Optional.of(account));
+
+        ServiceTicketDTO result = service.reopenCompletedService(100L);
+
+        assertEquals(ServiceTicket.TicketStatus.IN_PROGRESS, ticket.getStatus());
+        assertNotNull(ticket.getReopenedAt());
+        assertEquals(new BigDecimal("200.00"), account.getBalance());
+        assertEquals(new BigDecimal("1000.00"), result.getInvoiceTotal());
+        assertEquals(new BigDecimal("700.00"), result.getCollectedAmount());
+        assertEquals(ticket.getReopenedAt(), result.getReopenedAt());
+        verify(currentAccountRepository).save(account);
+        verify(financeService).reconcileClosedDay(10L, completedDate);
+        verify(auditLogService).log(eq("REOPEN"), eq("TICKET"), eq(100L), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void reopenIsBlockedWhenOriginalCurrentAccountDebtHasAlreadyBeenPaid() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = openTicket(100L, 10L, null);
+        ticket.setCustomerId(20L);
+        ticket.setStatus(ServiceTicket.TicketStatus.COMPLETED);
+        ticket.setOutstandingAmount(new BigDecimal("300.00"));
+        Customer customer = Customer.builder().id(20L).companyId(10L).name("Test Müşteri").build();
+        CurrentAccount account = CurrentAccount.builder()
+                .id(5L).companyId(10L).customer(customer).balance(new BigDecimal("100.00")).build();
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
+        when(currentAccountRepository.findByCustomerIdAndCompanyIdForUpdate(20L, 10L))
+                .thenReturn(Optional.of(account));
+
+        assertThrows(IllegalStateException.class, () -> service.reopenCompletedService(100L));
+        assertEquals(ServiceTicket.TicketStatus.COMPLETED, ticket.getStatus());
+        assertEquals(new BigDecimal("100.00"), account.getBalance());
+        verify(ticketRepository, never()).save(any());
+        verify(currentAccountRepository, never()).save(any());
+    }
+
+    @Test
+    void technicianCannotReopenCompletedTicket() {
+        authenticate(7L, 10L, "TECHNICIAN");
+
+        assertThrows(AccessDeniedException.class, () -> service.reopenCompletedService(100L));
+        verify(ticketRepository, never()).findByIdAndCompanyIdForUpdate(anyLong(), anyLong());
+    }
+
+    @Test
+    void reopenedTicketCannotBeCancelledAndLoseItsHistoricalCollection() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = openTicket(100L, 10L, null);
+        ticket.setReopenedAt(LocalDateTime.now().minusMinutes(5));
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+
+        assertThrows(IllegalStateException.class, () -> service.cancelService(100L));
+        verify(ticketRepository, never()).save(any());
+        verify(usedPartRepository, never()).findByServiceTicketId(anyLong());
     }
 
     private ServiceTicket openTicket(Long id, Long companyId, Long technicianId) {

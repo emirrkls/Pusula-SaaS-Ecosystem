@@ -5,12 +5,15 @@ import com.pusula.backend.dto.ServiceTicketDTO;
 import com.pusula.backend.dto.ServiceUsedPartDTO;
 import com.pusula.backend.dto.CompleteServiceRequest;
 import com.pusula.backend.dto.BulkTicketAssignmentRequest;
+import com.pusula.backend.dto.AuthRequest;
 import com.pusula.backend.entity.ServicePhoto;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.service.ServiceTicketService;
+import com.pusula.backend.service.AuthenticationService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -35,9 +38,11 @@ import java.util.Map;
 public class ServiceTicketController {
 
     private final ServiceTicketService service;
+    private final AuthenticationService authenticationService;
 
-    public ServiceTicketController(ServiceTicketService service) {
+    public ServiceTicketController(ServiceTicketService service, AuthenticationService authenticationService) {
         this.service = service;
+        this.authenticationService = authenticationService;
     }
 
     private User getCurrentUser() {
@@ -81,6 +86,16 @@ public class ServiceTicketController {
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ServiceTicketDTO> assignTechnician(@PathVariable Long id, @RequestParam Long technicianId) {
         return ResponseEntity.ok(service.assignTechnician(id, technicianId));
+    }
+
+    @PatchMapping("/{id}/reopen")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ServiceTicketDTO> reopenCompletedService(
+            @PathVariable Long id, @RequestBody AuthRequest request) {
+        if (!authenticationService.verifyCurrentUserPassword(request != null ? request.getPassword() : null)) {
+            throw new AccessDeniedException("Yönetici şifresi doğrulanamadı.");
+        }
+        return ResponseEntity.ok(service.reopenCompletedService(id));
     }
 
     @PatchMapping("/bulk-assign")

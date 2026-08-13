@@ -33,8 +33,6 @@ import java.time.LocalDate;
 import java.util.List;
 import com.pusula.desktop.dto.InventoryDTO;
 import com.pusula.desktop.dto.AuthRequest;
-import com.pusula.desktop.dto.AuthResponse;
-import com.pusula.desktop.api.AuthApi;
 import com.pusula.desktop.util.UTF8Control;
 import java.util.Locale;
 import javafx.stage.FileChooser;
@@ -201,6 +199,8 @@ public class TicketDetailsController {
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
+                editBtn.setDisable(empty || !canModifyExpenses());
+                deleteBtn.setDisable(empty || !canModifyExpenses());
                 setGraphic(empty ? null : actions);
             }
         });
@@ -387,6 +387,8 @@ public class TicketDetailsController {
                 return "Tamamlandı";
             case "CANCEL":
                 return "İptal Edildi";
+            case "REOPEN":
+                return "Fiş Yeniden Açıldı";
             case "ADD_PART":
                 return "Parça Eklendi";
             default:
@@ -399,7 +401,12 @@ public class TicketDetailsController {
             return;
 
         // Translate and display status
-        lblStatus.setText(getStatusTranslation(currentTicket.getStatus()));
+        boolean reopened = currentTicket.getReopenedAt() != null
+                && !"COMPLETED".equals(currentTicket.getStatus())
+                && !"CANCELLED".equals(currentTicket.getStatus());
+        lblStatus.setText(reopened
+                ? "Yeniden Açıldı · " + getStatusTranslation(currentTicket.getStatus())
+                : getStatusTranslation(currentTicket.getStatus()));
         txtDescription.setText(currentTicket.getDescription());
         txtNotes.setText(currentTicket.getNotes());
         // Check if ticket is completed
@@ -410,15 +417,17 @@ public class TicketDetailsController {
         btnCreateRecall.setVisible(isCompleted);
         btnCreateRecall.setManaged(isCompleted);
         // Show edit completed button only for COMPLETED tickets
-        btnEditCompleted.setVisible(isCompleted);
-        btnEditCompleted.setManaged(isCompleted);
+        btnEditCompleted.setVisible(isCompleted && com.pusula.desktop.util.SessionManager.isAdmin());
+        btnEditCompleted.setManaged(isCompleted && com.pusula.desktop.util.SessionManager.isAdmin());
         // Disable action buttons for closed tickets
         btnCompleteService.setVisible(!isClosed);
         btnCompleteService.setManaged(!isClosed);
-        btnCancelService.setVisible(!isClosed);
-        btnCancelService.setManaged(!isClosed);
+        btnCancelService.setVisible(!isClosed && !reopened);
+        btnCancelService.setManaged(!isClosed && !reopened);
         btnAddPart.setDisable(isClosed);
+        btnAddExpense.setDisable(isClosed);
         partsTable.refresh();
+        expensesTable.refresh();
 
         // Disable editing for closed tickets
         txtNotes.setEditable(!isClosed);
@@ -431,7 +440,7 @@ public class TicketDetailsController {
 
         // Status Change Button Logic
         boolean canChangeStatus = false;
-        if (com.pusula.desktop.util.SessionManager.isAdmin()) {
+        if (com.pusula.desktop.util.SessionManager.isAdmin() && !isClosed) {
             canChangeStatus = true;
         } else if (com.pusula.desktop.util.SessionManager.isTechnician()) {
             // Check if assigned to current user
@@ -617,6 +626,10 @@ public class TicketDetailsController {
                 && !"CANCELLED".equals(currentTicket.getStatus());
     }
 
+    private boolean canModifyExpenses() {
+        return canModifyParts();
+    }
+
     private void changePartQuantity(ServiceUsedPartDTO part, int change) {
         if (part == null || !canModifyParts() || part.getQuantityUsed() == null) {
             return;
@@ -769,11 +782,12 @@ public class TicketDetailsController {
 
     @FXML
     private void handleAddExpense() {
+        if (!canModifyExpenses()) return;
         showExpenseDialog(null);
     }
 
     private void showExpenseDialog(ServiceTicketExpenseDTO existingExpense) {
-        if (currentTicket == null)
+        if (currentTicket == null || !canModifyExpenses())
             return;
 
         Dialog<ServiceTicketExpenseDTO> dialog = new Dialog<>();
@@ -1103,57 +1117,40 @@ public class TicketDetailsController {
             return null;
         });
         dialog.showAndWait().ifPresent(password -> {
-            verifyCurrentAdminPassword(password);
+            reopenCompletedTicket(password);
         });
     }
 
-    private void verifyCurrentAdminPassword(String password) {
+    private void reopenCompletedTicket(String password) {
         AuthRequest authRequest = new AuthRequest(
                 com.pusula.desktop.util.SessionManager.getUsername(), password);
-
-        AuthApi authApi = RetrofitClient.getClient().create(AuthApi.class);
-        authApi.verifyPassword(authRequest).enqueue(new Callback<java.util.Map<String, Boolean>>() {
+        ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
+        api.reopenCompletedService(currentTicket.getId(), authRequest).enqueue(new Callback<ServiceTicketDTO>() {
             @Override
-            public void onResponse(Call<java.util.Map<String, Boolean>> call,
-                    Response<java.util.Map<String, Boolean>> response) {
+            public void onResponse(Call<ServiceTicketDTO> call, Response<ServiceTicketDTO> response) {
                 Platform.runLater(() -> {
-                    if (response.isSuccessful() && response.body() != null
-                            && Boolean.TRUE.equals(response.body().get("valid"))) {
-                        // Password is correct, enable editing
-                        enableEditingForCompletedTicket();
+                    if (response.isSuccessful() && response.body() != null) {
+                        currentTicket = response.body();
+                        updateUI();
+                        loadUsedParts();
+                        loadExpenses();
+                        AlertHelper.showSuccess(lblStatus.getScene().getWindow(), "Fiş Yeniden Açıldı",
+                                "Fiş artık normal bir açık servis gibi düzenlenebilir. Parça, dış gider, not ve teknisyen değişikliklerinden sonra yeniden kapatın.");
                     } else {
-                        // Password is incorrect
+                        String message = com.pusula.desktop.util.ApiErrorHelper.message(
+                                response, "Fiş yeniden açılamadı. Şifrenizi ve cari durumunu kontrol edin.");
                         AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                                resourceBundle.getString("dialog.title.error"),
-                                resourceBundle.getString("dialog.admin.error"));
+                                "Fiş Yeniden Açılamadı", message);
                     }
                 });
             }
 
             @Override
-            public void onFailure(Call<java.util.Map<String, Boolean>> call, Throwable t) {
-                Platform.runLater(() -> {
-                    AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                            resourceBundle.getString("dialog.title.error"),
-                            resourceBundle.getString("dialog.admin.error"));
-                });
+            public void onFailure(Call<ServiceTicketDTO> call, Throwable t) {
+                Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                        lblStatus.getScene().getWindow(), "Fiş Yeniden Açılamadı", t.getMessage()));
             }
         });
-    }
-
-    private void enableEditingForCompletedTicket() {
-        // Re-enable editing fields
-        txtNotes.setEditable(true);
-        comboTechnician.setDisable(false);
-
-        // Hide the edit button since we're now in edit mode
-        btnEditCompleted.setVisible(false);
-        btnEditCompleted.setManaged(false);
-
-        // Show a save button or update existing button
-        AlertHelper.showAlert(Alert.AlertType.INFORMATION, lblStatus.getScene().getWindow(),
-                resourceBundle.getString("dialog.title.info"),
-                "Not ve teknisyen düzenleme modu etkinleştirildi. Finansal tutarları korumak için kapanmış fişin parça adedi değiştirilemez.");
     }
 
     private void openParentTicket(Long parentId) {
@@ -1280,13 +1277,17 @@ public class TicketDetailsController {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         CurrencyTextField laborFeeField = new CurrencyTextField();
-        laborFeeField.setRawValue(BigDecimal.ZERO);
+        laborFeeField.setRawValue(currentTicket.getLaborFee() != null
+                ? currentTicket.getLaborFee() : BigDecimal.ZERO);
         CurrencyTextField collectedField = new CurrencyTextField();
-        collectedField.setRawValue(partsTotal);
+        collectedField.setRawValue(currentTicket.getCollectedAmount() != null
+                ? currentTicket.getCollectedAmount() : partsTotal.add(laborFeeField.getRawValue()));
 
         Label partsTotalLabel = new Label(formatMoney(partsTotal));
-        Label invoiceTotalLabel = new Label(formatMoney(partsTotal));
-        Label outstandingLabel = new Label(formatMoney(BigDecimal.ZERO));
+        BigDecimal initialInvoiceTotal = partsTotal.add(laborFeeField.getRawValue());
+        Label invoiceTotalLabel = new Label(formatMoney(initialInvoiceTotal));
+        Label outstandingLabel = new Label(formatMoney(
+                initialInvoiceTotal.subtract(collectedField.getRawValue()).max(BigDecimal.ZERO)));
 
         javafx.scene.control.ComboBox<String> paymentCombo = new javafx.scene.control.ComboBox<>();
         paymentCombo.getItems().addAll(
@@ -1294,9 +1295,15 @@ public class TicketDetailsController {
                 resourceBundle.getString("payment.credit_card"), // Kredi Kartı
                 resourceBundle.getString("payment.current_account") // Cari Hesap (Veresiye)
         );
-        paymentCombo.setValue(resourceBundle.getString("payment.cash")); // Default to cash
+        String existingPaymentMethod = currentTicket.getPaymentMethod();
+        paymentCombo.setValue("CREDIT_CARD".equals(existingPaymentMethod)
+                ? resourceBundle.getString("payment.credit_card")
+                : "CURRENT_ACCOUNT".equals(existingPaymentMethod)
+                        ? resourceBundle.getString("payment.current_account")
+                        : resourceBundle.getString("payment.cash"));
 
-        DatePicker completionDatePicker = new DatePicker(LocalDate.now());
+        DatePicker completionDatePicker = new DatePicker(currentTicket.getCompletedAt() != null
+                ? currentTicket.getCompletedAt().toLocalDate() : LocalDate.now());
         completionDatePicker.setDayCellFactory(picker -> new DateCell() {
             @Override
             public void updateItem(LocalDate item, boolean empty) {
@@ -1321,6 +1328,11 @@ public class TicketDetailsController {
             grid.add(new Label(resourceBundle.getString("dialog.complete.date") + ":"), 0, 6);
             grid.add(completionDatePicker, 1, 6);
         }
+
+        boolean initiallyCurrentAccount = paymentCombo.getValue()
+                .equals(resourceBundle.getString("payment.current_account"));
+        collectedField.setDisable(initiallyCurrentAccount);
+        if (initiallyCurrentAccount) collectedField.setRawValue(BigDecimal.ZERO);
 
         Runnable updateTotals = () -> {
             BigDecimal invoiceTotal = partsTotal.add(laborFeeField.getRawValue());
@@ -1351,6 +1363,7 @@ public class TicketDetailsController {
                     : partsTotal.add(laborFeeField.getRawValue()));
             updateTotals.run();
         });
+        updateTotals.run();
 
         dialog.getDialogPane().setContent(grid);
 

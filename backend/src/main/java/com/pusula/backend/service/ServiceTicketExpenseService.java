@@ -71,6 +71,7 @@ public class ServiceTicketExpenseService {
             throw new IllegalArgumentException("Gider tutarı sıfırdan büyük olmalıdır.");
         }
         ServiceTicket ticket = getAccessibleTicket(dto.getServiceTicketId());
+        validateExpenseMutationState(ticket);
         LocalDate expenseDate = resolveExpenseDate(ticket);
 
         // Create the finance row first so the service expense retains an exact link.
@@ -109,6 +110,7 @@ public class ServiceTicketExpenseService {
     public ServiceTicketExpenseDTO updateExpense(Long ticketId, Long id, ServiceTicketExpenseDTO dto) {
         validateExpense(dto);
         ServiceTicket ticket = getAccessibleTicket(ticketId);
+        validateExpenseMutationState(ticket);
         ServiceTicketExpense expense = repository.findByIdAndServiceTicketId(id, ticketId)
                 .filter(row -> ticket.getCompanyId().equals(row.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Gider bulunamadı: " + id));
@@ -146,6 +148,7 @@ public class ServiceTicketExpenseService {
     @Transactional
     public void deleteExpense(Long ticketId, Long id) {
         ServiceTicket ticket = getAccessibleTicket(ticketId);
+        validateExpenseMutationState(ticket);
         ServiceTicketExpense expense = repository.findByIdAndServiceTicketId(id, ticketId)
                 .filter(row -> ticket.getCompanyId().equals(row.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Gider bulunamadı: " + id));
@@ -190,6 +193,14 @@ public class ServiceTicketExpenseService {
         }
         if (dto.getAmount() == null || dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Gider tutarı sıfırdan büyük olmalıdır.");
+        }
+    }
+
+    private void validateExpenseMutationState(ServiceTicket ticket) {
+        if (ticket.getStatus() == ServiceTicket.TicketStatus.COMPLETED
+                || ticket.getStatus() == ServiceTicket.TicketStatus.CANCELLED) {
+            throw new IllegalStateException(
+                    "Kapanmış servisin dış giderleri değiştirilemez. Önce fişi yeniden açın.");
         }
     }
 

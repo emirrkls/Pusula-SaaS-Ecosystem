@@ -3,6 +3,7 @@ package com.pusula.desktop.api;
 import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.dto.ServiceUsedPartDTO;
 import com.pusula.desktop.dto.BulkTicketAssignmentRequest;
+import com.pusula.desktop.dto.AuthRequest;
 import retrofit2.Call;
 import retrofit2.http.*;
 
@@ -24,6 +25,9 @@ public interface ServiceTicketApi {
 
     @PATCH("api/tickets/{id}/assign")
     Call<ServiceTicketDTO> assignTechnician(@Path("id") Long id, @Query("technicianId") Long technicianId);
+
+    @PATCH("api/tickets/{id}/reopen")
+    Call<ServiceTicketDTO> reopenCompletedService(@Path("id") Long id, @Body AuthRequest request);
 
     @PATCH("api/tickets/bulk-assign")
     Call<List<ServiceTicketDTO>> assignTechnicianBulk(@Body BulkTicketAssignmentRequest request);

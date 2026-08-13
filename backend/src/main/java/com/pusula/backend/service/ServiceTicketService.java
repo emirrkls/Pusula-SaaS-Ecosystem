@@ -203,6 +203,12 @@ public class ServiceTicketService {
                 .filter(t -> t.getCompanyId().equals(user.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
 
+        if (ticket.getStatus() == ServiceTicket.TicketStatus.COMPLETED
+                || ticket.getStatus() == ServiceTicket.TicketStatus.CANCELLED) {
+            throw new IllegalStateException(
+                    "Kapanmış servis genel güncelleme ile değiştirilemez. Önce güvenli yeniden açma işlemini kullanın.");
+        }
+
         // RBAC: If user is TECHNICIAN, they can only update if assigned to them
         if ("TECHNICIAN".equals(user.getRole())) {
             if (ticket.getAssignedTechnicianId() == null || !ticket.getAssignedTechnicianId().equals(user.getId())) {
@@ -378,6 +384,50 @@ public class ServiceTicketService {
             publishAssignment(saved, technician.getId());
         }
 
+        return mapToDTO(saved);
+    }
+
+    @Transactional
+    public ServiceTicketDTO reopenCompletedService(Long ticketId) {
+        User currentUser = getCurrentUser();
+        if (!isAdmin(currentUser)) {
+            throw new AccessDeniedException("Servisi yalnızca şirket yöneticisi yeniden açabilir.");
+        }
+
+        ServiceTicket ticket = repository.findByIdAndCompanyIdForUpdate(ticketId, currentUser.getCompanyId())
+                .orElseThrow(() -> new RuntimeException("Servis fişi bulunamadı veya erişim reddedildi."));
+        if (ticket.getStatus() != ServiceTicket.TicketStatus.COMPLETED || ticket.isCurrentAccountPayment()) {
+            throw new IllegalStateException("Yalnızca tamamlanmış normal servis fişleri yeniden açılabilir.");
+        }
+
+        BigDecimal previousOutstanding = ticket.getOutstandingAmount() != null
+                ? ticket.getOutstandingAmount().max(BigDecimal.ZERO)
+                : (ticket.getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT
+                        ? ticket.getEffectiveInvoiceTotal().max(BigDecimal.ZERO)
+                        : BigDecimal.ZERO);
+        if (previousOutstanding.signum() > 0) {
+            CurrentAccount account = currentAccountRepository
+                    .findByCustomerIdAndCompanyIdForUpdate(ticket.getCustomerId(), ticket.getCompanyId())
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Fişin oluşturduğu cari borç bulunamadığı için güvenli biçimde yeniden açılamıyor."));
+            BigDecimal balance = account.getBalance() != null ? account.getBalance() : BigDecimal.ZERO;
+            if (balance.compareTo(previousOutstanding) < 0) {
+                throw new IllegalStateException(
+                        "Bu fişin cari borcuna ödeme yapılmış. Cari bakiye düzeltilmeden fiş yeniden açılamaz.");
+            }
+            account.setBalance(balance.subtract(previousOutstanding));
+            currentAccountRepository.save(account);
+        }
+
+        String previousStatus = getStatusInTurkish(ticket.getStatus());
+        ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
+        ticket.setReopenedAt(LocalDateTime.now(businessZone));
+        ServiceTicket saved = repository.save(ticket);
+        if (saved.getCompletedAt() != null) {
+            financeService.reconcileClosedDay(saved.getCompanyId(), saved.getCompletedAt().toLocalDate());
+        }
+        auditLogService.log("REOPEN", "TICKET", saved.getId(),
+                "Servis fişi yönetici tarafından yeniden açıldı", previousStatus, "Yeniden Açıldı");
         return mapToDTO(saved);
     }
 
@@ -856,6 +906,10 @@ public class ServiceTicketService {
                 || ticket.getStatus() == ServiceTicket.TicketStatus.CANCELLED) {
             throw new IllegalStateException("Kapalı bir servis tekrar iptal edilemez.");
         }
+        if (ticket.getReopenedAt() != null) {
+            throw new IllegalStateException(
+                    "Yeniden açılmış servis fişi iptal edilemez. Düzeltmeleri tamamlayıp fişi yeniden kapatın.");
+        }
 
         // Return all used parts back to inventory. This also safely revives an
         // inventory row that was soft-deleted after its stock reached zero.
@@ -980,6 +1034,7 @@ public class ServiceTicketService {
                 .createdAt(ticket.getCreatedAt())
                 .updatedAt(ticket.getUpdatedAt())
                 .completedAt(ticket.getEffectiveCompletedAt())
+                .reopenedAt(ticket.getReopenedAt())
                 .collectionDate(ticket.getEffectiveCollectionDate())
                 .parentTicketId(ticket.getParentTicketId())
                 .isWarrantyCall(ticket.isWarrantyCall())

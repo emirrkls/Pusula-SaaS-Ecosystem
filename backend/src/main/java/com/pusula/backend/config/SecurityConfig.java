@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/settings/**").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
                         .requestMatchers("/api/push-devices/**").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN", "TECHNICIAN")
                         .requestMatchers("/api/tickets/bulk-assign").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
+                        .requestMatchers("/api/tickets/*/reopen").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
                         .requestMatchers("/api/tickets/*/assign").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
                         .anyRequest().authenticated())
                 .headers(headers -> headers.frameOptions(frame -> frame.disable())) // Allow H2 Console in iframe

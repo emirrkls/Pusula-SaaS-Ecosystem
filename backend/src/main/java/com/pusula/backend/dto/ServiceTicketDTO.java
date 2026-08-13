@@ -23,6 +23,7 @@ public class ServiceTicketDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime completedAt;
+    private LocalDateTime reopenedAt;
     private LocalDate collectionDate;
     private Long parentTicketId;
     private boolean isWarrantyCall;
@@ -161,6 +162,9 @@ public class ServiceTicketDTO {
         this.completedAt = completedAt;
     }
 
+    public LocalDateTime getReopenedAt() { return reopenedAt; }
+    public void setReopenedAt(LocalDateTime reopenedAt) { this.reopenedAt = reopenedAt; }
+
     public LocalDate getCollectionDate() {
         return collectionDate;
     }
@@ -232,6 +236,7 @@ public class ServiceTicketDTO {
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
         private LocalDateTime completedAt;
+        private LocalDateTime reopenedAt;
         private LocalDate collectionDate;
         private Long parentTicketId;
         private boolean isWarrantyCall;
@@ -301,6 +306,11 @@ public class ServiceTicketDTO {
             return this;
         }
 
+        public ServiceTicketDTOBuilder reopenedAt(LocalDateTime reopenedAt) {
+            this.reopenedAt = reopenedAt;
+            return this;
+        }
+
         public ServiceTicketDTOBuilder collectionDate(LocalDate collectionDate) {
             this.collectionDate = collectionDate;
             return this;
@@ -331,6 +341,7 @@ public class ServiceTicketDTO {
                     collectedAmount, createdAt, parentTicketId, isWarrantyCall, customerName, paymentMethod);
             dto.setUpdatedAt(updatedAt);
             dto.setCompletedAt(completedAt);
+            dto.setReopenedAt(reopenedAt);
             dto.setCollectionDate(collectionDate);
             dto.setLaborFee(laborFee);
             dto.setPartsTotal(partsTotal);

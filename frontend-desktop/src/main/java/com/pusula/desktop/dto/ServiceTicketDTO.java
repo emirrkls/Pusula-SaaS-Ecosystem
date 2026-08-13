@@ -21,7 +21,9 @@ public class ServiceTicketDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime completedAt;
+    private LocalDateTime reopenedAt;
     private LocalDate collectionDate;
+    private String paymentMethod;
     private Long parentTicketId;
     private boolean isWarrantyCall;
     private String customerName; // Display field for table
@@ -116,6 +118,9 @@ public class ServiceTicketDTO {
         this.completedAt = completedAt;
     }
 
+    public LocalDateTime getReopenedAt() { return reopenedAt; }
+    public void setReopenedAt(LocalDateTime reopenedAt) { this.reopenedAt = reopenedAt; }
+
     public LocalDate getCollectionDate() {
         return collectionDate;
     }
@@ -123,6 +128,9 @@ public class ServiceTicketDTO {
     public void setCollectionDate(LocalDate collectionDate) {
         this.collectionDate = collectionDate;
     }
+
+    public String getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
 
     public BigDecimal getCollectedAmount() {
         return collectedAmount;
