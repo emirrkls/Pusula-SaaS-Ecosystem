@@ -223,6 +223,25 @@ public class AuthenticationService {
                 }
         }
 
+        /**
+         * Re-authenticates the already authenticated user for sensitive actions.
+         * The identity comes exclusively from the JWT security context; a client
+         * supplied username or organization code is intentionally ignored.
+         */
+        public boolean verifyCurrentUserPassword(String password) {
+                if (password == null || password.isBlank()) {
+                        return false;
+                }
+                var authentication = SecurityContextHolder.getContext().getAuthentication();
+                if (authentication == null || !(authentication.getPrincipal() instanceof User principal)) {
+                        return false;
+                }
+                User currentUser = userRepository.findByIdAndCompanyId(principal.getId(), principal.getCompanyId())
+                                .orElse(null);
+                return currentUser != null
+                                && passwordEncoder.matches(password, currentUser.getPasswordHash());
+        }
+
         public AuthResponse authenticateWithGoogle(GoogleAuthRequest request) {
                 String ipAddress = getClientIpAddress();
                 try {

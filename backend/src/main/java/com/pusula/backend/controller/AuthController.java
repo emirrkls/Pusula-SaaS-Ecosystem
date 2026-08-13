@@ -98,12 +98,8 @@ public class AuthController {
      */
     @PostMapping("/verify-password")
     public ResponseEntity<Map<String, Boolean>> verifyPassword(@RequestBody AuthRequest request) {
-        try {
-            service.authenticate(request);
-            return ResponseEntity.ok(java.util.Map.of("valid", true));
-        } catch (Exception e) {
-            return ResponseEntity.ok(java.util.Map.of("valid", false));
-        }
+        boolean valid = service.verifyCurrentUserPassword(request != null ? request.getPassword() : null);
+        return ResponseEntity.ok(java.util.Map.of("valid", valid));
     }
 
     /**

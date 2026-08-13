@@ -1083,7 +1083,7 @@ public class TicketDetailsController {
         Dialog<String> dialog = new Dialog<>();
         com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow());
         dialog.setTitle("Admin Doğrulama");
-        dialog.setHeaderText("Admin şifresi gerekli");
+        dialog.setHeaderText("Kendi yönetici şifrenizi giriniz");
         // Create PasswordField
         PasswordField passwordField = new PasswordField();
         passwordField.setPromptText("Şifre");
@@ -1103,20 +1103,22 @@ public class TicketDetailsController {
             return null;
         });
         dialog.showAndWait().ifPresent(password -> {
-            verifyAdminPassword(password);
+            verifyCurrentAdminPassword(password);
         });
     }
 
-    private void verifyAdminPassword(String password) {
-        // Attempt to authenticate with admin credentials
-        AuthRequest authRequest = new AuthRequest("admin", password);
+    private void verifyCurrentAdminPassword(String password) {
+        AuthRequest authRequest = new AuthRequest(
+                com.pusula.desktop.util.SessionManager.getUsername(), password);
 
         AuthApi authApi = RetrofitClient.getClient().create(AuthApi.class);
-        authApi.authenticate(authRequest).enqueue(new Callback<AuthResponse>() {
+        authApi.verifyPassword(authRequest).enqueue(new Callback<java.util.Map<String, Boolean>>() {
             @Override
-            public void onResponse(Call<AuthResponse> call, Response<AuthResponse> response) {
+            public void onResponse(Call<java.util.Map<String, Boolean>> call,
+                    Response<java.util.Map<String, Boolean>> response) {
                 Platform.runLater(() -> {
-                    if (response.isSuccessful() && response.body() != null) {
+                    if (response.isSuccessful() && response.body() != null
+                            && Boolean.TRUE.equals(response.body().get("valid"))) {
                         // Password is correct, enable editing
                         enableEditingForCompletedTicket();
                     } else {
@@ -1129,7 +1131,7 @@ public class TicketDetailsController {
             }
 
             @Override
-            public void onFailure(Call<AuthResponse> call, Throwable t) {
+            public void onFailure(Call<java.util.Map<String, Boolean>> call, Throwable t) {
                 Platform.runLater(() -> {
                     AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
                             resourceBundle.getString("dialog.title.error"),
