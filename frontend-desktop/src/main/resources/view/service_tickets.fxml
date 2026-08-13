@@ -27,6 +27,7 @@
             </VBox>
             <HBox spacing="10.0" styleClass="page-header-actions">
                <children>
+                  <Button fx:id="btnBulkAssign" managed="false" mnemonicParsing="false" onAction="#handleBulkAssign" styleClass="btn-secondary" text="Toplu Atama" visible="false" />
                   <Button mnemonicParsing="false" onAction="#handleCreateTicket" styleClass="btn-primary" text="%btn.add" />
                   <Button mnemonicParsing="false" onAction="#handleRefresh" styleClass="btn-secondary" text="%btn.refresh" />
                </children>

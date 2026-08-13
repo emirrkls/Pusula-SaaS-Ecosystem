@@ -6,6 +6,7 @@ import com.pusula.desktop.api.CustomerApi;
 import com.pusula.desktop.api.ServiceTicketApi;
 import com.pusula.desktop.api.UserApi;
 import com.pusula.desktop.dto.CustomerDTO;
+import com.pusula.desktop.dto.BulkTicketAssignmentRequest;
 import com.pusula.desktop.dto.SearchSuggestion;
 import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.dto.UserDTO;
@@ -14,6 +15,7 @@ import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.AnimationHelper;
 import com.pusula.desktop.util.NotificationHelper;
 import com.pusula.desktop.util.ThemeHelper;
+import com.pusula.desktop.util.SessionManager;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -41,6 +43,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ResourceBundle;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class ServiceTicketController {
 
@@ -68,6 +73,8 @@ public class ServiceTicketController {
     private VBox emptyStateBox;
     @FXML
     private StackPane loadingOverlay;
+    @FXML
+    private Button btnBulkAssign;
 
     private final ObservableList<ServiceTicketDTO> allTicketsList = FXCollections.observableArrayList();
     private FilteredList<ServiceTicketDTO> filteredList;
@@ -87,6 +94,8 @@ public class ServiceTicketController {
         setupTicketList();
         setupFilterChips();
         setupSmartSearch();
+        btnBulkAssign.setVisible(false);
+        btnBulkAssign.setManaged(false);
         loadTickets();
     }
 
@@ -130,6 +139,7 @@ public class ServiceTicketController {
         emptyStateBox.setManaged(empty);
         ticketsListView.setVisible(!empty);
         resultCountLabel.setText(sortedList.size() + " sonuç");
+        updateBulkAssignButton();
     }
 
     private class TicketCardCell extends ListCell<ServiceTicketDTO> {
@@ -271,6 +281,25 @@ public class ServiceTicketController {
             case CLOSED -> "COMPLETED".equals(status) || "CANCELLED".equals(status);
             case ALL -> true;
         };
+    }
+
+    static boolean isPendingUnassigned(ServiceTicketDTO ticket) {
+        if (ticket == null || ticket.getAssignedTechnicianId() != null) return false;
+        String status = ticket.getStatus() != null ? ticket.getStatus().trim().toUpperCase() : "";
+        return "PENDING".equals(status);
+    }
+
+    private List<ServiceTicketDTO> pendingUnassignedTickets() {
+        return allTicketsList.stream().filter(ServiceTicketController::isPendingUnassigned).toList();
+    }
+
+    private void updateBulkAssignButton() {
+        if (btnBulkAssign == null) return;
+        int count = pendingUnassignedTickets().size();
+        boolean show = SessionManager.isAdmin() && count > 0;
+        btnBulkAssign.setVisible(show);
+        btnBulkAssign.setManaged(show);
+        btnBulkAssign.setText("Toplu Atama (" + count + ")");
     }
 
     private boolean isTodayInBusinessZone(LocalDateTime dateTime) {
@@ -446,6 +475,117 @@ public class ServiceTicketController {
             e.printStackTrace();
             NotificationHelper.showError("Servis formu açılamadı: " + e.getMessage());
         }
+    }
+
+    @FXML
+    private void handleBulkAssign() {
+        List<ServiceTicketDTO> pending = pendingUnassignedTickets();
+        if (pending.isEmpty()) {
+            NotificationHelper.showInfo("Atama bekleyen servis fişi bulunmuyor.");
+            updateBulkAssignButton();
+            return;
+        }
+
+        setLoading(true);
+        RetrofitClient.getClient().create(UserApi.class).getAllUsers().enqueue(new Callback<>() {
+            @Override
+            public void onResponse(Call<List<UserDTO>> call, Response<List<UserDTO>> response) {
+                Platform.runLater(() -> {
+                    setLoading(false);
+                    if (!response.isSuccessful() || response.body() == null) {
+                        String message = com.pusula.desktop.util.ApiErrorHelper.message(
+                                response, "Teknisyenler yüklenemedi.");
+                        AlertHelper.showAlert(Alert.AlertType.ERROR, ticketsListView.getScene().getWindow(),
+                                "Toplu Atama", message);
+                        return;
+                    }
+                    List<UserDTO> technicians = response.body().stream()
+                            .filter(user -> "TECHNICIAN".equals(user.getRole()))
+                            .sorted(Comparator.comparing(UserDTO::toString, String.CASE_INSENSITIVE_ORDER))
+                            .toList();
+                    if (technicians.isEmpty()) {
+                        AlertHelper.showAlert(Alert.AlertType.WARNING, ticketsListView.getScene().getWindow(),
+                                "Toplu Atama", "Atama yapılabilecek aktif teknisyen bulunamadı.");
+                        return;
+                    }
+                    openBulkAssignDialog(pending, technicians);
+                });
+            }
+
+            @Override
+            public void onFailure(Call<List<UserDTO>> call, Throwable throwable) {
+                Platform.runLater(() -> {
+                    setLoading(false);
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, ticketsListView.getScene().getWindow(),
+                            "Toplu Atama", "Teknisyenler yüklenemedi: " + throwable.getMessage());
+                });
+            }
+        });
+    }
+
+    private void openBulkAssignDialog(List<ServiceTicketDTO> tickets, List<UserDTO> technicians) {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                    getClass().getResource("/view/bulk_assign_tickets_dialog.fxml"));
+            javafx.scene.Parent root = loader.load();
+            BulkAssignTicketsDialogController controller = loader.getController();
+            controller.setup(tickets, technicians);
+
+            javafx.stage.Stage stage = new javafx.stage.Stage();
+            stage.setTitle("Toplu Atama");
+            stage.setScene(ThemeHelper.createDialogScene(root, 720, 620));
+            stage.initOwner(ticketsListView.getScene().getWindow());
+            stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+            stage.showAndWait();
+
+            if (controller.isConfirmed()) {
+                submitBulkAssignment(controller.getSelectedTicketIds(), controller.getSelectedTechnicianId());
+            }
+        } catch (Exception exception) {
+            AlertHelper.showAlert(Alert.AlertType.ERROR, ticketsListView.getScene().getWindow(),
+                    "Toplu Atama", "Toplu atama penceresi açılamadı: " + exception.getMessage());
+        }
+    }
+
+    private void submitBulkAssignment(List<Long> ticketIds, Long technicianId) {
+        setLoading(true);
+        ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
+        api.assignTechnicianBulk(new BulkTicketAssignmentRequest(ticketIds, technicianId))
+                .enqueue(new Callback<>() {
+                    @Override
+                    public void onResponse(Call<List<ServiceTicketDTO>> call,
+                            Response<List<ServiceTicketDTO>> response) {
+                        Platform.runLater(() -> {
+                            setLoading(false);
+                            if (response.isSuccessful() && response.body() != null) {
+                                Map<Long, ServiceTicketDTO> updates = response.body().stream()
+                                        .collect(Collectors.toMap(ServiceTicketDTO::getId, Function.identity()));
+                                allTicketsList.replaceAll(ticket -> updates.getOrDefault(ticket.getId(), ticket));
+                                updateFilters();
+                                AlertHelper.showSuccess(ticketsListView.getScene().getWindow(),
+                                        "Toplu Atama Tamamlandı",
+                                        response.body().size() + " servis fişi teknisyene atandı.");
+                            } else {
+                                String message = com.pusula.desktop.util.ApiErrorHelper.message(
+                                        response, "Servis fişleri atanamadı.");
+                                AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                        ticketsListView.getScene().getWindow(), "Toplu Atama Başarısız", message);
+                                loadTickets();
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onFailure(Call<List<ServiceTicketDTO>> call, Throwable throwable) {
+                        Platform.runLater(() -> {
+                            setLoading(false);
+                            AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                    ticketsListView.getScene().getWindow(), "Toplu Atama Başarısız",
+                                    "Sunucuya bağlanılamadı: " + throwable.getMessage());
+                            loadTickets();
+                        });
+                    }
+                });
     }
 
     private void loadTickets() {

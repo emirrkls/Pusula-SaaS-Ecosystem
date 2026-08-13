@@ -46,6 +46,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.LinkedHashSet;
 import java.util.stream.Collectors;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -378,6 +379,51 @@ public class ServiceTicketService {
         }
 
         return mapToDTO(saved);
+    }
+
+    @Transactional
+    public List<ServiceTicketDTO> assignTechnicianBulk(List<Long> ticketIds, Long technicianId) {
+        if (technicianId == null) {
+            throw new IllegalArgumentException("Teknisyen seçilmelidir.");
+        }
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            throw new IllegalArgumentException("En az bir servis fişi seçilmelidir.");
+        }
+
+        LinkedHashSet<Long> uniqueIds = new LinkedHashSet<>(ticketIds);
+        if (uniqueIds.contains(null)) {
+            throw new IllegalArgumentException("Geçersiz servis fişi seçimi.");
+        }
+        if (uniqueIds.size() > 200) {
+            throw new IllegalArgumentException("Tek işlemde en fazla 200 servis fişi atanabilir.");
+        }
+
+        User currentUser = getCurrentUser();
+        User technician = requireTechnician(technicianId, currentUser.getCompanyId());
+        List<ServiceTicket> tickets = uniqueIds.stream()
+                .sorted()
+                .map(id -> repository.findByIdAndCompanyIdForUpdate(id, currentUser.getCompanyId())
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "Servis fişi bulunamadı veya erişim reddedildi: " + id)))
+                .toList();
+
+        for (ServiceTicket ticket : tickets) {
+            if (ticket.getAssignedTechnicianId() != null
+                    || ticket.getStatus() != ServiceTicket.TicketStatus.PENDING) {
+                throw new IllegalStateException(
+                        "Yalnızca atama bekleyen açık servis fişleri toplu atanabilir: " + ticket.getId());
+            }
+        }
+
+        return tickets.stream().map(ticket -> {
+            ticket.setAssignedTechnicianId(technician.getId());
+            ticket.setStatus(ServiceTicket.TicketStatus.ASSIGNED);
+            ServiceTicket saved = repository.save(ticket);
+            auditLogService.log("UPDATE", "TICKET", saved.getId(),
+                    "Toplu teknisyen ataması: " + technician.getFullName());
+            publishAssignment(saved, technician.getId());
+            return mapToDTO(saved);
+        }).toList();
     }
 
     private User requireTechnician(Long technicianId, Long companyId) {

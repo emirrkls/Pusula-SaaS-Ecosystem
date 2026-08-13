@@ -18,6 +18,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -141,6 +142,54 @@ class ServiceTicketAssignmentNotificationTest {
         assertThrows(IllegalArgumentException.class, () -> service.assignTechnician(100L, 8L));
         verify(ticketRepository, never()).save(any());
         verify(publisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void bulkAssignsPendingTicketsAndPublishesForEachTicket() {
+        ServiceTicket first = ticket(100L, 10L, null);
+        ServiceTicket second = ticket(101L, 10L, null);
+        User technician = user(7L, 10L, "TECHNICIAN");
+        when(userRepository.findByIdAndCompanyId(7L, 10L)).thenReturn(Optional.of(technician));
+        when(userRepository.findById(7L)).thenReturn(Optional.of(technician));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(first));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(101L, 10L)).thenReturn(Optional.of(second));
+        when(ticketRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<ServiceTicketDTO> result = service.assignTechnicianBulk(List.of(100L, 101L), 7L);
+
+        assertEquals(2, result.size());
+        assertEquals(ServiceTicket.TicketStatus.ASSIGNED, first.getStatus());
+        assertEquals(ServiceTicket.TicketStatus.ASSIGNED, second.getStatus());
+        assertEquals(7L, first.getAssignedTechnicianId());
+        assertEquals(7L, second.getAssignedTechnicianId());
+        verify(publisher).publishEvent(new TicketAssignedEvent(10L, 7L, 100L));
+        verify(publisher).publishEvent(new TicketAssignedEvent(10L, 7L, 101L));
+    }
+
+    @Test
+    void bulkAssignmentRejectsStaleSelectionBeforeSavingAnyTicket() {
+        ServiceTicket pending = ticket(100L, 10L, null);
+        ServiceTicket alreadyAssigned = ticket(101L, 10L, 8L);
+        alreadyAssigned.setStatus(ServiceTicket.TicketStatus.ASSIGNED);
+        User technician = user(7L, 10L, "TECHNICIAN");
+        when(userRepository.findByIdAndCompanyId(7L, 10L)).thenReturn(Optional.of(technician));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(pending));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(101L, 10L)).thenReturn(Optional.of(alreadyAssigned));
+
+        assertThrows(IllegalStateException.class,
+                () -> service.assignTechnicianBulk(List.of(100L, 101L), 7L));
+
+        verify(ticketRepository, never()).save(any());
+        verify(publisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void bulkAssignmentRejectsEmptyAndOversizedSelections() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.assignTechnicianBulk(List.of(), 7L));
+        List<Long> tooMany = java.util.stream.LongStream.rangeClosed(1, 201).boxed().toList();
+        assertThrows(IllegalArgumentException.class,
+                () -> service.assignTechnicianBulk(tooMany, 7L));
     }
 
     private ServiceTicket ticket(Long id, Long companyId, Long technicianId) {

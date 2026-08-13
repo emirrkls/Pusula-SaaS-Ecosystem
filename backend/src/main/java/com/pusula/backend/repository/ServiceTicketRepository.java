@@ -4,16 +4,24 @@ import com.pusula.backend.entity.ServiceTicket;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ServiceTicketRepository extends JpaRepository<ServiceTicket, Long> {
     List<ServiceTicket> findByCompanyId(Long companyId);
 
     List<ServiceTicket> findByAssignedTechnicianId(Long technicianId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM ServiceTicket t WHERE t.id = :id AND t.companyId = :companyId")
+    Optional<ServiceTicket> findByIdAndCompanyIdForUpdate(
+            @Param("id") Long id, @Param("companyId") Long companyId);
 
     // Count active tickets for a specific technician (excluding COMPLETED and CANCELLED)
     @Query("SELECT COUNT(t) FROM ServiceTicket t WHERE t.assignedTechnicianId = :techId AND t.status NOT IN ('COMPLETED', 'CANCELLED')")

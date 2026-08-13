@@ -4,6 +4,7 @@ import com.pusula.backend.dto.ServicePhotoDTO;
 import com.pusula.backend.dto.ServiceTicketDTO;
 import com.pusula.backend.dto.ServiceUsedPartDTO;
 import com.pusula.backend.dto.CompleteServiceRequest;
+import com.pusula.backend.dto.BulkTicketAssignmentRequest;
 import com.pusula.backend.entity.ServicePhoto;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.service.ServiceTicketService;
@@ -80,6 +81,13 @@ public class ServiceTicketController {
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ServiceTicketDTO> assignTechnician(@PathVariable Long id, @RequestParam Long technicianId) {
         return ResponseEntity.ok(service.assignTechnician(id, technicianId));
+    }
+
+    @PatchMapping("/bulk-assign")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<List<ServiceTicketDTO>> assignTechnicianBulk(
+            @RequestBody BulkTicketAssignmentRequest request) {
+        return ResponseEntity.ok(service.assignTechnicianBulk(request.getTicketIds(), request.getTechnicianId()));
     }
 
     @PostMapping("/{id}/parts")
