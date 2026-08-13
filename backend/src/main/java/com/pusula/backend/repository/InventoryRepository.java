@@ -22,6 +22,17 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     @Query("SELECT i FROM Inventory i WHERE i.id = :id AND i.companyId = :companyId")
     Optional<Inventory> findByIdAndCompanyIdForUpdate(@Param("id") Long id, @Param("companyId") Long companyId);
 
+    /**
+     * Stock returns must also find rows that were soft-deleted after their last
+     * unit was attached to a service ticket. Native SQL intentionally bypasses
+     * Inventory's Hibernate soft-delete filter while retaining tenant isolation
+     * and a row lock.
+     */
+    @Query(value = "SELECT * FROM inventory WHERE id = :id AND company_id = :companyId FOR UPDATE",
+            nativeQuery = true)
+    Optional<Inventory> findIncludingDeletedByIdAndCompanyIdForUpdate(
+            @Param("id") Long id, @Param("companyId") Long companyId);
+
     @Query("SELECT i FROM Inventory i WHERE i.companyId = :companyId AND " +
             "(LOWER(i.partName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
             "LOWER(i.brand) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +

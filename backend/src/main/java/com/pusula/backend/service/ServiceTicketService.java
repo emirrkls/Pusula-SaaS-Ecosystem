@@ -533,12 +533,28 @@ public class ServiceTicketService {
             return;
         }
         Inventory linkedInventory = part.getInventory();
-        if (linkedInventory == null || !companyId.equals(linkedInventory.getCompanyId())) {
-            throw new IllegalStateException("Parçanın bağlı olduğu envanter kaydı bulunamadı.");
+        Inventory inventory;
+        if (linkedInventory != null && companyId.equals(linkedInventory.getCompanyId())) {
+            inventory = inventoryRepository
+                    .findByIdAndCompanyIdForUpdate(linkedInventory.getId(), companyId)
+                    .orElseThrow(() -> new IllegalStateException("Parçanın envanter kaydı bulunamadı."));
+        } else {
+            Long historicalInventoryId = part.getInventoryId();
+            if (historicalInventoryId == null) {
+                throw new IllegalStateException("Parçanın bağlı olduğu envanter kaydı bulunamadı.");
+            }
+            inventory = inventoryRepository
+                    .findIncludingDeletedByIdAndCompanyIdForUpdate(historicalInventoryId, companyId)
+                    .orElseThrow(() -> new IllegalStateException("Parçanın envanter kaydı bulunamadı."));
         }
-        Inventory inventory = inventoryRepository
-                .findByIdAndCompanyIdForUpdate(linkedInventory.getId(), companyId)
-                .orElseThrow(() -> new IllegalStateException("Parçanın envanter kaydı bulunamadı."));
+
+        if (delta > 0 && inventory.isDeleted()) {
+            throw new IllegalStateException("Silinmiş bir envanter kaleminden yeni parça kullanılamaz.");
+        }
+        // A returned unit means this stock item exists again and must be visible.
+        if (delta < 0 && inventory.isDeleted()) {
+            inventory.setDeleted(false);
+        }
         int currentInventory = inventory.getQuantity() != null ? inventory.getQuantity() : 0;
         if (delta > 0 && currentInventory < delta) {
             throw new IllegalStateException("Yetersiz stok: " + inventory.getPartName());
@@ -795,37 +811,24 @@ public class ServiceTicketService {
             throw new IllegalStateException("Kapalı bir servis tekrar iptal edilemez.");
         }
 
-        // Return all used parts back to inventory
+        // Return all used parts back to inventory. This also safely revives an
+        // inventory row that was soft-deleted after its stock reached zero.
         List<com.pusula.backend.entity.ServiceUsedPart> usedParts = serviceUsedPartRepository
                 .findByServiceTicketId(ticketId);
 
         for (com.pusula.backend.entity.ServiceUsedPart usedPart : usedParts) {
-            com.pusula.backend.entity.Inventory linkedInventory = usedPart.getInventory();
-            com.pusula.backend.entity.Inventory inventory = inventoryRepository
-                    .findByIdAndCompanyIdForUpdate(linkedInventory.getId(), ticket.getCompanyId())
-                    .orElseThrow(() -> new IllegalStateException("Parçanın envanter kaydı bulunamadı."));
-            // Add the quantity back to main inventory
-            inventory.setQuantity(inventory.getQuantity() + usedPart.getQuantityUsed());
-            inventoryRepository.save(inventory);
-
-            // If part came from a vehicle, also restore vehicle stock
-            if (usedPart.getSourceVehicleId() != null) {
-                VehicleStock vehicleStock = vehicleStockRepository
-                        .findForUpdate(
-                                usedPart.getSourceVehicleId(), inventory.getId(), ticket.getCompanyId())
-                        .orElse(null);
-                if (vehicleStock != null) {
-                    vehicleStock.setQuantity(vehicleStock.getQuantity() + usedPart.getQuantityUsed());
-                    vehicleStockRepository.save(vehicleStock);
-                }
-            }
+            int quantity = usedPart.getQuantityUsed() != null ? usedPart.getQuantityUsed() : 0;
+            String partName = partDisplayName(usedPart);
+            Long inventoryId = usedPart.getInventory() != null
+                    ? usedPart.getInventory().getId() : usedPart.getInventoryId();
+            adjustUsedPartStock(usedPart, -quantity, ticket.getCompanyId());
 
             // Log the return
             auditLogService.log(
                     "RETURN",
                     "INVENTORY",
-                    inventory.getId(),
-                    "Parça iade edildi (iptal): " + inventory.getPartName() + " x" + usedPart.getQuantityUsed());
+                    inventoryId,
+                    "Parça iade edildi (iptal): " + partName + " x" + quantity);
         }
 
         // Delete the used parts records (soft delete)

@@ -1222,9 +1222,14 @@ public class TicketDetailsController {
                             Platform.runLater(() -> {
                                 currentTicket = response.body();
                                 updateUI();
-                                AlertHelper.showAlert(Alert.AlertType.INFORMATION, lblStatus.getScene().getWindow(),
-                                        "Success", "Service cancelled.");
+                                AlertHelper.showSuccess(lblStatus.getScene().getWindow(),
+                                        "Servis İptal Edildi", "Kullanılan parçalar stoğa iade edildi.");
                             });
+                        } else {
+                            String message = com.pusula.desktop.util.ApiErrorHelper.message(
+                                    response, "Servis iptal edilemedi.");
+                            Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                    lblStatus.getScene().getWindow(), "İptal Başarısız", message));
                         }
                     }
 

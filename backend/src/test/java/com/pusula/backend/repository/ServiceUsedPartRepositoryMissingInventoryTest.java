@@ -16,6 +16,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest(properties = {
         "spring.jpa.hibernate.ddl-auto=create-drop",
@@ -36,6 +37,9 @@ class ServiceUsedPartRepositoryMissingInventoryTest {
 
     @Autowired
     private ServiceUsedPartRepository repository;
+
+    @Autowired
+    private InventoryRepository inventoryRepository;
 
     @Test
     void returnsHistoricalUsedPartWhenInventoryRowNoLongerExists() {
@@ -59,5 +63,23 @@ class ServiceUsedPartRepositoryMissingInventoryTest {
         assertEquals(300L, parts.get(0).getId());
         assertEquals(999L, parts.get(0).getInventoryId());
         assertNull(parts.get(0).getInventory());
+    }
+
+    @Test
+    void nativeLockedLookupIncludesSoftDeletedInventoryWithinCompany() {
+        jdbcTemplate.update("""
+                INSERT INTO inventory
+                    (id, company_id, part_name, quantity, critical_level, is_deleted, created_at, updated_at)
+                VALUES (93, 10, 'deneme', 0, 0, TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """);
+
+        var inventory = inventoryRepository
+                .findIncludingDeletedByIdAndCompanyIdForUpdate(93L, 10L)
+                .orElseThrow();
+
+        assertEquals(93L, inventory.getId());
+        assertTrue(inventory.isDeleted());
+        assertTrue(inventoryRepository
+                .findIncludingDeletedByIdAndCompanyIdForUpdate(93L, 99L).isEmpty());
     }
 }
