@@ -46,6 +46,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.LinkedHashSet;
 import java.util.stream.Collectors;
 import org.springframework.web.multipart.MultipartFile;
@@ -647,9 +648,29 @@ public class ServiceTicketService {
         if (delta > 0 && inventory.isDeleted()) {
             throw new IllegalStateException("Silinmiş bir envanter kaleminden yeni parça kullanılamaz.");
         }
+        Inventory stockOrigin = inventory;
+        boolean mergedIntoReplacement = false;
         // A returned unit means this stock item exists again and must be visible.
+        // If the deleted row's barcode was recreated in the meantime, merge the
+        // return into that active row. Reviving the historical row would violate
+        // the active-barcode uniqueness constraint and abort ticket cancellation.
         if (delta < 0 && inventory.isDeleted()) {
-            inventory.setDeleted(false);
+            String barcode = inventory.getBarcode();
+            Optional<Inventory> activeReplacement = barcode == null || barcode.isBlank()
+                    ? Optional.empty()
+                    : inventoryRepository.findActiveBarcodeReplacementForUpdate(
+                            barcode, companyId, inventory.getId());
+            if (activeReplacement.isPresent()) {
+                Inventory replacement = activeReplacement.get();
+                int historicalQuantity = inventory.getQuantity() != null ? inventory.getQuantity() : 0;
+                int replacementQuantity = replacement.getQuantity() != null ? replacement.getQuantity() : 0;
+                replacement.setQuantity(replacementQuantity + historicalQuantity);
+                inventory = replacement;
+                part.setInventory(replacement);
+                mergedIntoReplacement = true;
+            } else {
+                inventory.setDeleted(false);
+            }
         }
         int currentInventory = inventory.getQuantity() != null ? inventory.getQuantity() : 0;
         if (delta > 0 && currentInventory < delta) {
@@ -660,14 +681,31 @@ public class ServiceTicketService {
         if (part.getSourceVehicleId() != null) {
             vehicleStock = vehicleStockRepository
                     .findForUpdate(
-                            part.getSourceVehicleId(), inventory.getId(), companyId)
+                            part.getSourceVehicleId(), stockOrigin.getId(), companyId)
                     .orElseThrow(() -> new IllegalStateException("Aracın parça stok kaydı bulunamadı."));
             int currentVehicleStock = vehicleStock.getQuantity() != null ? vehicleStock.getQuantity() : 0;
             if (delta > 0 && currentVehicleStock < delta) {
                 throw new IllegalStateException("Araçta yeterli parça stoğu yok.");
             }
-            vehicleStock.setQuantity(currentVehicleStock - delta);
-            vehicleStockRepository.save(vehicleStock);
+            if (mergedIntoReplacement) {
+                Optional<VehicleStock> replacementVehicleStock = vehicleStockRepository.findForUpdate(
+                        part.getSourceVehicleId(), inventory.getId(), companyId);
+                if (replacementVehicleStock.isPresent()) {
+                    VehicleStock targetVehicleStock = replacementVehicleStock.get();
+                    int targetQuantity = targetVehicleStock.getQuantity() != null
+                            ? targetVehicleStock.getQuantity() : 0;
+                    targetVehicleStock.setQuantity(targetQuantity + currentVehicleStock - delta);
+                    vehicleStockRepository.save(targetVehicleStock);
+                    vehicleStockRepository.delete(vehicleStock);
+                } else {
+                    vehicleStock.setInventory(inventory);
+                    vehicleStock.setQuantity(currentVehicleStock - delta);
+                    vehicleStockRepository.save(vehicleStock);
+                }
+            } else {
+                vehicleStock.setQuantity(currentVehicleStock - delta);
+                vehicleStockRepository.save(vehicleStock);
+            }
         }
 
         inventory.setQuantity(currentInventory - delta);

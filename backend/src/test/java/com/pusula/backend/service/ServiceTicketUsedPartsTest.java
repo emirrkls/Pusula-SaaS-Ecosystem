@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -190,6 +191,45 @@ class ServiceTicketUsedPartsTest {
         assertEquals(1, deletedInventory.getQuantity());
         assertFalse(deletedInventory.isDeleted());
         verify(inventoryRepository).save(deletedInventory);
+        verify(usedPartRepository).delete(part);
+    }
+
+    @Test
+    void cancellingTicketMergesReturnIntoActiveBarcodeReplacement() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = ticket(75L, 10L, null);
+        ticket.setStatus(ServiceTicket.TicketStatus.ASSIGNED);
+        Inventory deletedInventory = Inventory.builder()
+                .id(93L).companyId(10L).partName("Eski kondansatör").quantity(0)
+                .criticalLevel(0).build();
+        deletedInventory.setBarcode("ABC-75");
+        deletedInventory.setDeleted(true);
+        Inventory activeReplacement = Inventory.builder()
+                .id(94L).companyId(10L).partName("Kondansatör").quantity(4)
+                .criticalLevel(0).build();
+        activeReplacement.setBarcode(" abc-75 ");
+        ServiceUsedPart part = mock(ServiceUsedPart.class);
+        when(part.getInventory()).thenReturn(null);
+        when(part.getInventoryId()).thenReturn(93L);
+        when(part.getSourceVehicleId()).thenReturn(null);
+        when(part.getQuantityUsed()).thenReturn(1);
+
+        when(ticketRepository.findById(75L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByServiceTicketId(75L)).thenReturn(List.of(part));
+        when(inventoryRepository.findIncludingDeletedByIdAndCompanyIdForUpdate(93L, 10L))
+                .thenReturn(Optional.of(deletedInventory));
+        when(inventoryRepository.findActiveBarcodeReplacementForUpdate("ABC-75", 10L, 93L))
+                .thenReturn(Optional.of(activeReplacement));
+        when(ticketRepository.save(ticket)).thenReturn(ticket);
+
+        service.cancelService(75L);
+
+        assertEquals(ServiceTicket.TicketStatus.CANCELLED, ticket.getStatus());
+        assertEquals(5, activeReplacement.getQuantity());
+        assertTrue(deletedInventory.isDeleted());
+        verify(part).setInventory(activeReplacement);
+        verify(inventoryRepository).save(activeReplacement);
+        verify(inventoryRepository, never()).save(deletedInventory);
         verify(usedPartRepository).delete(part);
     }
 

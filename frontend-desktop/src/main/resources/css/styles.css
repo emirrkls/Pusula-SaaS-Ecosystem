@@ -146,7 +146,8 @@
 
 .modern-dialog {
     -fx-min-width: 440;
-    -fx-max-width: 540;
+    -fx-pref-width: 520;
+    -fx-max-width: 640;
     -fx-padding: 0;
     -fx-background-color: #FFFFFF;
     -fx-background-radius: 16;
@@ -173,12 +174,19 @@
     -fx-font-size: 13px;
     -fx-line-spacing: 2;
     -fx-text-fill: #475569;
+    -fx-wrap-text: true;
 }
 
 .modern-dialog > .button-bar > .container {
     -fx-padding: 14 24 20 24;
     -fx-background-color: #F8FAFC;
     -fx-background-radius: 0 0 16 16;
+}
+
+.modern-dialog > .button-bar .button,
+.modern-form-dialog > .button-bar .button {
+    -fx-min-width: 108;
+    -fx-padding: 10 22 10 22;
 }
 
 .modern-form-dialog {
@@ -206,6 +214,11 @@
 .modern-form-dialog > .content {
     -fx-padding: 18 22 18 22;
     -fx-text-fill: -pusula-text;
+}
+
+.modern-form-dialog > .content.label,
+.modern-form-dialog > .content > .label {
+    -fx-wrap-text: true;
 }
 
 .modern-form-dialog > .button-bar > .container {

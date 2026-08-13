@@ -18,6 +18,8 @@ class ModernUiContractTest {
             String css = new String(input.readAllBytes(), StandardCharsets.UTF_8);
             assertTrue(css.contains(".toast-card"));
             assertTrue(css.contains(".modern-dialog"));
+            assertTrue(css.contains(".modern-dialog > .button-bar .button"));
+            assertTrue(css.contains("-fx-wrap-text: true"));
             assertTrue(css.contains(".form-card"));
             assertTrue(css.contains(".ticket-action-bar"));
         }

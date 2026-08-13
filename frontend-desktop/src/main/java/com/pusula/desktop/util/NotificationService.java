@@ -10,6 +10,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Popup;
@@ -68,14 +69,20 @@ public final class NotificationService {
         heading.getStyleClass().add("modern-dialog-title");
         Label body = new Label(safe(message));
         body.setWrapText(true);
+        body.setMinWidth(0);
+        body.setPrefWidth(410);
+        body.setMaxWidth(560);
         body.getStyleClass().add("modern-dialog-message");
 
         VBox copy = new VBox(7, heading, body);
+        copy.setMinWidth(0);
         copy.setMaxWidth(Double.MAX_VALUE);
         HBox content = new HBox(16, icon, copy);
+        HBox.setHgrow(copy, Priority.ALWAYS);
         content.setAlignment(Pos.TOP_LEFT);
         content.getStyleClass().add("modern-dialog-content");
         pane.setContent(content);
+        pane.setPrefWidth(520);
         pane.getButtonTypes().setAll(confirmation ? List.of(CANCEL, CONFIRM) : List.of(
                 new ButtonType("Tamam", ButtonBar.ButtonData.OK_DONE)));
 

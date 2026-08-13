@@ -33,6 +33,25 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
     Optional<Inventory> findIncludingDeletedByIdAndCompanyIdForUpdate(
             @Param("id") Long id, @Param("companyId") Long companyId);
 
+    /**
+     * Finds the active replacement for a soft-deleted inventory row. A stock
+     * return must merge into this row instead of reviving a duplicate barcode.
+     */
+    @Query(value = """
+            SELECT * FROM inventory
+            WHERE company_id = :companyId
+              AND id <> :excludedId
+              AND is_deleted = false
+              AND barcode IS NOT NULL
+              AND trim(barcode) <> ''
+              AND lower(trim(barcode)) = lower(trim(:barcode))
+            FOR UPDATE
+            """, nativeQuery = true)
+    Optional<Inventory> findActiveBarcodeReplacementForUpdate(
+            @Param("barcode") String barcode,
+            @Param("companyId") Long companyId,
+            @Param("excludedId") Long excludedId);
+
     @Query("SELECT i FROM Inventory i WHERE i.companyId = :companyId AND " +
             "(LOWER(i.partName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
             "LOWER(i.brand) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
