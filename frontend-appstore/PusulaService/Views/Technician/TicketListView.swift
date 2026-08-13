@@ -448,8 +448,9 @@ struct CreateTicketSheet: View {
 
     private var filteredCustomers: [CustomerDTO] {
         let query = customerSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [] }
+
         return availableCustomers.filter {
-            query.isEmpty ||
             $0.name.localizedCaseInsensitiveContains(query) ||
             ($0.phone ?? "").localizedCaseInsensitiveContains(query) ||
             ($0.address ?? "").localizedCaseInsensitiveContains(query)
@@ -460,6 +461,10 @@ struct CreateTicketSheet: View {
 
     private var selectedCustomer: CustomerDTO? {
         availableCustomers.first { $0.id == selectedCustomerId }
+    }
+
+    private var hasCustomerSearchQuery: Bool {
+        !customerSearch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
     var body: some View {
@@ -493,7 +498,7 @@ struct CreateTicketSheet: View {
                             }
                             .font(.caption.weight(.semibold))
                         }
-                    } else if filteredCustomers.isEmpty {
+                    } else if hasCustomerSearchQuery && filteredCustomers.isEmpty {
                         ContentUnavailableView(
                             "Müşteri bulunamadı",
                             systemImage: "person.crop.circle.badge.questionmark",
