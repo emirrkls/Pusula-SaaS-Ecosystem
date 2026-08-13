@@ -117,6 +117,7 @@ struct CustomerView: View {
 
 struct CustomerEditorSheet: View {
     let customer: CustomerDTO?
+    var onCustomerSaved: ((CustomerDTO) -> Void)? = nil
     let onSaved: () async -> Void
     
     @Environment(\.dismiss) private var dismiss
@@ -160,11 +161,13 @@ struct CustomerEditorSheet: View {
         defer { isSaving = false }
         let dto = CustomerDTO(id: customer?.id, name: name, phone: phone.nilIfEmpty, address: address.nilIfEmpty, coordinates: customer?.coordinates)
         do {
+            let savedCustomer: CustomerDTO
             if let id = customer?.id {
-                _ = try await CustomerService.updateCustomer(id: id, customer: dto)
+                savedCustomer = try await CustomerService.updateCustomer(id: id, customer: dto)
             } else {
-                _ = try await CustomerService.createCustomer(dto)
+                savedCustomer = try await CustomerService.createCustomer(dto)
             }
+            onCustomerSaved?(savedCustomer)
             await onSaved()
             dismiss()
         } catch {

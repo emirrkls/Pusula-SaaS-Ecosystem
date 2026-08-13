@@ -10,6 +10,7 @@ struct TicketDetailView: View {
     @State private var usedParts: [UsedPartDTO] = []
     @State private var timeline: [AuditLogDTO] = []
     @State private var showScanner = false
+    @State private var showPartPicker = false
     @State private var showCollection = false
     @State private var showSignature = false
     @State private var showPhotos = false
@@ -95,6 +96,11 @@ struct TicketDetailView: View {
         .task { await loadDetailData() }
         .sheet(isPresented: $showScanner) {
             BarcodeScannerView { item, quantity in
+                Task { await addPart(from: item, quantity: quantity) }
+            }
+        }
+        .sheet(isPresented: $showPartPicker) {
+            InventoryPartPickerView { item, quantity in
                 Task { await addPart(from: item, quantity: quantity) }
             }
         }
@@ -282,8 +288,15 @@ struct TicketDetailView: View {
                     .font(.subheadline.weight(.semibold))
                 Spacer()
                 if isEditable {
-                    Button(action: { showScanner = true }) {
-                        Label("Barkod", systemImage: "barcode.viewfinder")
+                    Menu {
+                        Button { showPartPicker = true } label: {
+                            Label("Listeden Seç", systemImage: "magnifyingglass")
+                        }
+                        Button { showScanner = true } label: {
+                            Label("Barkod Okut", systemImage: "barcode.viewfinder")
+                        }
+                    } label: {
+                        Label("Parça Ekle", systemImage: "plus.circle")
                             .font(.caption.weight(.semibold))
                     }
                     .readOnlyProtected()
@@ -372,6 +385,7 @@ struct TicketDetailView: View {
     
     private var quickActionsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+            actionTile("Parça Seç", icon: "magnifyingglass", color: PusulaTheme.accent) { showPartPicker = true }
             actionTile("Barkod Okut", icon: "barcode.viewfinder", color: PusulaTheme.accent) { showScanner = true }
             actionTile("Görseller", icon: "photo.on.rectangle", color: PusulaTheme.accent) { showPhotos = true }
             actionTile("İmza", icon: "pencil.tip.crop.circle", color: PusulaTheme.accent) { showSignature = true }

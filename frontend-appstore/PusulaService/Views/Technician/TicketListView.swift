@@ -96,9 +96,18 @@ struct TicketListView: View {
             }
         }
         .sheet(isPresented: $showCreateTicket) {
-            CreateTicketSheet(customers: customers, technicians: technicians) {
-                await loadTickets(refresh: true)
-            }
+            CreateTicketSheet(
+                customers: customers,
+                technicians: technicians,
+                onCustomerCreated: { customer in
+                    if let index = customers.firstIndex(where: { $0.id == customer.id }) {
+                        customers[index] = customer
+                    } else {
+                        customers.append(customer)
+                    }
+                },
+                onCreated: { await loadTickets(refresh: true) }
+            )
             .task {
                 if customers.isEmpty {
                     do {
@@ -399,25 +408,128 @@ struct TicketCardView: View {
 struct CreateTicketSheet: View {
     let customers: [CustomerDTO]
     let technicians: [TechnicianDTO]
+    let onCustomerCreated: (CustomerDTO) -> Void
     let onCreated: () async -> Void
     
     @Environment(\.dismiss) private var dismiss
+    @State private var createdCustomers: [CustomerDTO] = []
     @State private var selectedCustomerId: Int?
+    @State private var customerSearch = ""
+    @State private var showCreateCustomer = false
     @State private var description = ""
     @State private var notes = ""
     @State private var selectedTechId: Int?
     @State private var isSaving = false
     @State private var errorMessage: String?
+
+    init(
+        customers: [CustomerDTO],
+        technicians: [TechnicianDTO],
+        onCustomerCreated: @escaping (CustomerDTO) -> Void = { _ in },
+        onCreated: @escaping () async -> Void
+    ) {
+        self.customers = customers
+        self.technicians = technicians
+        self.onCustomerCreated = onCustomerCreated
+        self.onCreated = onCreated
+    }
+
+    private var availableCustomers: [CustomerDTO] {
+        var merged = customers
+        for customer in createdCustomers {
+            if let index = merged.firstIndex(where: { $0.id == customer.id }) {
+                merged[index] = customer
+            } else {
+                merged.append(customer)
+            }
+        }
+        return merged
+    }
+
+    private var filteredCustomers: [CustomerDTO] {
+        let query = customerSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        return availableCustomers.filter {
+            query.isEmpty ||
+            $0.name.localizedCaseInsensitiveContains(query) ||
+            ($0.phone ?? "").localizedCaseInsensitiveContains(query) ||
+            ($0.address ?? "").localizedCaseInsensitiveContains(query)
+        }.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+    }
+
+    private var selectedCustomer: CustomerDTO? {
+        availableCustomers.first { $0.id == selectedCustomerId }
+    }
     
     var body: some View {
         NavigationStack {
             Form {
                 Section("Müşteri") {
-                    Picker("Müşteri Seç", selection: $selectedCustomerId) {
-                        Text("Seçiniz").tag(Optional<Int>.none)
-                        ForEach(customers) { customer in
-                            Text(customer.name).tag(Optional(customer.id))
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField("Ad, telefon veya adres ara", text: $customerSearch)
+                            .textInputAutocapitalization(.words)
+                    }
+
+                    if let selectedCustomer {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(selectedCustomer.name)
+                                    .font(.subheadline.weight(.semibold))
+                                if let phone = selectedCustomer.phone, !phone.isEmpty {
+                                    Text(phone)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            Button("Değiştir") {
+                                selectedCustomerId = nil
+                                customerSearch = ""
+                            }
+                            .font(.caption.weight(.semibold))
                         }
+                    } else if filteredCustomers.isEmpty {
+                        ContentUnavailableView(
+                            "Müşteri bulunamadı",
+                            systemImage: "person.crop.circle.badge.questionmark",
+                            description: Text("Aramayı değiştirin veya yeni bir müşteri oluşturun.")
+                        )
+                    } else {
+                        ForEach(filteredCustomers.prefix(8)) { customer in
+                            Button {
+                                selectedCustomerId = customer.id
+                                customerSearch = ""
+                            } label: {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(customer.name)
+                                        .foregroundStyle(.primary)
+                                    HStack(spacing: 8) {
+                                        if let phone = customer.phone, !phone.isEmpty { Text(phone) }
+                                        if let address = customer.address, !address.isEmpty {
+                                            Text(address).lineLimit(1)
+                                        }
+                                    }
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+
+                        if filteredCustomers.count > 8 {
+                            Text("İlk 8 sonuç gösteriliyor. Aramayı daraltarak diğer sonuçlara ulaşabilirsiniz.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Button { showCreateCustomer = true } label: {
+                        Label("Yeni Müşteri Oluştur", systemImage: "person.badge.plus")
                     }
                 }
                 
@@ -451,6 +563,30 @@ struct CreateTicketSheet: View {
                 }
             }
             .readOnlyProtected()
+            .sheet(isPresented: $showCreateCustomer) {
+                CustomerEditorSheet(
+                    customer: nil,
+                    onCustomerSaved: { customer in
+                        if let index = createdCustomers.firstIndex(where: { $0.id == customer.id }) {
+                            createdCustomers[index] = customer
+                        } else {
+                            createdCustomers.append(customer)
+                        }
+                        selectedCustomerId = customer.id
+                        customerSearch = ""
+                        onCustomerCreated(customer)
+                    },
+                    onSaved: { }
+                )
+            }
+            .alert("Servis Fişi Oluşturulamadı", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("Tamam", role: .cancel) { errorMessage = nil }
+            } message: {
+                Text(errorMessage ?? "")
+            }
         }
     }
     
