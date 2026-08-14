@@ -8,6 +8,7 @@ public class CompleteServiceRequest {
     private BigDecimal laborCost;
     private String paymentMethod;
     private LocalDate completionDate;
+    private String technicianNote;
 
     public CompleteServiceRequest() {
     }
@@ -54,4 +55,7 @@ public class CompleteServiceRequest {
     public void setCompletionDate(LocalDate completionDate) {
         this.completionDate = completionDate;
     }
+
+    public String getTechnicianNote() { return technicianNote; }
+    public void setTechnicianNote(String technicianNote) { this.technicianNote = technicianNote; }
 }

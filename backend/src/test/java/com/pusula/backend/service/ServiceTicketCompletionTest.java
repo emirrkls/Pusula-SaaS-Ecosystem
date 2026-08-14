@@ -236,6 +236,42 @@ class ServiceTicketCompletionTest {
     }
 
     @Test
+    void warrantyCompletionCreatesNoRevenueCollectionOrDebtButKeepsStructuredCosting() {
+        authenticate(7L, 10L, "TECHNICIAN");
+        ServiceTicket ticket = openTicket(100L, 10L, 7L);
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
+        when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.completeService(100L, BigDecimal.ZERO, null, PaymentMethod.WARRANTY, null);
+
+        assertEquals(PaymentMethod.WARRANTY, ticket.getPaymentMethod());
+        assertTrue(Boolean.TRUE.equals(ticket.isWarrantyCall()));
+        assertEquals(BigDecimal.ZERO, ticket.getPartsTotal());
+        assertEquals(BigDecimal.ZERO, ticket.getLaborFee());
+        assertEquals(BigDecimal.ZERO, ticket.getInvoiceTotal());
+        assertEquals(BigDecimal.ZERO, ticket.getCollectedAmount());
+        assertEquals(BigDecimal.ZERO, ticket.getOutstandingAmount());
+        assertNull(ticket.getCollectionDate());
+        verify(currentAccountRepository, never()).save(any());
+    }
+
+    @Test
+    void warrantyCompletionRejectsAnyCollectionOrLaborCharge() {
+        authenticate(7L, 10L, "TECHNICIAN");
+        ServiceTicket ticket = openTicket(100L, 10L, 7L);
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.completeService(100L, BigDecimal.ONE, BigDecimal.ZERO,
+                        PaymentMethod.WARRANTY, null));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.completeService(100L, BigDecimal.ZERO, BigDecimal.ONE,
+                        PaymentMethod.WARRANTY, null));
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
     void genericUpdateCannotBypassCompletionWorkflow() {
         authenticate(1L, 10L, "COMPANY_ADMIN");
         ServiceTicket ticket = openTicket(100L, 10L, null);

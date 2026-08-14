@@ -10,6 +10,8 @@ import com.pusula.service.data.model.ServicePhotoDTO
 import com.pusula.service.data.model.SignatureRequest
 import com.pusula.service.data.model.TechnicianDTO
 import com.pusula.service.data.model.UsedPartDTO
+import com.pusula.service.data.model.TechnicianNoteDTO
+import com.pusula.service.data.model.AddTechnicianNoteRequest
 import com.pusula.service.data.remote.ApiService
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -35,8 +37,14 @@ class TicketRepository @Inject constructor(
     suspend fun addUsedPart(ticketId: Long, part: UsedPartDTO): UsedPartDTO =
         apiService.addTicketPart(ticketId, part)
 
-    suspend fun completeService(ticketId: Long, amount: Double, method: String): FieldTicketDTO =
-        apiService.completeTicket(ticketId, CollectionRequest(amount, method))
+    suspend fun completeService(ticketId: Long, amount: Double, method: String, technicianNote: String? = null): FieldTicketDTO =
+        apiService.completeTicket(ticketId, CollectionRequest(amount, method, technicianNote?.trim()?.ifBlank { null }))
+
+    suspend fun getTechnicianNotes(ticketId: Long): List<TechnicianNoteDTO> =
+        apiService.technicianNotes(ticketId)
+
+    suspend fun addTechnicianNote(ticketId: Long, content: String): TechnicianNoteDTO =
+        apiService.addTechnicianNote(ticketId, AddTechnicianNoteRequest(content.trim()))
 
     suspend fun getTechnicians(): List<TechnicianDTO> = apiService.technicians()
 

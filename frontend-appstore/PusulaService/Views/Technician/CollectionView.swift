@@ -13,10 +13,12 @@ struct CollectionView: View {
     @State private var showDebtConfirmation = false
     @State private var isProcessing = false
     @State private var errorMessage: String?
+    @State private var technicianNote = ""
     
     var serviceTotal: Double { partsTotal }
-    var collectedValue: Double { Double(collectedAmount) ?? 0 }
-    var remainingDebt: Double { max(0, serviceTotal - collectedValue) }
+    var isWarranty: Bool { selectedMethod == .warranty }
+    var collectedValue: Double { isWarranty ? 0 : (Double(collectedAmount) ?? 0) }
+    var remainingDebt: Double { isWarranty ? 0 : max(0, serviceTotal - collectedValue) }
     var existingDebt: Double { ticket.customerBalance ?? 0 }
     var totalDebtAfter: Double { existingDebt + remainingDebt }
     var isFullPayment: Bool { collectedValue >= serviceTotal }
@@ -38,6 +40,15 @@ struct CollectionView: View {
                     
                     // Amount input
                     amountInput
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Teknisyen Notu").font(.subheadline.weight(.semibold))
+                        TextField("Yapılan işlem / kapanış notu", text: $technicianNote, axis: .vertical)
+                            .lineLimit(3...8)
+                            .padding()
+                            .background(PusulaTheme.raisedSurface)
+                            .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
+                    }
                     
                     // Waterfall breakdown
                     waterfallBreakdown
@@ -121,7 +132,7 @@ struct CollectionView: View {
             Text("Ödeme Yöntemi")
                 .font(.subheadline.weight(.semibold))
             
-            HStack(spacing: 12) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 ForEach(PaymentMethodOption.allCases, id: \.self) { method in
                     Button(action: { selectedMethod = method }) {
                         VStack(spacing: 6) {
@@ -159,6 +170,7 @@ struct CollectionView: View {
                 TextField("0.00", text: $collectedAmount)
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                     .keyboardType(.decimalPad)
+                    .disabled(isWarranty)
             }
             .padding()
             .background(PusulaTheme.raisedSurface)
@@ -167,6 +179,12 @@ struct CollectionView: View {
                     .stroke(PusulaTheme.border, lineWidth: 1)
             }
             .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
+
+            if isWarranty {
+                Text("Garanti kapsamında satış, tahsilat ve cari borç oluşmaz. Kullanılan parçaların maliyeti rapora yansır.")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
             
             // Quick amount buttons
             HStack(spacing: 8) {
@@ -262,7 +280,7 @@ struct CollectionView: View {
                     ProgressView().tint(.white)
                 } else {
                     Image(systemName: "checkmark.circle.fill")
-                    Text(isFullPayment ? "Tamamla" : "Kaydet & Cariye Ekle")
+                    Text(isWarranty ? "Garanti Kapsamında Kapat" : (isFullPayment ? "Tamamla" : "Kaydet & Cariye Ekle"))
                 }
             }
             .frame(maxWidth: .infinity)
@@ -272,12 +290,16 @@ struct CollectionView: View {
         .background(isFullPayment ? PusulaTheme.accent : Color.orange)
         .foregroundColor(.white)
         .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
-        .disabled(isProcessing || collectedAmount.isEmpty)
+        .disabled(isProcessing || (!isWarranty && collectedAmount.isEmpty))
     }
     
     // MARK: - Logic
     
     private func handleSubmit() {
+        if isWarranty {
+            Task { await processPayment() }
+            return
+        }
         if !isFullPayment {
             // SAFETY: Show confirmation before adding to cari
             showDebtConfirmation = true
@@ -294,7 +316,8 @@ struct CollectionView: View {
             _ = try await TicketService.completeService(
                 ticketId: ticket.id,
                 amount: collectedValue,
-                paymentMethod: selectedMethod.apiValue
+                paymentMethod: selectedMethod.apiValue,
+                technicianNote: technicianNote
             )
             await onComplete()
         } catch {
@@ -309,13 +332,14 @@ struct CollectionView: View {
 // MARK: - Payment Method Options
 
 enum PaymentMethodOption: CaseIterable {
-    case cash, creditCard, currentAccount
+    case cash, creditCard, currentAccount, warranty
     
     var displayName: String {
         switch self {
         case .cash: return "Nakit"
         case .creditCard: return "Kredi Kartı"
         case .currentAccount: return "Cari"
+        case .warranty: return "Garanti"
         }
     }
     
@@ -324,6 +348,7 @@ enum PaymentMethodOption: CaseIterable {
         case .cash: return "banknote"
         case .creditCard: return "creditcard"
         case .currentAccount: return "doc.text"
+        case .warranty: return "checkmark.shield"
         }
     }
     
@@ -332,6 +357,7 @@ enum PaymentMethodOption: CaseIterable {
         case .cash: return "CASH"
         case .creditCard: return "CREDIT_CARD"
         case .currentAccount: return "CURRENT_ACCOUNT"
+        case .warranty: return "WARRANTY"
         }
     }
 }

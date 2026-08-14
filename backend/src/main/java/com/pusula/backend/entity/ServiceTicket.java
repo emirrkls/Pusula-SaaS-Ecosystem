@@ -251,7 +251,8 @@ public class ServiceTicket extends BaseEntity {
     /** Transitional fallback for rows created before collection_date was introduced. */
     @Transient
     public LocalDate getEffectiveCollectionDate() {
-        if (getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT) {
+        if (getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT
+                || getPaymentMethod() == PaymentMethod.WARRANTY) {
             return null;
         }
         if (collectionDate != null) {

@@ -7,11 +7,15 @@ import com.pusula.backend.dto.ServiceTicketDTO;
 import com.pusula.backend.dto.ServiceUsedPartDTO;
 import com.pusula.backend.dto.CompleteServiceRequest;
 import com.pusula.backend.dto.BulkTicketAssignmentRequest;
+import com.pusula.backend.dto.AddServiceTicketNoteRequest;
+import com.pusula.backend.dto.ServiceTicketNoteDTO;
 import com.pusula.backend.dto.AuthRequest;
 import com.pusula.backend.entity.ServicePhoto;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.service.ServiceTicketService;
 import com.pusula.backend.service.AuthenticationService;
+import com.pusula.backend.service.ServiceTicketNoteService;
+import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -42,10 +46,13 @@ public class ServiceTicketController {
 
     private final ServiceTicketService service;
     private final AuthenticationService authenticationService;
+    private final ServiceTicketNoteService noteService;
 
-    public ServiceTicketController(ServiceTicketService service, AuthenticationService authenticationService) {
+    public ServiceTicketController(ServiceTicketService service, AuthenticationService authenticationService,
+            ServiceTicketNoteService noteService) {
         this.service = service;
         this.authenticationService = authenticationService;
+        this.noteService = noteService;
     }
 
     private User getCurrentUser() {
@@ -118,6 +125,17 @@ public class ServiceTicketController {
         return ResponseEntity.ok(service.getUsedParts(id));
     }
 
+    @GetMapping("/{id}/technician-notes")
+    public ResponseEntity<List<ServiceTicketNoteDTO>> getTechnicianNotes(@PathVariable Long id) {
+        return ResponseEntity.ok(noteService.getNotes(id));
+    }
+
+    @PostMapping("/{id}/technician-notes")
+    public ResponseEntity<ServiceTicketNoteDTO> addTechnicianNote(@PathVariable Long id,
+            @RequestBody AddServiceTicketNoteRequest request) {
+        return ResponseEntity.ok(noteService.addWorkLog(id, request.getContent()));
+    }
+
     @PutMapping("/{id}/parts/{partId}")
     public ResponseEntity<ServiceUsedPartDTO> updateUsedPart(
             @PathVariable Long id,
@@ -138,10 +156,15 @@ public class ServiceTicketController {
      * moves any unpaid remainder to the customer's current account.
      */
     @PatchMapping("/{id}/complete")
+    @Transactional
     public ResponseEntity<ServiceTicketDTO> completeService(@PathVariable Long id,
             @RequestBody CompleteServiceRequest request) {
-        return ResponseEntity.ok(service.completeService(id, request.getCollectedAmount(),
-                request.getLaborFee(), request.getPaymentMethod(), request.getCompletionDate()));
+        ServiceTicketDTO completed = service.completeService(id, request.getCollectedAmount(),
+                request.getLaborFee(), request.getPaymentMethod(), request.getCompletionDate());
+        if (request.getTechnicianNote() != null && !request.getTechnicianNote().isBlank()) {
+            noteService.addClosureNote(id, request.getTechnicianNote());
+        }
+        return ResponseEntity.ok(completed);
     }
 
     @PatchMapping("/{id}/cancel")

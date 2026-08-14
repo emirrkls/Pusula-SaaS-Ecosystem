@@ -33,8 +33,21 @@ data class UsedPartDTO(
 
 data class CollectionRequest(
     val collectedAmount: Double,
-    val paymentMethod: String
+    val paymentMethod: String,
+    val technicianNote: String? = null
 )
+
+data class TechnicianNoteDTO(
+    val id: Long,
+    val serviceTicketId: Long,
+    val authorUserId: Long? = null,
+    val authorName: String,
+    val noteType: String,
+    val content: String,
+    val createdAt: String
+)
+
+data class AddTechnicianNoteRequest(val content: String)
 
 data class SignatureRequest(
     val signature: String

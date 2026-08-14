@@ -39,6 +39,7 @@ class ReportServiceStructuredPricingTest {
     @Mock UserRepository userRepository;
     @Mock ServiceUsedPartRepository usedPartRepository;
     @Mock ProposalRepository proposalRepository;
+    @Mock ServiceTicketNoteRepository serviceTicketNoteRepository;
 
     private ReportService service;
 
@@ -46,7 +47,7 @@ class ReportServiceStructuredPricingTest {
     void setUp() {
         service = new ReportService(ticketRepository, customerRepository, companyRepository,
                 dailyClosingRepository, expenseRepository, userRepository, usedPartRepository,
-                proposalRepository);
+                proposalRepository, serviceTicketNoteRepository);
     }
 
     @Test

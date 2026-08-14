@@ -1293,13 +1293,16 @@ public class TicketDetailsController {
         paymentCombo.getItems().addAll(
                 resourceBundle.getString("payment.cash"), // Nakit
                 resourceBundle.getString("payment.credit_card"), // Kredi Kartı
-                resourceBundle.getString("payment.current_account") // Cari Hesap (Veresiye)
+                resourceBundle.getString("payment.current_account"), // Cari Hesap (Veresiye)
+                resourceBundle.getString("payment.warranty")
         );
         String existingPaymentMethod = currentTicket.getPaymentMethod();
         paymentCombo.setValue("CREDIT_CARD".equals(existingPaymentMethod)
                 ? resourceBundle.getString("payment.credit_card")
                 : "CURRENT_ACCOUNT".equals(existingPaymentMethod)
                         ? resourceBundle.getString("payment.current_account")
+                        : "WARRANTY".equals(existingPaymentMethod)
+                                ? resourceBundle.getString("payment.warranty")
                         : resourceBundle.getString("payment.cash"));
 
         DatePicker completionDatePicker = new DatePicker(currentTicket.getCompletedAt() != null
@@ -1324,21 +1327,32 @@ public class TicketDetailsController {
         grid.add(outstandingLabel, 1, 4);
         grid.add(new Label(resourceBundle.getString("payment.method") + ":"), 0, 5);
         grid.add(paymentCombo, 1, 5);
+        TextArea technicianNoteField = new TextArea();
+        technicianNoteField.setPromptText("Yapılan işlem / kapanış notu");
+        technicianNoteField.setWrapText(true);
+        technicianNoteField.setPrefRowCount(3);
+        grid.add(new Label("Teknisyen notu:"), 0, 6);
+        grid.add(technicianNoteField, 1, 6);
         if (com.pusula.desktop.util.SessionManager.isAdmin()) {
-            grid.add(new Label(resourceBundle.getString("dialog.complete.date") + ":"), 0, 6);
-            grid.add(completionDatePicker, 1, 6);
+            grid.add(new Label(resourceBundle.getString("dialog.complete.date") + ":"), 0, 7);
+            grid.add(completionDatePicker, 1, 7);
         }
 
         boolean initiallyCurrentAccount = paymentCombo.getValue()
                 .equals(resourceBundle.getString("payment.current_account"));
-        collectedField.setDisable(initiallyCurrentAccount);
-        if (initiallyCurrentAccount) collectedField.setRawValue(BigDecimal.ZERO);
+        boolean initiallyWarranty = paymentCombo.getValue()
+                .equals(resourceBundle.getString("payment.warranty"));
+        collectedField.setDisable(initiallyCurrentAccount || initiallyWarranty);
+        laborFeeField.setDisable(initiallyWarranty);
+        if (initiallyWarranty) laborFeeField.setRawValue(BigDecimal.ZERO);
+        if (initiallyCurrentAccount || initiallyWarranty) collectedField.setRawValue(BigDecimal.ZERO);
 
         Runnable updateTotals = () -> {
-            BigDecimal invoiceTotal = partsTotal.add(laborFeeField.getRawValue());
+            boolean warranty = paymentCombo.getValue().equals(resourceBundle.getString("payment.warranty"));
+            BigDecimal invoiceTotal = warranty ? BigDecimal.ZERO : partsTotal.add(laborFeeField.getRawValue());
             boolean currentAccount = paymentCombo.getValue()
                     .equals(resourceBundle.getString("payment.current_account"));
-            if (currentAccount) {
+            if (currentAccount || warranty) {
                 collectedField.setRawValue(BigDecimal.ZERO);
             }
             BigDecimal collected = collectedField.getRawValue();
@@ -1357,8 +1371,11 @@ public class TicketDetailsController {
         collectedField.textProperty().addListener((observable, oldValue, newValue) -> updateTotals.run());
         paymentCombo.valueProperty().addListener((observable, oldValue, newValue) -> {
             boolean currentAccount = newValue.equals(resourceBundle.getString("payment.current_account"));
-            collectedField.setDisable(currentAccount);
-            collectedField.setRawValue(currentAccount
+            boolean warranty = newValue.equals(resourceBundle.getString("payment.warranty"));
+            laborFeeField.setDisable(warranty);
+            if (warranty) laborFeeField.setRawValue(BigDecimal.ZERO);
+            collectedField.setDisable(currentAccount || warranty);
+            collectedField.setRawValue(currentAccount || warranty
                     ? BigDecimal.ZERO
                     : partsTotal.add(laborFeeField.getRawValue()));
             updateTotals.run();
@@ -1374,6 +1391,7 @@ public class TicketDetailsController {
                 result.put("laborFee", laborFeeField.getRawValue());
                 result.put("collectedAmount", collectedField.getRawValue());
                 result.put("paymentMethod", paymentCombo.getValue());
+                result.put("technicianNote", technicianNoteField.getText());
                 if (com.pusula.desktop.util.SessionManager.isAdmin()) {
                     result.put("completionDate", completionDatePicker.getValue());
                 }
@@ -1400,6 +1418,10 @@ public class TicketDetailsController {
                     paymentMethod = "CREDIT_CARD";
                 } else if (paymentMethodDisplay.equals(resourceBundle.getString("payment.current_account"))) {
                     paymentMethod = "CURRENT_ACCOUNT";
+                } else if (paymentMethodDisplay.equals(resourceBundle.getString("payment.warranty"))) {
+                    paymentMethod = "WARRANTY";
+                    laborFee = BigDecimal.ZERO;
+                    collectedAmount = BigDecimal.ZERO;
                 }
 
                 // Create request body as Map
@@ -1407,6 +1429,7 @@ public class TicketDetailsController {
                 requestBody.put("laborFee", laborFee);
                 requestBody.put("collectedAmount", collectedAmount);
                 requestBody.put("paymentMethod", paymentMethod);
+                requestBody.put("technicianNote", result.get("technicianNote"));
                 if (result.get("completionDate") != null) {
                     requestBody.put("completionDate", result.get("completionDate").toString());
                 }

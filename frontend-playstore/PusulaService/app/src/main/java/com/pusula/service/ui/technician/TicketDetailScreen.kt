@@ -312,6 +312,52 @@ fun TicketDetailScreen(
             }
 
             item {
+                var newTechnicianNote by remember(ticketId) { mutableStateOf("") }
+                AppDashboardSection(title = "Teknisyen Notları") {
+                    AppGhostCard {
+                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                            if (uiState.technicianNotes.isEmpty()) {
+                                Text(
+                                    if (uiState.technicianNotesLoading) "Notlar yükleniyor…" else "Henüz teknisyen notu eklenmemiş.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else {
+                                uiState.technicianNotes.forEach { note ->
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(
+                                            note.authorName,
+                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                        )
+                                        Text(note.content, style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                }
+                            }
+                            if (ticket.status != "COMPLETED" && ticket.status != "CANCELLED") {
+                                OutlinedTextField(
+                                    value = newTechnicianNote,
+                                    onValueChange = { newTechnicianNote = it },
+                                    label = { Text("Yeni teknisyen notu") },
+                                    minLines = 3,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                AppPrimaryButton(
+                                    text = if (uiState.technicianNoteSaving) "Kaydediliyor…" else "Not Ekle",
+                                    onClick = {
+                                        viewModel.addTechnicianNote(ticketId, newTechnicianNote) {
+                                            newTechnicianNote = ""
+                                        }
+                                    },
+                                    enabled = newTechnicianNote.isNotBlank() && !uiState.technicianNoteSaving,
+                                    modifier = Modifier.fillMaxWidth().readOnlyProtected(session.isReadOnly)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
                 AppDashboardSection(title = "Durum ve Kapatma") {
                     AppGhostCard {
                         Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
@@ -370,13 +416,13 @@ fun TicketDetailScreen(
                                     onClick = { showCloseConfirm = true },
                                     modifier = Modifier.fillMaxWidth().readOnlyProtected(session.isReadOnly)
                                 ) {
-                                    Text("Tahsilat Olmadan Kapat")
+                                    Text("Garanti Kapsamında Kapat")
                                 }
                                 if (showCloseConfirm) {
                                     AlertDialog(
                                         onDismissRequest = { showCloseConfirm = false },
                                         title = { Text("İşi kapat") },
-                                        text = { Text("Bu fiş tahsilat kaydı olmadan tamamlanacak. Emin misiniz?") },
+                                        text = { Text("Bu fiş garanti kapsamında 0 TL ile kapatılacak. Parça maliyetleri rapora yansımaya devam edecek. Emin misiniz?") },
                                         confirmButton = {
                                             TextButton(onClick = {
                                                 showCloseConfirm = false

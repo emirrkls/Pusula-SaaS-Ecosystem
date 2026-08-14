@@ -27,6 +27,7 @@ public class ReportService {
         private final DailyClosingRepository dailyClosingRepository;
         private final ExpenseRepository expenseRepository;
         private final UserRepository userRepository;
+        private final ServiceTicketNoteRepository serviceTicketNoteRepository;
 
         private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -94,7 +95,8 @@ public class ReportService {
                         ExpenseRepository expenseRepository,
                         UserRepository userRepository,
                         ServiceUsedPartRepository serviceUsedPartRepository,
-                        ProposalRepository proposalRepository) {
+                        ProposalRepository proposalRepository,
+                        ServiceTicketNoteRepository serviceTicketNoteRepository) {
                 this.ticketRepository = ticketRepository;
                 this.customerRepository = customerRepository;
                 this.companyRepository = companyRepository;
@@ -103,6 +105,7 @@ public class ReportService {
                 this.userRepository = userRepository;
                 this.serviceUsedPartRepository = serviceUsedPartRepository;
                 this.proposalRepository = proposalRepository;
+                this.serviceTicketNoteRepository = serviceTicketNoteRepository;
         }
 
         /**
@@ -287,10 +290,17 @@ public class ReportService {
 
                 PdfPTable table = new PdfPTable(1);
                 table.setWidthPercentage(100);
-                PdfPCell cell = new PdfPCell(
-                                new Paragraph(ticket.getNotes() != null && !ticket.getNotes().isEmpty()
-                                                ? ticket.getNotes()
-                                                : "-", NORMAL_FONT));
+                List<String> noteLines = new ArrayList<>();
+                if (ticket.getNotes() != null && !ticket.getNotes().isBlank()) {
+                        noteLines.add(ticket.getNotes());
+                }
+                serviceTicketNoteRepository
+                                .findByServiceTicketIdAndCompanyIdOrderByCreatedAtAsc(ticket.getId(), ticket.getCompanyId())
+                                .forEach(note -> noteLines.add(String.format("%s - %s: %s",
+                                                note.getCreatedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
+                                                note.getAuthorName(), note.getContent())));
+                PdfPCell cell = new PdfPCell(new Paragraph(noteLines.isEmpty() ? "-" : String.join("\n\n", noteLines),
+                                NORMAL_FONT));
                 cell.setPadding(8);
                 cell.setBorderColor(Color.LIGHT_GRAY);
                 cell.setMinimumHeight(50f);
@@ -309,6 +319,7 @@ public class ReportService {
                 addCellToTable(table, "YAPILAN İŞLEM / KULLANILAN PARÇA", true, Element.ALIGN_LEFT);
                 addCellToTable(table, "TUTAR", true, Element.ALIGN_RIGHT);
 
+                boolean warranty = ticket.getPaymentMethod() == PaymentMethod.WARRANTY;
                 BigDecimal subTotal = BigDecimal.ZERO;
 
                 // 1. List Used Parts
@@ -321,7 +332,7 @@ public class ReportService {
                         BigDecimal unitPrice = part.getSellingPriceSnapshot() != null ? part.getSellingPriceSnapshot()
                                         : BigDecimal.ZERO;
                         int qty = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
-                        BigDecimal price = unitPrice.multiply(BigDecimal.valueOf(qty));
+                        BigDecimal price = warranty ? BigDecimal.ZERO : unitPrice.multiply(BigDecimal.valueOf(qty));
                         subTotal = subTotal.add(price);
 
                         String desc = String.format("%s (x%d)", partName, qty);
@@ -330,7 +341,7 @@ public class ReportService {
                 }
 
                 // 2. Service Fee (Labor)
-                BigDecimal serviceFee = ticket.getLaborFee() != null
+                BigDecimal serviceFee = warranty ? BigDecimal.ZERO : ticket.getLaborFee() != null
                                 ? ticket.getLaborFee()
                                 : (ticket.getCollectedAmount() != null ? ticket.getCollectedAmount() : BigDecimal.ZERO);
                 subTotal = subTotal.add(serviceFee);
@@ -368,6 +379,9 @@ public class ReportService {
                 addTotalRow(totalsTable, "FİŞ TOPLAMI:", String.format("%.2f ₺", invoiceTotal));
                 addTotalRow(totalsTable, "TAHSİL EDİLEN:", String.format("%.2f ₺", collected));
                 addTotalRow(totalsTable, "KALAN / CARİ:", String.format("%.2f ₺", outstanding));
+                if (warranty) {
+                        addTotalRow(totalsTable, "KAPANIŞ ŞEKLİ:", "GARANTİ KAPSAMINDA");
+                }
 
                 document.add(totalsTable);
         }
@@ -885,6 +899,9 @@ public class ReportService {
         }
 
         private BigDecimal calculateCurrentAccountTransfer(ServiceTicket ticket) {
+                if (ticket.getPaymentMethod() == PaymentMethod.WARRANTY) {
+                        return BigDecimal.ZERO;
+                }
                 if (ticket.getOutstandingAmount() != null) {
                         return ticket.getOutstandingAmount().max(BigDecimal.ZERO);
                 }
@@ -1172,11 +1189,16 @@ public class ReportService {
                                 BigDecimal amount = ticket.getEffectiveInvoiceTotal();
                                 dailyIncome = dailyIncome.add(amount);
 
-                                String saleLine = String.format("   Satış / Ciro: #%d - %s - %s → %s ₺",
-                                                ticket.getId(), customerName, serviceDesc,
-                                                currencyFormat.format(amount));
+                                boolean warranty = ticket.getPaymentMethod() == PaymentMethod.WARRANTY;
+                                String saleLine = warranty
+                                                ? String.format("   Garanti Kapsamında: #%d - %s - %s → 0,00 ₺",
+                                                                ticket.getId(), customerName, serviceDesc)
+                                                : String.format("   Satış / Ciro: #%d - %s - %s → %s ₺",
+                                                                ticket.getId(), customerName, serviceDesc,
+                                                                currencyFormat.format(amount));
                                 Paragraph saleParagraph = new Paragraph(saleLine,
-                                                new Font(interBaseFont, 10, Font.BOLD, ACCENT_GREEN));
+                                                new Font(interBaseFont, 10, Font.BOLD,
+                                                                warranty ? ACCENT_ORANGE : ACCENT_GREEN));
                                 saleParagraph.setIndentationLeft(10);
                                 document.add(saleParagraph);
 

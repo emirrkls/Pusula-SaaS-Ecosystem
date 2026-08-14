@@ -61,7 +61,8 @@ private data class PaymentMethodOption(
 private val paymentMethods = listOf(
     PaymentMethodOption(label = "Nakit", apiValue = "CASH"),
     PaymentMethodOption(label = "Kredi Kartı", apiValue = "CREDIT_CARD"),
-    PaymentMethodOption(label = "Cari Hesap", apiValue = "CURRENT_ACCOUNT")
+    PaymentMethodOption(label = "Cari Hesap", apiValue = "CURRENT_ACCOUNT"),
+    PaymentMethodOption(label = "Garanti Kapsamında", apiValue = "WARRANTY")
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,9 +82,11 @@ fun CollectionScreen(
     var method by remember { mutableStateOf(paymentMethods.first()) }
     var amountText by remember { mutableStateOf("%.2f".format(total)) }
     var confirmCari by remember { mutableStateOf(false) }
+    var technicianNote by remember { mutableStateOf("") }
 
-    val entered = amountText.toDoubleOrNull() ?: 0.0
-    val remain = (total - entered).coerceAtLeast(0.0)
+    val isWarranty = method.apiValue == "WARRANTY"
+    val entered = if (isWarranty) 0.0 else amountText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val remain = if (isWarranty) 0.0 else (total - entered).coerceAtLeast(0.0)
 
     LaunchedEffect(uiState.serviceCompletedTicketId) {
         if (uiState.serviceCompletedTicketId == ticketId) {
@@ -143,6 +146,7 @@ fun CollectionScreen(
                                         text = { Text(it.label) },
                                         onClick = {
                                             method = it
+                                            if (it.apiValue == "WARRANTY") amountText = "0.00"
                                             expanded = false
                                         }
                                     )
@@ -162,8 +166,16 @@ fun CollectionScreen(
                                 onValueChange = { amountText = it.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' } },
                                 label = { Text("Tahsil edilen tutar") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                enabled = !isWarranty,
                                 modifier = Modifier.fillMaxWidth()
                             )
+                            if (isWarranty) {
+                                Text(
+                                    "Garanti kapsamında satış, tahsilat ve cari borç oluşturulmaz. Kullanılan parçaların maliyeti rapora yansır.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = AccentOrange
+                                )
+                            }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -186,18 +198,32 @@ fun CollectionScreen(
             }
 
             item {
+                AppDashboardSection(title = "Teknisyen Notu") {
+                    AppGhostCard {
+                        OutlinedTextField(
+                            value = technicianNote,
+                            onValueChange = { technicianNote = it },
+                            label = { Text("Yapılan işlem / kapanış notu") },
+                            minLines = 3,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            item {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = {
                             if (remain > 0 && method.label != "Cari Hesap") {
                                 confirmCari = true
                             } else {
-                                viewModel.completeService(ticketId, entered, method.apiValue)
+                                viewModel.completeService(ticketId, entered, method.apiValue, technicianNote)
                             }
                         },
                         modifier = Modifier.fillMaxWidth().readOnlyProtected(session.isReadOnly)
                     ) {
-                        Text("Tahsilatı Kaydet")
+                        Text(if (isWarranty) "Garanti Kapsamında Kapat" else "Tahsilatı Kaydet")
                     }
                 }
             }
@@ -211,7 +237,7 @@ fun CollectionScreen(
             text = { Text("Kalan tutar cari hesaba aktarılacak. Onaylıyor musunuz?") },
             confirmButton = {
                 Button(onClick = {
-                    viewModel.completeService(ticketId, entered, method.apiValue)
+                    viewModel.completeService(ticketId, entered, method.apiValue, technicianNote)
                     confirmCari = false
                 }) {
                     Text("Onayla")
@@ -227,11 +253,13 @@ fun CollectionScreen(
 private fun methodIcon(method: String) = when (method) {
     "Kredi Kartı" -> Icons.Outlined.CreditCard
     "Cari Hesap" -> Icons.Outlined.AccountBalanceWallet
+    "Garanti Kapsamında" -> Icons.Outlined.Payments
     else -> Icons.Outlined.Payments
 }
 
 private fun methodTint(method: String) = when (method) {
     "Kredi Kartı" -> Info
     "Cari Hesap" -> AccentOrange
+    "Garanti Kapsamında" -> Warning
     else -> AccentPurple
 }

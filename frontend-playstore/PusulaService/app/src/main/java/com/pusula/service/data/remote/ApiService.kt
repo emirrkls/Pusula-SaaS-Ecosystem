@@ -35,6 +35,8 @@ import com.pusula.service.data.model.UsedPartDTO
 import com.pusula.service.data.model.UserDTO
 import com.pusula.service.data.model.VehicleDTO
 import com.pusula.service.data.model.CompanyDTO
+import com.pusula.service.data.model.TechnicianNoteDTO
+import com.pusula.service.data.model.AddTechnicianNoteRequest
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -93,6 +95,15 @@ interface ApiService {
 
     @POST("/api/tickets/{id}/parts")
     suspend fun addTicketPart(@Path("id") ticketId: Long, @Body request: UsedPartDTO): UsedPartDTO
+
+    @GET("/api/tickets/{id}/technician-notes")
+    suspend fun technicianNotes(@Path("id") ticketId: Long): List<TechnicianNoteDTO>
+
+    @POST("/api/tickets/{id}/technician-notes")
+    suspend fun addTechnicianNote(
+        @Path("id") ticketId: Long,
+        @Body request: AddTechnicianNoteRequest
+    ): TechnicianNoteDTO
 
     @PATCH("/api/tickets/{id}/complete")
     suspend fun completeTicket(@Path("id") ticketId: Long, @Body request: CollectionRequest): FieldTicketDTO

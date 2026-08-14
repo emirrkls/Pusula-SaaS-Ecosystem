@@ -52,7 +52,22 @@ struct UsedPartDTO: Codable, Identifiable {
 
 struct CollectionRequest: Codable {
     let collectedAmount: Double
-    let paymentMethod: String  // CASH, CREDIT_CARD, CURRENT_ACCOUNT
+    let paymentMethod: String
+    let technicianNote: String?
+}
+
+struct TechnicianNoteDTO: Codable, Identifiable {
+    let id: Int
+    let serviceTicketId: Int
+    let authorUserId: Int?
+    let authorName: String
+    let noteType: String
+    let content: String
+    let createdAt: String
+}
+
+struct AddTechnicianNoteRequest: Codable {
+    let content: String
 }
 
 // MARK: - Signature Upload

@@ -9,6 +9,7 @@ import com.pusula.service.data.model.InventoryItemDTO
 import com.pusula.service.data.model.ServicePhotoDTO
 import com.pusula.service.data.model.TechnicianDTO
 import com.pusula.service.data.model.UsedPartDTO
+import com.pusula.service.data.model.TechnicianNoteDTO
 import com.pusula.service.data.repository.TicketRepository
 import com.pusula.service.usecase.technician.OperationTicketUseCase
 import com.pusula.service.util.toUserMessage
@@ -48,6 +49,9 @@ data class TicketUiState(
     val ticketTimeline: List<com.pusula.service.data.model.AuditLogDTO> = emptyList(),
     val timelineLoading: Boolean = false,
     val statusUpdating: Boolean = false,
+    val technicianNotes: List<TechnicianNoteDTO> = emptyList(),
+    val technicianNotesLoading: Boolean = false,
+    val technicianNoteSaving: Boolean = false,
     /** Sunucu servis raporu PDF indirilirken (paylaşım öncesi). */
     val downloadingServicePdfTicketId: Long? = null
 )
@@ -199,7 +203,26 @@ class TicketViewModel @Inject constructor(
             loadTechnicians()
         }
         loadUsedParts(ticketId)
+        loadTechnicianNotes(ticketId)
         loadTicketTimeline(ticketId)
+    }
+
+    fun loadTechnicianNotes(ticketId: Long) = viewModelScope.launch {
+        _uiState.update { it.copy(technicianNotesLoading = true) }
+        runCatching { repository.getTechnicianNotes(ticketId) }
+            .onSuccess { notes -> _uiState.update { it.copy(technicianNotesLoading = false, technicianNotes = notes) } }
+            .onFailure { error -> _uiState.update { it.copy(technicianNotesLoading = false, error = error.toUserMessage("Teknisyen notları yüklenemedi")) } }
+    }
+
+    fun addTechnicianNote(ticketId: Long, content: String, onSaved: () -> Unit = {}) = viewModelScope.launch {
+        if (content.isBlank()) return@launch
+        _uiState.update { it.copy(technicianNoteSaving = true, error = null) }
+        runCatching { repository.addTechnicianNote(ticketId, content) }
+            .onSuccess { note ->
+                _uiState.update { it.copy(technicianNoteSaving = false, technicianNotes = it.technicianNotes + note) }
+                onSaved()
+            }
+            .onFailure { error -> _uiState.update { it.copy(technicianNoteSaving = false, error = error.toUserMessage("Teknisyen notu eklenemedi")) } }
     }
 
     fun loadTicketTimeline(ticketId: Long) = viewModelScope.launch {
@@ -240,7 +263,7 @@ class TicketViewModel @Inject constructor(
     }
 
     fun closeTicketWithoutCollection(ticketId: Long) = viewModelScope.launch {
-        runCatching { repository.completeService(ticketId, 0.0, "CASH") }
+        runCatching { repository.completeService(ticketId, 0.0, "WARRANTY") }
             .onSuccess { updated ->
                 _uiState.update { state ->
                     state.copy(
@@ -303,8 +326,8 @@ class TicketViewModel @Inject constructor(
         _uiState.update { it.copy(barcodeItem = null, barcodeLookupFailed = false) }
     }
 
-    fun completeService(ticketId: Long, amount: Double, method: String) = viewModelScope.launch {
-        runCatching { repository.completeService(ticketId, amount, method) }
+    fun completeService(ticketId: Long, amount: Double, method: String, technicianNote: String? = null) = viewModelScope.launch {
+        runCatching { repository.completeService(ticketId, amount, method, technicianNote) }
             .onSuccess { updated ->
                 _uiState.update { state ->
                     state.copy(

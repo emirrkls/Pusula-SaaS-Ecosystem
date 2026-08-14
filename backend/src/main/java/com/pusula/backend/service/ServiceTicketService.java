@@ -811,9 +811,22 @@ public class ServiceTicketService {
         BigDecimal effectiveCollectedAmount;
         BigDecimal storedCollectedAmount;
         BigDecimal outstandingAmount;
-        boolean structuredPricingRequest = laborFee != null;
+        boolean warrantyCompletion = effectivePaymentMethod == PaymentMethod.WARRANTY;
+        boolean structuredPricingRequest = laborFee != null || warrantyCompletion;
 
-        if (!structuredPricingRequest) {
+        if (warrantyCompletion) {
+            if (collectedAmount.signum() != 0) {
+                throw new IllegalArgumentException("Garanti kapsamındaki serviste tahsilat 0 olmalıdır.");
+            }
+            if (laborFee != null && laborFee.signum() != 0) {
+                throw new IllegalArgumentException("Garanti kapsamındaki serviste işçilik bedeli 0 olmalıdır.");
+            }
+            effectiveLaborFee = BigDecimal.ZERO;
+            invoiceTotal = BigDecimal.ZERO;
+            effectiveCollectedAmount = BigDecimal.ZERO;
+            storedCollectedAmount = BigDecimal.ZERO;
+            outstandingAmount = BigDecimal.ZERO;
+        } else if (!structuredPricingRequest) {
             // Older clients sent a single amount. Preserve it as the invoice total.
             invoiceTotal = collectedAmount;
             effectiveLaborFee = invoiceTotal.subtract(partsTotal).max(BigDecimal.ZERO);
@@ -862,12 +875,15 @@ public class ServiceTicketService {
 
         String previousStatus = getStatusInTurkish(ticket.getStatus());
         ticket.setStatus(ServiceTicket.TicketStatus.COMPLETED);
-        ticket.setPartsTotal(structuredPricingRequest ? partsTotal : null);
+        ticket.setPartsTotal(structuredPricingRequest ? (warrantyCompletion ? BigDecimal.ZERO : partsTotal) : null);
         ticket.setLaborFee(structuredPricingRequest ? effectiveLaborFee : null);
         ticket.setInvoiceTotal(structuredPricingRequest ? invoiceTotal : null);
         ticket.setCollectedAmount(storedCollectedAmount);
         ticket.setOutstandingAmount(structuredPricingRequest ? outstandingAmount : null);
         ticket.setPaymentMethod(effectivePaymentMethod);
+        if (warrantyCompletion) {
+            ticket.setWarrantyCall(true);
+        }
         ticket.setCompletedAt(completionDate.atTime(completionTime));
         ticket.setCollectionDate(effectiveCollectedAmount.signum() > 0 ? completionDate : null);
 

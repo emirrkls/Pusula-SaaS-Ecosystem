@@ -9,6 +9,9 @@ struct TicketDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var usedParts: [UsedPartDTO] = []
     @State private var timeline: [AuditLogDTO] = []
+    @State private var technicianNotes: [TechnicianNoteDTO] = []
+    @State private var newTechnicianNote = ""
+    @State private var isSavingTechnicianNote = false
     @State private var showScanner = false
     @State private var showPartPicker = false
     @State private var showCollection = false
@@ -74,6 +77,7 @@ struct TicketDetailView: View {
                 }
                 
                 partsSection
+                technicianNotesSection
                 timelineSection
                 
                 if isEditable {
@@ -382,6 +386,39 @@ struct TicketDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .pusulaCard()
     }
+
+    private var technicianNotesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Teknisyen Notları", systemImage: "note.text")
+                .font(.subheadline.weight(.semibold))
+            if technicianNotes.isEmpty {
+                Text("Henüz teknisyen notu eklenmemiş")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(technicianNotes) { note in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(note.authorName).font(.caption.weight(.semibold))
+                        Text(note.content).font(.subheadline)
+                    }
+                    Divider()
+                }
+            }
+            if isEditable {
+                TextField("Yeni teknisyen notu", text: $newTechnicianNote, axis: .vertical)
+                    .lineLimit(3...8)
+                    .textFieldStyle(.roundedBorder)
+                Button {
+                    Task { await saveTechnicianNote() }
+                } label: {
+                    if isSavingTechnicianNote { ProgressView() } else { Label("Not Ekle", systemImage: "plus") }
+                }
+                .disabled(newTechnicianNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSavingTechnicianNote)
+                .readOnlyProtected()
+            }
+        }
+        .pusulaCard()
+    }
     
     private var quickActionsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
@@ -477,7 +514,30 @@ struct TicketDetailView: View {
     private func loadDetailData() async {
         async let partsRequest: Void = loadParts()
         async let timelineRequest: Void = loadTimeline()
-        _ = await (partsRequest, timelineRequest)
+        async let notesRequest: Void = loadTechnicianNotes()
+        _ = await (partsRequest, timelineRequest, notesRequest)
+    }
+
+    private func loadTechnicianNotes() async {
+        do {
+            technicianNotes = try await TicketService.getTechnicianNotes(ticketId: ticket.id)
+        } catch {
+            if errorMessage == nil { errorMessage = "Teknisyen notları yüklenemedi: \(error.localizedDescription)" }
+        }
+    }
+
+    private func saveTechnicianNote() async {
+        let content = newTechnicianNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty else { return }
+        isSavingTechnicianNote = true
+        do {
+            let saved = try await TicketService.addTechnicianNote(ticketId: ticket.id, content: content)
+            technicianNotes.append(saved)
+            newTechnicianNote = ""
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isSavingTechnicianNote = false
     }
 
     private func loadTimeline() async {
