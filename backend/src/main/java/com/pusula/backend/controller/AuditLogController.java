@@ -1,6 +1,7 @@
 package com.pusula.backend.controller;
 
 import com.pusula.backend.entity.AuditLog;
+import com.pusula.backend.annotation.RequiresFeature;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.service.AuditLogService;
 import org.springframework.data.domain.Page;
@@ -16,6 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/audit-logs")
+@RequiresFeature("AUDIT_LOGS")
 public class AuditLogController {
 
     private final AuditLogService auditLogService;

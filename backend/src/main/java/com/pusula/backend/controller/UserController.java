@@ -6,6 +6,7 @@ import com.pusula.backend.repository.UserRepository;
 import com.pusula.backend.service.FileUploadService;
 import com.pusula.backend.repository.ServiceTicketRepository;
 import com.pusula.backend.service.AuditLogService;
+import com.pusula.backend.service.FeatureService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,15 +28,17 @@ public class UserController {
     private final FileUploadService fileUploadService;
     private final ServiceTicketRepository serviceTicketRepository;
     private final AuditLogService auditLogService;
+    private final FeatureService featureService;
 
     public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder,
             FileUploadService fileUploadService, ServiceTicketRepository serviceTicketRepository,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService, FeatureService featureService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.fileUploadService = fileUploadService;
         this.serviceTicketRepository = serviceTicketRepository;
         this.auditLogService = auditLogService;
+        this.featureService = featureService;
     }
 
     private User getCurrentUser() {
@@ -91,6 +94,13 @@ public class UserController {
     public ResponseEntity<UserDTO> createUser(@RequestBody UserDTO userDTO) {
         User currentUser = getCurrentUser();
 
+        String requestedRole = userDTO.getRole() == null ? "" : userDTO.getRole().trim().toUpperCase();
+        if (!"COMPANY_ADMIN".equals(requestedRole) && !"TECHNICIAN".equals(requestedRole)) {
+            return ResponseEntity.badRequest().build();
+        }
+        featureService.checkQuota(currentUser.getCompanyId(),
+                "COMPANY_ADMIN".equals(requestedRole) ? "COMPANY_ADMINS" : "TECHNICIANS");
+
         // Validate password is provided
         com.pusula.backend.util.PasswordPolicy.requireStrong(userDTO.getPassword());
 
@@ -99,7 +109,7 @@ public class UserController {
                 .username(userDTO.getUsername())
                 .passwordHash(passwordEncoder.encode(userDTO.getPassword())) // BCrypt hash
                 .fullName(userDTO.getFullName())
-                .role(userDTO.getRole())
+                .role(requestedRole)
                 .companyId(currentUser.getCompanyId()) // Same company as creator
                 .build();
 
@@ -124,10 +134,19 @@ public class UserController {
             return ResponseEntity.status(403).build();
         }
 
+        String requestedRole = userDTO.getRole() == null ? "" : userDTO.getRole().trim().toUpperCase();
+        if (!"COMPANY_ADMIN".equals(requestedRole) && !"TECHNICIAN".equals(requestedRole)) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (!requestedRole.equalsIgnoreCase(existingUser.getRole())) {
+            featureService.checkQuota(currentUser.getCompanyId(),
+                    "COMPANY_ADMIN".equals(requestedRole) ? "COMPANY_ADMINS" : "TECHNICIANS");
+        }
+
         // Update fields
         existingUser.setUsername(userDTO.getUsername());
         existingUser.setFullName(userDTO.getFullName());
-        existingUser.setRole(userDTO.getRole());
+        existingUser.setRole(requestedRole);
 
         // Update password only if provided
         if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
@@ -231,7 +250,8 @@ public class UserController {
         }
 
         try {
-            String filePath = fileUploadService.uploadUserSignature(id, file);
+            String filePath = fileUploadService.uploadUserSignature(
+                    currentUser.getCompanyId(), id, file, userToUpload.getSignaturePath());
             userToUpload.setSignaturePath(filePath);
             userRepository.save(userToUpload);
             return ResponseEntity.ok(filePath);

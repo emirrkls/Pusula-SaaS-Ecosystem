@@ -1,6 +1,7 @@
 package com.pusula.backend.controller;
 
 import com.pusula.backend.entity.Company;
+import com.pusula.backend.annotation.RequiresFeature;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.CompanyRepository;
 
@@ -59,6 +60,7 @@ public class CompanyController {
      * Upload company logo
      */
     @PostMapping("/me/logo")
+    @RequiresFeature("CUSTOM_BRANDING")
     public ResponseEntity<Company> uploadLogo(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
         try {
@@ -66,7 +68,7 @@ public class CompanyController {
             Company company = companyRepository.findById(currentUser.getCompanyId())
                     .orElseThrow(() -> new RuntimeException("Company not found"));
 
-            String logoPath = fileUploadService.uploadCompanyLogo(company.getId(), file);
+            String logoPath = fileUploadService.uploadCompanyLogo(company.getId(), file, company.getLogoPath());
             company.setLogoPath(logoPath);
 
             Company updated = companyRepository.save(company);

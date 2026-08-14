@@ -1,5 +1,7 @@
 package com.pusula.backend.controller;
 
+import com.pusula.backend.annotation.RequiresFeature;
+
 import com.pusula.backend.dto.ServicePhotoDTO;
 import com.pusula.backend.dto.ServiceTicketDTO;
 import com.pusula.backend.dto.ServiceUsedPartDTO;
@@ -35,6 +37,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/tickets")
+@RequiresFeature("SERVICE_TICKETS")
 public class ServiceTicketController {
 
     private final ServiceTicketService service;

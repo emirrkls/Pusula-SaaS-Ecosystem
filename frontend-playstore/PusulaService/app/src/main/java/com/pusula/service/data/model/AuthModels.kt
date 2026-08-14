@@ -54,18 +54,25 @@ data class AuthResponse(
 )
 
 data class QuotaDTO(
+    val maxCompanyAdmins: Int = 0,
     val maxTechnicians: Int,
     val maxCustomers: Int,
     val maxMonthlyTickets: Int,
     val maxMonthlyProposals: Int,
     val maxInventoryItems: Int,
     val storageLimitMb: Int,
+    val maxVehicles: Int = 0,
+    val maxCommercialDevices: Int = 0,
+    val auditRetentionDays: Int? = null,
+    val currentCompanyAdmins: Int = 0,
     val currentTechnicians: Int,
     val currentCustomers: Int,
     val currentMonthlyTickets: Int,
     val currentMonthlyProposals: Int,
     val currentInventoryItems: Int,
-    val currentStorageMb: Int
+    val currentStorageMb: Int,
+    val currentVehicles: Int = 0,
+    val currentCommercialDevices: Int = 0
 )
 
 data class ServiceTicketDTO(
@@ -94,12 +101,17 @@ data class PlanDTO(
     val displayName: String,
     val priceMonthly: Double? = null,
     val priceYearly: Double? = null,
+    val maxCompanyAdmins: Int? = null,
     val maxTechnicians: Int? = null,
     val maxCustomers: Int? = null,
     val maxMonthlyTickets: Int? = null,
     val maxMonthlyProposals: Int? = null,
     val maxInventoryItems: Int? = null,
-    val storageLimitMb: Int? = null
+    val storageLimitMb: Int? = null,
+    val maxVehicles: Int? = null,
+    val maxCommercialDevices: Int? = null,
+    val auditRetentionDays: Int? = null,
+    val features: Map<String, Boolean> = emptyMap()
 )
 
 data class InventoryItemDTO(

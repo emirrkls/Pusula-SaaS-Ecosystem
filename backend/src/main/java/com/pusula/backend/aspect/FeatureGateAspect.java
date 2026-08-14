@@ -13,6 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * AOP aspect that intercepts methods annotated with @RequiresFeature or @CheckQuota.
@@ -40,18 +42,21 @@ public class FeatureGateAspect {
     public void checkFeature(RequiresFeature requiresFeature) {
         Long companyId = resolveCompanyId();
         if (companyId != null) {
-            // Check read-only mode first
-            checkReadOnlyMode(companyId);
-            // Then check feature flag
+            checkReadOnlyModeForWrite(companyId);
             featureService.checkFeature(companyId, requiresFeature.value());
         }
+    }
+
+    @Before("@within(requiresFeature) && !@annotation(com.pusula.backend.annotation.RequiresFeature)")
+    public void checkClassFeature(RequiresFeature requiresFeature) {
+        checkFeature(requiresFeature);
     }
 
     @Before("@annotation(checkQuota)")
     public void checkQuota(CheckQuota checkQuota) {
         Long companyId = resolveCompanyId();
         if (companyId != null) {
-            checkReadOnlyMode(companyId);
+            checkReadOnlyModeForWrite(companyId);
             featureService.checkQuota(companyId, checkQuota.value());
         }
     }
@@ -60,7 +65,17 @@ public class FeatureGateAspect {
      * Enforce read-only mode for expired subscriptions.
      * Throws RuntimeException to block write operations.
      */
-    private void checkReadOnlyMode(Long companyId) {
+    private void checkReadOnlyModeForWrite(Long companyId) {
+        try {
+            if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
+                String method = attributes.getRequest().getMethod();
+                if ("GET".equals(method) || "HEAD".equals(method) || "OPTIONS".equals(method)) {
+                    return;
+                }
+            }
+        } catch (Exception ignored) {
+            // Non-HTTP service invocation is treated as a write for safety.
+        }
         Company company = companyRepository.findById(companyId).orElse(null);
         if (company != null && Boolean.TRUE.equals(company.getIsReadOnly())) {
             log.warn("Write operation blocked for company {} (READ_ONLY mode)", companyId);

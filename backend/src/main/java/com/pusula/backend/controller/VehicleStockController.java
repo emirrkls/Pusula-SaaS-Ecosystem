@@ -1,6 +1,7 @@
 package com.pusula.backend.controller;
 
 import com.pusula.backend.dto.VehicleStockDTO;
+import com.pusula.backend.annotation.RequiresFeature;
 import com.pusula.backend.entity.Inventory;
 import com.pusula.backend.entity.Vehicle;
 import com.pusula.backend.entity.VehicleStock;
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/vehicle-stocks")
 @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN', 'TECHNICIAN')")
+@RequiresFeature("VEHICLE_TRACKING")
 public class VehicleStockController {
 
     @Autowired

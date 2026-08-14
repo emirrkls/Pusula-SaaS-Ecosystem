@@ -6,6 +6,7 @@ import com.pusula.backend.repository.ServiceTicketRepository;
 import com.pusula.backend.repository.UserRepository;
 import com.pusula.backend.service.ReportService;
 import com.pusula.backend.service.OpenBalanceReportService;
+import com.pusula.backend.annotation.RequiresFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -123,6 +124,7 @@ public class ReportController {
      * Download Service Report PDF
      */
     @GetMapping("/pdf/service/{ticketId}")
+    @RequiresFeature("SERVICE_PDF_EXPORT")
     public ResponseEntity<byte[]> downloadServiceReport(@PathVariable Long ticketId) {
         try {
             assertCanAccessServiceReportPdf(ticketId);
@@ -148,6 +150,7 @@ public class ReportController {
      * Download Proposal PDF
      */
     @GetMapping("/pdf/proposal/{proposalId}")
+    @RequiresFeature("PROPOSAL_MODULE")
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<byte[]> downloadProposal(@PathVariable Long proposalId) {
         try {
@@ -171,6 +174,7 @@ public class ReportController {
      * Get list of monthly financial archives
      */
     @GetMapping("/finance/archives")
+    @RequiresFeature("ADVANCED_REPORT_EXPORT")
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public List<com.pusula.backend.dto.MonthlySummaryDTO> getMonthlyArchives() {
         return reportService.getMonthlyArchives(getCompanyId());
@@ -180,6 +184,7 @@ public class ReportController {
      * Download monthly financial report as PDF
      */
     @GetMapping("/finance/pdf")
+    @RequiresFeature("ADVANCED_REPORT_EXPORT")
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<byte[]> downloadMonthlyPDF(
             @RequestParam String month) { // Format: "2025-11"
@@ -200,6 +205,7 @@ public class ReportController {
     }
 
     @GetMapping("/open-company-debts/pdf")
+    @RequiresFeature("ADVANCED_REPORT_EXPORT")
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<byte[]> downloadOpenCompanyDebtsPdf() {
         byte[] pdf = openBalanceReportService.generateOpenCompanyDebtsPdf(getCompanyId());
@@ -207,6 +213,7 @@ public class ReportController {
     }
 
     @GetMapping("/open-current-accounts/pdf")
+    @RequiresFeature("ADVANCED_REPORT_EXPORT")
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<byte[]> downloadOpenCurrentAccountsPdf() {
         byte[] pdf = openBalanceReportService.generateOpenCurrentAccountsPdf(getCompanyId());

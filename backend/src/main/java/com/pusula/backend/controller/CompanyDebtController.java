@@ -1,6 +1,7 @@
 package com.pusula.backend.controller;
 
 import com.pusula.backend.dto.CompanyDebtDTO;
+import com.pusula.backend.annotation.RequiresFeature;
 import com.pusula.backend.dto.CompanyDebtAdditionDTO;
 import com.pusula.backend.dto.CompanyDebtPaymentDTO;
 import com.pusula.backend.dto.DebtAdditionRequestDTO;
@@ -20,6 +21,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+@RequiresFeature("COMPANY_DEBT_TRACKING")
 public class CompanyDebtController {
 
     private final CompanyDebtService debtService;

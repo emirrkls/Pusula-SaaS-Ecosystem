@@ -109,14 +109,7 @@ public class AuthController {
     @GetMapping("/feature-context")
     public ResponseEntity<AuthResponse> getFeatureContext() {
         User user = getCurrentUser();
-        // Re-authenticate internally to get fresh feature context
-        // This will be replaced by FeatureService in Sprint 2
-        AuthResponse response = AuthResponse.builder()
-                .role(user.getRole())
-                .fullName(user.getFullName())
-                .companyId(user.getCompanyId())
-                .build();
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(service.getFeatureContextResponse(user));
     }
     
     /**

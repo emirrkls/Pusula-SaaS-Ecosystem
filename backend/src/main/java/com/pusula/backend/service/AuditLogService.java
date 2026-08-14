@@ -29,9 +29,11 @@ public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
+    private final FeatureService featureService;
 
-    public AuditLogService(AuditLogRepository auditLogRepository) {
+    public AuditLogService(AuditLogRepository auditLogRepository, FeatureService featureService) {
         this.auditLogRepository = auditLogRepository;
+        this.featureService = featureService;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
         this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -144,7 +146,8 @@ public class AuditLogService {
      */
     public Page<AuditLog> getLogsWithDateRange(Long companyId, LocalDateTime startDate,
             LocalDateTime endDate, Pageable pageable) {
-        return auditLogRepository.findByCompanyIdAndDateRange(companyId, startDate, endDate, pageable);
+        return auditLogRepository.findByCompanyIdAndDateRange(
+                companyId, applyRetention(companyId, startDate), endDate, pageable);
     }
 
     /**
@@ -153,7 +156,7 @@ public class AuditLogService {
     public Page<AuditLog> getLogsByUser(Long companyId, Long userId, LocalDateTime startDate,
             LocalDateTime endDate, Pageable pageable) {
         return auditLogRepository.findByCompanyIdAndUserIdAndDateRange(
-                companyId, userId, startDate, endDate, pageable);
+                companyId, userId, applyRetention(companyId, startDate), endDate, pageable);
     }
 
     /**
@@ -163,7 +166,7 @@ public class AuditLogService {
             LocalDateTime startDate, LocalDateTime endDate,
             Pageable pageable) {
         return auditLogRepository.findByCompanyIdAndActionTypeAndDateRange(
-                companyId, actionType, startDate, endDate, pageable);
+                companyId, actionType, applyRetention(companyId, startDate), endDate, pageable);
     }
 
     /**
@@ -173,30 +176,52 @@ public class AuditLogService {
             LocalDateTime startDate, LocalDateTime endDate,
             Pageable pageable) {
         return auditLogRepository.findByCompanyIdAndUserIdAndActionTypeAndDateRange(
-                companyId, userId, actionType, startDate, endDate, pageable);
+                companyId, userId, actionType, applyRetention(companyId, startDate), endDate, pageable);
     }
 
     /**
      * Get logs for a specific entity
      */
     public List<AuditLog> getLogsForEntity(Long companyId, String entityType, Long entityId) {
+        LocalDateTime cutoff = retentionCutoff(companyId);
         return auditLogRepository.findByCompanyIdAndEntityTypeAndEntityIdOrderByTimestampDesc(
-                companyId, entityType, entityId);
+                companyId, entityType, entityId).stream()
+                .filter(log -> cutoff == null || !log.getTimestamp().isBefore(cutoff))
+                .toList();
     }
 
     /**
      * Get timeline for a specific ticket (chronological order - oldest first)
      */
     public List<AuditLog> getTicketTimeline(Long companyId, Long ticketId) {
+        LocalDateTime cutoff = retentionCutoff(companyId);
         return auditLogRepository.findByCompanyIdAndEntityTypeAndEntityIdOrderByTimestampAsc(
-                companyId, "TICKET", ticketId);
+                companyId, "TICKET", ticketId).stream()
+                .filter(log -> cutoff == null || !log.getTimestamp().isBefore(cutoff))
+                .toList();
     }
 
     /**
      * Get total log count for a company
      */
     public long getLogCount(Long companyId) {
-        return auditLogRepository.countByCompanyId(companyId);
+        LocalDateTime cutoff = retentionCutoff(companyId);
+        return cutoff == null
+                ? auditLogRepository.countByCompanyId(companyId)
+                : auditLogRepository.countByCompanyIdAndTimestampGreaterThanEqual(companyId, cutoff);
+    }
+
+    private LocalDateTime applyRetention(Long companyId, LocalDateTime requestedStart) {
+        LocalDateTime cutoff = retentionCutoff(companyId);
+        if (cutoff == null || (requestedStart != null && requestedStart.isAfter(cutoff))) {
+            return requestedStart;
+        }
+        return cutoff;
+    }
+
+    private LocalDateTime retentionCutoff(Long companyId) {
+        Integer retentionDays = featureService.getAuditRetentionDays(companyId);
+        return retentionDays == null ? null : LocalDateTime.now().minusDays(retentionDays);
     }
 
     /**

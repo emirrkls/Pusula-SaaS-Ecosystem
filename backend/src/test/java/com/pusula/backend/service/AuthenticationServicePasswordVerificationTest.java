@@ -30,12 +30,13 @@ class AuthenticationServicePasswordVerificationTest {
     @Mock JwtService jwtService;
     @Mock AuthenticationManager authenticationManager;
     @Mock AuditLogService auditLogService;
+    @Mock FeatureService featureService;
     private AuthenticationService service;
 
     @BeforeEach
     void setUp() {
         service = new AuthenticationService(userRepository, companyRepository, passwordEncoder,
-                jwtService, authenticationManager, auditLogService);
+                jwtService, authenticationManager, auditLogService, featureService);
     }
 
     @AfterEach

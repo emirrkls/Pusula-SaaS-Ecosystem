@@ -7,17 +7,22 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import com.pusula.backend.annotation.RequiresFeature;
+import com.pusula.backend.service.FeatureService;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/vehicles")
+@RequiresFeature("VEHICLE_TRACKING")
 public class VehicleController {
 
     private final VehicleRepository vehicleRepository;
+    private final FeatureService featureService;
 
-    public VehicleController(VehicleRepository vehicleRepository) {
+    public VehicleController(VehicleRepository vehicleRepository, FeatureService featureService) {
         this.vehicleRepository = vehicleRepository;
+        this.featureService = featureService;
     }
 
     private User getCurrentUser() {
@@ -44,6 +49,9 @@ public class VehicleController {
     @PostMapping
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public Vehicle create(@RequestBody Vehicle vehicle) {
+        if (!Boolean.FALSE.equals(vehicle.getIsActive())) {
+            featureService.checkQuota(getCurrentUser().getCompanyId(), "VEHICLES");
+        }
         vehicle.setCompanyId(getCurrentUser().getCompanyId());
         return vehicleRepository.save(vehicle);
     }
@@ -54,6 +62,10 @@ public class VehicleController {
             @RequestBody Vehicle vehicleDetails) {
         return vehicleRepository.findByIdAndCompanyId(id, getCurrentUser().getCompanyId())
                 .map(vehicle -> {
+                    if (!Boolean.TRUE.equals(vehicle.getIsActive())
+                            && Boolean.TRUE.equals(vehicleDetails.getIsActive())) {
+                        featureService.checkQuota(getCurrentUser().getCompanyId(), "VEHICLES");
+                    }
                     vehicle.setLicensePlate(vehicleDetails.getLicensePlate());
                     vehicle.setDriverName(vehicleDetails.getDriverName());
                     vehicle.setIsActive(vehicleDetails.getIsActive());

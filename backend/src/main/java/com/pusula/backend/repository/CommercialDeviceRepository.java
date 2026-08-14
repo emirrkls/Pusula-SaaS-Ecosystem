@@ -16,6 +16,8 @@ public interface CommercialDeviceRepository extends JpaRepository<CommercialDevi
 
     List<CommercialDevice> findByCompanyId(Long companyId);
 
+    long countByCompanyId(Long companyId);
+
     List<CommercialDevice> findByCompanyIdAndDeviceTypeId(Long companyId, Long deviceTypeId);
 
     List<CommercialDevice> findByCompanyIdAndBrand(Long companyId, String brand);

@@ -7,6 +7,7 @@ struct PlanUpgradeView: View {
     @State private var selectedPlan: PlanTier = .usta
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var planDefinitions: [String: PlanSummaryDTO] = [:]
     
     var body: some View {
         ScrollView {
@@ -78,6 +79,13 @@ struct PlanUpgradeView: View {
                 return
             }
             await storeManager.loadProducts()
+            do {
+                let definitions = try await AuthService.getPlans()
+                planDefinitions = Dictionary(uniqueKeysWithValues: definitions.map { ($0.name, $0) })
+            } catch {
+                alertMessage = "Paket limitleri sunucudan alınamadı. Lütfen tekrar deneyin."
+                showAlert = true
+            }
         }
         .onChange(of: storeManager.purchaseError) { _, error in
             if let error = error {
@@ -154,7 +162,7 @@ struct PlanUpgradeView: View {
             
             // Features list
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(plan.features, id: \.self) { feature in
+                ForEach(plan.features(using: planDefinitions[plan.rawValue]), id: \.self) { feature in
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
@@ -292,36 +300,18 @@ enum PlanTier: String, CaseIterable {
         }
     }
     
-    var features: [String] {
-        switch self {
-        case .cirak:
-            return [
-                "50 Servis Fişi / Ay",
-                "1 Teknisyen",
-                "100 Stok Kalemi",
-                "Temel Raporlama",
-                "WhatsApp Bildirimi"
-            ]
-        case .usta:
-            return [
-                "200 Servis Fişi / Ay",
-                "5 Teknisyen",
-                "500 Stok Kalemi",
-                "Gelişmiş Raporlama",
-                "Saha Radarı",
-                "Kâr Analizi",
-                "WhatsApp Bildirimi"
-            ]
-        case .patron:
-            return [
-                "Sınırsız Servis Fişi",
-                "Sınırsız Teknisyen",
-                "Sınırsız Stok",
-                "Tüm Raporlar",
-                "API Erişimi",
-                "Öncelikli Destek",
-                "Özel Marka Logosu"
-            ]
+    func features(using plan: PlanSummaryDTO?) -> [String] {
+        guard let plan else { return ["Paket bilgileri yükleniyor"] }
+        var result: [String] = []
+        if let value = plan.maxCompanyAdmins { result.append("\(value) şirket yöneticisi") }
+        if let value = plan.maxTechnicians { result.append("\(value) aktif teknisyen") }
+        if let value = plan.maxCustomers { result.append("\(value) müşteri") }
+        if let value = plan.maxMonthlyTickets { result.append("Ayda \(value) servis fişi") }
+        if let value = plan.maxMonthlyProposals, value > 0 { result.append("Ayda \(value) teklif") }
+        if let value = plan.maxInventoryItems { result.append("\(value) envanter kalemi") }
+        if let value = plan.storageLimitMb {
+            result.append(value >= 1024 ? "\(value / 1024) GB depolama" : "\(value) MB depolama")
         }
+        return result
     }
 }

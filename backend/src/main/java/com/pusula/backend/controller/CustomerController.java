@@ -2,6 +2,7 @@ package com.pusula.backend.controller;
 
 import com.pusula.backend.entity.Customer;
 import com.pusula.backend.service.CustomerService;
+import com.pusula.backend.annotation.RequiresFeature;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,6 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/customers")
+@RequiresFeature("CUSTOMER_MANAGEMENT")
 public class CustomerController {
 
     private final CustomerService customerService;

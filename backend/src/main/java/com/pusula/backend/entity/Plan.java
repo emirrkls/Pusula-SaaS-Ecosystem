@@ -30,6 +30,9 @@ public class Plan {
     @Column(name = "max_technicians")
     private Integer maxTechnicians;
 
+    @Column(name = "max_company_admins")
+    private Integer maxCompanyAdmins;
+
     @Column(name = "max_customers")
     private Integer maxCustomers;
 
@@ -44,6 +47,15 @@ public class Plan {
 
     @Column(name = "storage_limit_mb")
     private Integer storageLimitMb;
+
+    @Column(name = "max_vehicles")
+    private Integer maxVehicles;
+
+    @Column(name = "max_commercial_devices")
+    private Integer maxCommercialDevices;
+
+    @Column(name = "audit_retention_days")
+    private Integer auditRetentionDays;
 
     @Column(name = "is_active")
     private Boolean isActive = true;
@@ -74,6 +86,9 @@ public class Plan {
     public Integer getMaxTechnicians() { return maxTechnicians; }
     public void setMaxTechnicians(Integer maxTechnicians) { this.maxTechnicians = maxTechnicians; }
 
+    public Integer getMaxCompanyAdmins() { return maxCompanyAdmins; }
+    public void setMaxCompanyAdmins(Integer maxCompanyAdmins) { this.maxCompanyAdmins = maxCompanyAdmins; }
+
     public Integer getMaxCustomers() { return maxCustomers; }
     public void setMaxCustomers(Integer maxCustomers) { this.maxCustomers = maxCustomers; }
 
@@ -88,6 +103,15 @@ public class Plan {
 
     public Integer getStorageLimitMb() { return storageLimitMb; }
     public void setStorageLimitMb(Integer storageLimitMb) { this.storageLimitMb = storageLimitMb; }
+
+    public Integer getMaxVehicles() { return maxVehicles; }
+    public void setMaxVehicles(Integer maxVehicles) { this.maxVehicles = maxVehicles; }
+
+    public Integer getMaxCommercialDevices() { return maxCommercialDevices; }
+    public void setMaxCommercialDevices(Integer maxCommercialDevices) { this.maxCommercialDevices = maxCommercialDevices; }
+
+    public Integer getAuditRetentionDays() { return auditRetentionDays; }
+    public void setAuditRetentionDays(Integer auditRetentionDays) { this.auditRetentionDays = auditRetentionDays; }
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }

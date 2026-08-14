@@ -18,6 +18,8 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
 
     Optional<Inventory> findByIdAndCompanyId(Long id, Long companyId);
 
+    long countByCompanyId(Long companyId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT i FROM Inventory i WHERE i.id = :id AND i.companyId = :companyId")
     Optional<Inventory> findByIdAndCompanyIdForUpdate(@Param("id") Long id, @Param("companyId") Long companyId);

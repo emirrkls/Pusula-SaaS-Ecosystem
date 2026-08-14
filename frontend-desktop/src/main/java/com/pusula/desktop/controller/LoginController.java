@@ -240,7 +240,8 @@ public class LoginController {
                     String token = response.body().getToken();
                     String role = response.body().getRole();
                     Long companyId = response.body().getCompanyId();
-                    SessionManager.setSession(token, username, role, companyId);
+                    SessionManager.setSession(token, username, role, companyId,
+                            response.body().getPlanType(), response.body().getFeatures());
 
                     Platform.runLater(() -> {
                         try {

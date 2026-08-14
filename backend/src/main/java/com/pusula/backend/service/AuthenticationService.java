@@ -44,6 +44,7 @@ public class AuthenticationService {
         private final JwtService jwtService;
         private final AuthenticationManager authenticationManager;
         private final AuditLogService auditLogService;
+        private final FeatureService featureService;
 
         @Value("${google.oauth.web-client-id:}")
         private String googleWebClientId;
@@ -53,13 +54,15 @@ public class AuthenticationService {
                         PasswordEncoder passwordEncoder,
                         JwtService jwtService,
                         AuthenticationManager authenticationManager,
-                        AuditLogService auditLogService) {
+                        AuditLogService auditLogService,
+                        FeatureService featureService) {
                 this.userRepository = userRepository;
                 this.companyRepository = companyRepository;
                 this.passwordEncoder = passwordEncoder;
                 this.jwtService = jwtService;
                 this.authenticationManager = authenticationManager;
                 this.auditLogService = auditLogService;
+                this.featureService = featureService;
         }
 
         /**
@@ -124,12 +127,18 @@ public class AuthenticationService {
          */
         public AuthResponse register(RegisterRequest request) {
                 com.pusula.backend.util.PasswordPolicy.requireStrong(request.getPassword());
+                String requestedRole = request.getRole() == null ? "" : request.getRole().trim().toUpperCase(Locale.ROOT);
+                if (!"COMPANY_ADMIN".equals(requestedRole) && !"TECHNICIAN".equals(requestedRole)) {
+                        throw new IllegalArgumentException("Geçersiz şirket kullanıcı rolü");
+                }
+                featureService.checkQuota(request.getCompanyId(),
+                                "COMPANY_ADMIN".equals(requestedRole) ? "COMPANY_ADMINS" : "TECHNICIANS");
                 var user = User.builder()
                                 .companyId(request.getCompanyId())
                                 .username(request.getUsername())
                                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                                 .fullName(request.getFullName())
-                                .role(request.getRole())
+                                .role(requestedRole)
                                 .build();
                 userRepository.save(user);
                 var jwtToken = jwtService.generateToken(user);
@@ -367,8 +376,9 @@ public class AuthenticationService {
         // ── Helper Methods ──────────────────────────────────────────────
 
         private AuthResponse buildAuthResponse(String token, User user, Company company) {
-                Map<String, Boolean> features = getDefaultFeatures(
-                                company != null ? company.getPlanType() : PlanType.CIRAK);
+                Map<String, Boolean> features = company != null
+                                ? featureService.getFeatureFlags(company.getPlanType())
+                                : Collections.emptyMap();
 
                 Integer trialDays = null;
                 boolean isReadOnly = false;
@@ -395,57 +405,16 @@ public class AuthenticationService {
                                 .companyName(company != null ? company.getName() : null)
                                 .planType(company != null ? company.getPlanType().name() : "CIRAK")
                                 .features(features)
-                                .quota(QuotaDTO.unlimited()) // Will be populated by FeatureService in Sprint 2
+                                .quota(company != null ? featureService.getQuota(company.getId()) : QuotaDTO.unlimited())
                                 .readOnly(isReadOnly)
                                 .trialDaysRemaining(trialDays)
                                 .build();
         }
 
-        /**
-         * Returns default feature flags based on plan tier.
-         * In Sprint 2, this will be replaced by FeatureService with DB lookup.
-         */
-        private Map<String, Boolean> getDefaultFeatures(PlanType planType) {
-                Map<String, Boolean> features = new HashMap<>();
-
-                // Common features (all plans)
-                features.put("SERVICE_TICKETS", true);
-                features.put("CUSTOMER_MANAGEMENT", true);
-                features.put("BASIC_INVENTORY", true);
-
-                switch (planType) {
-                        case PATRON:
-                                features.put("COMMERCIAL_DEVICES", true);
-                                features.put("COMPANY_DEBT_TRACKING", true);
-                                features.put("CUSTOM_BRANDING", true);
-                                // fall through to USTA
-                        case USTA:
-                                features.put("FINANCE_MODULE", true);
-                                features.put("PDF_EXPORT", true);
-                                features.put("PROPOSAL_MODULE", true);
-                                features.put("VEHICLE_TRACKING", true);
-                                features.put("AUDIT_LOGS", true);
-                                features.put("WHATSAPP_INTEGRATION", true);
-                                features.put("MULTI_TECHNICIAN", true);
-                                features.put("DAILY_CLOSING", true);
-                                break;
-                        case CIRAK:
-                        default:
-                                features.put("FINANCE_MODULE", false);
-                                features.put("PDF_EXPORT", false);
-                                features.put("PROPOSAL_MODULE", false);
-                                features.put("VEHICLE_TRACKING", false);
-                                features.put("AUDIT_LOGS", false);
-                                features.put("WHATSAPP_INTEGRATION", false);
-                                features.put("MULTI_TECHNICIAN", false);
-                                features.put("DAILY_CLOSING", false);
-                                features.put("COMMERCIAL_DEVICES", false);
-                                features.put("COMPANY_DEBT_TRACKING", false);
-                                features.put("CUSTOM_BRANDING", false);
-                                break;
-                }
-
-                return features;
+        public AuthResponse getFeatureContextResponse(User user) {
+                Company company = companyRepository.findById(user.getCompanyId())
+                                .orElseThrow(() -> new RuntimeException("Şirket bulunamadı"));
+                return buildAuthResponse(null, user, company);
         }
 
         private String generateOrgCode() {

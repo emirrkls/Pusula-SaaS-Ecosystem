@@ -3,6 +3,7 @@ package com.pusula.backend.controller;
 import com.pusula.backend.dto.ProposalDTO;
 import com.pusula.backend.service.ProposalService;
 import com.pusula.backend.service.ReportService;
+import com.pusula.backend.annotation.RequiresFeature;
 import com.pusula.backend.entity.User;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -16,6 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/proposals")
 @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN', 'TECHNICIAN')")
+@RequiresFeature("PROPOSAL_MODULE")
 public class ProposalController {
 
     private final ProposalService proposalService;

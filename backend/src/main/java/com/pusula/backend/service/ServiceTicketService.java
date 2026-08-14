@@ -280,6 +280,7 @@ public class ServiceTicketService {
                 .filter(c -> c.getPhone() != null && normalizePhoneNumber(c.getPhone()).equals(normalizedPhone))
                 .findFirst()
                 .orElseGet(() -> {
+                    featureService.checkQuota(dto.getCompanyId(), "CUSTOMERS");
                     Customer newCustomer = Customer.builder()
                             .companyId(dto.getCompanyId())
                             .name(dto.getCustomerName())

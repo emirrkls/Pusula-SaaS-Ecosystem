@@ -1,6 +1,7 @@
 package com.pusula.backend.controller;
 
 import com.pusula.backend.dto.CurrentAccountDTO;
+import com.pusula.backend.annotation.RequiresFeature;
 import com.pusula.backend.entity.CurrentAccount;
 import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.ServiceTicket;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/current-accounts")
 @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+@RequiresFeature("FINANCE_MODULE")
 public class CurrentAccountController {
 
     @Autowired

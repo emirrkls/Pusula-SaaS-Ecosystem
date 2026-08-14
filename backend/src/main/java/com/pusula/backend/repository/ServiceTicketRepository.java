@@ -18,6 +18,9 @@ public interface ServiceTicketRepository extends JpaRepository<ServiceTicket, Lo
 
     List<ServiceTicket> findByAssignedTechnicianId(Long technicianId);
 
+    long countByCompanyIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+            Long companyId, LocalDateTime periodStart, LocalDateTime periodEnd);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM ServiceTicket t WHERE t.id = :id AND t.companyId = :companyId")
     Optional<ServiceTicket> findByIdAndCompanyIdForUpdate(

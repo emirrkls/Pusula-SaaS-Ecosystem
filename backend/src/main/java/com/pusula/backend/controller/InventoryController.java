@@ -6,6 +6,7 @@ import com.pusula.backend.entity.Inventory;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.InventoryRepository;
 import com.pusula.backend.service.InventoryService;
+import com.pusula.backend.annotation.RequiresFeature;
 
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/inventory")
+@RequiresFeature("BASIC_INVENTORY")
 public class InventoryController {
 
     private final InventoryService service;

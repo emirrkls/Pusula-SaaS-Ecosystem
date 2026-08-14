@@ -3,7 +3,7 @@ package com.pusula.service.core
 import com.pusula.service.data.model.QuotaDTO
 import kotlin.math.roundToInt
 
-private const val NEAR_PERCENT = 85
+private const val NEAR_PERCENT = 80
 
 /**
  * Kota sınırına yaklaşma ya da dolma için kullanıcıya gösterilecek kısa mesaj.
@@ -13,12 +13,15 @@ fun quotaNearOrExceededMessage(q: QuotaDTO): String? {
     data class Slice(val labelTr: String, val current: Int, val max: Int)
 
     val slices = listOf(
+        Slice("Şirket yöneticisi", q.currentCompanyAdmins, q.maxCompanyAdmins),
         Slice("Teknisyen", q.currentTechnicians, q.maxTechnicians),
         Slice("Müşteri", q.currentCustomers, q.maxCustomers),
         Slice("Bu ay iş emri", q.currentMonthlyTickets, q.maxMonthlyTickets),
         Slice("Bu ay teklif", q.currentMonthlyProposals, q.maxMonthlyProposals),
         Slice("Stok kalemi", q.currentInventoryItems, q.maxInventoryItems),
-        Slice("Dosya deposu (MB)", q.currentStorageMb, q.storageLimitMb)
+        Slice("Dosya deposu (MB)", q.currentStorageMb, q.storageLimitMb),
+        Slice("Aktif araç", q.currentVehicles, q.maxVehicles),
+        Slice("Ticari cihaz", q.currentCommercialDevices, q.maxCommercialDevices)
     )
 
     val exceeded = slices.firstOrNull { it.max > 0 && it.current >= it.max }

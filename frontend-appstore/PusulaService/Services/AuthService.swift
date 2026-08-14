@@ -39,6 +39,10 @@ enum AuthService {
         try await NetworkManager.shared.get("/api/subscription/my-context")
     }
 
+    static func getPlans() async throws -> [PlanSummaryDTO] {
+        try await NetworkManager.shared.get("/api/subscription/plans", requiresAuth: false)
+    }
+
     static func fetchAuthProfile() async throws -> AuthProfileResponse {
         try await NetworkManager.shared.get("/api/auth/feature-context")
     }

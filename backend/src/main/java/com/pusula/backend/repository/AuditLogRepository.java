@@ -76,6 +76,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
         // Count logs for a company
         long countByCompanyId(Long companyId);
 
+        long countByCompanyIdAndTimestampGreaterThanEqual(Long companyId, LocalDateTime timestamp);
+
         @Query("SELECT COUNT(a) FROM AuditLog a WHERE a.timestamp >= :since " +
                         "AND (a.actionType LIKE '%LOGIN_FAILED%' OR a.actionType LIKE '%AUTH_FAILED%')")
         long countAuthFailuresSince(@Param("since") LocalDateTime since);

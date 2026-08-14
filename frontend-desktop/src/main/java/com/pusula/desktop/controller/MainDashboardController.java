@@ -102,6 +102,8 @@ public class MainDashboardController {
             hideButton(btnActivityLog);
         }
 
+        applyPlanFeatures();
+
         contentArea.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 ThemeHelper.applyToScene(newScene, isDark);
@@ -117,6 +119,21 @@ public class MainDashboardController {
         if (button != null) {
             button.setVisible(false);
             button.setManaged(false);
+        }
+    }
+
+    private void applyPlanFeatures() {
+        hideUnlessEnabled(navInventory, "BASIC_INVENTORY");
+        hideUnlessEnabled(navCustomers, "CUSTOMER_MANAGEMENT");
+        hideUnlessEnabled(btnFinance, "FINANCE_MODULE");
+        hideUnlessEnabled(btnActivityLog, "AUDIT_LOGS");
+        hideUnlessEnabled(btnCommercial, "COMMERCIAL_DEVICES");
+        hideUnlessEnabled(btnProposals, "PROPOSAL_MODULE");
+    }
+
+    private void hideUnlessEnabled(Button button, String featureKey) {
+        if (!SessionManager.hasFeature(featureKey)) {
+            hideButton(button);
         }
     }
 

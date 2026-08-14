@@ -38,18 +38,25 @@ struct AuthProfileResponse: Codable {
 }
 
 struct QuotaDTO: Codable {
+    let maxCompanyAdmins: Int?
     let maxTechnicians: Int
     let maxCustomers: Int
     let maxMonthlyTickets: Int
     let maxMonthlyProposals: Int
     let maxInventoryItems: Int
     let storageLimitMb: Int
+    let maxVehicles: Int?
+    let maxCommercialDevices: Int?
+    let auditRetentionDays: Int?
+    let currentCompanyAdmins: Int?
     let currentTechnicians: Int
     let currentCustomers: Int
     let currentMonthlyTickets: Int
     let currentMonthlyProposals: Int
     let currentInventoryItems: Int
     let currentStorageMb: Int
+    let currentVehicles: Int?
+    let currentCommercialDevices: Int?
     
     var isUnlimited: Bool { maxTechnicians == -1 }
     
@@ -135,6 +142,25 @@ struct SubscriptionContextDTO: Codable {
     let quota: QuotaDTO?
     let isReadOnly: Bool?
     let trialDaysRemaining: Int?
+}
+
+struct PlanSummaryDTO: Codable, Identifiable {
+    let id: Int
+    let name: String
+    let displayName: String
+    let priceMonthly: Double?
+    let priceYearly: Double?
+    let maxCompanyAdmins: Int?
+    let maxTechnicians: Int?
+    let maxCustomers: Int?
+    let maxMonthlyTickets: Int?
+    let maxMonthlyProposals: Int?
+    let maxInventoryItems: Int?
+    let storageLimitMb: Int?
+    let maxVehicles: Int?
+    let maxCommercialDevices: Int?
+    let auditRetentionDays: Int?
+    let features: [String: Bool]?
 }
 
 // MARK: - Inventory DTO (Technician — buyPrice excluded for DTO isolation)

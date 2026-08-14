@@ -2,6 +2,7 @@ package com.pusula.backend.service;
 
 import com.pusula.backend.entity.*;
 import com.pusula.backend.repository.*;
+import com.pusula.backend.dto.QuotaDTO;
 import lombok.Builder;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,8 +33,8 @@ public class AdminDashboardService {
     private final InventoryRepository inventoryRepository;
     private final ServiceUsedPartRepository usedPartRepository;
     private final CustomerRepository customerRepository;
-    private final PlanFeatureRepository planFeatureRepository;
-    private final UsageTrackingRepository usageTrackingRepository;
+    private final CompanyRepository companyRepository;
+    private final FeatureService featureService;
 
     public AdminDashboardService(ServiceTicketRepository ticketRepository,
                                   CurrentAccountRepository currentAccountRepository,
@@ -42,8 +43,8 @@ public class AdminDashboardService {
                                   InventoryRepository inventoryRepository,
                                   ServiceUsedPartRepository usedPartRepository,
                                   CustomerRepository customerRepository,
-                                  PlanFeatureRepository planFeatureRepository,
-                                  UsageTrackingRepository usageTrackingRepository,
+                                  CompanyRepository companyRepository,
+                                  FeatureService featureService,
                                   @Value("${app.business.timezone:Europe/Istanbul}") String businessTimezone) {
         this.ticketRepository = ticketRepository;
         this.currentAccountRepository = currentAccountRepository;
@@ -52,8 +53,8 @@ public class AdminDashboardService {
         this.inventoryRepository = inventoryRepository;
         this.usedPartRepository = usedPartRepository;
         this.customerRepository = customerRepository;
-        this.planFeatureRepository = planFeatureRepository;
-        this.usageTrackingRepository = usageTrackingRepository;
+        this.companyRepository = companyRepository;
+        this.featureService = featureService;
         this.businessZone = ZoneId.of(businessTimezone);
     }
 
@@ -437,52 +438,48 @@ public class AdminDashboardService {
     }
 
     public QuotaStatus getQuotaStatus(Long companyId) {
-        // Define hardcoded plan limits (these match the SQL seed data logic)
-        // In production, these would come from the Plan entity
-        Map<String, Long> planLimits = Map.of(
-                "TICKETS", 100L,
-                "TECHNICIANS", 10L,
-                "INVENTORY", 500L,
-                "CUSTOMERS", 1000L
-        );
-
-        // Get usage for current month
-        LocalDate monthStart = LocalDate.now().withDayOfMonth(1);
-        List<UsageTracking> usages = usageTrackingRepository.findAll().stream()
-                .filter(u -> u.getCompanyId().equals(companyId))
-                .filter(u -> u.getPeriodStart() != null && !u.getPeriodStart().isBefore(monthStart))
-                .collect(Collectors.toList());
-
-        Map<String, Integer> usageMap = usages.stream()
-                .collect(Collectors.toMap(
-                        UsageTracking::getUsageType,
-                        u -> u.getCurrentCount() != null ? u.getCurrentCount() : 0,
-                        (a, b) -> a));
-
-        List<QuotaItemDTO> quotas = planLimits.entrySet().stream()
-                .map(entry -> {
-                    long current = usageMap.getOrDefault(entry.getKey(), 0);
-                    long limit = entry.getValue();
-                    double pct = limit > 0 ? (double) current / limit * 100.0 : 0;
-
-                    return QuotaItemDTO.builder()
-                            .featureKey(entry.getKey())
-                            .featureLabel(getFeatureLabel(entry.getKey()))
-                            .currentUsage(current)
-                            .limit(limit)
-                            .usagePercent(Math.min(pct, 100.0))
-                            .build();
-                })
-                .collect(Collectors.toList());
-
+        QuotaDTO quota = featureService.getQuota(companyId);
+        List<QuotaItemDTO> quotas = List.of(
+                quotaItem("COMPANY_ADMINS", quota.getCurrentCompanyAdmins(), quota.getMaxCompanyAdmins()),
+                quotaItem("TECHNICIANS", quota.getCurrentTechnicians(), quota.getMaxTechnicians()),
+                quotaItem("CUSTOMERS", quota.getCurrentCustomers(), quota.getMaxCustomers()),
+                quotaItem("TICKETS", quota.getCurrentMonthlyTickets(), quota.getMaxMonthlyTickets()),
+                quotaItem("PROPOSALS", quota.getCurrentMonthlyProposals(), quota.getMaxMonthlyProposals()),
+                quotaItem("INVENTORY", quota.getCurrentInventoryItems(), quota.getMaxInventoryItems()),
+                quotaItem("VEHICLES", quota.getCurrentVehicles(), quota.getMaxVehicles()),
+                quotaItem("COMMERCIAL_DEVICES", quota.getCurrentCommercialDevices(), quota.getMaxCommercialDevices()),
+                quotaItem("STORAGE", quota.getCurrentStorageMb(), quota.getStorageLimitMb()));
+        String planName = companyRepository.findById(companyId)
+                .map(company -> company.getPlanType().name())
+                .orElse("UNKNOWN");
         return QuotaStatus.builder()
-                .planName("PLAN")
+                .planName(planName)
                 .quotas(quotas)
+                .build();
+    }
+
+    private QuotaItemDTO quotaItem(String key, long current, long limit) {
+        double percentage = limit > 0 ? (double) current / limit * 100.0 : 0.0;
+        return QuotaItemDTO.builder()
+                .featureKey(key)
+                .featureLabel(getFeatureLabel(key))
+                .currentUsage(current)
+                .limit(limit)
+                .usagePercent(Math.min(percentage, 100.0))
                 .build();
     }
 
     private String getFeatureLabel(String key) {
         return switch (key) {
+            case "COMPANY_ADMINS" -> "Şirket yöneticisi";
+            case "TICKETS" -> "Aylık servis fişi";
+            case "TECHNICIANS" -> "Aktif teknisyen";
+            case "INVENTORY" -> "Envanter kalemi";
+            case "CUSTOMERS" -> "Müşteri";
+            case "PROPOSALS" -> "Aylık teklif";
+            case "VEHICLES" -> "Aktif araç";
+            case "COMMERCIAL_DEVICES" -> "Ticari cihaz";
+            case "STORAGE" -> "Depolama (MB)";
             case "MAX_TICKETS" -> "Servis Fişi";
             case "MAX_TECHNICIANS" -> "Teknisyen";
             case "MAX_INVENTORY" -> "Stok Kalemi";

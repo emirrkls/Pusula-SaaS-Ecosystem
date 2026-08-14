@@ -3,6 +3,8 @@ package com.pusula.backend.service;
 import com.pusula.backend.entity.UsageTracking;
 import com.pusula.backend.entity.Company;
 import com.pusula.backend.entity.PlanType;
+import com.pusula.backend.entity.Plan;
+import com.pusula.backend.entity.PlanFeature;
 import com.pusula.backend.exception.QuotaExceededException;
 import com.pusula.backend.repository.CompanyRepository;
 import com.pusula.backend.repository.PlanFeatureRepository;
@@ -11,6 +13,10 @@ import com.pusula.backend.repository.UsageTrackingRepository;
 import com.pusula.backend.repository.UserRepository;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.InventoryRepository;
+import com.pusula.backend.repository.ServiceTicketRepository;
+import com.pusula.backend.repository.ProposalRepository;
+import com.pusula.backend.repository.VehicleRepository;
+import com.pusula.backend.repository.CommercialDeviceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,6 +55,11 @@ class FeatureServiceUsageConsistencyTest {
     private CustomerRepository customerRepository;
     @Mock
     private InventoryRepository inventoryRepository;
+    @Mock private ServiceTicketRepository ticketRepository;
+    @Mock private ProposalRepository proposalRepository;
+    @Mock private VehicleRepository vehicleRepository;
+    @Mock private CommercialDeviceRepository commercialDeviceRepository;
+    @Mock private StorageUsageService storageUsageService;
 
     private FeatureService featureService;
     private final Map<String, UsageTracking> store = new HashMap<>();
@@ -62,7 +73,12 @@ class FeatureServiceUsageConsistencyTest {
                 usageTrackingRepository,
                 userRepository,
                 customerRepository,
-                inventoryRepository);
+                inventoryRepository,
+                ticketRepository,
+                proposalRepository,
+                vehicleRepository,
+                commercialDeviceRepository,
+                storageUsageService);
 
         lenient().when(usageTrackingRepository.findByCompanyIdAndUsageTypeAndPeriodStart(any(), any(), any()))
                 .thenAnswer(invocation -> {
@@ -134,8 +150,46 @@ class FeatureServiceUsageConsistencyTest {
         store.put(key(10L, "TICKETS", currentMonth), tracking);
 
         when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+        Plan plan = new Plan();
+        plan.setName("CIRAK");
+        plan.setMaxMonthlyTickets(30);
+        when(planRepository.findByName("CIRAK")).thenReturn(Optional.of(plan));
+        when(ticketRepository.countByCompanyIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                eq(10L), any(), any())).thenReturn(30L);
 
         assertThrows(QuotaExceededException.class, () -> featureService.checkQuota(10L, "TICKETS"));
+    }
+
+    @Test
+    void customerQuota_usesPlanRecordAndCurrentActiveRows() {
+        Company company = new Company();
+        company.setId(10L);
+        company.setPlanType(PlanType.CIRAK);
+        Plan plan = new Plan();
+        plan.setName("CIRAK");
+        plan.setMaxCustomers(100);
+
+        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+        when(planRepository.findByName("CIRAK")).thenReturn(Optional.of(plan));
+        when(customerRepository.countByCompanyId(10L)).thenReturn(100L);
+
+        assertThrows(QuotaExceededException.class, () -> featureService.checkQuota(10L, "CUSTOMERS"));
+    }
+
+    @Test
+    void featureFlags_areReadFromPlanFeatureRows() {
+        Plan plan = new Plan();
+        plan.setId(3L);
+        plan.setName("PATRON");
+        PlanFeature feature = new PlanFeature();
+        feature.setPlan(plan);
+        feature.setFeatureKey("COMMERCIAL_DEVICES");
+        feature.setEnabled(true);
+
+        when(planRepository.findByName("PATRON")).thenReturn(Optional.of(plan));
+        when(planFeatureRepository.findByPlanId(3L)).thenReturn(java.util.List.of(feature));
+
+        assertEquals(true, featureService.getFeatureFlags(PlanType.PATRON).get("COMMERCIAL_DEVICES"));
     }
 
     private String key(Long companyId, String usageType, LocalDate periodStart) {

@@ -1,6 +1,7 @@
 package com.pusula.backend.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -15,34 +16,45 @@ import java.util.Locale;
 @Service
 public class FileUploadService {
 
-    private static final String UPLOAD_DIR = "uploads";
     private static final long MAX_IMAGE_SIZE_BYTES = 5L * 1024L * 1024L;
+    private final FeatureService featureService;
+    private final Path uploadRoot;
 
-    public String uploadCompanyLogo(Long companyId, MultipartFile file) throws IOException {
+    public FileUploadService(FeatureService featureService,
+            @Value("${app.upload-dir:uploads}") String uploadDir) {
+        this.featureService = featureService;
+        this.uploadRoot = Paths.get(uploadDir).toAbsolutePath().normalize();
+    }
+
+    public String uploadCompanyLogo(Long companyId, MultipartFile file, String previousPath) throws IOException {
         ValidatedImage image = validateImage(file);
+        featureService.checkStorageQuota(companyId, additionalBytes(image.bytes().length, previousPath));
         String fileName = "logo_" + UUID.randomUUID() + image.extension();
-        Path uploadPath = Paths.get(UPLOAD_DIR, "companies", companyId.toString());
+        Path uploadPath = uploadRoot.resolve("companies").resolve(companyId.toString());
 
         // Create directories if they don't exist
         Files.createDirectories(uploadPath);
 
         Path filePath = uploadPath.resolve(fileName);
         Files.copy(new ByteArrayInputStream(image.bytes()), filePath, StandardCopyOption.REPLACE_EXISTING);
+        deletePrevious(previousPath, filePath);
 
         // Return relative path
         return "companies/" + companyId + "/" + fileName;
     }
 
-    public String uploadUserSignature(Long userId, MultipartFile file) throws IOException {
+    public String uploadUserSignature(Long companyId, Long userId, MultipartFile file, String previousPath) throws IOException {
         ValidatedImage image = validateImage(file);
+        featureService.checkStorageQuota(companyId, additionalBytes(image.bytes().length, previousPath));
         String fileName = "signature_" + UUID.randomUUID() + image.extension();
-        Path uploadPath = Paths.get(UPLOAD_DIR, "signatures", userId.toString());
+        Path uploadPath = uploadRoot.resolve("signatures").resolve(userId.toString());
 
         // Create directories if they don't exist
         Files.createDirectories(uploadPath);
 
         Path filePath = uploadPath.resolve(fileName);
         Files.copy(new ByteArrayInputStream(image.bytes()), filePath, StandardCopyOption.REPLACE_EXISTING);
+        deletePrevious(previousPath, filePath);
 
         // Return relative path
         return "signatures/" + userId + "/" + fileName;
@@ -50,9 +62,11 @@ public class FileUploadService {
 
     public String uploadServicePhoto(Long companyId, Long ticketId, String type, MultipartFile file) throws IOException {
         ValidatedImage image = validateImage(file);
+        featureService.checkStorageQuota(companyId, image.bytes().length);
         String safeType = type == null ? "photo" : type.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_-]", "");
         String fileName = safeType + "_" + UUID.randomUUID() + image.extension();
-        Path uploadPath = Paths.get(UPLOAD_DIR, "service-photos", companyId.toString(), ticketId.toString());
+        Path uploadPath = uploadRoot.resolve("service-photos")
+                .resolve(companyId.toString()).resolve(ticketId.toString());
 
         Files.createDirectories(uploadPath);
 
@@ -94,6 +108,38 @@ public class FileUploadService {
             return ".webp";
         }
         return null;
+    }
+
+    private long additionalBytes(long newSize, String previousPath) {
+        Path previous = resolveStoredPath(previousPath);
+        if (previous == null || !Files.isRegularFile(previous)) {
+            return newSize;
+        }
+        try {
+            return Math.max(0L, newSize - Files.size(previous));
+        } catch (IOException ignored) {
+            return newSize;
+        }
+    }
+
+    private void deletePrevious(String previousPath, Path replacement) {
+        Path previous = resolveStoredPath(previousPath);
+        if (previous == null || previous.equals(replacement.toAbsolutePath().normalize())) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(previous);
+        } catch (IOException ignored) {
+            // The new upload succeeded; an orphaned old file must not fail the request.
+        }
+    }
+
+    private Path resolveStoredPath(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            return null;
+        }
+        Path resolved = uploadRoot.resolve(relativePath).normalize();
+        return resolved.startsWith(uploadRoot) ? resolved : null;
     }
 
     private record ValidatedImage(byte[] bytes, String extension) {}

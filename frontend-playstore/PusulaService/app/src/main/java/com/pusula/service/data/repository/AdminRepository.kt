@@ -6,6 +6,7 @@ import com.pusula.service.data.model.InventoryItemDTO
 import com.pusula.service.data.model.ProfitAnalysis
 import com.pusula.service.data.model.QuotaStatus
 import com.pusula.service.data.model.TechnicianStat
+import com.pusula.service.data.model.PlanDTO
 import com.pusula.service.data.remote.ApiService
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,6 +22,8 @@ class AdminRepository @Inject constructor(
     suspend fun getProfitAnalysis(): ProfitAnalysis = apiService.profitAnalysis()
 
     suspend fun getQuotaStatus(): QuotaStatus = apiService.quotaStatus()
+
+    suspend fun getPlans(): List<PlanDTO> = apiService.plans()
 
     suspend fun getFieldRadar(): List<FieldPin> = apiService.fieldRadar()
 

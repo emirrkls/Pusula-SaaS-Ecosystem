@@ -12,4 +12,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     List<Customer> findByCompanyId(Long companyId);
 
     Optional<Customer> findByIdAndCompanyId(Long id, Long companyId);
+
+    long countByCompanyId(Long companyId);
 }

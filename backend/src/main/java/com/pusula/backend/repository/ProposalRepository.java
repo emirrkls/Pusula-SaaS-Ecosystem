@@ -10,12 +10,16 @@ import jakarta.persistence.LockModeType;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 @Repository
 public interface ProposalRepository extends JpaRepository<Proposal, Long> {
     List<Proposal> findByCustomerId(Long customerId);
 
     List<Proposal> findByCompanyId(Long companyId);
+
+    long countByCompanyIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+            Long companyId, LocalDateTime periodStart, LocalDateTime periodEnd);
 
     Optional<Proposal> findByIdAndCompanyId(Long id, Long companyId);
 

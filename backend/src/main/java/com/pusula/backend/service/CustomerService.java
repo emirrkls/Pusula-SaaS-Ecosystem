@@ -4,6 +4,7 @@ import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.UserRepository;
+import com.pusula.backend.annotation.CheckQuota;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,7 @@ public class CustomerService {
         return customer;
     }
 
+    @CheckQuota("CUSTOMERS")
     public Customer createCustomer(Customer customer) {
         User user = getCurrentUser();
         customer.setCompanyId(user.getCompanyId());

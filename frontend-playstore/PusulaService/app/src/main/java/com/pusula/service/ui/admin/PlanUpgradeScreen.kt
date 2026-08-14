@@ -50,6 +50,7 @@ import com.pusula.service.ui.theme.BrandCyan
 import com.pusula.service.ui.theme.BrandNavy
 import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.ui.theme.Success
+import com.pusula.service.data.model.PlanDTO
 
 private data class PlanCardData(
     val code: String,
@@ -70,23 +71,11 @@ fun PlanUpgradeScreen(
     val session by viewModel.sessionManager.state.collectAsState()
     LaunchedEffect(context) {
         (context as? android.app.Activity)?.let(viewModel::bindBillingActivity)
+        viewModel.loadPlans()
     }
-    val plans = listOf(
-        PlanCardData(
-            code = "USTA",
-            title = "Usta",
-            tagline = "Büyüyen ekipler",
-            features = listOf("10 teknisyen", "2000 müşteri", "Finans modülü"),
-            accent = listOf(BrandNavy, BrandCyan.copy(alpha = 0.75f))
-        ),
-        PlanCardData(
-            code = "PATRON",
-            title = "Patron",
-            tagline = "Ölçek için",
-            features = listOf("Sınırsız teknisyen", "Sınırsız müşteri", "Tüm premium özellikler"),
-            accent = listOf(BrandNavy, BrandNavy.copy(alpha = 0.65f))
-        )
-    )
+    val plans = uiState.plans
+        .filter { it.name != "CIRAK" }
+        .map(::toPlanCardData)
 
     BackHandler(onBack = onBack)
 
@@ -118,6 +107,32 @@ fun PlanUpgradeScreen(
             LazyLoadingOverlay(isLoading = uiState.loading)
         }
     }
+}
+
+private fun toPlanCardData(plan: PlanDTO): PlanCardData {
+    val patron = plan.name == "PATRON"
+    val features = buildList {
+        plan.maxCompanyAdmins?.let { add("$it şirket yöneticisi") }
+        plan.maxTechnicians?.let { add("$it aktif teknisyen") }
+        plan.maxCustomers?.let { add("$it müşteri") }
+        plan.maxMonthlyTickets?.let { add("Ayda $it servis fişi") }
+        plan.maxMonthlyProposals?.takeIf { it > 0 }?.let { add("Ayda $it teklif") }
+        plan.maxInventoryItems?.let { add("$it envanter kalemi") }
+        plan.storageLimitMb?.let {
+            add(if (it >= 1024) "${it / 1024} GB depolama" else "$it MB depolama")
+        }
+    }
+    return PlanCardData(
+        code = plan.name,
+        title = plan.displayName.removeSuffix(" Paketi"),
+        tagline = if (patron) "Kapsamlı operasyonlar" else "Büyüyen ekipler",
+        features = features,
+        accent = if (patron) {
+            listOf(BrandNavy, BrandNavy.copy(alpha = 0.65f))
+        } else {
+            listOf(BrandNavy, BrandCyan.copy(alpha = 0.75f))
+        }
+    )
 }
 
 @Composable

@@ -9,6 +9,7 @@ import com.pusula.service.data.model.DashboardKPIs
 import com.pusula.service.data.model.FieldPin
 import com.pusula.service.data.model.InventoryItemDTO
 import com.pusula.service.data.model.ProfitAnalysis
+import com.pusula.service.data.model.PlanDTO
 import com.pusula.service.data.model.QuotaStatus
 import com.pusula.service.data.model.ServicePhotoDTO
 import com.pusula.service.data.model.TechnicianStat
@@ -32,6 +33,7 @@ data class AdminUiState(
     val technicianStats: List<TechnicianStat> = emptyList(),
     val profitAnalysis: ProfitAnalysis = ProfitAnalysis(),
     val quotaStatus: QuotaStatus = QuotaStatus(),
+    val plans: List<PlanDTO> = emptyList(),
     val fieldPins: List<FieldPin> = emptyList(),
     val inventory: List<InventoryItemDTO> = emptyList(),
     val catalogQuery: String = "",
@@ -71,6 +73,14 @@ class AdminViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(loading = false, error = throwable.toUserMessage("Saha radarı yüklenemedi"))
                 }
+            }
+    }
+
+    fun loadPlans() = viewModelScope.launch {
+        runCatching { adminRepository.getPlans() }
+            .onSuccess { plans -> _uiState.update { it.copy(plans = plans, error = null) } }
+            .onFailure { throwable ->
+                _uiState.update { it.copy(error = throwable.toUserMessage("Paketler yüklenemedi")) }
             }
     }
 

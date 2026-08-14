@@ -9,6 +9,7 @@ import com.pusula.backend.dto.PlanSummaryDTO;
 import com.pusula.backend.service.FeatureService;
 import com.pusula.backend.service.SubscriptionService;
 import com.pusula.backend.entity.User;
+import com.pusula.backend.entity.PlanType;
 import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
@@ -93,11 +94,16 @@ public class SubscriptionController {
         dto.setPriceMonthly(plan.getPriceMonthly());
         dto.setPriceYearly(plan.getPriceYearly());
         dto.setMaxTechnicians(plan.getMaxTechnicians());
+        dto.setMaxCompanyAdmins(plan.getMaxCompanyAdmins());
         dto.setMaxCustomers(plan.getMaxCustomers());
         dto.setMaxMonthlyTickets(plan.getMaxMonthlyTickets());
         dto.setMaxMonthlyProposals(plan.getMaxMonthlyProposals());
         dto.setMaxInventoryItems(plan.getMaxInventoryItems());
         dto.setStorageLimitMb(plan.getStorageLimitMb());
+        dto.setMaxVehicles(plan.getMaxVehicles());
+        dto.setMaxCommercialDevices(plan.getMaxCommercialDevices());
+        dto.setAuditRetentionDays(plan.getAuditRetentionDays());
+        dto.setFeatures(featureService.getFeatureFlags(PlanType.valueOf(plan.getName())));
         dto.setIsActive(plan.getIsActive());
         return dto;
     }

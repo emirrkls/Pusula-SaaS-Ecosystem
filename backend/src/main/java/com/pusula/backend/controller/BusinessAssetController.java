@@ -1,6 +1,7 @@
 package com.pusula.backend.controller;
 
 import com.pusula.backend.dto.BusinessAssetDTO;
+import com.pusula.backend.annotation.RequiresFeature;
 import com.pusula.backend.service.BusinessAssetService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/business-assets")
 @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+@RequiresFeature("BUSINESS_ASSETS")
 public class BusinessAssetController {
     private final BusinessAssetService service;
 

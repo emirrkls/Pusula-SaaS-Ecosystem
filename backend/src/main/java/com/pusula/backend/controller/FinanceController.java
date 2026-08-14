@@ -1,6 +1,7 @@
 package com.pusula.backend.controller;
 
 import com.pusula.backend.dto.FixedExpenseDefinitionDTO;
+import com.pusula.backend.annotation.RequiresFeature;
 import com.pusula.backend.dto.CategoryReportDTO;
 import com.pusula.backend.dto.CloseDayRequest;
 import com.pusula.backend.dto.DailySummaryDTO;
@@ -28,6 +29,7 @@ import java.util.Map;
 @RequestMapping("/api/finance")
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+@RequiresFeature("FINANCE_MODULE")
 public class FinanceController {
 
     private final FinanceService financeService;
@@ -101,6 +103,7 @@ public class FinanceController {
     }
 
     @PostMapping("/close-day")
+    @RequiresFeature("DAILY_CLOSING")
     public ResponseEntity<DailyClosing> closeDay(@RequestBody CloseDayRequest request) {
         DailyClosing closing = financeService.closeDay(
                 getCompanyId(),
@@ -189,6 +192,7 @@ public class FinanceController {
      * Close all unclosed days in a date range (for fixing historical data)
      */
     @PostMapping("/close-days-range")
+    @RequiresFeature("DAILY_CLOSING")
     public ResponseEntity<Map<String, Object>> closeDaysRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {

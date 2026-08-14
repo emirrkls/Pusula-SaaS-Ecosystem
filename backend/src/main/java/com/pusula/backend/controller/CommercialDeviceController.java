@@ -6,6 +6,8 @@ import com.pusula.backend.dto.SaleResponseDTO;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.UserRepository;
 import com.pusula.backend.service.CommercialDeviceService;
+import com.pusula.backend.service.FeatureService;
+import com.pusula.backend.annotation.RequiresFeature;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,15 +19,18 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/commercial-devices")
 @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN', 'TECHNICIAN')")
+@RequiresFeature("COMMERCIAL_DEVICES")
 public class CommercialDeviceController {
 
     private final CommercialDeviceService commercialDeviceService;
     private final UserRepository userRepository;
+    private final FeatureService featureService;
 
     public CommercialDeviceController(CommercialDeviceService commercialDeviceService,
-            UserRepository userRepository) {
+            UserRepository userRepository, FeatureService featureService) {
         this.commercialDeviceService = commercialDeviceService;
         this.userRepository = userRepository;
+        this.featureService = featureService;
     }
 
     @GetMapping
@@ -47,6 +52,7 @@ public class CommercialDeviceController {
     @PostMapping
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<CommercialDeviceDTO> create(@RequestBody CommercialDeviceDTO dto) {
+        featureService.checkQuota(getCurrentUser().getCompanyId(), "COMMERCIAL_DEVICES");
         CommercialDeviceDTO created = commercialDeviceService.create(dto);
         return ResponseEntity.ok(created);
     }

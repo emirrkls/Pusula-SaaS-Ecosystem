@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
  * Example: @RequiresFeature("FINANCE_MODULE") on a controller method
  * will return 403 for CIRAK plan users.
  */
-@Target(ElementType.METHOD)
+@Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RequiresFeature {
     String value();
