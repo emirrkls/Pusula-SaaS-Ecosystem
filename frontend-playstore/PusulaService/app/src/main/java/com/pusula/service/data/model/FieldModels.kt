@@ -28,7 +28,8 @@ data class UsedPartDTO(
     val partName: String,
     val quantityUsed: Int,
     val sellingPriceSnapshot: Double,
-    val sourceVehicleId: Long? = null
+    val sourceVehicleId: Long? = null,
+    val clientRequestId: String? = null
 )
 
 data class CollectionRequest(

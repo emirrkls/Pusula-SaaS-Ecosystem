@@ -17,4 +17,6 @@ public interface ServiceUsedPartRepository extends JpaRepository<ServiceUsedPart
     List<ServiceUsedPart> findByServiceTicketId(@Param("ticketId") Long ticketId);
 
     Optional<ServiceUsedPart> findByIdAndCompanyId(Long id, Long companyId);
+
+    Optional<ServiceUsedPart> findByCompanyIdAndClientRequestId(Long companyId, String clientRequestId);
 }

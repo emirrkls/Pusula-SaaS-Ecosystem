@@ -3,7 +3,7 @@ import SwiftUI
 /// Selects a real inventory item without requiring a barcode scan.
 /// The selected quantity is still validated by the backend when added to a ticket.
 struct InventoryPartPickerView: View {
-    let onItemSelected: (InventoryItemDTO, Int) -> Void
+    let onItemSelected: (InventoryItemDTO, Int, Double) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var inventory: [InventoryItemDTO] = []
@@ -11,6 +11,8 @@ struct InventoryPartPickerView: View {
     @State private var selectedCategory: String?
     @State private var selectedItem: InventoryItemDTO?
     @State private var quantity = 1
+    @State private var unitPriceText = ""
+    @State private var showPriceChangeConfirmation = false
     @State private var isLoading = true
     @State private var errorMessage: String?
 
@@ -131,11 +133,21 @@ struct InventoryPartPickerView: View {
             Form {
                 Section("Yedek Parça") {
                     LabeledContent("Ürün", value: item.partName)
-                    LabeledContent("Birim satış", value: formatCurrency(item.sellPrice ?? 0))
+                    LabeledContent("Envanter satış fiyatı", value: formatCurrency(item.sellPrice ?? 0))
                     LabeledContent("Mevcut stok", value: "\(item.quantity)")
                 }
                 Section("Kullanılacak Adet") {
                     Stepper("\(quantity) adet", value: $quantity, in: 1...max(item.quantity, 1))
+                }
+                Section("Bu Servisteki Satış Fiyatı") {
+                    TextField("Birim satış fiyatı", text: $unitPriceText)
+                        .keyboardType(.decimalPad)
+                    if let price = parsedUnitPrice {
+                        LabeledContent("Toplam", value: formatCurrency(price * Double(quantity)))
+                    }
+                    Text("Değiştirmezseniz envanterdeki satış fiyatı kullanılır.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("Parçayı Ekle")
@@ -146,12 +158,20 @@ struct InventoryPartPickerView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Ekle") {
-                        onItemSelected(item, quantity)
-                        selectedItem = nil
-                        dismiss()
+                        if isPriceChanged(from: item.sellPrice ?? 0) {
+                            showPriceChangeConfirmation = true
+                        } else {
+                            submit(item)
+                        }
                     }
-                    .disabled(item.quantity < 1)
+                    .disabled(item.quantity < 1 || parsedUnitPrice == nil)
                 }
+            }
+            .alert("Satış fiyatı değiştirilsin mi?", isPresented: $showPriceChangeConfirmation) {
+                Button("Vazgeç", role: .cancel) {}
+                Button("Onayla ve Ekle") { submit(item) }
+            } message: {
+                Text("Envanter fiyatı: \(formatCurrency(item.sellPrice ?? 0))\nYeni fiyat: \(formatCurrency(parsedUnitPrice ?? 0))")
             }
         }
         .presentationDetents([.medium])
@@ -159,7 +179,28 @@ struct InventoryPartPickerView: View {
 
     private func select(_ item: InventoryItemDTO) {
         quantity = 1
+        unitPriceText = String(format: "%.2f", item.sellPrice ?? 0)
         selectedItem = item
+    }
+
+    private var parsedUnitPrice: Double? {
+        let normalized = unitPriceText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ",", with: ".")
+        guard let value = Double(normalized), value >= 0, value.isFinite else { return nil }
+        return value
+    }
+
+    private func isPriceChanged(from inventoryPrice: Double) -> Bool {
+        guard let price = parsedUnitPrice else { return false }
+        return abs(price - inventoryPrice) >= 0.005
+    }
+
+    private func submit(_ item: InventoryItemDTO) {
+        guard let price = parsedUnitPrice else { return }
+        onItemSelected(item, quantity, price)
+        selectedItem = nil
+        dismiss()
     }
 
     @MainActor

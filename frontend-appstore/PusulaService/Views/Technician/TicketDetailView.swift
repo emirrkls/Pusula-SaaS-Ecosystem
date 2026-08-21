@@ -18,6 +18,7 @@ struct TicketDetailView: View {
     @State private var showSignature = false
     @State private var showPhotos = false
     @State private var isLoadingParts = false
+    @State private var isAddingPart = false
     @State private var isGeneratingPDF = false
     @State private var pdfPreview: PDFPreviewItem?
     @State private var isUpdatingTicket = false
@@ -99,13 +100,13 @@ struct TicketDetailView: View {
         }
         .task { await loadDetailData() }
         .sheet(isPresented: $showScanner) {
-            BarcodeScannerView { item, quantity in
-                Task { await addPart(from: item, quantity: quantity) }
+            BarcodeScannerView { item, quantity, unitPrice in
+                Task { await addPart(from: item, quantity: quantity, unitPrice: unitPrice) }
             }
         }
         .sheet(isPresented: $showPartPicker) {
-            InventoryPartPickerView { item, quantity in
-                Task { await addPart(from: item, quantity: quantity) }
+            InventoryPartPickerView { item, quantity, unitPrice in
+                Task { await addPart(from: item, quantity: quantity, unitPrice: unitPrice) }
             }
         }
         .sheet(isPresented: $showCollection) {
@@ -304,6 +305,7 @@ struct TicketDetailView: View {
                             .font(.caption.weight(.semibold))
                     }
                     .readOnlyProtected()
+                    .disabled(isAddingPart)
                 }
             }
             
@@ -580,20 +582,39 @@ struct TicketDetailView: View {
         return formatter.string(from: date)
     }
     
-    private func addPart(from item: InventoryItemDTO, quantity: Int) async {
+    @MainActor
+    private func addPart(from item: InventoryItemDTO, quantity: Int, unitPrice: Double) async {
+        guard !isAddingPart else { return }
+        isAddingPart = true
+        errorMessage = nil
+        operationMessage = nil
+        defer { isAddingPart = false }
+
+        let requestId = UUID().uuidString
         let part = UsedPartDTO(
             id: nil,
             ticketId: ticket.id,
             inventoryId: item.id,
             partName: item.partName,
             quantityUsed: quantity,
-            sellingPriceSnapshot: item.sellPrice ?? 0
+            sellingPriceSnapshot: unitPrice,
+            sourceVehicleId: nil,
+            clientRequestId: requestId
         )
         do {
             let saved = try await TicketService.addUsedPart(ticketId: ticket.id, part: part)
-            await MainActor.run { usedParts.append(saved) }
+            if !usedParts.contains(where: { $0.id == saved.id }) { usedParts.append(saved) }
+            operationMessage = "Parça eklendi: \(saved.partName)"
         } catch {
-            await MainActor.run { errorMessage = error.localizedDescription }
+            // If the response was interrupted after commit, reconcile from the server
+            // before showing an error or encouraging a duplicate retry.
+            if let refreshed = try? await TicketService.getUsedParts(ticketId: ticket.id),
+               refreshed.contains(where: { $0.clientRequestId == requestId }) {
+                usedParts = refreshed
+                operationMessage = "Parça eklendi. Bağlantı sonrası liste yenilendi."
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
     }
     

@@ -10,8 +10,10 @@ struct BarcodeScannerView: View {
     @State private var isSearching = false
     @State private var errorMessage: String?
     @State private var quantity = 1
+    @State private var unitPriceText = ""
+    @State private var showPriceChangeConfirmation = false
     
-    let onItemSelected: (InventoryItemDTO, Int) -> Void
+    let onItemSelected: (InventoryItemDTO, Int, Double) -> Void
     
     var body: some View {
         NavigationStack {
@@ -69,6 +71,16 @@ struct BarcodeScannerView: View {
                 }
             }
             .animation(.spring(duration: 0.3), value: foundItem != nil)
+            .alert("Satış fiyatı değiştirilsin mi?", isPresented: $showPriceChangeConfirmation) {
+                Button("Vazgeç", role: .cancel) {}
+                Button("Onayla ve Ekle") {
+                    if let item = foundItem { submit(item) }
+                }
+            } message: {
+                if let item = foundItem {
+                    Text("Envanter fiyatı: \(formatCurrency(item.sellPrice ?? 0))\nYeni fiyat: \(formatCurrency(parsedUnitPrice ?? 0))")
+                }
+            }
         }
     }
     
@@ -90,7 +102,7 @@ struct BarcodeScannerView: View {
                     }
                 }
                 Spacer()
-                Text("₺\(String(format: "%.2f", item.sellPrice ?? 0))")
+                Text(formatCurrency(item.sellPrice ?? 0))
                     .font(.title3.weight(.bold))
                     .foregroundColor(PusulaTheme.accent)
             }
@@ -102,10 +114,26 @@ struct BarcodeScannerView: View {
                 Stepper("\(quantity)", value: $quantity, in: 1...max(item.quantity, 1))
                     .font(.subheadline.weight(.semibold))
             }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Bu servisteki birim satış fiyatı")
+                    .font(.caption.weight(.semibold))
+                TextField("Birim satış fiyatı", text: $unitPriceText)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(.roundedBorder)
+                if let price = parsedUnitPrice {
+                    Text("Toplam: \(formatCurrency(price * Double(quantity)))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
             
             Button(action: {
-                onItemSelected(item, quantity)
-                dismiss()
+                if isPriceChanged(from: item.sellPrice ?? 0) {
+                    showPriceChangeConfirmation = true
+                } else {
+                    submit(item)
+                }
             }) {
                 HStack {
                     Image(systemName: "cart.badge.plus")
@@ -118,7 +146,7 @@ struct BarcodeScannerView: View {
             .background(PusulaTheme.accent)
             .foregroundColor(.white)
             .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
-            .disabled(item.quantity < 1)
+            .disabled(item.quantity < 1 || parsedUnitPrice == nil)
         }
         .padding()
         .background(.ultraThickMaterial)
@@ -137,6 +165,8 @@ struct BarcodeScannerView: View {
                 let item = try await TicketService.lookupBarcode(code)
                 await MainActor.run {
                     foundItem = item
+                    quantity = 1
+                    unitPriceText = String(format: "%.2f", item.sellPrice ?? 0)
                     isSearching = false
                 }
             } catch {
@@ -151,6 +181,29 @@ struct BarcodeScannerView: View {
                 }
             }
         }
+    }
+
+    private var parsedUnitPrice: Double? {
+        let normalized = unitPriceText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ",", with: ".")
+        guard let value = Double(normalized), value >= 0, value.isFinite else { return nil }
+        return value
+    }
+
+    private func isPriceChanged(from inventoryPrice: Double) -> Bool {
+        guard let price = parsedUnitPrice else { return false }
+        return abs(price - inventoryPrice) >= 0.005
+    }
+
+    private func submit(_ item: InventoryItemDTO) {
+        guard let price = parsedUnitPrice else { return }
+        onItemSelected(item, quantity, price)
+        dismiss()
+    }
+
+    private func formatCurrency(_ value: Double) -> String {
+        value.formatted(.currency(code: "TRY").locale(Locale(identifier: "tr_TR")))
     }
 }
 

@@ -10,6 +10,7 @@ public class ServiceUsedPartDTO {
     private Integer quantityUsed;
     private BigDecimal sellingPriceSnapshot;
     private Long sourceVehicleId; // NULL = main inventory, set = from vehicle
+    private String clientRequestId;
 
     public ServiceUsedPartDTO() {
     }
@@ -28,6 +29,12 @@ public class ServiceUsedPartDTO {
             BigDecimal sellingPriceSnapshot, Long sourceVehicleId) {
         this(id, ticketId, inventoryId, partName, quantityUsed, sellingPriceSnapshot);
         this.sourceVehicleId = sourceVehicleId;
+    }
+
+    public ServiceUsedPartDTO(Long id, Long ticketId, Long inventoryId, String partName, Integer quantityUsed,
+            BigDecimal sellingPriceSnapshot, Long sourceVehicleId, String clientRequestId) {
+        this(id, ticketId, inventoryId, partName, quantityUsed, sellingPriceSnapshot, sourceVehicleId);
+        this.clientRequestId = clientRequestId;
     }
 
     public static ServiceUsedPartDTOBuilder builder() {
@@ -90,6 +97,14 @@ public class ServiceUsedPartDTO {
         this.sourceVehicleId = sourceVehicleId;
     }
 
+    public String getClientRequestId() {
+        return clientRequestId;
+    }
+
+    public void setClientRequestId(String clientRequestId) {
+        this.clientRequestId = clientRequestId;
+    }
+
     public static class ServiceUsedPartDTOBuilder {
         private Long id;
         private Long ticketId;
@@ -98,6 +113,7 @@ public class ServiceUsedPartDTO {
         private Integer quantityUsed;
         private BigDecimal sellingPriceSnapshot;
         private Long sourceVehicleId;
+        private String clientRequestId;
 
         ServiceUsedPartDTOBuilder() {
         }
@@ -137,9 +153,14 @@ public class ServiceUsedPartDTO {
             return this;
         }
 
+        public ServiceUsedPartDTOBuilder clientRequestId(String clientRequestId) {
+            this.clientRequestId = clientRequestId;
+            return this;
+        }
+
         public ServiceUsedPartDTO build() {
             return new ServiceUsedPartDTO(id, ticketId, inventoryId, partName, quantityUsed, sellingPriceSnapshot,
-                    sourceVehicleId);
+                    sourceVehicleId, clientRequestId);
         }
     }
 }

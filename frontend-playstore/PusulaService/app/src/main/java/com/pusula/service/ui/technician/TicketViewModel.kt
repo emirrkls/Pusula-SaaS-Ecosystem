@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import okhttp3.MultipartBody
+import java.util.UUID
 
 data class TicketUiState(
     val loading: Boolean = false,
@@ -293,7 +294,8 @@ class TicketViewModel @Inject constructor(
                     inventoryId = item.id,
                     partName = item.partName,
                     quantityUsed = quantity,
-                    sellingPriceSnapshot = item.sellPrice ?: 0.0
+                    sellingPriceSnapshot = item.sellPrice ?: 0.0,
+                    clientRequestId = UUID.randomUUID().toString()
                 )
             )
         }.onSuccess {

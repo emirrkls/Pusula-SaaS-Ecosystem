@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -114,6 +115,90 @@ class ServiceTicketUsedPartsTest {
         assertThrows(RuntimeException.class, () -> service.getUsedParts(404L));
 
         verify(usedPartRepository, never()).findByServiceTicketId(404L);
+    }
+
+    @Test
+    void addingPartUsesConfirmedCustomSellingPrice() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = ticket(100L, 10L, null);
+        ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
+        Inventory inventory = Inventory.builder()
+                .id(50L).companyId(10L).partName("Kondansatör").quantity(5)
+                .buyPrice(new BigDecimal("50.00")).sellPrice(new BigDecimal("200.00")).criticalLevel(1)
+                .build();
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByCompanyIdAndClientRequestId(10L, "request-1"))
+                .thenReturn(Optional.empty());
+        when(inventoryRepository.findByIdAndCompanyIdForUpdate(50L, 10L)).thenReturn(Optional.of(inventory));
+        when(usedPartRepository.save(any(ServiceUsedPart.class))).thenAnswer(invocation -> {
+            ServiceUsedPart saved = invocation.getArgument(0);
+            saved.setId(300L);
+            return saved;
+        });
+
+        ServiceUsedPartDTO result = service.addUsedPart(100L, ServiceUsedPartDTO.builder()
+                .inventoryId(50L)
+                .quantityUsed(1)
+                .sellingPriceSnapshot(new BigDecimal("150"))
+                .clientRequestId("request-1")
+                .build());
+
+        assertEquals(new BigDecimal("150.00"), result.getSellingPriceSnapshot());
+        assertEquals("request-1", result.getClientRequestId());
+        assertEquals(4, inventory.getQuantity());
+    }
+
+    @Test
+    void addingPartDefaultsMissingInventorySellingPriceToZero() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = ticket(100L, 10L, null);
+        ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
+        Inventory inventory = Inventory.builder()
+                .id(50L).companyId(10L).partName("Fiyatsız Parça").quantity(2).criticalLevel(0)
+                .build();
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(inventoryRepository.findByIdAndCompanyIdForUpdate(50L, 10L)).thenReturn(Optional.of(inventory));
+        when(usedPartRepository.save(any(ServiceUsedPart.class))).thenAnswer(invocation -> {
+            ServiceUsedPart saved = invocation.getArgument(0);
+            saved.setId(301L);
+            return saved;
+        });
+
+        ServiceUsedPartDTO result = service.addUsedPart(100L, ServiceUsedPartDTO.builder()
+                .inventoryId(50L)
+                .quantityUsed(1)
+                .build());
+
+        assertEquals(new BigDecimal("0.00"), result.getSellingPriceSnapshot());
+    }
+
+    @Test
+    void repeatedClientRequestReturnsOriginalPartWithoutReducingStockAgain() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = ticket(100L, 10L, null);
+        ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
+        Inventory inventory = Inventory.builder()
+                .id(50L).companyId(10L).partName("Kondansatör").quantity(4)
+                .sellPrice(new BigDecimal("150.00")).criticalLevel(1).build();
+        ServiceUsedPart existing = ServiceUsedPart.builder()
+                .id(300L).companyId(10L).serviceTicket(ticket).inventory(inventory)
+                .quantityUsed(1).sellingPriceSnapshot(new BigDecimal("150.00"))
+                .clientRequestId("request-1").build();
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByCompanyIdAndClientRequestId(10L, "request-1"))
+                .thenReturn(Optional.of(existing));
+
+        ServiceUsedPartDTO result = service.addUsedPart(100L, ServiceUsedPartDTO.builder()
+                .inventoryId(50L)
+                .quantityUsed(1)
+                .sellingPriceSnapshot(new BigDecimal("150.00"))
+                .clientRequestId("request-1")
+                .build());
+
+        assertEquals(300L, result.getId());
+        assertEquals(4, inventory.getQuantity());
+        verify(inventoryRepository, never()).save(any(Inventory.class));
+        verify(usedPartRepository, never()).save(any(ServiceUsedPart.class));
     }
 
     @Test

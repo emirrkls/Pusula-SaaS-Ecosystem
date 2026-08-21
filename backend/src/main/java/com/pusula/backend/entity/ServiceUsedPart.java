@@ -44,6 +44,9 @@ public class ServiceUsedPart extends BaseEntity {
     @Column(name = "source_vehicle_id")
     private Long sourceVehicleId;
 
+    @Column(name = "client_request_id", length = 64)
+    private String clientRequestId;
+
     public ServiceUsedPart() {
     }
 
@@ -113,6 +116,14 @@ public class ServiceUsedPart extends BaseEntity {
         this.sourceVehicleId = sourceVehicleId;
     }
 
+    public String getClientRequestId() {
+        return clientRequestId;
+    }
+
+    public void setClientRequestId(String clientRequestId) {
+        this.clientRequestId = clientRequestId;
+    }
+
     public static class ServiceUsedPartBuilder {
         private Long id;
         private Long companyId;
@@ -122,6 +133,7 @@ public class ServiceUsedPart extends BaseEntity {
         private BigDecimal sellingPriceSnapshot;
         private BigDecimal buyingPriceSnapshot;
         private Long sourceVehicleId;
+        private String clientRequestId;
 
         ServiceUsedPartBuilder() {
         }
@@ -166,11 +178,17 @@ public class ServiceUsedPart extends BaseEntity {
             return this;
         }
 
+        public ServiceUsedPartBuilder clientRequestId(String clientRequestId) {
+            this.clientRequestId = clientRequestId;
+            return this;
+        }
+
         public ServiceUsedPart build() {
             ServiceUsedPart part = new ServiceUsedPart(id, companyId, serviceTicket, inventory, quantityUsed,
                     sellingPriceSnapshot);
             part.setBuyingPriceSnapshot(buyingPriceSnapshot);
             part.setSourceVehicleId(sourceVehicleId);
+            part.setClientRequestId(clientRequestId);
             return part;
         }
     }

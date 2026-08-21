@@ -42,6 +42,7 @@ struct UsedPartDTO: Codable, Identifiable {
     var quantityUsed: Int
     let sellingPriceSnapshot: Double
     var sourceVehicleId: Int?
+    var clientRequestId: String?
     
     var totalPrice: Double {
         Double(quantityUsed) * sellingPriceSnapshot

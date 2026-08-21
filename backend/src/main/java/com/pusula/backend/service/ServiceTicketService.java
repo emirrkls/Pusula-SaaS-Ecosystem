@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -500,6 +501,19 @@ public class ServiceTicketService {
             throw new IllegalArgumentException("Parça adedi sıfırdan büyük olmalıdır.");
         }
 
+        String clientRequestId = normalizeClientRequestId(dto.getClientRequestId());
+        if (clientRequestId != null) {
+            Optional<com.pusula.backend.entity.ServiceUsedPart> existing = serviceUsedPartRepository
+                    .findByCompanyIdAndClientRequestId(currentUser.getCompanyId(), clientRequestId);
+            if (existing.isPresent()) {
+                com.pusula.backend.entity.ServiceUsedPart part = existing.get();
+                if (!ticketId.equals(part.getServiceTicket().getId())) {
+                    throw new IllegalArgumentException("İstek kimliği başka bir servis fişinde kullanılmış.");
+                }
+                return mapUsedPart(part, ticketId);
+            }
+        }
+
         com.pusula.backend.entity.Inventory inventory = inventoryRepository
                 .findByIdAndCompanyIdForUpdate(dto.getInventoryId(), currentUser.getCompanyId())
                 .orElseThrow(() -> new RuntimeException("Inventory item not found"));
@@ -537,15 +551,22 @@ public class ServiceTicketService {
             inventoryRepository.save(inventory);
         }
 
-        // Create Used Part record with source tracking
+        BigDecimal inventorySellingPrice = inventory.getSellPrice() != null
+                ? inventory.getSellPrice()
+                : BigDecimal.ZERO;
+        BigDecimal effectiveSellingPrice = normalizeSellingPrice(
+                dto.getSellingPriceSnapshot() != null ? dto.getSellingPriceSnapshot() : inventorySellingPrice);
+
+        // Create Used Part record with source tracking and the agreed unit sale price.
         com.pusula.backend.entity.ServiceUsedPart usedPart = com.pusula.backend.entity.ServiceUsedPart.builder()
                 .companyId(currentUser.getCompanyId())
                 .serviceTicket(ticket)
                 .inventory(inventory)
                 .quantityUsed(dto.getQuantityUsed())
-                .sellingPriceSnapshot(inventory.getSellPrice())
+                .sellingPriceSnapshot(effectiveSellingPrice)
                 .buyingPriceSnapshot(inventory.getBuyPrice())
                 .sourceVehicleId(sourceVehicleId)
+                .clientRequestId(clientRequestId)
                 .build();
 
         com.pusula.backend.entity.ServiceUsedPart saved = serviceUsedPartRepository.save(usedPart);
@@ -563,7 +584,30 @@ public class ServiceTicketService {
                 saved.getInventory().getPartName(),
                 saved.getQuantityUsed(),
                 saved.getSellingPriceSnapshot(),
-                saved.getSourceVehicleId());
+                saved.getSourceVehicleId(),
+                saved.getClientRequestId());
+    }
+
+    private String normalizeClientRequestId(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        if (normalized.length() > 64 || !normalized.matches("[A-Za-z0-9._-]+")) {
+            throw new IllegalArgumentException("Geçersiz parça ekleme istek kimliği.");
+        }
+        return normalized;
+    }
+
+    private BigDecimal normalizeSellingPrice(BigDecimal value) {
+        if (value == null || value.signum() < 0) {
+            throw new IllegalArgumentException("Parça satış fiyatı sıfır veya daha büyük olmalıdır.");
+        }
+        BigDecimal normalized = value.setScale(2, RoundingMode.HALF_UP);
+        if (normalized.compareTo(new BigDecimal("9999999999.99")) > 0) {
+            throw new IllegalArgumentException("Parça satış fiyatı izin verilen üst sınırı aşıyor.");
+        }
+        return normalized;
     }
 
     @Transactional
@@ -727,8 +771,9 @@ public class ServiceTicketService {
                 inventory != null ? inventory.getId() : part.getInventoryId(),
                 partDisplayName(part),
                 part.getQuantityUsed(),
-                part.getSellingPriceSnapshot(),
-                part.getSourceVehicleId());
+                part.getSellingPriceSnapshot() != null ? part.getSellingPriceSnapshot() : BigDecimal.ZERO,
+                part.getSourceVehicleId(),
+                part.getClientRequestId());
     }
 
     public List<ServiceUsedPartDTO> getUsedParts(Long ticketId) {
@@ -757,8 +802,9 @@ public class ServiceTicketService {
                             inventoryId,
                             partName,
                             part.getQuantityUsed(),
-                            part.getSellingPriceSnapshot(),
-                            part.getSourceVehicleId());
+                            part.getSellingPriceSnapshot() != null ? part.getSellingPriceSnapshot() : BigDecimal.ZERO,
+                            part.getSourceVehicleId(),
+                            part.getClientRequestId());
                 })
                 .collect(Collectors.toList());
     }

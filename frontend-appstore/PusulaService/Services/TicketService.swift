@@ -43,7 +43,14 @@ enum TicketService {
     }
     
     static func addUsedPart(ticketId: Int, part: UsedPartDTO) async throws -> UsedPartDTO {
-        try await NetworkManager.shared.post("/api/tickets/\(ticketId)/parts", body: part)
+        do {
+            return try await NetworkManager.shared.post("/api/tickets/\(ticketId)/parts", body: part)
+        } catch NetworkError.serverError(let statusCode) where [502, 503, 504].contains(statusCode) {
+            // The server may have committed before the proxy response was interrupted.
+            // Retrying with the same clientRequestId is safe and returns the first result.
+            try await Task.sleep(nanoseconds: 350_000_000)
+            return try await NetworkManager.shared.post("/api/tickets/\(ticketId)/parts", body: part)
+        }
     }
     
     static func completeService(ticketId: Int, amount: Double, paymentMethod: String, laborFee: Double,
