@@ -20,6 +20,13 @@ final class AppStoreScreenshotTests: XCTestCase {
                 "Screenshot scene did not become ready: \(scene)"
             )
 
+            // Fresh Cloud simulators may show a one-time Apple system banner
+            // immediately after their first launch. Let it disappear so the
+            // captured image contains only the app UI.
+            if scene == scenes.first {
+                sleep(6)
+            }
+
             let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
             attachment.name = "Pusula-\(deviceFamily)-\(scene)"
             attachment.lifetime = .keepAlways
