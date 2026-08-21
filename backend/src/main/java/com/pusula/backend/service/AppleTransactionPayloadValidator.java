@@ -18,7 +18,9 @@ public class AppleTransactionPayloadValidator {
     static final String EXPECTED_BUNDLE_ID = "com.pusula.service";
     private static final Map<String, PlanType> PRODUCT_PLANS = Map.of(
             "com.pusula.usta", PlanType.USTA,
-            "com.pusula.patron", PlanType.PATRON
+            "com.pusula.usta.yearly", PlanType.USTA,
+            "com.pusula.patron", PlanType.PATRON,
+            "com.pusula.patron.yearly", PlanType.PATRON
     );
 
     private final Clock clock;

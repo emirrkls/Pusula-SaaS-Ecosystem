@@ -36,6 +36,18 @@ class AppleTransactionPayloadValidatorTest {
     }
 
     @Test
+    void validate_acceptsYearlySubscriptionPayload() {
+        JWSTransactionDecodedPayload payload = validPayload()
+                .productId("com.pusula.patron.yearly");
+
+        AppleAppStoreVerificationService.AppleVerificationResult result =
+                validator.validate(payload, Environment.SANDBOX);
+
+        assertEquals(PlanType.PATRON, result.planType());
+        assertEquals("com.pusula.patron.yearly", result.productId());
+    }
+
+    @Test
     void validate_rejectsUnknownProduct() {
         JWSTransactionDecodedPayload payload = validPayload().productId("com.pusula.cirak");
 

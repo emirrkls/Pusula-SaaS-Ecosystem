@@ -16,9 +16,15 @@ class StoreKitManager: ObservableObject {
     @Published var eligibleIntroOffers: [String: String] = [:]
     
     // Product IDs must match exactly what is configured in App Store Connect
-    private let productDict: [String: String] = [
-        "USTA": "com.pusula.usta",
-        "PATRON": "com.pusula.patron"
+    private let productDict: [PlanTier: [SubscriptionBillingCycle: String]] = [
+        .usta: [
+            .monthly: "com.pusula.usta",
+            .yearly: "com.pusula.usta.yearly"
+        ],
+        .patron: [
+            .monthly: "com.pusula.patron",
+            .yearly: "com.pusula.patron.yearly"
+        ]
     ]
     
     private var transactionUpdates: Task<Void, Never>?
@@ -37,7 +43,7 @@ class StoreKitManager: ObservableObject {
         purchaseError = nil
         eligibleIntroOffers = [:]
         do {
-            let productIDs = Array(productDict.values)
+            let productIDs = productDict.values.flatMap { $0.values }
             let storeProducts = try await Product.products(for: productIDs)
             
             // Sort products by price
@@ -53,8 +59,8 @@ class StoreKitManager: ObservableObject {
     }
     
     /// Purchase a specific plan tier
-    func purchase(_ plan: PlanTier) async {
-        guard let productID = productDict[plan.rawValue],
+    func purchase(_ plan: PlanTier, billingCycle: SubscriptionBillingCycle) async {
+        guard let productID = productDict[plan]?[billingCycle],
               let product = products.first(where: { $0.id == productID }) else {
             self.purchaseError = "Paket bulunamadı."
             return
@@ -147,23 +153,32 @@ class StoreKitManager: ObservableObject {
         }
     }
     
-    func formattedPrice(for plan: PlanTier) -> String? {
-        guard let productID = productDict[plan.rawValue],
+    func formattedPrice(for plan: PlanTier, billingCycle: SubscriptionBillingCycle) -> String? {
+        guard let productID = productDict[plan]?[billingCycle],
               let product = products.first(where: { $0.id == productID }) else {
             return nil
         }
         return product.displayPrice
     }
 
-    func billingPeriod(for plan: PlanTier) -> String? {
-        guard let product = product(for: plan),
+    func billingPeriod(for plan: PlanTier, billingCycle: SubscriptionBillingCycle) -> String? {
+        guard let product = product(for: plan, billingCycle: billingCycle),
               let period = product.subscription?.subscriptionPeriod else { return nil }
         return period.localizedSuffix
     }
 
-    func introductoryOffer(for plan: PlanTier) -> String? {
-        guard let productID = productDict[plan.rawValue] else { return nil }
+    func introductoryOffer(for plan: PlanTier, billingCycle: SubscriptionBillingCycle) -> String? {
+        guard let productID = productDict[plan]?[billingCycle] else { return nil }
         return eligibleIntroOffers[productID]
+    }
+
+    func isAvailable(_ plan: PlanTier, billingCycle: SubscriptionBillingCycle) -> Bool {
+        product(for: plan, billingCycle: billingCycle) != nil
+    }
+
+    func isPurchased(_ plan: PlanTier, billingCycle: SubscriptionBillingCycle) -> Bool {
+        guard let productID = productDict[plan]?[billingCycle] else { return false }
+        return purchasedProductIDs.contains(productID)
     }
 
     func restorePurchases() async {
@@ -202,8 +217,8 @@ class StoreKitManager: ObservableObject {
         UIApplication.shared.open(AppLinks.subscriptionManagement)
     }
 
-    private func product(for plan: PlanTier) -> Product? {
-        guard let productID = productDict[plan.rawValue] else { return nil }
+    private func product(for plan: PlanTier, billingCycle: SubscriptionBillingCycle) -> Product? {
+        guard let productID = productDict[plan]?[billingCycle] else { return nil }
         return products.first(where: { $0.id == productID })
     }
 
@@ -214,14 +229,25 @@ class StoreKitManager: ObservableObject {
                   let offer = subscription.introductoryOffer,
                   offer.paymentMode == .freeTrial,
                   await subscription.isEligibleForIntroOffer else { continue }
-            offers[product.id] = "(offer.period.localizedDescription) ücretsiz deneme"
+            offers[product.id] = "\(offer.period.localizedDescription) ücretsiz deneme"
         }
         eligibleIntroOffers = offers
     }
 
     private func plan(for productID: String) -> PlanTier? {
-        guard let entry = productDict.first(where: { $0.value == productID }) else { return nil }
-        return PlanTier(rawValue: entry.key)
+        productDict.first(where: { $0.value.values.contains(productID) })?.key
+    }
+}
+
+enum SubscriptionBillingCycle: String, CaseIterable {
+    case monthly
+    case yearly
+
+    var displayName: String {
+        switch self {
+        case .monthly: return "Aylık"
+        case .yearly: return "Yıllık"
+        }
     }
 }
 

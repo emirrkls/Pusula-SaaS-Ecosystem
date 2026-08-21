@@ -8,8 +8,11 @@ struct PusulaServiceApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-        // Try to restore saved session from Keychain
-        SessionManager.shared.tryRestoreSession()
+        // Screenshot tests use deterministic local data and must never touch a
+        // real account or production API.
+        if !AppStoreScreenshotMode.isEnabled {
+            SessionManager.shared.tryRestoreSession()
+        }
         
         // Configure global appearance
         configureAppearance()
@@ -17,11 +20,17 @@ struct PusulaServiceApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            Group {
+                if AppStoreScreenshotMode.isEnabled {
+                    AppStoreScreenshotView(scene: AppStoreScreenshotMode.scene)
+                } else {
+                    ContentView()
+                }
+            }
                 .preferredColorScheme(PusulaAppearance(rawValue: appearance)?.colorScheme)
         }
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .active else { return }
+            guard phase == .active, !AppStoreScreenshotMode.isEnabled else { return }
             PushNotificationManager.shared.appDidBecomeActive()
         }
     }

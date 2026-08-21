@@ -5,6 +5,7 @@ struct PlanUpgradeView: View {
     @StateObject private var storeManager = StoreKitManager.shared
     @StateObject private var session = SessionManager.shared
     @State private var selectedPlan: PlanTier = .usta
+    @State private var billingCycle: SubscriptionBillingCycle = .monthly
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var planDefinitions: [String: PlanSummaryDTO] = [:]
@@ -26,6 +27,13 @@ struct PlanUpgradeView: View {
                 .padding(.top, 10)
                 
                 // Plan cards
+                Picker("Ödeme dönemi", selection: $billingCycle) {
+                    ForEach(SubscriptionBillingCycle.allCases, id: \.self) { cycle in
+                        Text(cycle.displayName).tag(cycle)
+                    }
+                }
+                .pickerStyle(.segmented)
+
                 if storeManager.isLoadingProducts {
                     ProgressView("Paketler Yükleniyor...")
                         .padding(40)
@@ -109,7 +117,10 @@ struct PlanUpgradeView: View {
     private func planCard(_ plan: PlanTier) -> some View {
         let isPopular = plan == .usta
         let currentPlan = PlanTier(rawValue: session.planType.uppercased()) ?? .cirak
-        let isCurrent = currentPlan == plan
+        let isCurrentTier = currentPlan == plan
+        let hasAppStorePurchase = !storeManager.purchasedProductIDs.isEmpty
+        let isCurrent = isCurrentTier && (!hasAppStorePurchase || storeManager.isPurchased(plan, billingCycle: billingCycle))
+        let isAvailable = plan == .cirak || storeManager.isAvailable(plan, billingCycle: billingCycle)
         
         return VStack(spacing: 14) {
             // Header ribbon
@@ -140,17 +151,21 @@ struct PlanUpgradeView: View {
                             .foregroundColor(plan.color)
                     } else {
                         HStack(alignment: .firstTextBaseline, spacing: 2) {
-                            if let priceStr = storeManager.formattedPrice(for: plan) {
-                            Text(priceStr)
-                                .font(.title.weight(.bold))
-                                .foregroundColor(plan.color)
+                            if let priceStr = storeManager.formattedPrice(for: plan, billingCycle: billingCycle) {
+                                Text(priceStr)
+                                    .font(.title.weight(.bold))
+                                    .foregroundColor(plan.color)
+                            } else {
+                                Text("Hazırlanıyor")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.secondary)
                             }
-                            Text(storeManager.billingPeriod(for: plan) ?? "")
+                            Text(storeManager.billingPeriod(for: plan, billingCycle: billingCycle) ?? "")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    if let offer = storeManager.introductoryOffer(for: plan) {
+                    if let offer = storeManager.introductoryOffer(for: plan, billingCycle: billingCycle) {
                         Text(offer)
                             .font(.caption)
                             .foregroundStyle(.green)
@@ -207,7 +222,7 @@ struct PlanUpgradeView: View {
                 .background(plan.color)
                 .foregroundColor(.white)
                 .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
-                .disabled(storeManager.isPurchasing || !session.isAdmin)
+                .disabled(storeManager.isPurchasing || !session.isAdmin || !isAvailable)
             }
         }
         .padding()
@@ -227,7 +242,7 @@ struct PlanUpgradeView: View {
         }
         selectedPlan = plan
         Task {
-            await storeManager.purchase(plan)
+            await storeManager.purchase(plan, billingCycle: billingCycle)
         }
     }
 
