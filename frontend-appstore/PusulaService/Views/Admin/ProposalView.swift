@@ -230,8 +230,26 @@ struct ProposalEditorSheet: View {
     @State private var itemDescription = ""
     @State private var quantity = "1"
     @State private var unitPrice = ""
+    @State private var items: [ProposalItemDraft] = []
+    @State private var editingItemId: UUID?
     @State private var isSaving = false
     @State private var errorMessage: String?
+
+    private var subtotal: Double {
+        items.reduce(0) { $0 + $1.totalPrice }
+    }
+
+    private var taxRate: Double {
+        proposal?.taxRate ?? 20
+    }
+
+    private var discount: Double {
+        proposal?.discount ?? 0
+    }
+
+    private var total: Double {
+        subtotal + (subtotal * taxRate / 100) - discount
+    }
     
     var body: some View {
         NavigationStack {
@@ -254,10 +272,66 @@ struct ProposalEditorSheet: View {
                     }
                 }
                 TextField("Not", text: $note, axis: .vertical)
-                Section("Kalem") {
+                Section(editingItemId == nil ? "Yeni Kalem" : "Kalemi Düzenle") {
                     TextField("Açıklama", text: $itemDescription)
                     TextField("Adet", text: $quantity).keyboardType(.numberPad)
                     TextField("Birim Fiyat", text: $unitPrice).keyboardType(.decimalPad)
+
+                    Button(editingItemId == nil ? "Kalem Ekle" : "Değişiklikleri Uygula") {
+                        addOrUpdateItem()
+                    }
+                    .disabled(itemDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                    if editingItemId != nil {
+                        Button("Düzenlemeyi İptal", role: .cancel) {
+                            resetItemEditor()
+                        }
+                    }
+                }
+
+                Section("Teklif Kalemleri (\(items.count))") {
+                    if items.isEmpty {
+                        Text("Henüz ürün veya hizmet eklenmedi.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(items) { item in
+                            Button {
+                                beginEditing(item)
+                            } label: {
+                                HStack(alignment: .top, spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(item.description)
+                                            .foregroundStyle(.primary)
+                                        Text("\(item.quantity) × \(formatCurrency(item.unitPrice))")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Text(formatCurrency(item.totalPrice))
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(PusulaTheme.accent)
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .onDelete(perform: deleteItems)
+                    }
+                }
+
+                Section("Toplam") {
+                    LabeledContent("Ara toplam", value: formatCurrency(subtotal))
+                    if taxRate != 0 {
+                        LabeledContent("KDV (%\(taxRate.formatted()))", value: formatCurrency(subtotal * taxRate / 100))
+                    }
+                    if discount != 0 {
+                        LabeledContent("İndirim", value: "−\(formatCurrency(discount))")
+                    }
+                    LabeledContent("Genel toplam") {
+                        Text(formatCurrency(total))
+                            .fontWeight(.bold)
+                            .foregroundStyle(PusulaTheme.accent)
+                    }
                 }
             }
             .navigationTitle(proposal == nil ? "Yeni Teklif" : "Teklif Düzenle")
@@ -265,7 +339,7 @@ struct ProposalEditorSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Kaydet") { Task { await save() } }
-                        .disabled(selectedCustomerId == nil || isSaving)
+                        .disabled(selectedCustomerId == nil || items.isEmpty || isSaving)
                         .readOnlyProtected()
                 }
             }
@@ -273,10 +347,67 @@ struct ProposalEditorSheet: View {
                 title = proposal?.title ?? ""
                 note = proposal?.note ?? ""
                 selectedCustomerId = proposal?.customerId
+                items = (proposal?.items ?? []).map(ProposalItemDraft.init)
             }
             .alert("Teklif Kaydedilemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
                 Button("Tamam", role: .cancel) { errorMessage = nil }
             } message: { Text(errorMessage ?? "") }
+        }
+    }
+
+    private func addOrUpdateItem() {
+        let description = itemDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !description.isEmpty else {
+            errorMessage = "Kalem açıklaması boş bırakılamaz."
+            return
+        }
+        guard let qty = Int(quantity), qty > 0 else {
+            errorMessage = "Adet sıfırdan büyük olmalıdır."
+            return
+        }
+        guard let price = Double(unitPrice.replacingOccurrences(of: ",", with: ".")), price >= 0 else {
+            errorMessage = "Geçerli bir birim fiyat girin."
+            return
+        }
+
+        if let editingItemId,
+           let index = items.firstIndex(where: { $0.id == editingItemId }) {
+            items[index].description = description
+            items[index].quantity = qty
+            items[index].unitPrice = price
+        } else {
+            items.append(
+                ProposalItemDraft(
+                    proposalItemId: nil,
+                    description: description,
+                    quantity: qty,
+                    unitCost: nil,
+                    unitPrice: price
+                )
+            )
+        }
+        resetItemEditor()
+    }
+
+    private func beginEditing(_ item: ProposalItemDraft) {
+        editingItemId = item.id
+        itemDescription = item.description
+        quantity = String(item.quantity)
+        unitPrice = item.unitPrice.formatted(.number.precision(.fractionLength(0...2)))
+    }
+
+    private func resetItemEditor() {
+        editingItemId = nil
+        itemDescription = ""
+        quantity = "1"
+        unitPrice = ""
+    }
+
+    private func deleteItems(at offsets: IndexSet) {
+        let deletedIds = offsets.map { items[$0].id }
+        items.remove(atOffsets: offsets)
+        if let editingItemId, deletedIds.contains(editingItemId) {
+            resetItemEditor()
         }
     }
     
@@ -285,9 +416,11 @@ struct ProposalEditorSheet: View {
             errorMessage = "Lütfen teklif için bir müşteri seçin."
             return
         }
-        let qty = Int(quantity) ?? 1
-        let price = Double(unitPrice.replacingOccurrences(of: ",", with: ".")) ?? 0
-        let item = ProposalItemDTO(id: nil, description: itemDescription, quantity: qty, unitCost: nil, unitPrice: price, totalPrice: Double(qty) * price)
+        guard !items.isEmpty else {
+            errorMessage = "Teklife en az bir ürün veya hizmet ekleyin."
+            return
+        }
+        let proposalItems = items.map(\.dto)
         let dto = ProposalDTO(
             id: proposal?.id,
             companyId: proposal?.companyId,
@@ -301,10 +434,10 @@ struct ProposalEditorSheet: View {
             title: title.nilIfEmpty,
             taxRate: proposal?.taxRate ?? 20,
             discount: proposal?.discount ?? 0,
-            subtotal: item.totalPrice,
-            taxAmount: nil,
-            totalPrice: item.totalPrice,
-            items: [item]
+            subtotal: subtotal,
+            taxAmount: subtotal * taxRate / 100,
+            totalPrice: total,
+            items: proposalItems
         )
         isSaving = true
         defer { isSaving = false }
@@ -319,6 +452,56 @@ struct ProposalEditorSheet: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+}
+
+private struct ProposalItemDraft: Identifiable {
+    let id: UUID
+    let proposalItemId: Int?
+    var description: String
+    var quantity: Int
+    let unitCost: Double?
+    var unitPrice: Double
+
+    var totalPrice: Double {
+        Double(quantity) * unitPrice
+    }
+
+    init(
+        id: UUID = UUID(),
+        proposalItemId: Int?,
+        description: String,
+        quantity: Int,
+        unitCost: Double?,
+        unitPrice: Double
+    ) {
+        self.id = id
+        self.proposalItemId = proposalItemId
+        self.description = description
+        self.quantity = quantity
+        self.unitCost = unitCost
+        self.unitPrice = unitPrice
+    }
+
+    init(_ item: ProposalItemDTO) {
+        self.init(
+            proposalItemId: item.id,
+            description: item.description,
+            quantity: item.quantity,
+            unitCost: item.unitCost,
+            unitPrice: item.unitPrice
+        )
+    }
+
+    var dto: ProposalItemDTO {
+        ProposalItemDTO(
+            id: proposalItemId,
+            description: description,
+            quantity: quantity,
+            unitCost: unitCost,
+            unitPrice: unitPrice,
+            totalPrice: totalPrice
+        )
     }
 }
 
