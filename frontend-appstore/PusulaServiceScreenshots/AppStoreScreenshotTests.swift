@@ -2,7 +2,15 @@ import XCTest
 import UIKit
 
 final class AppStoreScreenshotTests: XCTestCase {
-    private let scenes = ["overview", "operations", "finance", "inventory"]
+    private let scenes = [
+        "overview",
+        "operations",
+        "serviceDetail",
+        "customerWorkflow",
+        "proposal",
+        "finance",
+        "inventory"
+    ]
 
     override func setUpWithError() throws {
         continueAfterFailure = false

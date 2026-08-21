@@ -3,6 +3,9 @@ import SwiftUI
 enum AppStoreScreenshotScene: String {
     case overview
     case operations
+    case serviceDetail
+    case customerWorkflow
+    case proposal
     case finance
     case inventory
 }
@@ -77,6 +80,9 @@ struct AppStoreScreenshotView: View {
         switch scene {
         case .overview: overview
         case .operations: operations
+        case .serviceDetail: serviceDetail
+        case .customerWorkflow: customerWorkflow
+        case .proposal: proposal
         case .finance: finance
         case .inventory: inventory
         }
@@ -154,6 +160,104 @@ struct AppStoreScreenshotView: View {
         }
     }
 
+    private var serviceDetail: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            ScreenshotHero(
+                eyebrow: "İŞ EMRİ #128",
+                title: "Sahadaki tüm adımlar tek fişte",
+                value: "Devam ediyor",
+                detail: "Örnek Plaza · Teknisyen A",
+                icon: "doc.text.magnifyingglass"
+            )
+
+            HStack(spacing: 7) {
+                ScreenshotChip("Parça eklendi", selected: true)
+                ScreenshotChip("Not mevcut")
+                ScreenshotChip("İmza hazır")
+            }
+
+            ScreenshotSection(title: "Servis Detayı", subtitle: "Ekip ve müşteri aynı bilgiye ulaşır") {
+                ScreenshotDetailRow(icon: "calendar", title: "Müracaat", value: "18 Ağustos 2026")
+                Divider()
+                ScreenshotDetailRow(icon: "person.fill", title: "Atanan", value: "Teknisyen A")
+                Divider()
+                ScreenshotDetailRow(icon: "text.bubble.fill", title: "Teknisyen Notu", value: "Kontrol tamamlandı")
+            }
+
+            ScreenshotSection(title: "Parça ve Kapanış", subtitle: "Fişe özel fiyat, gider ve ödeme takibi") {
+                ScreenshotPartRow(name: "Kontaktör 25A", detail: "1 adet · Liste ₺980", price: "₺850")
+                Divider()
+                ScreenshotDetailRow(icon: "banknote.fill", title: "Dış Gider", value: "₺450")
+                Divider()
+                HStack(spacing: 8) {
+                    ScreenshotBadge(title: "Garanti", icon: "checkmark.shield.fill", color: .purple)
+                    ScreenshotBadge(title: "İmza", icon: "signature", color: PusulaTheme.accent)
+                    ScreenshotBadge(title: "PDF", icon: "doc.richtext", color: .orange)
+                }
+            }
+        }
+    }
+
+    private var customerWorkflow: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            ScreenshotHero(
+                eyebrow: "HIZLI SERVİS KAYDI",
+                title: "Müşteriyi bul, işi hemen aç",
+                value: "Tek ekrandan",
+                detail: "Ara, seç veya yeni müşteri oluştur",
+                icon: "person.badge.plus"
+            )
+
+            ScreenshotSearchField(text: "demo", prompt: "Ad, firma veya telefonla ara")
+
+            ScreenshotSection(title: "Arama Sonucu", subtitle: "Yalnızca eşleşen kayıtlar gösterilir") {
+                HStack(spacing: 11) {
+                    Image(systemName: "building.2.fill")
+                        .foregroundStyle(PusulaTheme.accent)
+                        .frame(width: 28)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Demo Müşteri Ltd.").font(.subheadline.weight(.semibold))
+                        Text("05XX XXX XX XX").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                }
+            }
+
+            ScreenshotSection(title: "Yeni Müşteri", subtitle: "Sonuç yoksa iş akışından ayrılmadan kaydedin") {
+                ScreenshotDetailRow(icon: "person.text.rectangle", title: "Müşteri", value: "Yeni Demo Firma")
+                Divider()
+                ScreenshotDetailRow(icon: "phone.fill", title: "Telefon", value: "05XX XXX XX XX")
+                Divider()
+                ScreenshotActionLabel(title: "Müşteriyi Kaydet ve Servis Fişi Aç", icon: "arrow.right.circle.fill")
+            }
+        }
+    }
+
+    private var proposal: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            ScreenshotHero(
+                eyebrow: "TEKLİF YÖNETİMİ",
+                title: "Tekliften işe tek dokunuşla",
+                value: "₺21.450",
+                detail: "3 kalem · KDV dahil",
+                icon: "doc.text.fill"
+            )
+
+            ScreenshotSearchField(text: "örnek", prompt: "Teklif müşterisi ara")
+
+            ScreenshotSection(title: "Teklif Kalemleri", subtitle: "Stoktan seçin, teklife özel fiyatlandırın") {
+                ScreenshotProposalRow(title: "VRF filtre seti", detail: "2 × ₺1.650", total: "₺3.300")
+                Divider()
+                ScreenshotProposalRow(title: "Bakır boru 3/8", detail: "30 m × ₺310", total: "₺9.300")
+                Divider()
+                ScreenshotProposalRow(title: "Montaj ve devreye alma", detail: "Hizmet", total: "₺8.850")
+            }
+
+            ScreenshotActionLabel(title: "Teklifi Onayla ve İşe Dönüştür", icon: "checkmark.seal.fill")
+        }
+    }
+
     private var inventory: some View {
         VStack(alignment: .leading, spacing: 16) {
             ScreenshotHero(
@@ -182,7 +286,7 @@ struct AppStoreScreenshotView: View {
     private var screenshotTabBar: some View {
         HStack {
             ScreenshotTab(title: "Özet", icon: "chart.bar.fill", selected: scene == .overview)
-            ScreenshotTab(title: "Operasyon", icon: "list.clipboard.fill", selected: scene == .operations)
+            ScreenshotTab(title: "Operasyon", icon: "list.clipboard.fill", selected: scene.isOperationsScene)
             ScreenshotTab(title: "Finans", icon: "turkishlirasign.circle.fill", selected: scene == .finance)
             ScreenshotTab(title: "Stok", icon: "shippingbox.fill", selected: scene == .inventory)
         }
@@ -198,8 +302,18 @@ private extension AppStoreScreenshotScene {
         switch self {
         case .overview: "Genel Bakış"
         case .operations: "Operasyon"
+        case .serviceDetail: "Servis Fişi"
+        case .customerWorkflow: "Yeni Servis"
+        case .proposal: "Teklif"
         case .finance: "Finans"
         case .inventory: "Envanter"
+        }
+    }
+
+    var isOperationsScene: Bool {
+        switch self {
+        case .operations, .serviceDetail, .customerWorkflow, .proposal: true
+        case .overview, .finance, .inventory: false
         }
     }
 }
@@ -365,6 +479,113 @@ private struct ScreenshotStock: View {
             Spacer()
             Text(price).font(.subheadline.monospacedDigit().weight(.bold))
         }
+    }
+}
+
+private struct ScreenshotDetailRow: View {
+    let icon: String
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(PusulaTheme.accent)
+                .frame(width: 24)
+            Text(title).font(.subheadline).foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            Text(value).font(.subheadline.weight(.semibold)).multilineTextAlignment(.trailing)
+        }
+    }
+}
+
+private struct ScreenshotPartRow: View {
+    let name: String
+    let detail: String
+    let price: String
+
+    var body: some View {
+        HStack(spacing: 11) {
+            Image(systemName: "shippingbox.fill")
+                .foregroundStyle(PusulaTheme.accent)
+                .frame(width: 26)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(name).font(.subheadline.weight(.semibold))
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(price).font(.subheadline.monospacedDigit().weight(.bold)).foregroundStyle(.green)
+                Text("Özel satış").font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct ScreenshotBadge: View {
+    let title: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        Label(title, systemImage: icon)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+            .background(color.opacity(0.11))
+            .clipShape(Capsule())
+    }
+}
+
+private struct ScreenshotSearchField: View {
+    let text: String
+    let prompt: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").foregroundStyle(PusulaTheme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(text).font(.subheadline.weight(.semibold))
+                Text(prompt).font(.caption2).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Image(systemName: "line.3.horizontal.decrease.circle.fill").foregroundStyle(PusulaTheme.accent)
+        }
+        .pusulaCard(padding: 13)
+    }
+}
+
+private struct ScreenshotProposalRow: View {
+    let title: String
+    let detail: String
+    let total: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(PusulaTheme.accent)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.subheadline.weight(.semibold))
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(total).font(.subheadline.monospacedDigit().weight(.bold))
+        }
+    }
+}
+
+private struct ScreenshotActionLabel: View {
+    let title: String
+    let icon: String
+
+    var body: some View {
+        Label(title, systemImage: icon)
+            .font(.subheadline.weight(.bold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(PusulaTheme.accent)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
