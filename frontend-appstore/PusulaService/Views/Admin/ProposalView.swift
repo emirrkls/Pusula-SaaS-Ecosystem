@@ -227,6 +227,7 @@ struct ProposalEditorSheet: View {
     @State private var title = ""
     @State private var note = ""
     @State private var selectedCustomerId: Int?
+    @State private var customerSearch = ""
     @State private var itemDescription = ""
     @State private var quantity = "1"
     @State private var unitPrice = ""
@@ -250,6 +251,27 @@ struct ProposalEditorSheet: View {
     private var total: Double {
         subtotal + (subtotal * taxRate / 100) - discount
     }
+
+    private var selectedCustomer: CustomerDTO? {
+        customers.first { $0.id == selectedCustomerId }
+    }
+
+    private var filteredCustomers: [CustomerDTO] {
+        let query = customerSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [] }
+
+        return customers.filter {
+            $0.name.localizedCaseInsensitiveContains(query) ||
+            ($0.phone ?? "").localizedCaseInsensitiveContains(query) ||
+            ($0.address ?? "").localizedCaseInsensitiveContains(query)
+        }.sorted {
+            $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+    }
+
+    private var hasCustomerSearchQuery: Bool {
+        !customerSearch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
     
     var body: some View {
         NavigationStack {
@@ -262,11 +284,68 @@ struct ProposalEditorSheet: View {
                             systemImage: "person.crop.circle.badge.exclamationmark",
                             description: Text("Teklif oluşturmadan önce bir müşteri kaydı ekleyin.")
                         )
+                    } else if let selectedCustomer {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(selectedCustomer.name)
+                                    .font(.subheadline.weight(.semibold))
+                                if let phone = selectedCustomer.phone, !phone.isEmpty {
+                                    Text(phone)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            Button("Değiştir") {
+                                selectedCustomerId = nil
+                                customerSearch = ""
+                            }
+                            .font(.caption.weight(.semibold))
+                        }
                     } else {
-                        Picker("Müşteri Seç", selection: $selectedCustomerId) {
-                            Text("Seçiniz").tag(Optional<Int>.none)
-                            ForEach(customers) { customer in
-                                Text(customer.name).tag(customer.id)
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(.secondary)
+                            TextField("Ad, telefon veya adres ara", text: $customerSearch)
+                                .textInputAutocapitalization(.words)
+                        }
+
+                        if hasCustomerSearchQuery && filteredCustomers.isEmpty {
+                            ContentUnavailableView(
+                                "Müşteri bulunamadı",
+                                systemImage: "person.crop.circle.badge.questionmark",
+                                description: Text("Arama ifadesini değiştirerek tekrar deneyin.")
+                            )
+                        } else {
+                            ForEach(filteredCustomers.prefix(8)) { customer in
+                                Button {
+                                    selectedCustomerId = customer.id
+                                    customerSearch = ""
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(customer.name)
+                                            .foregroundStyle(.primary)
+                                        HStack(spacing: 8) {
+                                            if let phone = customer.phone, !phone.isEmpty {
+                                                Text(phone)
+                                            }
+                                            if let address = customer.address, !address.isEmpty {
+                                                Text(address).lineLimit(1)
+                                            }
+                                        }
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }
+
+                            if filteredCustomers.count > 8 {
+                                Text("İlk 8 sonuç gösteriliyor. Diğer müşteriler için aramayı daraltın.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
