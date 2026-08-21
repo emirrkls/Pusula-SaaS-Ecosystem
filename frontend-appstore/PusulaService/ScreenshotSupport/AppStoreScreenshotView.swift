@@ -55,7 +55,7 @@ struct AppStoreScreenshotView: View {
         HStack(spacing: 12) {
             PusulaBrandMark(size: 46)
             VStack(alignment: .leading, spacing: 3) {
-                Text("Pusula Teknik Servis")
+                Text("Örnek Teknik Servis")
                     .font(.headline)
                 Text("İşletmenizin tamamı tek ekranda")
                     .font(.caption)
@@ -85,9 +85,9 @@ struct AppStoreScreenshotView: View {
     private var overview: some View {
         VStack(alignment: .leading, spacing: 18) {
             ScreenshotHero(
-                eyebrow: "AĞUSTOS 2026",
+                eyebrow: "BU AY",
                 title: "İşletmenizin nabzı",
-                value: "₺286.400",
+                value: "₺174.250",
                 detail: "Aylık satış / ciro",
                 icon: "chart.line.uptrend.xyaxis"
             )
@@ -95,14 +95,14 @@ struct AppStoreScreenshotView: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 ScreenshotMetric(title: "Aktif İş", value: "18", icon: "wrench.and.screwdriver", color: .orange)
                 ScreenshotMetric(title: "Bu Ay Biten", value: "47", icon: "checkmark.circle.fill", color: PusulaTheme.accent)
-                ScreenshotMetric(title: "Bekleyen Alacak", value: "₺135.000", icon: "clock.fill", color: .orange)
-                ScreenshotMetric(title: "Net Kâr", value: "₺92.850", icon: "turkishlirasign.circle.fill", color: .green)
+                ScreenshotMetric(title: "Bekleyen Alacak", value: "₺58.200", icon: "clock.fill", color: .orange)
+                ScreenshotMetric(title: "Net Kâr", value: "₺47.850", icon: "turkishlirasign.circle.fill", color: .green)
             }
 
             ScreenshotSection(title: "Saha Ekibi", subtitle: "Bugünkü operasyon") {
-                ScreenshotPerson(name: "Uğur Yıldırım", detail: "4 tamamlandı · 2 aktif", amount: "₺12.500")
+                ScreenshotPerson(name: "Teknisyen A", detail: "4 tamamlandı · 2 aktif", amount: "₺6.250")
                 Divider()
-                ScreenshotPerson(name: "Yusuf Kaya", detail: "3 tamamlandı · 1 aktif", amount: "₺8.200")
+                ScreenshotPerson(name: "Teknisyen B", detail: "3 tamamlandı · 1 aktif", amount: "₺4.800")
             }
         }
     }
@@ -124,9 +124,9 @@ struct AppStoreScreenshotView: View {
                 ScreenshotChip("Tamamlandı")
             }
 
-            ScreenshotTicket(number: "#128", title: "VRF klima arızası", customer: "Mavi Plaza", technician: "Uğur Yıldırım", status: "Yolda", tone: .orange)
-            ScreenshotTicket(number: "#127", title: "4 klima periyodik bakım", customer: "Ekin Cafe", technician: "Yusuf Kaya", status: "Devam ediyor", tone: PusulaTheme.accent)
-            ScreenshotTicket(number: "#126", title: "Soğuk oda kompresör değişimi", customer: "Ada Market", technician: "Mehmet Yavuz", status: "Parça bekliyor", tone: .purple)
+            ScreenshotTicket(number: "#128", title: "VRF klima arızası", customer: "Örnek Plaza", technician: "Teknisyen A", status: "Yolda", tone: .orange)
+            ScreenshotTicket(number: "#127", title: "4 klima periyodik bakım", customer: "Demo Kafe", technician: "Teknisyen B", status: "Devam ediyor", tone: PusulaTheme.accent)
+            ScreenshotTicket(number: "#126", title: "Soğuk oda kontrolü", customer: "Test Market", technician: "Teknisyen C", status: "Parça bekliyor", tone: .purple)
         }
     }
 
@@ -135,21 +135,21 @@ struct AppStoreScreenshotView: View {
             ScreenshotHero(
                 eyebrow: "FİNANS ÖZETİ",
                 title: "Nakit ve kârlılık kontrolü",
-                value: "₺208.800",
+                value: "₺96.850",
                 detail: "Aylık faaliyet kârı",
                 icon: "chart.pie.fill"
             )
 
             ScreenshotSection(title: "Ağustos Özeti", subtitle: "Gelir ve gider dağılımı") {
-                ScreenshotFinanceRow(title: "Satış / Ciro", value: "₺236.800", color: .green)
-                ScreenshotFinanceRow(title: "Cari Tahsilat", value: "₺85.000", color: .green)
-                ScreenshotFinanceRow(title: "Servis Doğrudan Maliyeti", value: "₺42.600", color: .orange)
-                ScreenshotFinanceRow(title: "Diğer Faaliyet Giderleri", value: "₺28.000", color: .red)
+                ScreenshotFinanceRow(title: "Satış / Ciro", value: "₺174.250", color: .green)
+                ScreenshotFinanceRow(title: "Cari Tahsilat", value: "₺42.000", color: .green)
+                ScreenshotFinanceRow(title: "Servis Doğrudan Maliyeti", value: "₺36.400", color: .orange)
+                ScreenshotFinanceRow(title: "Diğer Faaliyet Giderleri", value: "₺23.000", color: .red)
             }
 
             ScreenshotSection(title: "Açık Cari Hesaplar", subtitle: "Yaklaşan tahsilatlar") {
-                ScreenshotFinanceRow(title: "Üntes AŞ", value: "₺135.000", color: .orange)
-                ScreenshotFinanceRow(title: "Necdet Yapı", value: "₺94.000", color: .orange)
+                ScreenshotFinanceRow(title: "Örnek Endüstri AŞ", value: "₺58.200", color: .orange)
+                ScreenshotFinanceRow(title: "Demo Yapı Ltd.", value: "₺31.750", color: .orange)
             }
         }
     }
@@ -159,22 +159,22 @@ struct AppStoreScreenshotView: View {
             ScreenshotHero(
                 eyebrow: "STOK YÖNETİMİ",
                 title: "Parçanız nerede, bilin",
-                value: "₺1.248.600",
+                value: "₺742.300",
                 detail: "Tahmini envanter satış değeri",
                 icon: "shippingbox.fill"
             )
 
             HStack(spacing: 10) {
-                ScreenshotMetric(title: "Ürün Çeşidi", value: "186", icon: "square.grid.2x2.fill", color: PusulaTheme.accent)
-                ScreenshotMetric(title: "Kritik Stok", value: "7", icon: "exclamationmark.triangle.fill", color: .red)
+                ScreenshotMetric(title: "Ürün Çeşidi", value: "142", icon: "square.grid.2x2.fill", color: PusulaTheme.accent)
+                ScreenshotMetric(title: "Kritik Stok", value: "5", icon: "exclamationmark.triangle.fill", color: .red)
             }
 
             ScreenshotSection(title: "Envanter", subtitle: "Barkod, adet ve fiyat takibi") {
-                ScreenshotStock(name: "Ticari tip kompresör", stock: "19 adet", price: "₺8.800", critical: false)
+                ScreenshotStock(name: "VRF filtre seti", stock: "12 adet", price: "₺1.650", critical: false)
                 Divider()
-                ScreenshotStock(name: "Kondansatör 50+6", stock: "3 adet", price: "₺1.250", critical: true)
+                ScreenshotStock(name: "Kontaktör 25A", stock: "2 adet", price: "₺980", critical: true)
                 Divider()
-                ScreenshotStock(name: "Bakır boru 1/4", stock: "84 metre", price: "₺280", critical: false)
+                ScreenshotStock(name: "Bakır boru 3/8", stock: "64 metre", price: "₺310", critical: false)
             }
         }
     }
