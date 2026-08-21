@@ -32,7 +32,7 @@ final class AppStoreScreenshotTests: XCTestCase {
             // immediately after their first launch. Let it disappear so the
             // captured image contains only the app UI.
             if scene == scenes.first {
-                sleep(6)
+                sleep(15)
             }
 
             let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
