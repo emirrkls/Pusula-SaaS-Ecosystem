@@ -76,17 +76,22 @@ fun CollectionScreen(
     val uiState by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
     val ticket = uiState.selectedTicket
-    val total = uiState.usedParts.sumOf { it.sellingPriceSnapshot * it.quantityUsed }
+    val partsTotal = uiState.usedParts.sumOf { it.sellingPriceSnapshot * it.quantityUsed }
 
     var expanded by remember { mutableStateOf(false) }
     var method by remember { mutableStateOf(paymentMethods.first()) }
-    var amountText by remember { mutableStateOf("%.2f".format(total)) }
+    var laborFeeText by remember { mutableStateOf("0.00") }
+    var amountText by remember { mutableStateOf("%.2f".format(partsTotal)) }
     var confirmCari by remember { mutableStateOf(false) }
     var technicianNote by remember { mutableStateOf("") }
 
     val isWarranty = method.apiValue == "WARRANTY"
-    val entered = if (isWarranty) 0.0 else amountText.replace(',', '.').toDoubleOrNull() ?: 0.0
-    val remain = if (isWarranty) 0.0 else (total - entered).coerceAtLeast(0.0)
+    val isCurrentAccount = method.apiValue == "CURRENT_ACCOUNT"
+    val laborFee = if (isWarranty) 0.0 else laborFeeText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val serviceTotal = if (isWarranty) 0.0 else partsTotal + laborFee
+    val entered = if (isWarranty || isCurrentAccount) 0.0
+        else amountText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val remain = if (isWarranty) 0.0 else (serviceTotal - entered).coerceAtLeast(0.0)
 
     LaunchedEffect(uiState.serviceCompletedTicketId) {
         if (uiState.serviceCompletedTicketId == ticketId) {
@@ -111,7 +116,7 @@ fun CollectionScreen(
             item {
                 AppHeroCard(
                     eyebrow = "Servis fişi #$ticketId",
-                    title = "₺${"%.2f".format(total)}",
+                    title = "₺${"%.2f".format(serviceTotal)}",
                     subtitle = ticket?.customerName?.let { "Müşteri: $it" },
                     badge = ticket?.customerBalance?.let { "Bakiye: ₺${"%.2f".format(it)}" }
                 )
@@ -146,7 +151,11 @@ fun CollectionScreen(
                                         text = { Text(it.label) },
                                         onClick = {
                                             method = it
-                                            if (it.apiValue == "WARRANTY") amountText = "0.00"
+                                            amountText = if (it.apiValue == "WARRANTY" || it.apiValue == "CURRENT_ACCOUNT") {
+                                                "0.00"
+                                            } else {
+                                                "%.2f".format(partsTotal + laborFee)
+                                            }
                                             expanded = false
                                         }
                                     )
@@ -158,15 +167,29 @@ fun CollectionScreen(
             }
 
             item {
-                AppDashboardSection(title = "Tahsilat Tutarı") {
+                AppDashboardSection(title = "Ücret ve Ödeme Özeti") {
                     AppGhostCard {
                         Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                            OutlinedTextField(
+                                value = laborFeeText,
+                                onValueChange = { newValue ->
+                                    laborFeeText = newValue.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' }
+                                    if (!isWarranty && !isCurrentAccount) {
+                                        val newLabor = laborFeeText.replace(',', '.').toDoubleOrNull() ?: 0.0
+                                        amountText = "%.2f".format(partsTotal + newLabor)
+                                    }
+                                },
+                                label = { Text("İşçilik / servis bedeli") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                enabled = !isWarranty,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                             OutlinedTextField(
                                 value = amountText,
                                 onValueChange = { amountText = it.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' } },
                                 label = { Text("Tahsil edilen tutar") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                enabled = !isWarranty,
+                                enabled = !isWarranty && !isCurrentAccount,
                                 modifier = Modifier.fillMaxWidth()
                             )
                             if (isWarranty) {
@@ -175,6 +198,13 @@ fun CollectionScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = AccentOrange
                                 )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Fiş toplamı", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("₺${"%.2f".format(serviceTotal)}", fontWeight = FontWeight.Bold)
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -215,10 +245,10 @@ fun CollectionScreen(
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = {
-                            if (remain > 0 && method.label != "Cari Hesap") {
+                            if (remain > 0 && !isCurrentAccount && !isWarranty) {
                                 confirmCari = true
                             } else {
-                                viewModel.completeService(ticketId, entered, method.apiValue, technicianNote)
+                                viewModel.completeService(ticketId, entered, method.apiValue, laborFee, technicianNote)
                             }
                         },
                         modifier = Modifier.fillMaxWidth().readOnlyProtected(session.isReadOnly)
@@ -237,7 +267,7 @@ fun CollectionScreen(
             text = { Text("Kalan tutar cari hesaba aktarılacak. Onaylıyor musunuz?") },
             confirmButton = {
                 Button(onClick = {
-                    viewModel.completeService(ticketId, entered, method.apiValue, technicianNote)
+                    viewModel.completeService(ticketId, entered, method.apiValue, laborFee, technicianNote)
                     confirmCari = false
                 }) {
                     Text("Onayla")

@@ -22,7 +22,7 @@ import static org.mockito.Mockito.when;
 class ReportServiceMissingInventoryTest {
 
     @Test
-    void servicePdfUsesFallbackForHistoricalPartWithoutInventory() {
+    void servicePdfUsesFallbackForHistoricalPartWithoutInventory() throws Exception {
         ServiceTicketRepository ticketRepository = mock(ServiceTicketRepository.class);
         CustomerRepository customerRepository = mock(CustomerRepository.class);
         CompanyRepository companyRepository = mock(CompanyRepository.class);
@@ -66,6 +66,16 @@ class ReportServiceMissingInventoryTest {
         byte[] pdf = service.generateServiceReport(100L);
 
         assertTrue(pdf.length > 100);
+        PdfReader reader = new PdfReader(pdf);
+        String text;
+        try {
+            text = new PdfTextExtractor(reader).getTextFromPage(1);
+        } finally {
+            reader.close();
+        }
+        assertTrue(text.contains("İşçilik / Servis Hizmet Bedeli"));
+        assertTrue(text.contains("249.00") || text.contains("249,00"));
+        assertTrue(text.contains("500.00") || text.contains("500,00"));
     }
 
     @Test

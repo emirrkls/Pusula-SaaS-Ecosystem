@@ -53,6 +53,7 @@ struct UsedPartDTO: Codable, Identifiable {
 struct CollectionRequest: Codable {
     let collectedAmount: Double
     let paymentMethod: String
+    let laborFee: Double?
     let technicianNote: String?
 }
 

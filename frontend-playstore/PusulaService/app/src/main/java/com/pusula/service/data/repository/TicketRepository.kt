@@ -37,8 +37,16 @@ class TicketRepository @Inject constructor(
     suspend fun addUsedPart(ticketId: Long, part: UsedPartDTO): UsedPartDTO =
         apiService.addTicketPart(ticketId, part)
 
-    suspend fun completeService(ticketId: Long, amount: Double, method: String, technicianNote: String? = null): FieldTicketDTO =
-        apiService.completeTicket(ticketId, CollectionRequest(amount, method, technicianNote?.trim()?.ifBlank { null }))
+    suspend fun completeService(
+        ticketId: Long,
+        amount: Double,
+        method: String,
+        laborFee: Double,
+        technicianNote: String? = null
+    ): FieldTicketDTO = apiService.completeTicket(
+        ticketId,
+        CollectionRequest(amount, method, laborFee, technicianNote?.trim()?.ifBlank { null })
+    )
 
     suspend fun getTechnicianNotes(ticketId: Long): List<TechnicianNoteDTO> =
         apiService.technicianNotes(ticketId)

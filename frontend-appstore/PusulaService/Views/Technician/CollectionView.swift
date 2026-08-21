@@ -1,13 +1,14 @@
 import SwiftUI
 
-/// Collection view with Waterfall (Şelale) payment model.
-/// Flow: Service total → Collected amount → Remaining → Cari (with safety confirmation)
+/// Service pricing and payment summary.
+/// Flow: Parts + labor → collected amount → remaining current-account balance.
 struct CollectionView: View {
     let ticket: FieldTicketDTO
     let partsTotal: Double
     let onComplete: () async -> Void
     
     @Environment(\.dismiss) private var dismiss
+    @State private var laborFee = "0.00"
     @State private var collectedAmount = ""
     @State private var selectedMethod: PaymentMethodOption = .cash
     @State private var showDebtConfirmation = false
@@ -15,18 +16,17 @@ struct CollectionView: View {
     @State private var errorMessage: String?
     @State private var technicianNote = ""
     
-    var serviceTotal: Double { partsTotal }
     var isWarranty: Bool { selectedMethod == .warranty }
-    var collectedValue: Double { isWarranty ? 0 : (Double(collectedAmount) ?? 0) }
+    var isCurrentAccount: Bool { selectedMethod == .currentAccount }
+    var laborValue: Double { isWarranty ? 0 : (Double(laborFee.replacingOccurrences(of: ",", with: ".")) ?? 0) }
+    var serviceTotal: Double { isWarranty ? 0 : partsTotal + laborValue }
+    var collectedValue: Double {
+        (isWarranty || isCurrentAccount) ? 0 : (Double(collectedAmount.replacingOccurrences(of: ",", with: ".")) ?? 0)
+    }
     var remainingDebt: Double { isWarranty ? 0 : max(0, serviceTotal - collectedValue) }
     var existingDebt: Double { ticket.customerBalance ?? 0 }
-    var totalDebtAfter: Double { existingDebt + remainingDebt }
     var isFullPayment: Bool { collectedValue >= serviceTotal }
-    var overpayment: Double { max(0, collectedValue - serviceTotal) }
-    
-    /// Waterfall: if customer pays more than current service, excess reduces cari
-    var debtReduction: Double { min(overpayment, existingDebt) }
-    var finalDebt: Double { existingDebt - debtReduction + remainingDebt }
+    var finalDebt: Double { existingDebt + remainingDebt }
     
     var body: some View {
         NavigationStack {
@@ -50,8 +50,7 @@ struct CollectionView: View {
                             .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
                     }
                     
-                    // Waterfall breakdown
-                    waterfallBreakdown
+                    paymentSummary
                     
                     // Error
                     if let error = errorMessage {
@@ -134,7 +133,12 @@ struct CollectionView: View {
             
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 ForEach(PaymentMethodOption.allCases, id: \.self) { method in
-                    Button(action: { selectedMethod = method }) {
+                    Button(action: {
+                        selectedMethod = method
+                        collectedAmount = (method == .warranty || method == .currentAccount)
+                            ? "0.00"
+                            : String(format: "%.2f", partsTotal + laborValue)
+                    }) {
                         VStack(spacing: 6) {
                             Image(systemName: method.icon)
                                 .font(.title2)
@@ -160,6 +164,31 @@ struct CollectionView: View {
     
     private var amountInput: some View {
         VStack(alignment: .leading, spacing: 8) {
+            Text("Ücret ve Ödeme Bilgileri")
+                .font(.subheadline.weight(.semibold))
+
+            HStack {
+                Text("Parça toplamı")
+                Spacer()
+                Text("₺\(String(format: "%.2f", partsTotal))").fontWeight(.semibold)
+            }
+
+            TextField("İşçilik / servis bedeli", text: $laborFee)
+                .keyboardType(.decimalPad)
+                .textFieldStyle(.roundedBorder)
+                .disabled(isWarranty)
+                .onChange(of: laborFee) { _, _ in
+                    if !isWarranty && !isCurrentAccount {
+                        collectedAmount = String(format: "%.2f", serviceTotal)
+                    }
+                }
+
+            HStack {
+                Text("Fiş toplamı")
+                Spacer()
+                Text("₺\(String(format: "%.2f", serviceTotal))").fontWeight(.bold)
+            }
+
             Text("Tahsil Edilen Tutar")
                 .font(.subheadline.weight(.semibold))
             
@@ -170,7 +199,7 @@ struct CollectionView: View {
                 TextField("0.00", text: $collectedAmount)
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                     .keyboardType(.decimalPad)
-                    .disabled(isWarranty)
+                    .disabled(isWarranty || isCurrentAccount)
             }
             .padding()
             .background(PusulaTheme.raisedSurface)
@@ -187,10 +216,9 @@ struct CollectionView: View {
             }
             
             // Quick amount buttons
-            HStack(spacing: 8) {
+            if !isWarranty && !isCurrentAccount {
+                HStack(spacing: 8) {
                 quickAmountButton("Tam Tutar", amount: serviceTotal)
-                if existingDebt > 0 {
-                    quickAmountButton("Servis + Borç", amount: serviceTotal + existingDebt)
                 }
             }
         }
@@ -208,29 +236,31 @@ struct CollectionView: View {
         }
     }
     
-    // MARK: - Waterfall Breakdown
+    // MARK: - Payment Summary
     
-    private var waterfallBreakdown: some View {
+    private var paymentSummary: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Şelale Dağılımı")
+            Text("Ödeme Özeti")
                 .font(.subheadline.weight(.semibold))
             
-            if collectedValue > 0 {
+            if isWarranty {
+                Text("Garanti kapsamında tahsilat veya cari işlem oluşturulmayacak.")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            } else if isCurrentAccount {
+                waterfallRow("Cariye aktarılacak",
+                             amount: serviceTotal,
+                             icon: "doc.text",
+                             color: .orange)
+                Divider()
+                finalDebtRow
+            } else if collectedValue > 0 {
                 // Step 1: Service payment
                 waterfallRow("1. Servis Ücreti",
                              amount: min(collectedValue, serviceTotal),
                              icon: "wrench.and.screwdriver",
                              color: .green)
                 
-                // Step 2: If overpayment, reduce old debt
-                if debtReduction > 0 {
-                    waterfallRow("2. Geçmiş Borç Düşümü",
-                                 amount: -debtReduction,
-                                 icon: "arrow.down.circle",
-                                 color: .blue)
-                }
-                
-                // Step 3: If underpayment, add to cari
                 if remainingDebt > 0 {
                     waterfallRow("⚠️ Cariye Eklenecek",
                                  amount: remainingDebt,
@@ -241,21 +271,24 @@ struct CollectionView: View {
                 Divider()
                 
                 // Final debt
-                HStack {
-                    Text("Son Cari Durum")
-                        .font(.subheadline.weight(.bold))
-                    Spacer()
-                    Text(finalDebt > 0 ? "₺\(String(format: "%.2f", finalDebt)) borç" : "Temiz ✓")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundColor(finalDebt > 0 ? .orange : .green)
-                }
+                finalDebtRow
             } else {
-                Text("Tutar girin")
+                Text("Dağılımı görmek için tahsil edilen tutarı girin.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .pusulaCard()
+    }
+
+    private var finalDebtRow: some View {
+        HStack {
+            Text("Son Cari Durum").font(.subheadline.weight(.bold))
+            Spacer()
+            Text(finalDebt > 0 ? "₺\(String(format: "%.2f", finalDebt)) borç" : "Temiz ✓")
+                .font(.subheadline.weight(.bold))
+                .foregroundColor(finalDebt > 0 ? .orange : .green)
+        }
     }
     
     private func waterfallRow(_ title: String, amount: Double, icon: String, color: Color) -> some View {
@@ -290,7 +323,7 @@ struct CollectionView: View {
         .background(isFullPayment ? PusulaTheme.accent : Color.orange)
         .foregroundColor(.white)
         .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
-        .disabled(isProcessing || (!isWarranty && collectedAmount.isEmpty))
+        .disabled(isProcessing || (!isWarranty && !isCurrentAccount && collectedAmount.isEmpty))
     }
     
     // MARK: - Logic
@@ -317,6 +350,7 @@ struct CollectionView: View {
                 ticketId: ticket.id,
                 amount: collectedValue,
                 paymentMethod: selectedMethod.apiValue,
+                laborFee: laborValue,
                 technicianNote: technicianNote
             )
             await onComplete()

@@ -34,6 +34,7 @@ data class UsedPartDTO(
 data class CollectionRequest(
     val collectedAmount: Double,
     val paymentMethod: String,
+    val laborFee: Double? = null,
     val technicianNote: String? = null
 )
 

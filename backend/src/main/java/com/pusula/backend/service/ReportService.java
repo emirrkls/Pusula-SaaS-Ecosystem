@@ -341,9 +341,14 @@ public class ReportService {
                 }
 
                 // 2. Service Fee (Labor)
-                BigDecimal serviceFee = warranty ? BigDecimal.ZERO : ticket.getLaborFee() != null
-                                ? ticket.getLaborFee()
-                                : (ticket.getCollectedAmount() != null ? ticket.getCollectedAmount() : BigDecimal.ZERO);
+                BigDecimal serviceFee = warranty
+                                ? BigDecimal.ZERO
+                                : ticket.getLaborFee() != null
+                                                ? ticket.getLaborFee()
+                                                // Legacy mobile clients sent one invoice amount. Subtract the
+                                                // already listed parts so the PDF does not count them twice.
+                                                : ticket.getEffectiveInvoiceTotal().subtract(subTotal)
+                                                                .max(BigDecimal.ZERO);
                 subTotal = subTotal.add(serviceFee);
 
                 addCellToTable(table, "İşçilik / Servis Hizmet Bedeli", false, Element.ALIGN_LEFT);

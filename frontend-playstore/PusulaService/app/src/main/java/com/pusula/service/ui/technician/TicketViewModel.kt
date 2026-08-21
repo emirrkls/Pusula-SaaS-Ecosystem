@@ -263,7 +263,7 @@ class TicketViewModel @Inject constructor(
     }
 
     fun closeTicketWithoutCollection(ticketId: Long) = viewModelScope.launch {
-        runCatching { repository.completeService(ticketId, 0.0, "WARRANTY") }
+        runCatching { repository.completeService(ticketId, 0.0, "WARRANTY", 0.0) }
             .onSuccess { updated ->
                 _uiState.update { state ->
                     state.copy(
@@ -326,8 +326,14 @@ class TicketViewModel @Inject constructor(
         _uiState.update { it.copy(barcodeItem = null, barcodeLookupFailed = false) }
     }
 
-    fun completeService(ticketId: Long, amount: Double, method: String, technicianNote: String? = null) = viewModelScope.launch {
-        runCatching { repository.completeService(ticketId, amount, method, technicianNote) }
+    fun completeService(
+        ticketId: Long,
+        amount: Double,
+        method: String,
+        laborFee: Double,
+        technicianNote: String? = null
+    ) = viewModelScope.launch {
+        runCatching { repository.completeService(ticketId, amount, method, laborFee, technicianNote) }
             .onSuccess { updated ->
                 _uiState.update { state ->
                     state.copy(

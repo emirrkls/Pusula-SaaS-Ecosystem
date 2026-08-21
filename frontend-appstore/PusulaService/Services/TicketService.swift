@@ -46,9 +46,9 @@ enum TicketService {
         try await NetworkManager.shared.post("/api/tickets/\(ticketId)/parts", body: part)
     }
     
-    static func completeService(ticketId: Int, amount: Double, paymentMethod: String,
+    static func completeService(ticketId: Int, amount: Double, paymentMethod: String, laborFee: Double,
                                 technicianNote: String? = nil) async throws -> FieldTicketDTO {
-        let body = CollectionRequest(collectedAmount: amount, paymentMethod: paymentMethod,
+        let body = CollectionRequest(collectedAmount: amount, paymentMethod: paymentMethod, laborFee: laborFee,
                                      technicianNote: technicianNote?.trimmingCharacters(in: .whitespacesAndNewlines))
         return try await NetworkManager.shared.request(
             .PATCH, path: "/api/tickets/\(ticketId)/complete", body: body
