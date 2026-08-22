@@ -17,6 +17,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -74,6 +76,25 @@ class AuthenticationServicePasswordVerificationTest {
         SecurityContextHolder.clearContext();
         assertFalse(service.verifyCurrentUserPassword("secret"));
         assertFalse(service.verifyCurrentUserPassword(" "));
+    }
+
+    @Test
+    void onboardingVersionOnlyMovesForwardAndRejectsInvalidValues() {
+        User user = user(44L, 9L, "onur", "bcrypt-hash");
+
+        assertEquals(1, service.updateMobileOnboardingVersion(user, 1));
+        assertEquals(1, user.getMobileOnboardingVersion());
+        verify(userRepository).save(user);
+
+        assertEquals(1, service.updateMobileOnboardingVersion(user, 0));
+        verify(userRepository).save(user);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.updateMobileOnboardingVersion(user, -1));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.updateMobileOnboardingVersion(user, null));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.updateMobileOnboardingVersion(user, 1001));
     }
 
     private void authenticate(User principal) {

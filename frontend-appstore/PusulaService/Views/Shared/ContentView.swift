@@ -3,6 +3,7 @@ import SwiftUI
 /// Root content view — routes between login and the role-based dashboard.
 struct ContentView: View {
     @StateObject private var session = SessionManager.shared
+    @StateObject private var onboarding = OnboardingManager.shared
     @State private var showPlanUpgrade = false
     
     var body: some View {
@@ -20,18 +21,42 @@ struct ContentView: View {
         .sheet(isPresented: $showPlanUpgrade) {
             NavigationStack { PlanUpgradeView() }
         }
+        .fullScreenCover(isPresented: $onboarding.isShowingIntro) {
+            WelcomeOnboardingView(onboarding: onboarding)
+        }
+        .overlay {
+            if session.isAuthenticated && onboarding.isTourActive {
+                OnboardingCoachOverlay(onboarding: onboarding)
+                    .zIndex(100)
+            }
+        }
+        .onAppear {
+            startOnboardingIfNeeded()
+        }
+        .onChange(of: session.isAuthenticated) { _, isAuthenticated in
+            if isAuthenticated {
+                startOnboardingIfNeeded()
+            } else {
+                onboarding.cancelRoleTour()
+            }
+        }
+        .onChange(of: onboarding.isShowingIntro) { _, isShowingIntro in
+            if !isShowingIntro {
+                startOnboardingIfNeeded()
+            }
+        }
     }
     
     @ViewBuilder
     private var mainView: some View {
         if session.isTechnician {
             ZStack(alignment: .top) {
-                TechnicianTabView()
+                TechnicianTabView(onboarding: onboarding)
                 sessionBanners
             }
         } else if session.isAdmin {
             ZStack(alignment: .top) {
-                AdminTabView()
+                AdminTabView(onboarding: onboarding)
                 sessionBanners
             }
         } else {
@@ -113,19 +138,32 @@ struct ContentView: View {
         .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
         .foregroundColor(.red)
     }
+
+    private func startOnboardingIfNeeded() {
+        guard session.isAuthenticated else { return }
+        onboarding.startRoleTourIfNeeded(
+            role: session.role,
+            accountIdentifier: session.onboardingAccountIdentifier,
+            serverVersion: session.onboardingVersion
+        )
+    }
 }
 
 // MARK: - Technician Tab View (Android: İşlerim + Hesap)
 
 struct TechnicianTabView: View {
+    @ObservedObject var onboarding: OnboardingManager
+    @State private var selectedTab: TechnicianTab = .jobs
+
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack {
                 TicketListView()
             }
             .tabItem {
                 Label("İşlerim", systemImage: "wrench.and.screwdriver")
             }
+            .tag(TechnicianTab.jobs)
             
             NavigationStack {
                 ProfileView()
@@ -133,14 +171,25 @@ struct TechnicianTabView: View {
             .tabItem {
                 Label("Hesap", systemImage: "person.circle")
             }
+            .tag(TechnicianTab.account)
         }
         .tint(PusulaTheme.accent)
+        .onAppear { routeOnboardingStep() }
+        .onChange(of: onboarding.currentStepIndex) { _, _ in routeOnboardingStep() }
+        .onChange(of: onboarding.activeRole) { _, _ in routeOnboardingStep() }
+    }
+
+    private func routeOnboardingStep() {
+        guard let destination = onboarding.currentStep?.destination,
+              case let .technician(tab) = destination else { return }
+        selectedTab = tab
     }
 }
 
 // MARK: - Admin Tab View (Android: Özet, Operasyon, Diğer, Finans, Hesap)
 
 struct AdminTabView: View {
+    @ObservedObject var onboarding: OnboardingManager
     @StateObject private var session = SessionManager.shared
     @StateObject private var navigation = AppNavigation.shared
     @State private var selectedTab: AdminTab = .overview
@@ -216,6 +265,9 @@ struct AdminTabView: View {
                     }
             }
         }
+        .onAppear { routeOnboardingStep() }
+        .onChange(of: onboarding.currentStepIndex) { _, _ in routeOnboardingStep() }
+        .onChange(of: onboarding.activeRole) { _, _ in routeOnboardingStep() }
     }
     
     @ViewBuilder
@@ -225,6 +277,16 @@ struct AdminTabView: View {
         case .proposals: ProposalView()
         case .catalog: CatalogView()
         case .serviceQuality: ServiceQualityView()
+        }
+    }
+
+    private func routeOnboardingStep() {
+        guard let destination = onboarding.currentStep?.destination,
+              case let .admin(tab) = destination else { return }
+        selectedTab = tab
+        if tab != .more {
+            lastRealTab = tab
+            navigation.adminSelectedTab = tab
         }
     }
 }

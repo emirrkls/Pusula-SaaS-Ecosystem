@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -110,6 +111,14 @@ public class AuthController {
     public ResponseEntity<AuthResponse> getFeatureContext() {
         User user = getCurrentUser();
         return ResponseEntity.ok(service.getFeatureContextResponse(user));
+    }
+
+    @PutMapping("/onboarding-version")
+    public ResponseEntity<Map<String, Integer>> updateOnboardingVersion(
+            @RequestBody Map<String, Integer> request) {
+        Integer requestedVersion = request != null ? request.get("version") : null;
+        int version = service.updateMobileOnboardingVersion(getCurrentUser(), requestedVersion);
+        return ResponseEntity.ok(Map.of("version", version));
     }
     
     /**

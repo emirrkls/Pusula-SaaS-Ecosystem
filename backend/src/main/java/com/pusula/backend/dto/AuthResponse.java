@@ -14,6 +14,7 @@ public class AuthResponse {
     private QuotaDTO quota;
     private boolean isReadOnly;
     private Integer trialDaysRemaining;
+    private Integer onboardingVersion;
 
     public AuthResponse() {
     }
@@ -50,6 +51,9 @@ public class AuthResponse {
     public Integer getTrialDaysRemaining() { return trialDaysRemaining; }
     public void setTrialDaysRemaining(Integer trialDaysRemaining) { this.trialDaysRemaining = trialDaysRemaining; }
 
+    public Integer getOnboardingVersion() { return onboardingVersion; }
+    public void setOnboardingVersion(Integer onboardingVersion) { this.onboardingVersion = onboardingVersion; }
+
     // --- Builder ---
 
     public static AuthResponseBuilder builder() { return new AuthResponseBuilder(); }
@@ -67,6 +71,7 @@ public class AuthResponse {
         public AuthResponseBuilder quota(QuotaDTO quota) { instance.quota = quota; return this; }
         public AuthResponseBuilder readOnly(boolean readOnly) { instance.isReadOnly = readOnly; return this; }
         public AuthResponseBuilder trialDaysRemaining(Integer trialDaysRemaining) { instance.trialDaysRemaining = trialDaysRemaining; return this; }
+        public AuthResponseBuilder onboardingVersion(Integer onboardingVersion) { instance.onboardingVersion = onboardingVersion; return this; }
 
         public AuthResponse build() { return instance; }
     }

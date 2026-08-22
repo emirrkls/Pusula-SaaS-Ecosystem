@@ -27,6 +27,18 @@ struct ProfileView: View {
 
                 PusulaAppearancePicker()
                     .pusulaCard()
+
+                Button {
+                    OnboardingManager.shared.restartRoleTour(
+                        role: session.role,
+                        accountIdentifier: session.onboardingAccountIdentifier
+                    )
+                } label: {
+                    Label("Uygulama Turunu Tekrar Başlat", systemImage: "questionmark.circle")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.bordered)
                 
                 if session.isAdmin {
                     Button(action: { showPlanUpgrade = true }) {

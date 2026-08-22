@@ -46,6 +46,14 @@ enum AuthService {
     static func fetchAuthProfile() async throws -> AuthProfileResponse {
         try await NetworkManager.shared.get("/api/auth/feature-context")
     }
+
+    static func updateOnboardingVersion(_ version: Int) async throws -> Int {
+        let response: OnboardingVersionResponse = try await NetworkManager.shared.put(
+            "/api/auth/onboarding-version",
+            body: OnboardingVersionRequest(version: version)
+        )
+        return response.version
+    }
     
     /// Logout — clear token
     static func logout() async {
@@ -57,4 +65,12 @@ enum AuthService {
         // Backend endpoint to trigger account deletion
         let _: EmptyResponse = try await NetworkManager.shared.request(.DELETE, path: "/api/auth/delete-account")
     }
+}
+
+private struct OnboardingVersionRequest: Encodable {
+    let version: Int
+}
+
+private struct OnboardingVersionResponse: Decodable {
+    let version: Int
 }

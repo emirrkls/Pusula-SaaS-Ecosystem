@@ -328,6 +328,17 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Yardım") {
+                Button {
+                    OnboardingManager.shared.restartRoleTour(
+                        role: session.role,
+                        accountIdentifier: session.onboardingAccountIdentifier
+                    )
+                } label: {
+                    Label("Uygulama Turunu Tekrar Başlat", systemImage: "questionmark.circle")
+                }
+            }
+
             Section {
                 Button(role: .destructive) {
                     session.logout()

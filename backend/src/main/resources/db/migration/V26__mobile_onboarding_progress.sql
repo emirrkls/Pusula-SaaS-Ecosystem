@@ -1,0 +1,2 @@
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS mobile_onboarding_version INTEGER NOT NULL DEFAULT 0;

@@ -20,6 +20,7 @@ final class SessionManager: ObservableObject {
     @Published var quota: QuotaDTO?
     @Published var isReadOnly: Bool = false
     @Published var trialDaysRemaining: Int?
+    @Published var onboardingVersion: Int = 0
     
     // MARK: - Computed Properties
     
@@ -29,6 +30,13 @@ final class SessionManager: ObservableObject {
     
     var isTechnician: Bool {
         role == "TECHNICIAN"
+    }
+
+    var onboardingAccountIdentifier: String {
+        let normalizedName = fullName
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "tr_TR"))
+            .replacingOccurrences(of: " ", with: "-")
+        return "\(companyId ?? 0)-\(normalizedName)-\(role.lowercased())"
     }
     
     var showTrialBanner: Bool {
@@ -51,7 +59,6 @@ final class SessionManager: ObservableObject {
     func configure(from response: AuthResponse) {
         self.isRestoringSession = false
         self.sessionMessage = nil
-        self.isAuthenticated = true
         self.token = response.token
         self.role = response.role
         self.fullName = response.fullName ?? ""
@@ -62,6 +69,8 @@ final class SessionManager: ObservableObject {
         self.quota = response.quota
         self.isReadOnly = response.isReadOnly ?? false
         self.trialDaysRemaining = response.trialDaysRemaining
+        self.onboardingVersion = response.onboardingVersion ?? 0
+        self.isAuthenticated = true
         
         // Persist token to Keychain
         KeychainHelper.save(key: "auth_token", value: response.token)
@@ -99,6 +108,7 @@ final class SessionManager: ObservableObject {
         quota = nil
         isReadOnly = false
         trialDaysRemaining = nil
+        onboardingVersion = 0
         
         KeychainHelper.delete(key: "auth_token")
         KeychainHelper.delete(key: "user_role")
@@ -148,6 +158,7 @@ final class SessionManager: ObservableObject {
             fullName = profile.fullName ?? ""
             companyId = profile.companyId
             companyName = profile.companyName
+            onboardingVersion = profile.onboardingVersion ?? 0
             KeychainHelper.save(key: "user_role", value: restoredRole)
             applySubscriptionContext(context)
             isAuthenticated = true

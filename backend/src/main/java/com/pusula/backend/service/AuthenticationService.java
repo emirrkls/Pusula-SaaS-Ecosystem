@@ -408,7 +408,20 @@ public class AuthenticationService {
                                 .quota(company != null ? featureService.getQuota(company.getId()) : QuotaDTO.unlimited())
                                 .readOnly(isReadOnly)
                                 .trialDaysRemaining(trialDays)
+                                .onboardingVersion(user.getMobileOnboardingVersion())
                                 .build();
+        }
+
+        public int updateMobileOnboardingVersion(User user, Integer requestedVersion) {
+                if (requestedVersion == null || requestedVersion < 0 || requestedVersion > 1000) {
+                        throw new IllegalArgumentException("Geçersiz onboarding sürümü.");
+                }
+                int effectiveVersion = Math.max(user.getMobileOnboardingVersion(), requestedVersion);
+                if (effectiveVersion != user.getMobileOnboardingVersion()) {
+                        user.setMobileOnboardingVersion(effectiveVersion);
+                        userRepository.save(user);
+                }
+                return effectiveVersion;
         }
 
         public AuthResponse getFeatureContextResponse(User user) {

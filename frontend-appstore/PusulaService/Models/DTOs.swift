@@ -27,6 +27,7 @@ struct AuthResponse: Codable {
     let quota: QuotaDTO?
     let isReadOnly: Bool?
     let trialDaysRemaining: Int?
+    let onboardingVersion: Int?
 }
 
 /// Partial response returned by GET /api/auth/feature-context.
@@ -35,6 +36,7 @@ struct AuthProfileResponse: Codable {
     let fullName: String?
     let companyId: Int?
     let companyName: String?
+    let onboardingVersion: Int?
 }
 
 struct QuotaDTO: Codable {

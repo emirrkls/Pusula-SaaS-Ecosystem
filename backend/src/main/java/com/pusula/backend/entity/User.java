@@ -34,6 +34,9 @@ public class User extends BaseEntity implements UserDetails {
     @Column(name = "signature_path")
     private String signaturePath;
 
+    @Column(name = "mobile_onboarding_version", nullable = false)
+    private int mobileOnboardingVersion = 0;
+
     public User() {
     }
 
@@ -87,6 +90,14 @@ public class User extends BaseEntity implements UserDetails {
 
     public void setSignaturePath(String signaturePath) {
         this.signaturePath = signaturePath;
+    }
+
+    public int getMobileOnboardingVersion() {
+        return mobileOnboardingVersion;
+    }
+
+    public void setMobileOnboardingVersion(int mobileOnboardingVersion) {
+        this.mobileOnboardingVersion = mobileOnboardingVersion;
     }
 
     @Override
