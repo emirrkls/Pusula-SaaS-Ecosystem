@@ -20,7 +20,7 @@ struct FixedExpensesView: View {
                         }
                         HStack {
                             Text(expense.frequency == "WEEKLY" ? "Haftalık" : "Aylık")
-                            Text("• (ExpenseCategory(rawValue: expense.category ?? "")?.label ?? expense.category ?? "Diğer")")
+                            Text("• \(fixedExpenseCategoryLabel(expense.category))")
                             Spacer()
                             if expense.paidThisMonth == true {
                                 Label("Ödendi", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
@@ -53,6 +53,10 @@ struct FixedExpensesView: View {
     }
     private func load() async { isLoading = true; defer { isLoading = false }; do { expenses = try await FinanceService.getFixedExpenses() } catch { errorMessage = error.localizedDescription } }
     private func delete(_ expense: FixedExpenseDefinitionDTO) async { guard let id = expense.id else { return }; do { try await FinanceService.deleteFixedExpense(id: id); await load() } catch { errorMessage = error.localizedDescription } }
+}
+
+private func fixedExpenseCategoryLabel(_ value: String?) -> String {
+    ExpenseCategory(rawValue: value ?? "")?.label ?? value ?? "Diğer"
 }
 
 private struct FixedExpenseEditorSheet: View {
