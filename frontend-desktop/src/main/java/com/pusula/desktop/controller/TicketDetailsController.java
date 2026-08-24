@@ -30,6 +30,9 @@ import retrofit2.Response;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import com.pusula.desktop.dto.InventoryDTO;
 import com.pusula.desktop.dto.AuthRequest;
@@ -52,6 +55,9 @@ public class TicketDetailsController {
     private TextArea txtNotes;
     @FXML
     private ComboBox<UserDTO> comboTechnician;
+    @FXML private DatePicker assignmentDatePicker;
+    @FXML private ComboBox<String> assignmentStartTime;
+    @FXML private ComboBox<String> assignmentEndTime;
     @FXML
     private TableView<ServiceUsedPartDTO> partsTable;
     @FXML
@@ -117,6 +123,7 @@ public class TicketDetailsController {
         // Load resource bundle for localization
         resourceBundle = java.util.ResourceBundle.getBundle("i18n.messages",
                 Locale.of("tr", "TR"), new UTF8Control());
+        configureAssignmentSchedule();
 
         // Use explicit cell value factories with debug
         colPartName.setCellValueFactory(cellData -> {
@@ -212,6 +219,19 @@ public class TicketDetailsController {
         if (com.pusula.desktop.util.SessionManager.isAdmin()) {
             fetchCurrentUser();
         }
+    }
+
+    private void configureAssignmentSchedule() {
+        ObservableList<String> times = FXCollections.observableArrayList();
+        for (int hour = 7; hour <= 21; hour++) {
+            times.add(String.format("%02d:00", hour));
+            if (hour < 21) times.add(String.format("%02d:30", hour));
+        }
+        assignmentStartTime.setItems(times);
+        assignmentEndTime.setItems(FXCollections.observableArrayList(times));
+        assignmentDatePicker.setValue(LocalDate.now());
+        assignmentStartTime.setValue("09:00");
+        assignmentEndTime.setValue("11:00");
     }
 
     private void fetchCurrentUser() {
@@ -409,6 +429,15 @@ public class TicketDetailsController {
                 : getStatusTranslation(currentTicket.getStatus()));
         txtDescription.setText(currentTicket.getDescription());
         txtNotes.setText(currentTicket.getNotes());
+        if (currentTicket.getScheduledDate() != null) {
+            assignmentDatePicker.setValue(currentTicket.getScheduledDate().toLocalDate());
+            assignmentStartTime.setValue(currentTicket.getScheduledDate().toLocalTime()
+                    .format(DateTimeFormatter.ofPattern("HH:mm")));
+            LocalDateTime scheduledEnd = currentTicket.getScheduledEndDate();
+            assignmentEndTime.setValue((scheduledEnd != null ? scheduledEnd.toLocalTime()
+                    : currentTicket.getScheduledDate().toLocalTime().plusHours(2))
+                    .format(DateTimeFormatter.ofPattern("HH:mm")));
+        }
         // Check if ticket is completed
         boolean isCompleted = "COMPLETED".equals(currentTicket.getStatus());
         boolean isCancelled = "CANCELLED".equals(currentTicket.getStatus());
@@ -432,10 +461,16 @@ public class TicketDetailsController {
         // Disable editing for closed tickets
         txtNotes.setEditable(!isClosed);
         comboTechnician.setDisable(isClosed);
+        assignmentDatePicker.setDisable(isClosed);
+        assignmentStartTime.setDisable(isClosed);
+        assignmentEndTime.setDisable(isClosed);
 
         // Disable assignment controls for Technicians
         if (com.pusula.desktop.util.SessionManager.isTechnician()) {
             comboTechnician.setDisable(true);
+            assignmentDatePicker.setDisable(true);
+            assignmentStartTime.setDisable(true);
+            assignmentEndTime.setDisable(true);
         }
 
         // Status Change Button Logic
@@ -978,10 +1013,27 @@ public class TicketDetailsController {
         if (selectedTech == null || currentTicket == null)
             return;
 
+        if (assignmentDatePicker.getValue() == null
+                || assignmentStartTime.getValue() == null || assignmentEndTime.getValue() == null) {
+            AlertHelper.showAlert(Alert.AlertType.WARNING, lblStatus.getScene().getWindow(),
+                    "Eksik Planlama", "Atama tarihi, başlangıç ve bitiş saatini seçin.");
+            return;
+        }
+        LocalTime startTime = LocalTime.parse(assignmentStartTime.getValue());
+        LocalTime endTime = LocalTime.parse(assignmentEndTime.getValue());
+        if (!endTime.isAfter(startTime)) {
+            AlertHelper.showAlert(Alert.AlertType.WARNING, lblStatus.getScene().getWindow(),
+                    "Geçersiz Saat Aralığı", "Bitiş saati başlangıç saatinden sonra olmalıdır.");
+            return;
+        }
+        LocalDateTime scheduledStart = LocalDateTime.of(assignmentDatePicker.getValue(), startTime);
+        LocalDateTime scheduledEnd = LocalDateTime.of(assignmentDatePicker.getValue(), endTime);
+
         setButtonBusy(btnAssign, true, "Atanıyor…", "Ata");
 
         ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
-        api.assignTechnician(currentTicket.getId(), selectedTech.getId()).enqueue(new Callback<ServiceTicketDTO>() {
+        api.assignTechnicianWithSchedule(currentTicket.getId(), selectedTech.getId(),
+                scheduledStart.toString(), scheduledEnd.toString()).enqueue(new Callback<ServiceTicketDTO>() {
             @Override
             public void onResponse(Call<ServiceTicketDTO> call, Response<ServiceTicketDTO> response) {
                 Platform.runLater(() -> {

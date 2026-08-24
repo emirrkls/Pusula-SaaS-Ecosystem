@@ -136,8 +136,13 @@ struct TicketListView: View {
                 Text(isAdmin ? "Operasyon" : "İşlerim")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text("\(tickets.count) iş emri")
+                Text("\(filteredTickets.count) iş emri")
                     .font(.title3.weight(.bold))
+                if !isAdmin {
+                    Text(selectedFilter)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 if isAdmin {
                     Text("\(pendingUnassigned.count) atama bekliyor")
                         .font(.caption)
@@ -281,12 +286,18 @@ struct TicketCardView: View {
                         .font(.caption2.weight(.medium))
                         .foregroundColor(.orange)
                 }
-                
+
                 if let date = ticket.scheduledDate {
-                    Text(formatDate(date))
+                    Text(formatSchedule(start: date, end: ticket.scheduledEndDate))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            }
+
+            if isOverdue {
+                Label("Geciken çağrı", systemImage: "clock.badge.exclamationmark")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.red)
             }
             
             if let name = ticket.customerName {
@@ -390,16 +401,18 @@ struct TicketCardView: View {
         }
     }
     
-    private func formatDate(_ dateString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: dateString) {
-            let display = DateFormatter()
-            display.locale = Locale(identifier: "tr_TR")
-            display.dateFormat = "d MMM HH:mm"
-            return display.string(from: date)
+    private func formatSchedule(start: String, end: String?) -> String {
+        guard let startDate = TicketFilters.parseBusinessDate(start) else { return start }
+        let display = DateFormatter()
+        display.locale = Locale(identifier: "tr_TR")
+        display.timeZone = TimeZone(identifier: "Europe/Istanbul")
+        display.dateFormat = "d MMM HH:mm"
+        var value = display.string(from: startDate)
+        if let endDate = TicketFilters.parseBusinessDate(end) {
+            display.dateFormat = "HH:mm"
+            value += "–\(display.string(from: endDate))"
         }
-        return dateString
+        return value
     }
 }
 
@@ -419,6 +432,9 @@ struct CreateTicketSheet: View {
     @State private var description = ""
     @State private var notes = ""
     @State private var selectedTechId: Int?
+    @State private var scheduledDay: Date
+    @State private var scheduledStart: Date
+    @State private var scheduledEnd: Date
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -432,6 +448,12 @@ struct CreateTicketSheet: View {
         self.technicians = technicians
         self.onCustomerCreated = onCustomerCreated
         self.onCreated = onCreated
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Istanbul") ?? .current
+        let start = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
+        _scheduledDay = State(initialValue: Date())
+        _scheduledStart = State(initialValue: start)
+        _scheduledEnd = State(initialValue: calendar.date(byAdding: .hour, value: 2, to: start) ?? start)
     }
 
     private var availableCustomers: [CustomerDTO] {
@@ -457,6 +479,14 @@ struct CreateTicketSheet: View {
         }.sorted {
             $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
         }
+    }
+
+    private var isOverdue: Bool {
+        guard ticket.statusEnum == .assigned || ticket.statusEnum == .inProgress,
+              let scheduled = TicketFilters.parseBusinessDate(ticket.scheduledDate) else { return false }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Istanbul") ?? .current
+        return calendar.startOfDay(for: scheduled) < calendar.startOfDay(for: Date())
     }
 
     private var selectedCustomer: CustomerDTO? {
@@ -544,6 +574,15 @@ struct CreateTicketSheet: View {
                     TextField("Notlar (opsiyonel)", text: $notes, axis: .vertical)
                         .lineLimit(2...4)
                 }
+
+                Section("Planlanan Zaman") {
+                    DatePicker("Servis tarihi", selection: $scheduledDay, displayedComponents: .date)
+                    DatePicker("Başlangıç", selection: $scheduledStart, displayedComponents: .hourAndMinute)
+                    DatePicker("Bitiş", selection: $scheduledEnd, displayedComponents: .hourAndMinute)
+                    Text("Teknisyen bildirimi, servis başlangıcına 24 saat veya daha az kaldığında gönderilir.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 
                 if !technicians.isEmpty {
                     Section("Teknisyen") {
@@ -597,13 +636,20 @@ struct CreateTicketSheet: View {
     
     private func createTicket() async {
         guard let customerId = selectedCustomerId else { return }
+        guard let start = combinedSchedule(day: scheduledDay, time: scheduledStart),
+              let end = combinedSchedule(day: scheduledDay, time: scheduledEnd), end > start else {
+            errorMessage = "Bitiş saati başlangıç saatinden sonra olmalıdır."
+            return
+        }
         isSaving = true
         do {
             let request = CreateTicketRequest(
                 customerId: customerId,
                 description: description,
                 notes: notes.isEmpty ? nil : notes,
-                assignedTechnicianId: selectedTechId
+                assignedTechnicianId: selectedTechId,
+                scheduledDate: backendDateTime(start),
+                scheduledEndDate: backendDateTime(end)
             )
             _ = try await TicketService.createTicket(request)
             await onCreated()
@@ -614,6 +660,25 @@ struct CreateTicketSheet: View {
                 isSaving = false
             }
         }
+    }
+
+    private func combinedSchedule(day: Date, time: Date) -> Date? {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Istanbul") ?? .current
+        let dayParts = calendar.dateComponents([.year, .month, .day], from: day)
+        let timeParts = calendar.dateComponents([.hour, .minute], from: time)
+        return calendar.date(from: DateComponents(
+            year: dayParts.year, month: dayParts.month, day: dayParts.day,
+            hour: timeParts.hour, minute: timeParts.minute, second: 0
+        ))
+    }
+
+    private func backendDateTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Europe/Istanbul")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return formatter.string(from: date)
     }
 }
 

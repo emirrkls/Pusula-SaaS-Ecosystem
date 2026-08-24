@@ -14,6 +14,7 @@ struct FieldTicketDTO: Codable, Identifiable {
     let assignedTechnicianName: String?
     let status: String?
     let scheduledDate: String?
+    let scheduledEndDate: String?
     let description: String?
     let notes: String?
     let collectedAmount: Double?
@@ -84,13 +85,18 @@ struct CreateTicketRequest: Codable {
     let notes: String?
     let status: String
     let assignedTechnicianId: Int?
+    let scheduledDate: String?
+    let scheduledEndDate: String?
     
-    init(customerId: Int, description: String, notes: String? = nil, assignedTechnicianId: Int? = nil) {
+    init(customerId: Int, description: String, notes: String? = nil, assignedTechnicianId: Int? = nil,
+         scheduledDate: String? = nil, scheduledEndDate: String? = nil) {
         self.customerId = customerId
         self.description = description
         self.notes = notes
         self.status = "PENDING"
         self.assignedTechnicianId = assignedTechnicianId
+        self.scheduledDate = scheduledDate
+        self.scheduledEndDate = scheduledEndDate
     }
 }
 

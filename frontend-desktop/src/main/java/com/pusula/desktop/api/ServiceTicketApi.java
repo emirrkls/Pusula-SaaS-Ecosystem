@@ -26,6 +26,12 @@ public interface ServiceTicketApi {
     @PATCH("api/tickets/{id}/assign")
     Call<ServiceTicketDTO> assignTechnician(@Path("id") Long id, @Query("technicianId") Long technicianId);
 
+    @PATCH("api/tickets/{id}/assign")
+    Call<ServiceTicketDTO> assignTechnicianWithSchedule(@Path("id") Long id,
+            @Query("technicianId") Long technicianId,
+            @Query("scheduledDate") String scheduledDate,
+            @Query("scheduledEndDate") String scheduledEndDate);
+
     @PATCH("api/tickets/{id}/reopen")
     Call<ServiceTicketDTO> reopenCompletedService(@Path("id") Long id, @Body AuthRequest request);
 

@@ -13,6 +13,7 @@ public class ServiceTicketDTO {
     private Long assignedTechnicianId;
     private TicketStatus status;
     private LocalDateTime scheduledDate;
+    private LocalDateTime scheduledEndDate;
     private String description;
     private String notes;
     private BigDecimal collectedAmount;
@@ -100,6 +101,14 @@ public class ServiceTicketDTO {
 
     public void setScheduledDate(LocalDateTime scheduledDate) {
         this.scheduledDate = scheduledDate;
+    }
+
+    public LocalDateTime getScheduledEndDate() {
+        return scheduledEndDate;
+    }
+
+    public void setScheduledEndDate(LocalDateTime scheduledEndDate) {
+        this.scheduledEndDate = scheduledEndDate;
     }
 
     public String getDescription() {
@@ -226,6 +235,7 @@ public class ServiceTicketDTO {
         private Long assignedTechnicianId;
         private TicketStatus status;
         private LocalDateTime scheduledDate;
+        private LocalDateTime scheduledEndDate;
         private String description;
         private String notes;
         private BigDecimal collectedAmount;
@@ -268,6 +278,11 @@ public class ServiceTicketDTO {
 
         public ServiceTicketDTOBuilder scheduledDate(LocalDateTime scheduledDate) {
             this.scheduledDate = scheduledDate;
+            return this;
+        }
+
+        public ServiceTicketDTOBuilder scheduledEndDate(LocalDateTime scheduledEndDate) {
+            this.scheduledEndDate = scheduledEndDate;
             return this;
         }
 
@@ -340,6 +355,7 @@ public class ServiceTicketDTO {
             ServiceTicketDTO dto = new ServiceTicketDTO(id, customerId, assignedTechnicianId, status, scheduledDate, description, notes,
                     collectedAmount, createdAt, parentTicketId, isWarrantyCall, customerName, paymentMethod);
             dto.setUpdatedAt(updatedAt);
+            dto.setScheduledEndDate(scheduledEndDate);
             dto.setCompletedAt(completedAt);
             dto.setReopenedAt(reopenedAt);
             dto.setCollectionDate(collectionDate);

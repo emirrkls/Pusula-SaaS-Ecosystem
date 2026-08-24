@@ -96,6 +96,7 @@ struct ServiceTicketDTO: Codable, Identifiable {
     let description: String?
     let status: String?
     let scheduledDate: String?
+    let scheduledEndDate: String?
     let customerName: String?
     let customerPhone: String?
     let customerAddress: String?

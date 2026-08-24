@@ -11,6 +11,7 @@ public class ServiceTicketDTO {
     private Long assignedTechnicianId;
     private String status;
     private LocalDateTime scheduledDate;
+    private LocalDateTime scheduledEndDate;
     private String description;
     private String notes;
     private BigDecimal collectedAmount;
@@ -76,6 +77,14 @@ public class ServiceTicketDTO {
 
     public void setScheduledDate(LocalDateTime scheduledDate) {
         this.scheduledDate = scheduledDate;
+    }
+
+    public LocalDateTime getScheduledEndDate() {
+        return scheduledEndDate;
+    }
+
+    public void setScheduledEndDate(LocalDateTime scheduledEndDate) {
+        this.scheduledEndDate = scheduledEndDate;
     }
 
     public String getDescription() {

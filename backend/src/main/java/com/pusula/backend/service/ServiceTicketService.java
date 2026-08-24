@@ -153,6 +153,7 @@ public class ServiceTicketService {
     @Transactional
     public ServiceTicketDTO createTicket(ServiceTicketDTO dto) {
         User user = getCurrentUser();
+        validateScheduleWindow(dto.getScheduledDate(), dto.getScheduledEndDate());
         if (dto.getCustomerId() == null) {
             throw new IllegalArgumentException("Müşteri seçimi zorunludur.");
         }
@@ -176,6 +177,7 @@ public class ServiceTicketService {
                 .description(dto.getDescription())
                 .notes(dto.getNotes())
                 .build();
+        ticket.setScheduledEndDate(dto.getScheduledEndDate());
 
         if (assignedTechnician == null && dto.getStatus() != null) {
             ticket.setStatus(dto.getStatus());
@@ -226,6 +228,8 @@ public class ServiceTicketService {
         // Track old values for audit logging
         String oldStatus = ticket.getStatus() != null ? getStatusInTurkish(ticket.getStatus()) : null;
         Long oldTechnicianId = ticket.getAssignedTechnicianId();
+        LocalDateTime oldScheduledDate = ticket.getScheduledDate();
+        LocalDateTime oldScheduledEndDate = ticket.getScheduledEndDate();
 
         // Apply updates
         if (dto.getStatus() != null && !dto.getStatus().equals(ticket.getStatus())) {
@@ -259,14 +263,23 @@ public class ServiceTicketService {
             newTechnicianId = technician.getId();
         }
 
-        if (dto.getScheduledDate() != null)
+        if (dto.getScheduledDate() != null) {
+            validateScheduleWindow(dto.getScheduledDate(), dto.getScheduledEndDate());
             ticket.setScheduledDate(dto.getScheduledDate());
+            ticket.setScheduledEndDate(dto.getScheduledEndDate());
+        }
         if (dto.getNotes() != null)
             ticket.setNotes(dto.getNotes());
 
+        boolean scheduleChanged = !Objects.equals(oldScheduledDate, ticket.getScheduledDate())
+                || !Objects.equals(oldScheduledEndDate, ticket.getScheduledEndDate());
+        if (newTechnicianId != null || scheduleChanged) {
+            ticket.setAssignmentNotificationSentAt(null);
+        }
+
         ServiceTicket saved = repository.save(ticket);
-        if (newTechnicianId != null) {
-            publishAssignment(saved, newTechnicianId);
+        if (newTechnicianId != null || (scheduleChanged && saved.getAssignedTechnicianId() != null)) {
+            publishAssignment(saved, saved.getAssignedTechnicianId());
         }
         return mapToDTO(saved);
     }
@@ -364,6 +377,12 @@ public class ServiceTicketService {
 
     @Transactional
     public ServiceTicketDTO assignTechnician(Long ticketId, Long technicianId) {
+        return assignTechnician(ticketId, technicianId, null, null);
+    }
+
+    @Transactional
+    public ServiceTicketDTO assignTechnician(Long ticketId, Long technicianId,
+            LocalDateTime scheduledDate, LocalDateTime scheduledEndDate) {
         User currentUser = getCurrentUser();
         ServiceTicket ticket = repository.findById(ticketId)
                 .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
@@ -372,9 +391,20 @@ public class ServiceTicketService {
         User technician = requireTechnician(technicianId, currentUser.getCompanyId());
 
         boolean changed = !Objects.equals(ticket.getAssignedTechnicianId(), technician.getId());
+        if (scheduledDate != null) {
+            validateScheduleWindow(scheduledDate, scheduledEndDate);
+            boolean scheduleChanged = !Objects.equals(ticket.getScheduledDate(), scheduledDate)
+                    || !Objects.equals(ticket.getScheduledEndDate(), scheduledEndDate);
+            ticket.setScheduledDate(scheduledDate);
+            ticket.setScheduledEndDate(scheduledEndDate);
+            changed = changed || scheduleChanged;
+        }
 
         ticket.setAssignedTechnicianId(technician.getId());
         ticket.setStatus(ServiceTicket.TicketStatus.ASSIGNED);
+        if (changed) {
+            ticket.setAssignmentNotificationSentAt(null);
+        }
 
         ServiceTicket saved = repository.save(ticket);
 
@@ -471,6 +501,7 @@ public class ServiceTicketService {
         return tickets.stream().map(ticket -> {
             ticket.setAssignedTechnicianId(technician.getId());
             ticket.setStatus(ServiceTicket.TicketStatus.ASSIGNED);
+            ticket.setAssignmentNotificationSentAt(null);
             ServiceTicket saved = repository.save(ticket);
             auditLogService.log("UPDATE", "TICKET", saved.getId(),
                     "Toplu teknisyen ataması: " + technician.getFullName());
@@ -487,6 +518,15 @@ public class ServiceTicketService {
 
     private void publishAssignment(ServiceTicket ticket, Long technicianId) {
         eventPublisher.publishEvent(new TicketAssignedEvent(ticket.getCompanyId(), technicianId, ticket.getId()));
+    }
+
+    private void validateScheduleWindow(LocalDateTime scheduledDate, LocalDateTime scheduledEndDate) {
+        if (scheduledEndDate != null && scheduledDate == null) {
+            throw new IllegalArgumentException("Bitiş saati için planlanan başlangıç zamanı seçilmelidir.");
+        }
+        if (scheduledEndDate != null && !scheduledEndDate.isAfter(scheduledDate)) {
+            throw new IllegalArgumentException("Planlanan bitiş saati başlangıç saatinden sonra olmalıdır.");
+        }
     }
 
     @Transactional
@@ -1125,6 +1165,7 @@ public class ServiceTicketService {
                 .assignedTechnicianId(ticket.getAssignedTechnicianId())
                 .status(ticket.getStatus())
                 .scheduledDate(ticket.getScheduledDate())
+                .scheduledEndDate(ticket.getScheduledEndDate())
                 .description(ticket.getDescription())
                 .notes(ticket.getNotes())
                 .collectedAmount(ticket.getCollectedAmount())

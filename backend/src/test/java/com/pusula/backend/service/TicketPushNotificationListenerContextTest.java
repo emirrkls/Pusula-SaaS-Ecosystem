@@ -3,6 +3,7 @@ package com.pusula.backend.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pusula.backend.config.ApplePushProperties;
 import com.pusula.backend.repository.PushDeviceRepository;
+import com.pusula.backend.repository.ServiceTicketRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
@@ -37,10 +38,12 @@ class TicketPushNotificationListenerContextTest {
             properties.setEnabled(false);
             return new TicketPushNotificationListener(
                     mock(PushDeviceRepository.class),
+                    mock(ServiceTicketRepository.class),
                     mock(PushTokenCrypto.class),
                     mock(ApnsGateway.class),
                     properties,
-                    new ObjectMapper());
+                    new ObjectMapper(),
+                    "Europe/Istanbul");
         }
 
         @Bean

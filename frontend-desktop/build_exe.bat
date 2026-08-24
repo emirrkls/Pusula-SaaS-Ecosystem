@@ -22,7 +22,7 @@ echo Adim 3: JPackage ile bagimsiz Native Installer (Kurulum Sihirbazi) uretiliy
 if exist "target\installer" rmdir /s /q "target\installer"
 
 REM JPackage komutu:
-call jpackage --type msi --name "Pusula" --app-version 3.4.3 --description "Pusula Servis Yönetimi" --vendor "Pusula" --icon "src\main\resources\app.ico" --dest target\installer --input target\jpackage-input --main-jar frontend-desktop-1.0-SNAPSHOT.jar --main-class com.pusula.desktop.Launcher --win-shortcut --win-menu --win-dir-chooser --win-upgrade-uuid "A35C7210-561A-4BB9-A499-5D4047EC0CF3"
+call jpackage --type msi --name "Pusula" --app-version 3.4.8 --description "Pusula Servis Yönetimi" --vendor "Pusula" --icon "src\main\resources\app.ico" --dest target\installer --input target\jpackage-input --main-jar frontend-desktop-1.0-SNAPSHOT.jar --main-class com.pusula.desktop.Launcher --win-shortcut --win-menu --win-dir-chooser --win-upgrade-uuid "A35C7210-561A-4BB9-A499-5D4047EC0CF3"
 
 if %ERRORLEVEL% neq 0 (
     echo [HATA] JPackage olusturma basarisiz oldu! Lutfen WiX Toolset kurulu oldugundan veya JDK surumunuzden emin olun.

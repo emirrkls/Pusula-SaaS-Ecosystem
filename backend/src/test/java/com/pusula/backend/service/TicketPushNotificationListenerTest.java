@@ -8,12 +8,16 @@ import com.pusula.backend.config.ApplePushProperties;
 import com.pusula.backend.entity.PushDevice;
 import com.pusula.backend.entity.PushEnvironment;
 import com.pusula.backend.entity.PushPlatform;
+import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.event.TicketAssignedEvent;
 import com.pusula.backend.repository.PushDeviceRepository;
+import com.pusula.backend.repository.ServiceTicketRepository;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Optional;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -30,6 +34,7 @@ class TicketPushNotificationListenerTest {
     @Test
     void apnsFailureDoesNotEscapeOrLeakPlaintextTokenToLogs() {
         PushDeviceRepository repository = mock(PushDeviceRepository.class);
+        ServiceTicketRepository ticketRepository = dueTicketRepository();
         PushTokenCrypto crypto = mock(PushTokenCrypto.class);
         ApnsGateway gateway = mock(ApnsGateway.class);
         ApplePushProperties properties = enabledProperties();
@@ -40,7 +45,7 @@ class TicketPushNotificationListenerTest {
         when(gateway.send(anyString(), org.mockito.ArgumentMatchers.eq(PushEnvironment.SANDBOX), anyString()))
                 .thenThrow(new IllegalStateException("provider echoed " + TOKEN));
         TicketPushNotificationListener listener = new TicketPushNotificationListener(
-                repository, crypto, gateway, properties, new ObjectMapper());
+                repository, ticketRepository, crypto, gateway, properties, new ObjectMapper(), "Europe/Istanbul");
 
         Logger logger = (Logger) LoggerFactory.getLogger(TicketPushNotificationListener.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
@@ -59,6 +64,7 @@ class TicketPushNotificationListenerTest {
     @Test
     void invalidApnsTokenIsDeactivated() {
         PushDeviceRepository repository = mock(PushDeviceRepository.class);
+        ServiceTicketRepository ticketRepository = dueTicketRepository();
         PushTokenCrypto crypto = mock(PushTokenCrypto.class);
         ApnsGateway gateway = mock(ApnsGateway.class);
         PushDevice device = device();
@@ -68,7 +74,7 @@ class TicketPushNotificationListenerTest {
         when(gateway.send(anyString(), org.mockito.ArgumentMatchers.eq(PushEnvironment.SANDBOX), anyString()))
                 .thenReturn(ApnsDeliveryResult.rejected("Unregistered"));
         TicketPushNotificationListener listener = new TicketPushNotificationListener(
-                repository, crypto, gateway, enabledProperties(), new ObjectMapper());
+                repository, ticketRepository, crypto, gateway, enabledProperties(), new ObjectMapper(), "Europe/Istanbul");
 
         listener.onTicketAssigned(new TicketAssignedEvent(10L, 7L, 100L));
 
@@ -85,7 +91,8 @@ class TicketPushNotificationListenerTest {
 
         PushDeviceRepository repository = mock(PushDeviceRepository.class);
         TicketPushNotificationListener listener = new TicketPushNotificationListener(
-                repository, mock(PushTokenCrypto.class), gateway, properties, new ObjectMapper());
+                repository, mock(ServiceTicketRepository.class), mock(PushTokenCrypto.class), gateway,
+                properties, new ObjectMapper(), "Europe/Istanbul");
         listener.onTicketAssigned(new TicketAssignedEvent(10L, 7L, 100L));
         verify(repository, never()).findByCompanyIdAndUserIdAndActiveTrueAndPlatform(
                 10L, 7L, PushPlatform.IOS);
@@ -108,5 +115,35 @@ class TicketPushNotificationListenerTest {
         device.setTokenCiphertext("ciphertext");
         device.setActive(true);
         return device;
+    }
+
+    @Test
+    void assignmentMoreThan24HoursAwayWaitsWithoutSendingOrMarking() {
+        PushDeviceRepository devices = mock(PushDeviceRepository.class);
+        ServiceTicketRepository tickets = mock(ServiceTicketRepository.class);
+        ServiceTicket ticket = ServiceTicket.builder()
+                .id(100L).companyId(10L).assignedTechnicianId(7L)
+                .status(ServiceTicket.TicketStatus.ASSIGNED)
+                .scheduledDate(LocalDateTime.now().plusHours(25)).build();
+        when(tickets.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
+        TicketPushNotificationListener listener = new TicketPushNotificationListener(
+                devices, tickets, mock(PushTokenCrypto.class), mock(ApnsGateway.class),
+                enabledProperties(), new ObjectMapper(), "Europe/Istanbul");
+
+        listener.onTicketAssigned(new TicketAssignedEvent(10L, 7L, 100L));
+
+        verify(devices, never()).findByCompanyIdAndUserIdAndActiveTrueAndPlatform(
+                10L, 7L, PushPlatform.IOS);
+        verify(tickets, never()).save(ticket);
+    }
+
+    private ServiceTicketRepository dueTicketRepository() {
+        ServiceTicketRepository repository = mock(ServiceTicketRepository.class);
+        ServiceTicket ticket = ServiceTicket.builder()
+                .id(100L).companyId(10L).assignedTechnicianId(7L)
+                .status(ServiceTicket.TicketStatus.ASSIGNED).build();
+        when(repository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
+        when(repository.save(ticket)).thenReturn(ticket);
+        return repository;
     }
 }

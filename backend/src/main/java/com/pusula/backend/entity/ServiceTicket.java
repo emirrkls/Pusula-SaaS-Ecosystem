@@ -27,6 +27,12 @@ public class ServiceTicket extends BaseEntity {
     @Column(name = "scheduled_date")
     private LocalDateTime scheduledDate;
 
+    @Column(name = "scheduled_end_date")
+    private LocalDateTime scheduledEndDate;
+
+    @Column(name = "assignment_notification_sent_at")
+    private LocalDateTime assignmentNotificationSentAt;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 
@@ -138,6 +144,22 @@ public class ServiceTicket extends BaseEntity {
 
     public void setScheduledDate(LocalDateTime scheduledDate) {
         this.scheduledDate = scheduledDate;
+    }
+
+    public LocalDateTime getScheduledEndDate() {
+        return scheduledEndDate;
+    }
+
+    public void setScheduledEndDate(LocalDateTime scheduledEndDate) {
+        this.scheduledEndDate = scheduledEndDate;
+    }
+
+    public LocalDateTime getAssignmentNotificationSentAt() {
+        return assignmentNotificationSentAt;
+    }
+
+    public void setAssignmentNotificationSentAt(LocalDateTime assignmentNotificationSentAt) {
+        this.assignmentNotificationSentAt = assignmentNotificationSentAt;
     }
 
     public String getDescription() {

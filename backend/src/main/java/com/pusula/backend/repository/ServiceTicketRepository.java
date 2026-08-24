@@ -18,6 +18,13 @@ public interface ServiceTicketRepository extends JpaRepository<ServiceTicket, Lo
 
     List<ServiceTicket> findByAssignedTechnicianId(Long technicianId);
 
+    @Query("SELECT t FROM ServiceTicket t WHERE t.assignedTechnicianId IS NOT NULL "
+            + "AND t.assignmentNotificationSentAt IS NULL "
+            + "AND t.status IN ('ASSIGNED', 'IN_PROGRESS') "
+            + "AND (t.scheduledDate IS NULL OR t.scheduledDate <= :cutoff) "
+            + "ORDER BY t.scheduledDate ASC")
+    List<ServiceTicket> findAssignmentsDueForNotification(@Param("cutoff") LocalDateTime cutoff);
+
     long countByCompanyIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
             Long companyId, LocalDateTime periodStart, LocalDateTime periodEnd);
 

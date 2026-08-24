@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Tab?>
@@ -95,6 +96,13 @@
                                     <VBox prefWidth="280.0" spacing="10.0">
                                        <children>
                                           <Label styleClass="muted-label" text="%ticket.assign.technician" />
+                                          <DatePicker fx:id="assignmentDatePicker" maxWidth="1.7976931348623157E308" />
+                                          <HBox spacing="8.0">
+                                             <children>
+                                                <ComboBox fx:id="assignmentStartTime" promptText="Başlangıç" HBox.hgrow="ALWAYS" />
+                                                <ComboBox fx:id="assignmentEndTime" promptText="Bitiş" HBox.hgrow="ALWAYS" />
+                                             </children>
+                                          </HBox>
                                           <HBox spacing="10.0">
                                              <children>
                                                 <ComboBox fx:id="comboTechnician" prefWidth="180.0" promptText="%ticket.select.technician" />

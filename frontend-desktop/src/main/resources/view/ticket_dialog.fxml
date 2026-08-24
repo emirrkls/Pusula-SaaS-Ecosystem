@@ -36,6 +36,28 @@
             <DatePicker fx:id="datePicker" maxWidth="1.7976931348623157E308" />
          </children>
       </VBox>
+      <HBox spacing="10.0">
+         <children>
+            <VBox spacing="5.0" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label text="Başlangıç Saati" />
+                  <ComboBox fx:id="startTimeComboBox" maxWidth="1.7976931348623157E308" />
+               </children>
+            </VBox>
+            <VBox spacing="5.0" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label text="Bitiş Saati" />
+                  <ComboBox fx:id="endTimeComboBox" maxWidth="1.7976931348623157E308" />
+               </children>
+            </VBox>
+         </children>
+      </HBox>
+      <VBox spacing="5.0">
+         <children>
+            <Label text="Teknisyen (Opsiyonel)" />
+            <ComboBox fx:id="technicianComboBox" maxWidth="1.7976931348623157E308" promptText="Atama yok" />
+         </children>
+      </VBox>
       <VBox spacing="5.0" VBox.vgrow="ALWAYS">
          <children>
             <Label text="%ticket.create.notes" />

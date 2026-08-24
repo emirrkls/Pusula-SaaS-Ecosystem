@@ -161,6 +161,11 @@ struct TicketDetailView: View {
             Label(currentTicket.statusEnum.displayName, systemImage: currentTicket.statusEnum.iconName)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
+            if let schedule = scheduleText {
+                Label(schedule, systemImage: "calendar.badge.clock")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(PusulaTheme.accent)
+            }
             if totalPartsValue > 0 {
                 Text(formatCurrency(totalPartsValue))
                     .font(.headline)
@@ -420,6 +425,20 @@ struct TicketDetailView: View {
             }
         }
         .pusulaCard()
+    }
+
+    private var scheduleText: String? {
+        guard let start = TicketFilters.parseBusinessDate(currentTicket.scheduledDate) else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.timeZone = TimeZone(identifier: "Europe/Istanbul")
+        formatter.dateFormat = "d MMMM EEEE, HH:mm"
+        var value = formatter.string(from: start)
+        if let end = TicketFilters.parseBusinessDate(currentTicket.scheduledEndDate) {
+            formatter.dateFormat = "HH:mm"
+            value += "–\(formatter.string(from: end))"
+        }
+        return value
     }
     
     private var quickActionsGrid: some View {

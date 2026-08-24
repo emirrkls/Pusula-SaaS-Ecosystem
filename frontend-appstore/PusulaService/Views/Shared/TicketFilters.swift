@@ -4,10 +4,10 @@ import SwiftUI
 
 enum TicketFilters {
     static let adminFilters = ["Atama Bekleyen", "Bugün Açılan", "Atanan", "Devam Eden", "Kapanan", "Tümü"]
-    static let technicianFilters = ["Atanan", "Kapanan", "Tümü"]
+    static let technicianFilters = ["Bugünün Çağrıları", "İleri Tarihli", "Kapanan", "İptal Edilen"]
     
     static func defaultFilter(isAdmin: Bool) -> String {
-        isAdmin ? "Atama Bekleyen" : "Atanan"
+        isAdmin ? "Atama Bekleyen" : "Bugünün Çağrıları"
     }
     
     static func matches(_ ticket: FieldTicketDTO, filter: String, isAdmin: Bool) -> Bool {
@@ -24,10 +24,20 @@ enum TicketFilters {
                 return status == "ASSIGNED"
             }
             return status == "ASSIGNED" || status == "IN_PROGRESS"
+        case "Bugünün Çağrıları":
+            guard status == "ASSIGNED" || status == "IN_PROGRESS" else { return false }
+            guard let scheduled = parseBusinessDate(ticket.scheduledDate) else { return true }
+            return businessCalendar().startOfDay(for: scheduled) <= businessDayStart()
+        case "İleri Tarihli":
+            guard status == "ASSIGNED" || status == "IN_PROGRESS",
+                  let scheduled = parseBusinessDate(ticket.scheduledDate) else { return false }
+            return businessCalendar().startOfDay(for: scheduled) > businessDayStart()
         case "Devam Eden":
             return status == "IN_PROGRESS"
         case "Kapanan":
-            return status == "COMPLETED" || status == "CANCELLED"
+            return status == "COMPLETED"
+        case "İptal Edilen":
+            return status == "CANCELLED"
         default:
             return status == filter.uppercased()
         }
@@ -48,6 +58,28 @@ enum TicketFilters {
         formatter.dateFormat = "yyyy-MM-dd"
         let today = formatter.string(from: Date())
         return dateRaw.hasPrefix(today) || dateRaw.contains(today)
+    }
+
+    static func parseBusinessDate(_ raw: String?) -> Date? {
+        guard let raw, !raw.isEmpty else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "Europe/Istanbul")
+        for format in ["yyyy-MM-dd'T'HH:mm:ss.SSSSSS", "yyyy-MM-dd'T'HH:mm:ss.SSS", "yyyy-MM-dd'T'HH:mm:ss"] {
+            formatter.dateFormat = format
+            if let date = formatter.date(from: raw) { return date }
+        }
+        return ISO8601DateFormatter().date(from: raw)
+    }
+
+    private static func businessDayStart() -> Date {
+        businessCalendar().startOfDay(for: Date())
+    }
+
+    private static func businessCalendar() -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Istanbul") ?? .current
+        return calendar
     }
 }
 

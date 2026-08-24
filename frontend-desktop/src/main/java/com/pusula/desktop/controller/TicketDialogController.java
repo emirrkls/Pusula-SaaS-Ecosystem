@@ -2,8 +2,10 @@ package com.pusula.desktop.controller;
 
 import com.pusula.desktop.api.CustomerApi;
 import com.pusula.desktop.api.ServiceTicketApi;
+import com.pusula.desktop.api.UserApi;
 import com.pusula.desktop.dto.CustomerDTO;
 import com.pusula.desktop.dto.ServiceTicketDTO;
+import com.pusula.desktop.dto.UserDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.CustomerSearchSupport;
@@ -22,6 +24,8 @@ import retrofit2.Response;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -36,6 +40,15 @@ public class TicketDialogController {
 
     @FXML
     private DatePicker datePicker;
+
+    @FXML
+    private ComboBox<String> startTimeComboBox;
+
+    @FXML
+    private ComboBox<String> endTimeComboBox;
+
+    @FXML
+    private ComboBox<UserDTO> technicianComboBox;
 
     @FXML
     private TextArea notesArea;
@@ -55,7 +68,38 @@ public class TicketDialogController {
         allCustomers = FXCollections.observableArrayList();
         filteredCustomers = FXCollections.observableArrayList();
         configureCustomerComboBox();
+        configureScheduleControls();
         loadCustomers();
+        loadTechnicians();
+    }
+
+    private void configureScheduleControls() {
+        datePicker.setValue(LocalDate.now());
+        ObservableList<String> times = FXCollections.observableArrayList();
+        for (int hour = 7; hour <= 21; hour++) {
+            times.add(String.format("%02d:00", hour));
+            if (hour < 21) times.add(String.format("%02d:30", hour));
+        }
+        startTimeComboBox.setItems(times);
+        endTimeComboBox.setItems(FXCollections.observableArrayList(times));
+        startTimeComboBox.setValue("09:00");
+        endTimeComboBox.setValue("11:00");
+
+        technicianComboBox.setConverter(new StringConverter<UserDTO>() {
+            @Override public String toString(UserDTO user) { return user == null ? "" : user.getFullName(); }
+            @Override public UserDTO fromString(String value) { return null; }
+        });
+    }
+
+    private void loadTechnicians() {
+        RetrofitClient.getClient().create(UserApi.class).getTechnicians().enqueue(new Callback<>() {
+            @Override public void onResponse(Call<List<UserDTO>> call, Response<List<UserDTO>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Platform.runLater(() -> technicianComboBox.setItems(FXCollections.observableArrayList(response.body())));
+                }
+            }
+            @Override public void onFailure(Call<List<UserDTO>> call, Throwable t) { /* Optional assignment. */ }
+        });
     }
 
     private void configureCustomerComboBox() {
@@ -201,8 +245,18 @@ public class TicketDialogController {
         newTicket.setStatus("PENDING");
 
         if (datePicker.getValue() != null) {
-            newTicket.setScheduledDate(LocalDateTime.of(datePicker.getValue(), LocalTime.of(9, 0))); // Default to 9 AM
+            LocalTime start = LocalTime.parse(startTimeComboBox.getValue(), DateTimeFormatter.ofPattern("HH:mm"));
+            LocalTime end = LocalTime.parse(endTimeComboBox.getValue(), DateTimeFormatter.ofPattern("HH:mm"));
+            if (!end.isAfter(start)) {
+                AlertHelper.showAlert(Alert.AlertType.WARNING, descriptionField.getScene().getWindow(),
+                        "Geçersiz Saat Aralığı", "Bitiş saati başlangıç saatinden sonra olmalıdır.");
+                return;
+            }
+            newTicket.setScheduledDate(LocalDateTime.of(datePicker.getValue(), start));
+            newTicket.setScheduledEndDate(LocalDateTime.of(datePicker.getValue(), end));
         }
+        UserDTO selectedTechnician = technicianComboBox.getValue();
+        if (selectedTechnician != null) newTicket.setAssignedTechnicianId(selectedTechnician.getId());
 
         ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
         api.createTicket(newTicket).enqueue(new Callback<ServiceTicketDTO>() {
