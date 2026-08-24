@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -107,7 +106,8 @@ public class CurrentAccountController {
     /**
      * Pay off current account debt with optional discount
      * Creates a ServiceTicket to record the payment as income
-     * Request body: { "paymentAmount": 1000.00, "discount": 50.00 }
+     * Request body: { "paymentAmount": 1000.00, "discount": 50.00,
+     * "collectionDate": "2026-08-24", "paymentMethod": "CASH", "notes": "..." }
      */
     @PostMapping("/{id}/pay")
     @Transactional
@@ -120,6 +120,19 @@ public class CurrentAccountController {
                     BigDecimal discount = request.containsKey("discount")
                             ? new BigDecimal(request.get("discount").toString())
                             : BigDecimal.ZERO;
+                    LocalDate collectionDate = request.containsKey("collectionDate")
+                            ? LocalDate.parse(request.get("collectionDate").toString())
+                            : LocalDate.now();
+                    PaymentMethod paymentMethod = request.containsKey("paymentMethod")
+                            ? PaymentMethod.valueOf(request.get("paymentMethod").toString())
+                            : PaymentMethod.CASH;
+                    String notes = request.containsKey("notes") && request.get("notes") != null
+                            ? request.get("notes").toString().trim()
+                            : "";
+
+                    if (paymentMethod != PaymentMethod.CASH && paymentMethod != PaymentMethod.CREDIT_CARD) {
+                        throw new IllegalArgumentException("Cari tahsilat ödeme yöntemi nakit veya kart olmalıdır.");
+                    }
 
                     validateNonNegative(paymentAmount, "Ödeme tutarı");
                     validateNonNegative(discount, "İndirim");
@@ -145,13 +158,14 @@ public class CurrentAccountController {
                                 .companyId(account.getCompanyId())
                                 .customerId(account.getCustomer() != null ? account.getCustomer().getId() : null)
                                 .status(ServiceTicket.TicketStatus.COMPLETED)
-                                .description("Cari hesap ödemesi - " + customerName)
+                                .description("Cari hesap ödemesi - " + customerName
+                                        + (notes.isBlank() ? "" : " - " + notes))
                                 .collectedAmount(paymentAmount)
                                 .build();
-                        // PaymentMethod defaults to CASH
+                        incomeTicket.setPaymentMethod(paymentMethod);
                         incomeTicket.setCurrentAccountPayment(true);
-                        incomeTicket.setCompletedAt(LocalDateTime.now());
-                        incomeTicket.setCollectionDate(LocalDate.now());
+                        incomeTicket.setCompletedAt(collectionDate.atTime(12, 0));
+                        incomeTicket.setCollectionDate(collectionDate);
 
                         serviceTicketRepository.save(incomeTicket);
                     }

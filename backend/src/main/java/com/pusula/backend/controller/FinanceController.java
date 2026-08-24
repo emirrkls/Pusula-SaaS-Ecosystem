@@ -78,7 +78,11 @@ public class FinanceController {
     }
 
     @GetMapping("/expenses")
-    public ResponseEntity<List<Expense>> getExpenses() {
+    public ResponseEntity<List<Expense>> getExpenses(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        if (date != null) {
+            return ResponseEntity.ok(financeService.getExpensesForDate(getCompanyId(), date));
+        }
         return ResponseEntity.ok(financeService.getRecentExpenses(getCompanyId()));
     }
 

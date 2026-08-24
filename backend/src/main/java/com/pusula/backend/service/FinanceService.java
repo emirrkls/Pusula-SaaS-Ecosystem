@@ -180,6 +180,10 @@ public class FinanceService {
                 return expenseRepository.findByCompanyId(companyId);
         }
 
+        public List<Expense> getExpensesForDate(Long companyId, LocalDate date) {
+                return expenseRepository.findByCompanyIdAndDateBetween(companyId, date, date);
+        }
+
         public Expense updateExpense(Long id, Long companyId, Expense updatedExpense) {
                 rejectManagedExpenseMutation(id);
                 Expense existing = expenseRepository.findByIdAndCompanyId(id, companyId)

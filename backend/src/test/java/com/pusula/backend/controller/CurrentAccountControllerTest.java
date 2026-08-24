@@ -2,6 +2,8 @@ package com.pusula.backend.controller;
 
 import com.pusula.backend.entity.CurrentAccount;
 import com.pusula.backend.entity.Customer;
+import com.pusula.backend.entity.PaymentMethod;
+import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.CurrentAccountRepository;
 import com.pusula.backend.repository.CustomerRepository;
@@ -17,10 +19,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -70,5 +74,30 @@ class CurrentAccountControllerTest {
 
         verify(serviceTicketRepository, never()).save(any());
         verify(currentAccountRepository, never()).save(any());
+    }
+
+    @Test
+    void paymentUsesRequestedDateMethodAndNotes() {
+        Customer customer = Customer.builder().id(30L).companyId(7L).name("Müşteri").build();
+        CurrentAccount account = CurrentAccount.builder().id(9L).companyId(7L).customer(customer)
+                .balance(new BigDecimal("1000.00")).build();
+        when(currentAccountRepository.findByIdAndCompanyId(9L, 7L)).thenReturn(Optional.of(account));
+        when(currentAccountRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        controller.payDebt(9L, Map.of(
+                "paymentAmount", new BigDecimal("400.00"),
+                "discount", BigDecimal.ZERO,
+                "collectionDate", "2026-07-03",
+                "paymentMethod", "CREDIT_CARD",
+                "notes", "Temmuz tahsilatı"));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(ServiceTicket.class);
+        verify(serviceTicketRepository).save(captor.capture());
+        ServiceTicket ticket = captor.getValue();
+        assertEquals(LocalDate.of(2026, 7, 3), ticket.getCollectionDate());
+        assertEquals(LocalDate.of(2026, 7, 3), ticket.getCompletedAt().toLocalDate());
+        assertEquals(PaymentMethod.CREDIT_CARD, ticket.getPaymentMethod());
+        assertEquals("Cari hesap ödemesi - Müşteri - Temmuz tahsilatı", ticket.getDescription());
+        assertEquals(new BigDecimal("600.00"), account.getBalance());
     }
 }

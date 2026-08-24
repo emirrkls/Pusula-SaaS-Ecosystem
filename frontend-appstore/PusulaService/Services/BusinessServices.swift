@@ -19,6 +19,37 @@ enum FinanceService {
     static func addExpense(_ expense: ExpenseDTO) async throws -> ExpenseDTO {
         try await NetworkManager.shared.post("/api/finance/expenses", body: expense)
     }
+
+    static func getExpenses(date: String? = nil) async throws -> [ExpenseDTO] {
+        let query = date.map { "?date=\($0)" } ?? ""
+        return try await NetworkManager.shared.get("/api/finance/expenses\(query)")
+    }
+
+    static func updateExpense(_ expense: ExpenseDTO) async throws -> ExpenseDTO {
+        guard let id = expense.id else { throw NetworkError.invalidResponse }
+        return try await NetworkManager.shared.put("/api/finance/expenses/\(id)", body: expense)
+    }
+
+    static func deleteExpense(id: Int) async throws {
+        try await NetworkManager.shared.delete("/api/finance/expenses/\(id)")
+    }
+
+    static func createFixedExpense(_ expense: FixedExpenseDefinitionDTO) async throws -> FixedExpenseDefinitionDTO {
+        try await NetworkManager.shared.post("/api/finance/fixed-expenses", body: expense)
+    }
+
+    static func updateFixedExpense(_ expense: FixedExpenseDefinitionDTO) async throws -> FixedExpenseDefinitionDTO {
+        guard let id = expense.id else { throw NetworkError.invalidResponse }
+        return try await NetworkManager.shared.put("/api/finance/fixed-expenses/\(id)", body: expense)
+    }
+
+    static func deleteFixedExpense(id: Int) async throws {
+        try await NetworkManager.shared.delete("/api/finance/fixed-expenses/\(id)")
+    }
+
+    static func payFixedExpense(id: Int, date: String, amount: Double) async throws -> ExpenseDTO {
+        try await NetworkManager.shared.post("/api/finance/fixed-expenses/pay/\(id)?date=\(date)&amount=\(amount)", body: EmptyBody())
+    }
     
     static func getDailyTotals() async throws -> [DailyTotalDTO] {
         try await NetworkManager.shared.get("/api/finance/daily-totals")
@@ -32,9 +63,71 @@ enum FinanceService {
         try await NetworkManager.shared.get("/api/current-accounts")
     }
     
-    static func payDebt(accountId: Int, paymentAmount: Double, discount: Double) async throws -> CurrentAccountDTO {
-        let body = PayDebtRequest(paymentAmount: paymentAmount, discount: discount)
+    static func payDebt(accountId: Int, paymentAmount: Double, discount: Double, collectionDate: String, paymentMethod: String, notes: String?) async throws -> CurrentAccountDTO {
+        let body = PayDebtRequest(paymentAmount: paymentAmount, discount: discount, collectionDate: collectionDate, paymentMethod: paymentMethod, notes: notes)
         return try await NetworkManager.shared.post("/api/current-accounts/\(accountId)/pay", body: body)
+    }
+
+    static func downloadCurrentAccountsPDF() async throws -> Data {
+        try await NetworkManager.shared.downloadData("/api/reports/open-current-accounts/pdf")
+    }
+
+    static func getCompanyDebts() async throws -> [CompanyDebtDTO] {
+        try await NetworkManager.shared.get("/api/company-debts")
+    }
+
+    static func createCompanyDebt(_ debt: CompanyDebtDTO) async throws -> CompanyDebtDTO {
+        try await NetworkManager.shared.post("/api/company-debts", body: debt)
+    }
+
+    static func updateCompanyDebt(_ debt: CompanyDebtDTO) async throws -> CompanyDebtDTO {
+        guard let id = debt.id else { throw NetworkError.invalidResponse }
+        return try await NetworkManager.shared.put("/api/company-debts/\(id)", body: debt)
+    }
+
+    static func deleteCompanyDebt(id: Int) async throws {
+        try await NetworkManager.shared.delete("/api/company-debts/\(id)")
+    }
+
+    static func payCompanyDebt(id: Int, request: DebtPaymentRequest) async throws -> CompanyDebtDTO {
+        try await NetworkManager.shared.post("/api/company-debts/\(id)/pay", body: request)
+    }
+
+    static func addToCompanyDebt(id: Int, request: DebtAdditionRequest) async throws -> CompanyDebtDTO {
+        try await NetworkManager.shared.post("/api/company-debts/\(id)/add", body: request)
+    }
+
+    static func getCompanyDebtPayments(id: Int) async throws -> [CompanyDebtPaymentDTO] {
+        try await NetworkManager.shared.get("/api/company-debts/\(id)/payments")
+    }
+
+    static func getCompanyDebtAdditions(id: Int) async throws -> [CompanyDebtAdditionDTO] {
+        try await NetworkManager.shared.get("/api/company-debts/\(id)/additions")
+    }
+
+    static func deleteCompanyDebtPayment(debtId: Int, paymentId: Int) async throws {
+        try await NetworkManager.shared.delete("/api/company-debts/\(debtId)/payments/\(paymentId)")
+    }
+
+    static func downloadCompanyDebtsPDF() async throws -> Data {
+        try await NetworkManager.shared.downloadData("/api/reports/open-company-debts/pdf")
+    }
+
+    static func getBusinessAssets() async throws -> [BusinessAssetDTO] {
+        try await NetworkManager.shared.get("/api/business-assets")
+    }
+
+    static func createBusinessAsset(_ asset: BusinessAssetDTO) async throws -> BusinessAssetDTO {
+        try await NetworkManager.shared.post("/api/business-assets", body: asset)
+    }
+
+    static func updateBusinessAsset(_ asset: BusinessAssetDTO) async throws -> BusinessAssetDTO {
+        guard let id = asset.id else { throw NetworkError.invalidResponse }
+        return try await NetworkManager.shared.put("/api/business-assets/\(id)", body: asset)
+    }
+
+    static func deleteBusinessAsset(id: Int) async throws {
+        try await NetworkManager.shared.delete("/api/business-assets/\(id)")
     }
     
     static func getMonthlyArchives() async throws -> [MonthlySummaryDTO] {

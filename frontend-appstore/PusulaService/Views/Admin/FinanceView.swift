@@ -2,36 +2,87 @@ import SwiftUI
 import Charts
 
 struct FinanceView: View {
-    @State private var selectedTab = 0
-    private let tabs = ["Günlük", "Analiz", "Cari", "Rapor"]
-    
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("Sekme", selection: $selectedTab) {
-                ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
-                    Text(tab).tag(index)
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 155), spacing: 14)], spacing: 14) {
+                financeDestination("Günlük İşlemler", "Gelir, gider ve sabit ödemeler", "calendar", .blue) {
+                    FinanceDailyTab().navigationTitle("Günlük İşlemler")
                 }
+                financeDestination("Cari Alacaklar", "Müşteri bakiyeleri ve tahsilatlar", "person.2.fill", .orange) {
+                    FinanceAccountsTab().navigationTitle("Cari Alacaklar")
+                }
+                financeDestination("İşletme Borçları", "Borç, ödeme ve ilave hareketleri", "creditcard.fill", .red) {
+                    CompanyDebtsView().navigationTitle("İşletme Borçları")
+                }
+                .featureGated("COMPANY_DEBT_TRACKING", showUpgradeHint: true)
+                financeDestination("Sabit Giderler", "Kira, maaş ve düzenli ödemeler", "repeat.circle.fill", .purple) {
+                    FixedExpensesView().navigationTitle("Sabit Giderler")
+                }
+                financeDestination("Analiz ve Raporlar", "Aylık özet, analiz ve PDF", "chart.xyaxis.line", .green) {
+                    FinanceInsightsView().navigationTitle("Analiz ve Raporlar")
+                }
+                financeDestination("İşletme Mülkiyeti", "Takım ve demirbaş değerleri", "wrench.and.screwdriver.fill", .indigo) {
+                    BusinessAssetsView().navigationTitle("İşletme Mülkiyeti")
+                }
+                .featureGated("BUSINESS_ASSETS", showUpgradeHint: true)
             }
-            .pickerStyle(.segmented)
             .padding()
-            
-            TabView(selection: $selectedTab) {
-                FinanceDailyTab().tag(0)
-                FinanceAnalysisTab().tag(1)
-                FinanceAccountsTab().tag(2)
-                FinanceReportsTab().tag(3)
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
         }
         .background(PusulaTheme.page)
         .navigationTitle("Finans")
-        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func financeDestination<Destination: View>(
+        _ title: String,
+        _ subtitle: String,
+        _ icon: String,
+        _ color: Color,
+        @ViewBuilder destination: () -> Destination
+    ) -> some View {
+        NavigationLink(destination: destination()) {
+            VStack(alignment: .leading, spacing: 12) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(color)
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
+            .padding()
+            .pusulaCard()
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct FinanceInsightsView: View {
+    @State private var selectedTab = 0
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("Bölüm", selection: $selectedTab) {
+                Text("Analiz").tag(0)
+                Text("Aylık Raporlar").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding()
+            if selectedTab == 0 { FinanceAnalysisTab() } else { FinanceReportsTab() }
+        }
+        .background(PusulaTheme.page)
     }
 }
 
 struct FinanceDailyTab: View {
+    @State private var selectedDate = Date()
     @State private var summary: DailySummaryDTO?
-    @State private var fixedExpenses: [FixedExpenseDefinitionDTO] = []
+    @State private var expenses: [ExpenseDTO] = []
+    @State private var editingExpense: ExpenseDTO?
     @State private var showAddExpense = false
     @State private var isLoading = true
     @State private var isClosingDay = false
@@ -40,6 +91,9 @@ struct FinanceDailyTab: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+                DatePicker("İşlem tarihi", selection: $selectedDate, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .onChange(of: selectedDate) { _, _ in Task { await load() } }
                 if let summary {
                     HStack(spacing: 12) {
                         financeMetric("Gelir", value: summary.totalIncome, color: .green)
@@ -83,19 +137,23 @@ struct FinanceDailyTab: View {
                 }
                 
                 sectionCard("Gider Detayları") {
-                    ForEach(Array((summary?.expenseDetails ?? []).enumerated()), id: \.offset) { _, item in
-                        HStack {
+                    ForEach(expenses.filter { $0.date == financeDate(selectedDate) }, id: \.id) { item in
+                        Button {
+                            editingExpense = item
+                            showAddExpense = true
+                        } label: {
+                          HStack {
                             VStack(alignment: .leading) {
-                                Text(item.description ?? item.category ?? "Gider")
-                                if let category = item.category {
-                                    Text(category).font(.caption).foregroundStyle(.secondary)
-                                }
+                                Text(item.description)
+                                Text(ExpenseCategory(rawValue: item.category)?.label ?? item.category).font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()
                             Text(formatCurrency(item.amount))
                                 .foregroundColor(.red)
-                        }
+                          }
+                        }.buttonStyle(.plain)
                         .font(.subheadline)
+                        .swipeActions { Button("Sil", role: .destructive) { Task { await deleteExpense(item) } } }
                     }
                 }
             }
@@ -105,8 +163,9 @@ struct FinanceDailyTab: View {
         .task { await load() }
         .refreshable { await load() }
         .sheet(isPresented: $showAddExpense) {
-            AddExpenseSheet { await load() }
+            AddExpenseSheet(date: selectedDate, expense: editingExpense) { await load() }
         }
+        .onChange(of: showAddExpense) { _, shown in if !shown { editingExpense = nil } }
         .alert("Finans İşlemi Başarısız", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Tamam", role: .cancel) { errorMessage = nil }
         } message: { Text(errorMessage ?? "") }
@@ -115,12 +174,12 @@ struct FinanceDailyTab: View {
     private func load() async {
         isLoading = true
         do {
-            async let summaryTask = FinanceService.getDailySummary()
-            async let fixedTask = FinanceService.getFixedExpenses()
-            let (loadedSummary, loadedFixed) = try await (summaryTask, fixedTask)
+            async let summaryTask = FinanceService.getDailySummary(date: financeDate(selectedDate))
+            async let expenseTask = FinanceService.getExpenses(date: financeDate(selectedDate))
+            let (loadedSummary, loadedExpenses) = try await (summaryTask, expenseTask)
             await MainActor.run {
                 summary = loadedSummary
-                fixedExpenses = loadedFixed
+                expenses = loadedExpenses
                 isLoading = false
             }
         } catch {
@@ -128,15 +187,17 @@ struct FinanceDailyTab: View {
             isLoading = false
         }
     }
+
+    private func deleteExpense(_ expense: ExpenseDTO) async {
+        guard let id = expense.id else { return }
+        do { try await FinanceService.deleteExpense(id: id); await load() } catch { errorMessage = error.localizedDescription }
+    }
     
     private func closeDay() async {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let today = formatter.string(from: Date())
         isClosingDay = true
         defer { isClosingDay = false }
         do {
-            _ = try await FinanceService.closeDay(date: today, companyId: SessionManager.shared.companyId)
+            _ = try await FinanceService.closeDay(date: financeDate(selectedDate), companyId: SessionManager.shared.companyId)
             await load()
         } catch {
             errorMessage = error.localizedDescription
@@ -218,6 +279,7 @@ struct FinanceAccountsTab: View {
     @State private var selectedAccount: CurrentAccountDTO?
     @State private var showPaySheet = false
     @State private var isLoading = true
+    @State private var pdfPreview: PDFPreviewItem?
     @State private var errorMessage: String?
     
     var body: some View {
@@ -252,6 +314,13 @@ struct FinanceAccountsTab: View {
         }
         .task { await load() }
         .refreshable { await load() }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { Task { await downloadPDF() } } label: { Label("PDF", systemImage: "arrow.down.doc") }
+                    .featureGated("ADVANCED_REPORT_EXPORT", showUpgradeHint: true)
+            }
+        }
+        .sheet(item: $pdfPreview) { PDFPreviewSheet(item: $0) }
         .sheet(isPresented: $showPaySheet) {
             if let account = selectedAccount {
                 PayDebtSheet(account: account) {
@@ -275,6 +344,11 @@ struct FinanceAccountsTab: View {
             errorMessage = error.localizedDescription
         }
     }
+
+    private func downloadPDF() async {
+        do { pdfPreview = try PDFPreviewItem(data: try await FinanceService.downloadCurrentAccountsPDF(), fileName: "acik-cari-hesaplar.pdf", title: "Açık Cari Hesaplar") }
+        catch { errorMessage = error.localizedDescription }
+    }
 }
 
 struct FinanceReportsTab: View {
@@ -286,23 +360,31 @@ struct FinanceReportsTab: View {
     
     var body: some View {
         List(archives) { archive in
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(archive.displayPeriod ?? archive.period ?? "Ay")
-                        .font(.headline)
-                    Text("Net: \(formatCurrency(archive.netProfit))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button(action: { Task { await download(month: archive.period ?? "") } }) {
-                    if downloadingMonth == archive.period {
-                        ProgressView()
-                    } else {
-                        Image(systemName: "arrow.down.doc")
+            DisclosureGroup {
+                VStack(spacing: 8) {
+                    reportLine("Satış / Ciro", archive.totalIncome, .green)
+                    reportLine("Cariye Aktarılan", archive.currentAccountTransferred, .orange)
+                    reportLine("Peşin / Kart Tahsilatı", archive.cashCardCollections, .green)
+                    reportLine("Eski Cariden Tahsilat", archive.currentAccountCollections, .green)
+                    reportLine("Toplam Tahsilat", archive.totalCollected, .green)
+                    Divider()
+                    reportLine("Servis Doğrudan Maliyeti", archive.serviceDirectCost, .red)
+                    reportLine("Diğer Faaliyet Giderleri", archive.otherOperatingExpenses, .red)
+                    reportLine("Toplam Kârlılık Gideri", archive.totalProfitExpenses, .red)
+                    reportLine("Aylık Faaliyet Kâr / Zarar", archive.netProfit, (archive.netProfit ?? 0) >= 0 ? .green : .red)
+                    reportLine("Dönem Sonu Birikimli Kâr / Zarar", archive.closingCumulativeProfit, (archive.closingCumulativeProfit ?? 0) >= 0 ? .green : .red)
+                    Button { Task { await download(month: archive.period ?? "") } } label: {
+                        if downloadingMonth == archive.period { ProgressView() } else { Label("PDF Raporunu Aç", systemImage: "arrow.down.doc") }
                     }
+                    .disabled(archive.period == nil)
+                    .buttonStyle(.bordered)
                 }
-                .disabled(archive.period == nil)
+                .padding(.vertical, 8)
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(archive.displayPeriod ?? archive.period ?? "Ay").font(.headline)
+                    Text("Aylık faaliyet sonucu: \(formatCurrency(archive.netProfit))").font(.caption).foregroundStyle((archive.netProfit ?? 0) >= 0 ? .green : .red)
+                }
             }
         }
         .overlay { if isLoading { ProgressView("Raporlar yükleniyor...") } }
@@ -342,27 +424,50 @@ struct FinanceReportsTab: View {
         }
         downloadingMonth = nil
     }
+
+    private func reportLine(_ title: String, _ value: Double?, _ color: Color) -> some View {
+        HStack { Text(title).font(.caption); Spacer(); Text(formatCurrency(value)).font(.caption.weight(.semibold)).foregroundStyle(color) }
+    }
 }
 
 struct AddExpenseSheet: View {
+    let date: Date
+    let expense: ExpenseDTO?
     let onSaved: () async -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var amount = ""
     @State private var description = ""
     @State private var category = ExpenseCategory.other
+    @State private var treatment = FinancialTreatment.operatingExpense
+    @State private var selectedDate: Date
     @State private var isSaving = false
     @State private var errorMessage: String?
     
+    init(date: Date = Date(), expense: ExpenseDTO? = nil, onSaved: @escaping () async -> Void) {
+        self.date = date
+        self.expense = expense
+        self.onSaved = onSaved
+        _selectedDate = State(initialValue: parseFinanceDate(expense?.date) ?? date)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 TextField("Tutar", text: $amount)
                     .keyboardType(.decimalPad)
                 TextField("Açıklama", text: $description)
+                DatePicker("Gider tarihi", selection: $selectedDate, displayedComponents: .date)
                 Picker("Kategori", selection: $category) {
                     ForEach(ExpenseCategory.allCases, id: \.self) { cat in
                         Text(cat.label).tag(cat)
                     }
+                }
+                Picker("Muhasebe etkisi", selection: $treatment) {
+                    ForEach(FinancialTreatment.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                Section {
+                    Text(treatment == .cashOnly ? "Bu işlem kasayı etkiler ancak faaliyet kârından düşmez." : treatment == .serviceDirectExpense ? "Bu gider servislerin doğrudan maliyetinde gösterilir." : "Bu gider faaliyet kârından düşer.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("Gider Ekle")
@@ -379,6 +484,12 @@ struct AddExpenseSheet: View {
                 Button("Tamam", role: .cancel) { errorMessage = nil }
             } message: { Text(errorMessage ?? "") }
         }
+        .onAppear {
+            guard let expense else { return }
+            amount = String(expense.amount); description = expense.description
+            category = ExpenseCategory(rawValue: expense.category) ?? .other
+            treatment = FinancialTreatment(rawValue: expense.financialTreatment ?? "") ?? .operatingExpense
+        }
     }
 
     private var parsedAmount: Double {
@@ -388,11 +499,9 @@ struct AddExpenseSheet: View {
     private func save() async {
         isSaving = true
         defer { isSaving = false }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let expense = ExpenseDTO(amount: parsedAmount, description: description, date: formatter.string(from: Date()), category: category.rawValue)
+        let value = ExpenseDTO(id: expense?.id, amount: parsedAmount, description: description, date: financeDate(selectedDate), category: category.rawValue, fixedExpenseId: expense?.fixedExpenseId, paymentMethod: expense?.paymentMethod, financialTreatment: treatment.rawValue)
         do {
-            _ = try await FinanceService.addExpense(expense)
+            if expense == nil { _ = try await FinanceService.addExpense(value) } else { _ = try await FinanceService.updateExpense(value) }
             await onSaved()
             dismiss()
         } catch {
@@ -407,6 +516,9 @@ struct PayDebtSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var payment = ""
     @State private var discount = ""
+    @State private var collectionDate = Date()
+    @State private var paymentMethod = FinancePaymentMethod.cash
+    @State private var notes = ""
     @State private var isPaying = false
     @State private var errorMessage: String?
     
@@ -419,6 +531,11 @@ struct PayDebtSheet: View {
                 }
                 TextField("Tahsilat", text: $payment).keyboardType(.decimalPad)
                 TextField("İndirim", text: $discount).keyboardType(.decimalPad)
+                DatePicker("Tahsilat tarihi", selection: $collectionDate, displayedComponents: .date)
+                Picker("Ödeme yöntemi", selection: $paymentMethod) {
+                    ForEach(FinancePaymentMethod.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                TextField("Tahsilat notu", text: $notes, axis: .vertical)
             }
             .navigationTitle("Borç Tahsilatı")
             .toolbar {
@@ -452,7 +569,10 @@ struct PayDebtSheet: View {
             _ = try await FinanceService.payDebt(
                 accountId: accountId,
                 paymentAmount: parsedPayment,
-                discount: Double(discount.replacingOccurrences(of: ",", with: ".")) ?? 0
+                discount: Double(discount.replacingOccurrences(of: ",", with: ".")) ?? 0,
+                collectionDate: financeDate(collectionDate),
+                paymentMethod: paymentMethod.rawValue,
+                notes: notes.isEmpty ? nil : notes
             )
             await onPaid()
             dismiss()
