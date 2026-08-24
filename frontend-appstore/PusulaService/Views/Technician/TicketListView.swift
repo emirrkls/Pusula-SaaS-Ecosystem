@@ -414,6 +414,14 @@ struct TicketCardView: View {
         }
         return value
     }
+
+    private var isOverdue: Bool {
+        guard ticket.statusEnum == .assigned || ticket.statusEnum == .inProgress,
+              let scheduled = TicketFilters.parseBusinessDate(ticket.scheduledDate) else { return false }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Istanbul") ?? .current
+        return calendar.startOfDay(for: scheduled) < calendar.startOfDay(for: Date())
+    }
 }
 
 // MARK: - Create Ticket Sheet
@@ -479,14 +487,6 @@ struct CreateTicketSheet: View {
         }.sorted {
             $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
         }
-    }
-
-    private var isOverdue: Bool {
-        guard ticket.statusEnum == .assigned || ticket.statusEnum == .inProgress,
-              let scheduled = TicketFilters.parseBusinessDate(ticket.scheduledDate) else { return false }
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Europe/Istanbul") ?? .current
-        return calendar.startOfDay(for: scheduled) < calendar.startOfDay(for: Date())
     }
 
     private var selectedCustomer: CustomerDTO? {
