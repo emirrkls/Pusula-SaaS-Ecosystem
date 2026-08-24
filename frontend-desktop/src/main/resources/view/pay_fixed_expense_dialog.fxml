@@ -36,7 +36,7 @@
         </columnResizePolicy>
     </TableView>
 
-    <HBox alignment="CENTER_RIGHT" spacing="10">
+    <HBox alignment="CENTER_RIGHT" spacing="10" styleClass="dialog-action-bar">
         <Button onAction="#handleCancel" styleClass="btn-secondary" text="%finance.pay_fixed_expense_dialog.cancel"/>
         <Button onAction="#handlePay" styleClass="btn-success" text="%finance.pay_fixed_expense_dialog.pay_selected"/>
     </HBox>

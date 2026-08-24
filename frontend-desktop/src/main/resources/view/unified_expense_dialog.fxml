@@ -94,7 +94,7 @@
                             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
                         </columnResizePolicy>
                     </TableView>
-                    <HBox alignment="CENTER_RIGHT" spacing="12">
+                    <HBox alignment="CENTER_RIGHT" spacing="12" styleClass="dialog-action-bar">
                         <Button onAction="#handleFixedCancel" styleClass="btn-secondary" text="%unified_expense.fixed.cancel"/>
                         <Button onAction="#handleFixedPay" styleClass="btn-success" text="%unified_expense.fixed.pay_selected"/>
                     </HBox>

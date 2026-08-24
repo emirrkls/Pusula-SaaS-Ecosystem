@@ -60,7 +60,7 @@
 
    <Separator />
 
-   <HBox alignment="CENTER_RIGHT" spacing="10.0">
+   <HBox alignment="CENTER_RIGHT" spacing="10.0" styleClass="dialog-action-bar">
       <Button onAction="#handleCancel" prefWidth="100.0" styleClass="btn-secondary" text="İptal" />
       <Button fx:id="transferButton" onAction="#handleTransfer" prefWidth="120.0" styleClass="btn-success" text="Transfer Et" />
    </HBox>

@@ -40,7 +40,7 @@
         <Label fx:id="newBalanceLabel" styleClass="stat-value-cyan" text="₺0.00"/>
     </HBox>
 
-    <HBox alignment="CENTER_RIGHT" spacing="10">
+    <HBox alignment="CENTER_RIGHT" spacing="10" styleClass="dialog-action-bar">
         <Button onAction="#handleCancel" styleClass="btn-secondary" text="%button.cancel"/>
         <Button onAction="#handleSave" styleClass="btn-primary" text="%button.save"/>
     </HBox>

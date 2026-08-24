@@ -18,6 +18,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import retrofit2.Call;
@@ -441,15 +442,37 @@ public class SettingsController {
             return;
         }
 
-        TextInputDialog dialog = new TextInputDialog();
+        Dialog<String> dialog = new Dialog<>();
+        ThemeHelper.applyToDialog(dialog, usersTable.getScene().getWindow());
         dialog.setTitle("Şifre Sıfırla");
-        dialog.setHeaderText(selected.getUsername() + " için yeni şifre girin:");
-        dialog.setContentText("Yeni Şifre:");
+        dialog.setHeaderText(selected.getUsername() + " için yeni şifre belirleyin");
+
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText("Yeni şifre");
+        PasswordField confirmationField = new PasswordField();
+        confirmationField.setPromptText("Yeni şifreyi tekrar girin");
+        Label hint = new Label("Şifre en az 6 karakter olmalı ve iki alan eşleşmelidir.");
+        hint.getStyleClass().add("section-caption");
+
+        VBox content = new VBox(10,
+                new Label("Yeni Şifre"), passwordField,
+                new Label("Şifre Tekrarı"), confirmationField,
+                hint);
+        content.setPrefWidth(380);
+        dialog.getDialogPane().setContent(content);
+
+        ButtonType saveButtonType = new ButtonType("Şifreyi Güncelle", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+        Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
+        saveButton.disableProperty().bind(
+                passwordField.textProperty().length().lessThan(6)
+                        .or(passwordField.textProperty().isNotEqualTo(confirmationField.textProperty())));
+        saveButton.getStyleClass().add("button-success");
+        dialog.getDialogPane().lookupButton(ButtonType.CANCEL).getStyleClass().add("button-secondary");
+        dialog.setResultConverter(button -> button == saveButtonType ? passwordField.getText() : null);
 
         dialog.showAndWait().ifPresent(password -> {
-            if (!password.isEmpty()) {
-                resetPassword(selected.getId(), password);
-            }
+            resetPassword(selected.getId(), password);
         });
     }
 

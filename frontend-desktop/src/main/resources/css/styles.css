@@ -2350,6 +2350,159 @@
     -fx-tab-max-height: 40;
 }
 
+/* Dialog hardening: these selectors intentionally appear after the generic
+   .dialog-pane rules so notification/form layouts cannot be compressed. */
+.dialog-pane.modern-dialog {
+    -fx-padding: 0;
+    -fx-background-color: -pusula-surface;
+    -fx-background-radius: 16;
+    -fx-border-radius: 16;
+    -fx-border-color: -pusula-border;
+    -fx-border-width: 1;
+}
+
+.dialog-pane.modern-dialog > .content,
+.dialog-pane.modern-dialog > .content.label {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+
+.dialog-pane.modern-dialog .modern-dialog-content {
+    -fx-padding: 24 24 18 24;
+    -fx-min-width: 360;
+}
+
+.dialog-pane.modern-dialog .modern-dialog-title,
+.dialog-pane.modern-dialog .modern-dialog-message {
+    -fx-wrap-text: true;
+}
+
+.modern-dialog-scroll,
+.modern-dialog-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.modern-dialog-scroll {
+    -fx-border-color: -pusula-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8;
+}
+
+.dialog-pane.modern-dialog > .button-bar > .container {
+    -fx-padding: 14 24 20 24;
+    -fx-background-color: -pusula-surface-muted;
+    -fx-background-radius: 0 0 16 16;
+}
+
+.dialog-pane.modern-dialog > .button-bar .button {
+    -fx-min-width: 112;
+    -fx-pref-height: 40;
+    -fx-padding: 10 22;
+}
+
+.dialog-pane.modern-form-dialog {
+    -fx-padding: 0;
+    -fx-min-width: 420;
+    -fx-background-color: -pusula-surface;
+    -fx-border-color: -pusula-border;
+}
+
+.dialog-pane.modern-form-dialog > .header-panel > .label {
+    -fx-wrap-text: true;
+    -fx-padding: 0;
+}
+
+.dialog-pane.modern-form-dialog > .content {
+    -fx-padding: 18 22;
+}
+
+.dialog-pane.modern-form-dialog > .button-bar .button {
+    -fx-min-width: 108;
+    -fx-pref-height: 40;
+}
+
+/* FXML dialog polish shared by inventory, customer, user, debt and asset forms. */
+.dialog-root {
+    -fx-background-color: -pusula-surface;
+}
+
+.dialog-root > .dialog-title {
+    -fx-font-size: 21px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -pusula-text;
+    -fx-padding: 0 0 6 0;
+}
+
+.dialog-root .field-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -pusula-text-muted;
+}
+
+.dialog-root .text-field,
+.dialog-root .password-field,
+.dialog-root .combo-box,
+.dialog-root .date-picker,
+.dialog-root .spinner {
+    -fx-min-height: 40;
+}
+
+.dialog-root .text-area {
+    -fx-min-height: 76;
+}
+
+.dialog-root .dialog-action-bar {
+    -fx-padding: 14 0 0 0;
+    -fx-background-color: transparent;
+    -fx-border-color: -pusula-border transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
+.dialog-root .dialog-action-bar .button {
+    -fx-min-width: 104;
+}
+
+.separator > .line {
+    -fx-border-color: -pusula-border;
+    -fx-border-width: 1 0 0 0;
+}
+
+/* Previously native-looking popup surfaces now follow the same design system. */
+.context-menu {
+    -fx-background-color: -pusula-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -pusula-border;
+    -fx-border-radius: 10;
+    -fx-padding: 6;
+    -fx-effect: dropshadow(three-pass-box, rgba(15, 23, 42, 0.18), 18, 0, 0, 6);
+}
+
+.menu-item {
+    -fx-background-radius: 7;
+    -fx-padding: 8 12;
+}
+
+.menu-item:focused,
+.menu-item:hover {
+    -fx-background-color: rgba(0, 182, 235, 0.12);
+}
+
+.menu-item .label {
+    -fx-text-fill: -pusula-text;
+}
+
+.tooltip {
+    -fx-background-color: #17233B;
+    -fx-text-fill: #F8FAFC;
+    -fx-background-radius: 8;
+    -fx-padding: 8 10;
+    -fx-font-size: 12px;
+    -fx-effect: dropshadow(three-pass-box, rgba(15, 23, 42, 0.22), 12, 0, 0, 4);
+}
+
 .form-control-tall {
     -fx-min-height: 38;
     -fx-font-size: 13px;

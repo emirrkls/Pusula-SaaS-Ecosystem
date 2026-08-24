@@ -60,7 +60,7 @@
       <Label styleClass="field-label" text="Araç Dağılımı:" />
       <Label fx:id="vehicleDistributionLabel" styleClass="muted-label" text="" />
    </VBox>
-   <HBox alignment="CENTER_RIGHT" spacing="10.0">
+   <HBox alignment="CENTER_RIGHT" spacing="10.0" styleClass="dialog-action-bar">
       <VBox.margin>
          <Insets top="10.0" />
       </VBox.margin>

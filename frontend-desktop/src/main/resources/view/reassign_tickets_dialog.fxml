@@ -19,7 +19,7 @@
         <ComboBox fx:id="comboTechnicians" maxWidth="Infinity" styleClass="form-control-tall"/>
     </VBox>
 
-    <HBox alignment="CENTER_RIGHT" spacing="10">
+    <HBox alignment="CENTER_RIGHT" spacing="10" styleClass="dialog-action-bar">
         <Button onAction="#handleCancel" styleClass="btn-secondary" text="%reassign.btn.cancel"/>
         <Button onAction="#handleReassign" styleClass="btn-danger" text="%reassign.btn.reassign"/>
     </HBox>

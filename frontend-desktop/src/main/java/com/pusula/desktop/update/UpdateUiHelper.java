@@ -109,6 +109,7 @@ public final class UpdateUiHelper {
                 cancelBtn.setMinWidth(Region.USE_PREF_SIZE);
                 cancelBtn.setPrefWidth(Region.USE_COMPUTED_SIZE);
             }
+            ThemeHelper.prepareVisibleDialog(dialog, owner);
         });
 
         return dialog.showAndWait().orElse(cancel) == confirm;
@@ -124,10 +125,7 @@ public final class UpdateUiHelper {
 
     private static void applyDialogTheme(Dialog<?> dialog) {
         var pane = dialog.getDialogPane();
-        String stylesUrl = ThemeHelper.class.getResource("/css/styles.css").toExternalForm();
-        if (!pane.getStylesheets().contains(stylesUrl)) {
-            pane.getStylesheets().add(stylesUrl);
-        }
+        ThemeHelper.applyToDialog(dialog, dialog.getOwner());
         pane.getStyleClass().add("update-dialog-pane");
     }
 }

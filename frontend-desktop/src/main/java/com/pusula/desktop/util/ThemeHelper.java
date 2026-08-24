@@ -5,9 +5,18 @@ import atlantafx.base.theme.PrimerLight;
 import javafx.application.Application;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
+import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
+import javafx.scene.layout.Region;
+import javafx.geometry.Rectangle2D;
+import javafx.stage.Screen;
+import javafx.stage.Stage;
 import javafx.stage.Window;
+
+import java.util.List;
 
 /**
  * Central theme management — AtlantaFX base + Pusula brand CSS overlay + dark mode class.
@@ -74,6 +83,47 @@ public final class ThemeHelper {
         if (!pane.getStylesheets().contains(tableUrl)) pane.getStylesheets().add(tableUrl);
         if (!pane.getStyleClass().contains("modern-form-dialog")) pane.getStyleClass().add("modern-form-dialog");
         if (isDarkMode() && !pane.getStyleClass().contains("dark-theme")) pane.getStyleClass().add("dark-theme");
+        dialog.setOnShown(event -> prepareVisibleDialog(dialog, owner));
+    }
+
+    /** Normalizes wrapping, action sizes and screen bounds after a dialog becomes visible. */
+    public static void prepareVisibleDialog(Dialog<?> dialog, Window owner) {
+        DialogPane pane = dialog.getDialogPane();
+        pane.applyCss();
+
+        if (pane.lookup(".header-panel .label") instanceof Label header) {
+            header.setWrapText(true);
+            header.setTextOverrun(OverrunStyle.CLIP);
+            header.setMinHeight(Region.USE_PREF_SIZE);
+            header.setMaxWidth(Double.MAX_VALUE);
+        }
+        for (var node : pane.lookupAll(".button-bar .button")) {
+            if (node instanceof Button button) {
+                button.setMinWidth(Region.USE_PREF_SIZE);
+                button.setTextOverrun(OverrunStyle.CLIP);
+                button.setWrapText(false);
+            }
+        }
+
+        if (!(pane.getScene().getWindow() instanceof Stage stage)) return;
+        Rectangle2D bounds = boundsFor(owner == null ? stage : owner);
+        double maxWidth = Math.max(420, bounds.getWidth() - 48);
+        double maxHeight = Math.max(320, bounds.getHeight() - 48);
+        stage.sizeToScene();
+        stage.setMaxWidth(maxWidth);
+        stage.setMaxHeight(maxHeight);
+        if (stage.getWidth() > maxWidth) stage.setWidth(maxWidth);
+        if (stage.getHeight() > maxHeight) stage.setHeight(maxHeight);
+        stage.setX(Math.max(bounds.getMinX(),
+                Math.min(stage.getX(), bounds.getMaxX() - stage.getWidth())));
+        stage.setY(Math.max(bounds.getMinY(),
+                Math.min(stage.getY(), bounds.getMaxY() - stage.getHeight())));
+    }
+
+    private static Rectangle2D boundsFor(Window window) {
+        List<Screen> screens = Screen.getScreensForRectangle(
+                window.getX(), window.getY(), Math.max(window.getWidth(), 1), Math.max(window.getHeight(), 1));
+        return (screens.isEmpty() ? Screen.getPrimary() : screens.get(0)).getVisualBounds();
     }
 
     /** Scene for modal dialogs — stylesheets + current dark/light preference. */

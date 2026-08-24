@@ -20,7 +20,7 @@
       <TextField fx:id="driverField" promptText="e.g. Ahmet Yılmaz" />
    </VBox>
    <CheckBox fx:id="activeCheckBox" selected="true" text="%vehicle.active" />
-   <HBox alignment="CENTER_RIGHT" spacing="10.0">
+   <HBox alignment="CENTER_RIGHT" spacing="10.0" styleClass="dialog-action-bar">
       <VBox.margin>
          <Insets top="10.0" />
       </VBox.margin>

@@ -514,6 +514,7 @@ public class TicketDetailsController {
         String currentStatusDisplay = getStatusTranslation(currentTicket.getStatus());
 
         ChoiceDialog<String> dialog = new ChoiceDialog<>(currentStatusDisplay, choices);
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow());
         dialog.setTitle(resourceBundle.getString("ticket.status.dialog.title"));
         dialog.setHeaderText(resourceBundle.getString("ticket.status.dialog.header"));
         dialog.setContentText(resourceBundle.getString("ticket.status.dialog.content"));

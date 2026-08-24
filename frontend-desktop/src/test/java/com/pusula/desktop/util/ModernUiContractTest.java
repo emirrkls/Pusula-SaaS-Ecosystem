@@ -22,6 +22,36 @@ class ModernUiContractTest {
             assertTrue(css.contains("-fx-wrap-text: true"));
             assertTrue(css.contains(".form-card"));
             assertTrue(css.contains(".ticket-action-bar"));
+            assertTrue(css.contains(".modern-dialog-scroll"));
+            assertTrue(css.contains(".context-menu"));
+        }
+    }
+
+    @Test
+    void modernDialogOverridesComeAfterGenericDialogRules() throws Exception {
+        try (InputStream input = getClass().getResourceAsStream("/css/styles.css")) {
+            assertNotNull(input);
+            String css = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+            int genericRule = css.indexOf(".dialog-pane {");
+            int hardenedRule = css.lastIndexOf(".dialog-pane.modern-dialog {");
+            assertTrue(genericRule >= 0 && hardenedRule > genericRule,
+                    "Modern dialog rules must win the CSS cascade");
+            assertTrue(css.substring(hardenedRule).contains("-fx-min-width: 112"),
+                    "Dialog actions must remain readable instead of using ellipsis");
+        }
+    }
+
+    @Test
+    void commonFormDialogsUseTheSharedActionBar() throws Exception {
+        Path viewRoot = Path.of("src", "main", "resources", "view");
+        for (String file : java.util.List.of(
+                "customer_dialog.fxml", "user_dialog.fxml", "company_debt_dialog.fxml",
+                "inventory_dialog.fxml", "business_asset_dialog.fxml", "vehicle_dialog.fxml",
+                "commercial_device_dialog.fxml", "commercial_device_sales_dialog.fxml",
+                "ticket_dialog.fxml", "transfer_stock_dialog.fxml")) {
+            String fxml = Files.readString(viewRoot.resolve(file), StandardCharsets.UTF_8);
+            assertTrue(fxml.contains("styleClass=\"dialog-action-bar\""),
+                    () -> file + " must use the shared modern action bar");
         }
     }
 

@@ -44,7 +44,7 @@
 
     <Separator/>
 
-    <HBox alignment="CENTER_RIGHT" spacing="15">
+    <HBox alignment="CENTER_RIGHT" spacing="15" styleClass="dialog-action-bar">
         <Button onAction="#handleCancel" styleClass="btn-secondary" text="%button.cancel"/>
         <Button onAction="#handleSale" styleClass="btn-success" text="%commercial.sale.complete"/>
     </HBox>

@@ -27,7 +27,7 @@
       <Label styleClass="field-label" text="%customer.dialog.coordinates" />
       <TextField fx:id="coordinatesField" prefHeight="35" promptText="%customer.dialog.coordinates.prompt" />
    </VBox>
-   <HBox alignment="CENTER_RIGHT" spacing="10.0">
+   <HBox alignment="CENTER_RIGHT" spacing="10.0" styleClass="dialog-action-bar">
       <VBox.margin>
          <Insets top="10.0" />
       </VBox.margin>
