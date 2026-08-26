@@ -24,6 +24,7 @@ struct CollectionView: View {
         (isWarranty || isCurrentAccount) ? 0 : (Double(collectedAmount.replacingOccurrences(of: ",", with: ".")) ?? 0)
     }
     var remainingDebt: Double { isWarranty ? 0 : max(0, serviceTotal - collectedValue) }
+    var isOverpayment: Bool { !isWarranty && !isCurrentAccount && collectedValue > serviceTotal + 0.005 }
     var existingDebt: Double { ticket.customerBalance ?? 0 }
     var isFullPayment: Bool { collectedValue >= serviceTotal }
     var finalDebt: Double { existingDebt + remainingDebt }
@@ -209,6 +210,15 @@ struct CollectionView: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
 
+            if isOverpayment {
+                Label(
+                    "Tahsil edilen tutar fiş toplamını aşamaz.",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.caption.weight(.semibold))
+                .foregroundColor(.red)
+            }
+
             if isWarranty {
                 Text("Garanti kapsamında satış, tahsilat ve cari borç oluşmaz. Kullanılan parçaların maliyeti rapora yansır.")
                     .font(.caption)
@@ -323,12 +333,16 @@ struct CollectionView: View {
         .background(isFullPayment ? PusulaTheme.accent : Color.orange)
         .foregroundColor(.white)
         .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
-        .disabled(isProcessing || (!isWarranty && !isCurrentAccount && collectedAmount.isEmpty))
+        .disabled(isProcessing || isOverpayment || (!isWarranty && !isCurrentAccount && collectedAmount.isEmpty))
     }
     
     // MARK: - Logic
     
     private func handleSubmit() {
+        guard !isOverpayment else {
+            errorMessage = "Tahsil edilen tutar fiş toplamını aşamaz."
+            return
+        }
         if isWarranty {
             Task { await processPayment() }
             return

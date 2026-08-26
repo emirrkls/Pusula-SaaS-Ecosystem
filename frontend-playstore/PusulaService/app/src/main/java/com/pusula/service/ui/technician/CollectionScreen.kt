@@ -91,6 +91,7 @@ fun CollectionScreen(
     val serviceTotal = if (isWarranty) 0.0 else partsTotal + laborFee
     val entered = if (isWarranty || isCurrentAccount) 0.0
         else amountText.replace(',', '.').toDoubleOrNull() ?: 0.0
+    val isOverpayment = !isWarranty && !isCurrentAccount && entered > serviceTotal + 0.005
     val remain = if (isWarranty) 0.0 else (serviceTotal - entered).coerceAtLeast(0.0)
 
     LaunchedEffect(uiState.serviceCompletedTicketId) {
@@ -192,6 +193,13 @@ fun CollectionScreen(
                                 enabled = !isWarranty && !isCurrentAccount,
                                 modifier = Modifier.fillMaxWidth()
                             )
+                            if (isOverpayment) {
+                                Text(
+                                    "Tahsil edilen tutar fiş toplamını aşamaz.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
                             if (isWarranty) {
                                 Text(
                                     "Garanti kapsamında satış, tahsilat ve cari borç oluşturulmaz. Kullanılan parçaların maliyeti rapora yansır.",
@@ -251,6 +259,7 @@ fun CollectionScreen(
                                 viewModel.completeService(ticketId, entered, method.apiValue, laborFee, technicianNote)
                             }
                         },
+                        enabled = !isOverpayment,
                         modifier = Modifier.fillMaxWidth().readOnlyProtected(session.isReadOnly)
                     ) {
                         Text(if (isWarranty) "Garanti Kapsamında Kapat" else "Tahsilatı Kaydet")

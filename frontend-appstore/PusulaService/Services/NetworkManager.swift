@@ -53,6 +53,8 @@ actor NetworkManager {
         switch httpResponse.statusCode {
         case 200...299:
             break
+        case 400, 422:
+            throw NetworkError.badRequest(apiErrorMessage(from: data) ?? "Gönderilen bilgiler geçersiz. Lütfen alanları kontrol edin.")
         case 401:
             await MainActor.run {
                 SessionManager.shared.handleUnauthorized()
@@ -133,6 +135,9 @@ actor NetworkManager {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 400 || httpResponse.statusCode == 422 {
+                throw NetworkError.badRequest(apiErrorMessage(from: data) ?? "İstek tamamlanamadı. Lütfen bilgileri kontrol edin.")
+            }
             throw NetworkError.serverError(httpResponse.statusCode)
         }
         
@@ -227,6 +232,8 @@ actor NetworkManager {
         switch httpResponse.statusCode {
         case 200...299:
             break
+        case 400, 422:
+            throw NetworkError.badRequest(apiErrorMessage(from: data) ?? "Gönderilen bilgiler geçersiz. Lütfen alanları kontrol edin.")
         case 401:
             await MainActor.run {
                 SessionManager.shared.handleUnauthorized()
@@ -255,6 +262,15 @@ actor NetworkManager {
 
         return data
     }
+
+    private func apiErrorMessage(from data: Data) -> String? {
+        guard let response = try? JSONDecoder().decode(ErrorResponse.self, from: data),
+              let message = response.message?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !message.isEmpty else {
+            return nil
+        }
+        return message
+    }
 }
 
 // MARK: - Supporting Types
@@ -267,6 +283,7 @@ enum NetworkError: LocalizedError {
     case invalidURL
     case invalidResponse
     case unauthorized
+    case badRequest(String)
     case forbidden(String)
     case quotaExceeded(String)
     case conflict(code: String?, message: String?, count: Int?)
@@ -278,6 +295,7 @@ enum NetworkError: LocalizedError {
         case .invalidURL: return "Geçersiz URL"
         case .invalidResponse: return "Sunucu yanıtı geçersiz"
         case .unauthorized: return "Oturum süresi doldu. Lütfen tekrar giriş yapın."
+        case .badRequest(let message): return message
         case .forbidden(let msg): return msg
         case .quotaExceeded(let msg): return msg
         case .conflict(_, let message, _): return message ?? "İşlem mevcut verilerle çakışıyor."
