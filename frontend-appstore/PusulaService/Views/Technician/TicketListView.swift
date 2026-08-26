@@ -43,6 +43,7 @@ struct TicketListView: View {
                 .padding(.vertical, 12)
             }
             .background(PusulaTheme.page)
+            .onboardingTarget(.ticketFilters)
             
             if isAdmin {
                 adminActionBar
@@ -153,6 +154,7 @@ struct TicketListView: View {
         }
         .padding(.horizontal)
         .padding(.top, 12)
+        .onboardingTarget(.ticketSummary)
     }
     
     private var adminActionBar: some View {
@@ -176,6 +178,7 @@ struct TicketListView: View {
                 .readOnlyProtected()
             }
         }
+        .onboardingTarget(.createTicketAction)
     }
     
     private func filterPill(_ title: String) -> some View {

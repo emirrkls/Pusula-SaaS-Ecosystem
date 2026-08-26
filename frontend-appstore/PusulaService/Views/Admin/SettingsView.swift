@@ -38,6 +38,7 @@ struct SettingsView: View {
             }
             .pickerStyle(.segmented)
             .padding()
+            .onboardingTarget(.settingsSections)
             
             if isLoading && selectedTab != 3 {
                 Spacer()

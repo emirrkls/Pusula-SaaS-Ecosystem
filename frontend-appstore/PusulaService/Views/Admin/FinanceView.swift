@@ -28,6 +28,7 @@ struct FinanceView: View {
             }
             .padding()
         }
+        .onboardingTarget(.financeContent)
         .background(PusulaTheme.page)
         .navigationTitle("Finans")
     }

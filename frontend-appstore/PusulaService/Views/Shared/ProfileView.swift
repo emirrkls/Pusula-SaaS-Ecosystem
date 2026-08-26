@@ -11,6 +11,7 @@ struct ProfileView: View {
         ScrollView {
             VStack(spacing: 20) {
                 heroCard
+                    .onboardingTarget(.profileContent)
                 
                 sectionCard("Hesap Bilgileri") {
                     infoRow("Ad Soyad", value: session.fullName)

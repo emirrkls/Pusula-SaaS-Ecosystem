@@ -18,6 +18,7 @@ struct AdminDashboardView: View {
 
                 if let kpis {
                     kpiSection(kpis)
+                        .onboardingTarget(.overviewContent)
                 }
 
                 if let quotas = quotaStatus?.quotas, !quotas.isEmpty {

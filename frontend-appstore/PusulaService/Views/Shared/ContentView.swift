@@ -5,6 +5,7 @@ struct ContentView: View {
     @StateObject private var session = SessionManager.shared
     @StateObject private var onboarding = OnboardingManager.shared
     @State private var showPlanUpgrade = false
+    @State private var onboardingTargetFrames: [OnboardingTarget: CGRect] = [:]
     
     var body: some View {
         Group {
@@ -26,9 +27,15 @@ struct ContentView: View {
         }
         .overlay {
             if session.isAuthenticated && onboarding.isTourActive {
-                OnboardingCoachOverlay(onboarding: onboarding)
+                OnboardingCoachOverlay(
+                    onboarding: onboarding,
+                    targetFrames: onboardingTargetFrames
+                )
                     .zIndex(100)
             }
+        }
+        .onPreferenceChange(OnboardingTargetFramePreferenceKey.self) { frames in
+            onboardingTargetFrames = frames
         }
         .onAppear {
             startOnboardingIfNeeded()

@@ -6,7 +6,7 @@ final class OnboardingManager: ObservableObject {
     static let shared = OnboardingManager()
 
     static let introVersion = 1
-    static let roleTourVersion = 1
+    static let roleTourVersion = 2
 
     @Published var isShowingIntro: Bool
     @Published private(set) var activeRole: String?
@@ -136,44 +136,44 @@ final class OnboardingManager: ObservableObject {
     private static let adminSteps: [OnboardingStep] = [
         .init(
             title: "İşletmenin nabzı",
-            detail: "Aktif işler, tamamlanan servisler, bekleyen alacak ve kârlılık özetini burada takip edin.",
+            detail: "Aylık ciro, net kâr, bekleyen alacak, aktif işler, stok değeri ve paket kullanım limitlerini Genel Bakış ekranında izleyin.",
             icon: "chart.bar.fill",
-            target: .content,
+            target: .overviewContent,
             destination: .admin(.overview)
         ),
         .init(
             title: "Operasyonu yönetin",
-            detail: "Servisleri filtreleyin, ayrıntılarını açın ve teknisyen atamalarını takip edin.",
+            detail: "İş emirlerini durum ve tarihe göre filtreleyin; atama bekleyen işleri, teknisyenleri ve planlanan servis saatlerini takip edin.",
             icon: "list.clipboard.fill",
-            target: .bottomTab(index: 1, count: 5),
+            target: .ticketSummary,
             destination: .admin(.operations)
         ),
         .init(
             title: "Yeni servis kaydı",
-            detail: "Operasyon ekranındaki ekleme düğmesiyle müşteri arayın veya yeni müşteri oluşturup işi hemen açın.",
+            detail: "Servis Fişi Oluştur düğmesinden mevcut müşteriyi arayın veya yeni müşteri kaydedin; tarih, saat ve teknisyen bilgisini aynı akışta belirleyin.",
             icon: "plus.circle.fill",
-            target: .topTrailing,
+            target: .createTicketAction,
             destination: .admin(.operations)
         ),
         .init(
-            title: "Diğer modüller",
-            detail: "Müşteriler, teklifler, stok ve servis kalite ekranlarına bu menüden ulaşın.",
+            title: "Diğer iş araçları",
+            detail: "Alt menüdeki Diğer düğmesine dokunduğunuzda Müşteriler, Teklifler, Stok ve Servis Kalite modülleri açılır. Bu adım yalnızca menüyü tanıtır; sizin yerinize seçim yapmaz.",
             icon: "square.grid.2x2.fill",
-            target: .bottomTab(index: 2, count: 5),
+            target: .information,
             destination: .admin(.overview)
         ),
         .init(
             title: "Finans takibi",
-            detail: "Gelir, gider, cari hesap ve borç hareketlerini işletmenizle aynı ekrandan yönetin.",
+            detail: "Günlük gelir ve giderleri, cari tahsilatları, işletme borçlarını, sabit giderleri, raporları ve demirbaşları bu ekrandan yönetin.",
             icon: "turkishlirasign.circle.fill",
-            target: .bottomTab(index: 3, count: 5),
+            target: .financeContent,
             destination: .admin(.finance)
         ),
         .init(
             title: "Ekip ve ayarlar",
-            detail: "Kullanıcıları, araçları, firma bilgilerini ve hesap tercihlerini Hesap sekmesinden yönetin.",
+            detail: "Ekip kullanıcılarını, araçları, firma bilgilerini ve hesap tercihlerini üstteki bölümler arasında geçiş yaparak yönetin.",
             icon: "gearshape.fill",
-            target: .bottomTab(index: 4, count: 5),
+            target: .settingsSections,
             destination: .admin(.account)
         )
     ]
@@ -181,37 +181,37 @@ final class OnboardingManager: ObservableObject {
     private static let technicianSteps: [OnboardingStep] = [
         .init(
             title: "Atanan işleriniz",
-            detail: "Size atanan servisleri ve güncel durumlarını İşlerim ekranından takip edin.",
+            detail: "Bugünün çağrılarını, ileri tarihli işleri ve kapanan ya da iptal edilen servisleri İşlerim ekranından takip edin.",
             icon: "wrench.and.screwdriver.fill",
-            target: .bottomTab(index: 0, count: 2),
+            target: .ticketSummary,
             destination: .technician(.jobs)
         ),
         .init(
             title: "Duruma göre filtreleyin",
-            detail: "Bugünkü, bekleyen veya tamamlanan servisleri filtreleyerek doğru işe hızla ulaşın.",
+            detail: "Üstteki filtrelerden doğru iş grubunu seçin. Ekrandaki iş emri sayısı seçtiğiniz kategoriye göre güncellenir.",
             icon: "line.3.horizontal.decrease.circle.fill",
-            target: .topLeading,
+            target: .ticketFilters,
             destination: .technician(.jobs)
         ),
         .init(
             title: "Servis fişini açın",
-            detail: "Bir işe dokunarak müşteri bilgilerini, servis notunu ve yapılacak işlemleri görüntüleyin.",
+            detail: "Listeden bir servis kartına dokunduğunuzda müşteri, adres, planlanan saat, servis açıklaması ve işlem geçmişi açılır. Tur sizin yerinize rastgele bir fiş açmaz.",
             icon: "doc.text.magnifyingglass",
-            target: .content,
+            target: .information,
             destination: .technician(.jobs)
         ),
         .init(
-            title: "Sahadaki tüm adımlar",
-            detail: "Fiş içinde parça ve özel fiyat ekleyebilir; teknisyen notu, fotoğraf, imza, garanti ve ödeme bilgilerini tamamlayabilirsiniz.",
+            title: "Fiş içinde yapabilecekleriniz",
+            detail: "Açtığınız fişte işe başlayabilir, parça ve özel satış fiyatı ekleyebilir; teknisyen notu, fotoğraf, müşteri imzası, garanti ve tahsilat bilgilerini tamamlayabilirsiniz.",
             icon: "checklist.checked",
-            target: .content,
+            target: .information,
             destination: .technician(.jobs)
         ),
         .init(
             title: "Hesabınız",
-            detail: "Paketinizi, görünüm tercihini ve yasal bağlantıları Hesap sekmesinde bulabilirsiniz.",
+            detail: "Profilinizi, paket bilgilerinizi, görünüm tercihini, tanıtımı yeniden başlatma seçeneğini ve yasal bağlantıları burada bulabilirsiniz.",
             icon: "person.crop.circle.fill",
-            target: .bottomTab(index: 1, count: 2),
+            target: .profileContent,
             destination: .technician(.account)
         )
     ]
@@ -231,15 +231,38 @@ enum OnboardingDestination {
     case technician(TechnicianTab)
 }
 
-enum OnboardingTarget {
-    case topLeading
-    case topTrailing
-    case content
-    case bottomTab(index: Int, count: Int)
+enum OnboardingTarget: Hashable {
+    case overviewContent
+    case ticketSummary
+    case ticketFilters
+    case createTicketAction
+    case financeContent
+    case settingsSections
+    case profileContent
+    case information
+}
 
-    var highlightsBottomBar: Bool {
-        if case .bottomTab = self { return true }
-        return false
+struct OnboardingTargetFramePreferenceKey: PreferenceKey {
+    static let defaultValue: [OnboardingTarget: CGRect] = [:]
+
+    static func reduce(
+        value: inout [OnboardingTarget: CGRect],
+        nextValue: () -> [OnboardingTarget: CGRect]
+    ) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+extension View {
+    func onboardingTarget(_ target: OnboardingTarget) -> some View {
+        background {
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: OnboardingTargetFramePreferenceKey.self,
+                    value: [target: proxy.frame(in: .global)]
+                )
+            }
+        }
     }
 }
 
@@ -384,6 +407,7 @@ private struct WelcomeOnboardingPageView: View {
 
 struct OnboardingCoachOverlay: View {
     @ObservedObject var onboarding: OnboardingManager
+    let targetFrames: [OnboardingTarget: CGRect]
 
     var body: some View {
         GeometryReader { proxy in
@@ -394,26 +418,30 @@ struct OnboardingCoachOverlay: View {
                     Rectangle()
                         .fill(Color.black.opacity(0.62))
                         .overlay {
-                            RoundedRectangle(cornerRadius: 18)
-                                .frame(width: targetRect.width, height: targetRect.height)
-                                .position(x: targetRect.midX, y: targetRect.midY)
-                                .blendMode(.destinationOut)
+                            if let targetRect {
+                                RoundedRectangle(cornerRadius: 18)
+                                    .frame(width: targetRect.width, height: targetRect.height)
+                                    .position(x: targetRect.midX, y: targetRect.midY)
+                                    .blendMode(.destinationOut)
+                            }
                         }
                         .compositingGroup()
                         .ignoresSafeArea()
 
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(PusulaTheme.brandCyan, lineWidth: 3)
-                        .frame(width: targetRect.width, height: targetRect.height)
-                        .position(x: targetRect.midX, y: targetRect.midY)
-                        .shadow(color: PusulaTheme.brandCyan.opacity(0.45), radius: 10)
-                        .accessibilityHidden(true)
+                    if let targetRect {
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(PusulaTheme.brandCyan, lineWidth: 3)
+                            .frame(width: targetRect.width, height: targetRect.height)
+                            .position(x: targetRect.midX, y: targetRect.midY)
+                            .shadow(color: PusulaTheme.brandCyan.opacity(0.45), radius: 10)
+                            .accessibilityHidden(true)
+                    }
 
                     coachCard(step: step)
                         .frame(maxWidth: min(520, proxy.size.width - 32))
                         .position(
                             x: proxy.size.width / 2,
-                            y: cardCenterY(for: step.target, in: proxy)
+                            y: cardCenterY(for: targetRect, in: proxy)
                         )
                 }
                 .transition(.opacity)
@@ -440,6 +468,12 @@ struct OnboardingCoachOverlay: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    if step.target == .information {
+                        Label("Bilgilendirme adımı", systemImage: "info.circle.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(PusulaTheme.accentStrong)
+                            .padding(.top, 3)
+                    }
                 }
                 Spacer(minLength: 0)
             }
@@ -478,38 +512,31 @@ struct OnboardingCoachOverlay: View {
         .padding(.horizontal, 16)
     }
 
-    private func highlightRect(for target: OnboardingTarget, in proxy: GeometryProxy) -> CGRect {
-        let safeTop = proxy.safeAreaInsets.top
-        let safeBottom = proxy.safeAreaInsets.bottom
+    private func highlightRect(for target: OnboardingTarget, in proxy: GeometryProxy) -> CGRect? {
+        guard target != .information,
+              let globalRect = targetFrames[target] else { return nil }
 
-        switch target {
-        case .topLeading:
-            return CGRect(x: 12, y: safeTop + 44, width: max(210, proxy.size.width * 0.68), height: 110)
-        case .topTrailing:
-            return CGRect(x: proxy.size.width - 98, y: safeTop + 2, width: 86, height: 70)
-        case .content:
-            return CGRect(
-                x: 12,
-                y: safeTop + 76,
-                width: proxy.size.width - 24,
-                height: min(290, proxy.size.height * 0.36)
-            )
-        case let .bottomTab(index, count):
-            let barHeight = 58 + safeBottom
-            let itemWidth = proxy.size.width / CGFloat(count)
-            return CGRect(
-                x: itemWidth * CGFloat(index) + 5,
-                y: proxy.size.height - barHeight - 2,
-                width: itemWidth - 10,
-                height: barHeight
-            )
-        }
+        let overlayFrame = proxy.frame(in: .global)
+        let localRect = globalRect.offsetBy(dx: -overlayFrame.minX, dy: -overlayFrame.minY)
+        let visibleBounds = CGRect(origin: .zero, size: proxy.size).insetBy(dx: 8, dy: 8)
+        var visibleRect = localRect.intersection(visibleBounds)
+        guard !visibleRect.isNull, visibleRect.width >= 24, visibleRect.height >= 24 else { return nil }
+        visibleRect.size.height = min(visibleRect.height, min(300, proxy.size.height * 0.38))
+        return visibleRect.insetBy(dx: -6, dy: -6)
     }
 
-    private func cardCenterY(for target: OnboardingTarget, in proxy: GeometryProxy) -> CGFloat {
-        if target.highlightsBottomBar {
-            return max(210, proxy.size.height * 0.56)
+    private func cardCenterY(for targetRect: CGRect?, in proxy: GeometryProxy) -> CGFloat {
+        let estimatedHalfHeight: CGFloat = 125
+        let topLimit = proxy.safeAreaInsets.top + estimatedHalfHeight + 12
+        let bottomLimit = proxy.size.height - proxy.safeAreaInsets.bottom - estimatedHalfHeight - 12
+
+        guard let targetRect else {
+            return min(max(proxy.size.height * 0.56, topLimit), bottomLimit)
         }
-        return min(proxy.size.height - 170, proxy.size.height * 0.74)
+
+        let preferred = targetRect.midY < proxy.size.height / 2
+            ? targetRect.maxY + estimatedHalfHeight + 20
+            : targetRect.minY - estimatedHalfHeight - 20
+        return min(max(preferred, topLimit), bottomLimit)
     }
 }
