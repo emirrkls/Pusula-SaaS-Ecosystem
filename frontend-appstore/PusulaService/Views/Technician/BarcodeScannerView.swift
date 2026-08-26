@@ -146,7 +146,7 @@ struct BarcodeScannerView: View {
             .background(PusulaTheme.accent)
             .foregroundColor(.white)
             .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
-            .disabled(item.quantity < 1 || parsedUnitPrice == nil)
+            .disabled(item.quantity < 1 || quantity < 1 || quantity > item.quantity || parsedUnitPrice == nil)
         }
         .padding()
         .background(.ultraThickMaterial)
@@ -164,9 +164,13 @@ struct BarcodeScannerView: View {
             do {
                 let item = try await TicketService.lookupBarcode(code)
                 await MainActor.run {
-                    foundItem = item
                     quantity = 1
-                    unitPriceText = String(format: "%.2f", item.sellPrice ?? 0)
+                    unitPriceText = (item.sellPrice ?? 0).formatted(
+                        .number.precision(.fractionLength(2)).locale(Locale(identifier: "tr_TR"))
+                    )
+                    // Publish the selected item only after its dependent form state is ready.
+                    // This keeps the initial quantity of 1 immediately valid.
+                    foundItem = item
                     isSearching = false
                 }
             } catch {

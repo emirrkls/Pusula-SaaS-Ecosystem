@@ -80,7 +80,7 @@ fun CollectionScreen(
 
     var expanded by remember { mutableStateOf(false) }
     var method by remember { mutableStateOf(paymentMethods.first()) }
-    var laborFeeText by remember { mutableStateOf("0.00") }
+    var laborFeeText by remember { mutableStateOf("") }
     var amountText by remember { mutableStateOf("%.2f".format(partsTotal)) }
     var confirmCari by remember { mutableStateOf(false) }
     var technicianNote by remember { mutableStateOf("") }
@@ -180,8 +180,12 @@ fun CollectionScreen(
                                         amountText = "%.2f".format(partsTotal + newLabor)
                                     }
                                 },
-                                label = { Text("İşçilik / servis bedeli") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                label = { Text("İşçilik / Servis Bedeli") },
+                                placeholder = { Text("Örn. 1.500,00 ₺") },
+                                supportingText = {
+                                    Text("İşçilik parça fiyatına dâhilse boş bırakabilirsiniz.")
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 enabled = !isWarranty,
                                 modifier = Modifier.fillMaxWidth()
                             )

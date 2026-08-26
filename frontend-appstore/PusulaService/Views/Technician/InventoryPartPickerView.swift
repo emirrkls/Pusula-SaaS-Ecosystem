@@ -9,10 +9,7 @@ struct InventoryPartPickerView: View {
     @State private var inventory: [InventoryItemDTO] = []
     @State private var searchText = ""
     @State private var selectedCategory: String?
-    @State private var selectedItem: InventoryItemDTO?
-    @State private var quantity = 1
-    @State private var unitPriceText = ""
-    @State private var showPriceChangeConfirmation = false
+    @State private var selectionDraft: InventoryPartSelectionDraft?
     @State private var isLoading = true
     @State private var errorMessage: String?
 
@@ -114,8 +111,12 @@ struct InventoryPartPickerView: View {
                 }
             }
             .task { await loadInventory() }
-            .sheet(item: $selectedItem) { item in
-                quantitySheet(item)
+            .sheet(item: $selectionDraft) { draft in
+                InventoryPartQuantitySheet(item: draft.item) { item, quantity, unitPrice in
+                    onItemSelected(item, quantity, unitPrice)
+                    selectionDraft = nil
+                    dismiss()
+                }
             }
             .alert("Stok Yüklenemedi", isPresented: Binding(
                 get: { errorMessage != nil },
@@ -128,7 +129,55 @@ struct InventoryPartPickerView: View {
         }
     }
 
-    private func quantitySheet(_ item: InventoryItemDTO) -> some View {
+    private func select(_ item: InventoryItemDTO) {
+        selectionDraft = InventoryPartSelectionDraft(item: item)
+    }
+
+    @MainActor
+    private func loadInventory() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            inventory = try await TicketService.getInventory().sorted {
+                $0.partName.localizedCaseInsensitiveCompare($1.partName) == .orderedAscending
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func formatCurrency(_ value: Double) -> String {
+        value.formatted(.currency(code: "TRY").locale(Locale(identifier: "tr_TR")))
+    }
+}
+
+private struct InventoryPartSelectionDraft: Identifiable {
+    let id = UUID()
+    let item: InventoryItemDTO
+}
+
+private struct InventoryPartQuantitySheet: View {
+    let item: InventoryItemDTO
+    let onSubmit: (InventoryItemDTO, Int, Double) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var quantity: Int
+    @State private var unitPriceText: String
+    @State private var showPriceChangeConfirmation = false
+
+    init(
+        item: InventoryItemDTO,
+        onSubmit: @escaping (InventoryItemDTO, Int, Double) -> Void
+    ) {
+        self.item = item
+        self.onSubmit = onSubmit
+        _quantity = State(initialValue: 1)
+        _unitPriceText = State(initialValue: (item.sellPrice ?? 0).formatted(
+            .number.precision(.fractionLength(2)).locale(Locale(identifier: "tr_TR"))
+        ))
+    }
+
+    var body: some View {
         NavigationStack {
             Form {
                 Section("Yedek Parça") {
@@ -154,33 +203,27 @@ struct InventoryPartPickerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Vazgeç") { selectedItem = nil }
+                    Button("Vazgeç") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Ekle") {
-                        if isPriceChanged(from: item.sellPrice ?? 0) {
+                        if isPriceChanged {
                             showPriceChangeConfirmation = true
                         } else {
-                            submit(item)
+                            submit()
                         }
                     }
-                    .disabled(item.quantity < 1 || parsedUnitPrice == nil)
+                    .disabled(!isValid)
                 }
             }
             .alert("Satış fiyatı değiştirilsin mi?", isPresented: $showPriceChangeConfirmation) {
                 Button("Vazgeç", role: .cancel) {}
-                Button("Onayla ve Ekle") { submit(item) }
+                Button("Onayla ve Ekle") { submit() }
             } message: {
                 Text("Envanter fiyatı: \(formatCurrency(item.sellPrice ?? 0))\nYeni fiyat: \(formatCurrency(parsedUnitPrice ?? 0))")
             }
         }
         .presentationDetents([.medium])
-    }
-
-    private func select(_ item: InventoryItemDTO) {
-        quantity = 1
-        unitPriceText = String(format: "%.2f", item.sellPrice ?? 0)
-        selectedItem = item
     }
 
     private var parsedUnitPrice: Double? {
@@ -191,29 +234,18 @@ struct InventoryPartPickerView: View {
         return value
     }
 
-    private func isPriceChanged(from inventoryPrice: Double) -> Bool {
+    private var isValid: Bool {
+        item.quantity >= 1 && quantity >= 1 && quantity <= item.quantity && parsedUnitPrice != nil
+    }
+
+    private var isPriceChanged: Bool {
         guard let price = parsedUnitPrice else { return false }
-        return abs(price - inventoryPrice) >= 0.005
+        return abs(price - (item.sellPrice ?? 0)) >= 0.005
     }
 
-    private func submit(_ item: InventoryItemDTO) {
-        guard let price = parsedUnitPrice else { return }
-        onItemSelected(item, quantity, price)
-        selectedItem = nil
-        dismiss()
-    }
-
-    @MainActor
-    private func loadInventory() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            inventory = try await TicketService.getInventory().sorted {
-                $0.partName.localizedCaseInsensitiveCompare($1.partName) == .orderedAscending
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+    private func submit() {
+        guard isValid, let price = parsedUnitPrice else { return }
+        onSubmit(item, quantity, price)
     }
 
     private func formatCurrency(_ value: Double) -> String {

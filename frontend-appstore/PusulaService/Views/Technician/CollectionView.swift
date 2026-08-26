@@ -8,7 +8,7 @@ struct CollectionView: View {
     let onComplete: () async -> Void
     
     @Environment(\.dismiss) private var dismiss
-    @State private var laborFee = "0.00"
+    @State private var laborFee = ""
     @State private var collectedAmount = ""
     @State private var selectedMethod: PaymentMethodOption = .cash
     @State private var showDebtConfirmation = false
@@ -174,7 +174,10 @@ struct CollectionView: View {
                 Text("₺\(String(format: "%.2f", partsTotal))").fontWeight(.semibold)
             }
 
-            TextField("İşçilik / servis bedeli", text: $laborFee)
+            Text("İşçilik / Servis Bedeli")
+                .font(.subheadline.weight(.semibold))
+
+            TextField("Örn. 1.500,00 ₺", text: $laborFee)
                 .keyboardType(.decimalPad)
                 .textFieldStyle(.roundedBorder)
                 .disabled(isWarranty)
@@ -183,6 +186,10 @@ struct CollectionView: View {
                         collectedAmount = String(format: "%.2f", serviceTotal)
                     }
                 }
+
+            Text("Bu fişe ait işçilik ücretini girin. İşçilik parça fiyatına dâhilse boş bırakabilirsiniz.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             HStack {
                 Text("Fiş toplamı")
