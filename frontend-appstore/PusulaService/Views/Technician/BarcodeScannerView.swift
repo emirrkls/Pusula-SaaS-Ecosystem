@@ -170,9 +170,7 @@ struct BarcodeScannerView: View {
                 let item = try await TicketService.lookupBarcode(code)
                 await MainActor.run {
                     quantity = min(item.allowsFractionalQuantity ? 0.001 : 1, max(item.quantity, 0.001))
-                    unitPriceText = (item.sellPrice ?? 0).formatted(
-                        .number.precision(.fractionLength(2)).locale(Locale(identifier: "tr_TR"))
-                    )
+                    unitPriceText = editableBarcodePriceText(item.sellPrice ?? 0)
                     // Publish the selected item only after its dependent form state is ready.
                     // This keeps the initial quantity of 1 immediately valid.
                     foundItem = item
@@ -193,10 +191,7 @@ struct BarcodeScannerView: View {
     }
 
     private var parsedUnitPrice: Double? {
-        let normalized = unitPriceText
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: ",", with: ".")
-        guard let value = Double(normalized), value >= 0, value.isFinite else { return nil }
+        guard let value = parseEditableBarcodePrice(unitPriceText), value >= 0, value.isFinite else { return nil }
         return value
     }
 
@@ -220,6 +215,33 @@ struct BarcodeScannerView: View {
     private func formatQuantity(_ value: Double) -> String {
         value.formatted(.number.precision(.fractionLength(0...3)).locale(Locale(identifier: "tr_TR")))
     }
+}
+
+private func editableBarcodePriceText(_ value: Double) -> String {
+    String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), value)
+}
+
+private func parseEditableBarcodePrice(_ text: String) -> Double? {
+    let compact = text
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .replacingOccurrences(of: " ", with: "")
+        .replacingOccurrences(of: "\u{00A0}", with: "")
+    guard !compact.isEmpty else { return nil }
+
+    let normalized: String
+    if let comma = compact.lastIndex(of: ","), let dot = compact.lastIndex(of: ".") {
+        if comma > dot {
+            normalized = compact.replacingOccurrences(of: ".", with: "")
+                .replacingOccurrences(of: ",", with: ".")
+        } else {
+            normalized = compact.replacingOccurrences(of: ",", with: "")
+        }
+    } else if compact.contains(",") {
+        normalized = compact.replacingOccurrences(of: ",", with: ".")
+    } else {
+        normalized = compact
+    }
+    return Double(normalized)
 }
 
 // MARK: - Camera Preview (AVFoundation)

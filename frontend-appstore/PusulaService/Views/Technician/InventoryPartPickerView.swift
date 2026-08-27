@@ -176,9 +176,7 @@ private struct InventoryPartQuantitySheet: View {
         self.item = item
         self.onSubmit = onSubmit
         _quantity = State(initialValue: min(item.allowsFractionalQuantity ? 0.001 : 1, max(item.quantity, 0.001)))
-        _unitPriceText = State(initialValue: (item.sellPrice ?? 0).formatted(
-            .number.precision(.fractionLength(2)).locale(Locale(identifier: "tr_TR"))
-        ))
+        _unitPriceText = State(initialValue: editablePriceText(item.sellPrice ?? 0))
     }
 
     var body: some View {
@@ -234,10 +232,7 @@ private struct InventoryPartQuantitySheet: View {
     }
 
     private var parsedUnitPrice: Double? {
-        let normalized = unitPriceText
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: ",", with: ".")
-        guard let value = Double(normalized), value >= 0, value.isFinite else { return nil }
+        guard let value = parseEditablePrice(unitPriceText), value >= 0, value.isFinite else { return nil }
         return value
     }
 
@@ -265,4 +260,31 @@ private struct InventoryPartQuantitySheet: View {
     private func formatQuantity(_ value: Double) -> String {
         value.formatted(.number.precision(.fractionLength(0...3)).locale(Locale(identifier: "tr_TR")))
     }
+}
+
+private func editablePriceText(_ value: Double) -> String {
+    String(format: "%.2f", locale: Locale(identifier: "en_US_POSIX"), value)
+}
+
+private func parseEditablePrice(_ text: String) -> Double? {
+    let compact = text
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .replacingOccurrences(of: " ", with: "")
+        .replacingOccurrences(of: "\u{00A0}", with: "")
+    guard !compact.isEmpty else { return nil }
+
+    let normalized: String
+    if let comma = compact.lastIndex(of: ","), let dot = compact.lastIndex(of: ".") {
+        if comma > dot {
+            normalized = compact.replacingOccurrences(of: ".", with: "")
+                .replacingOccurrences(of: ",", with: ".")
+        } else {
+            normalized = compact.replacingOccurrences(of: ",", with: "")
+        }
+    } else if compact.contains(",") {
+        normalized = compact.replacingOccurrences(of: ",", with: ".")
+    } else {
+        normalized = compact
+    }
+    return Double(normalized)
 }
