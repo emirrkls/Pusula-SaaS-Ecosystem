@@ -106,13 +106,13 @@ class ProposalInventoryConversionTest {
     void conversionDeductsRealStockAndKeepsProposalSpecificSellingPrice() {
         service.convertToJob(16L, 10L);
 
-        assertEquals(3, inventory.getQuantity());
+        assertEquals(BigDecimal.valueOf(3), inventory.getQuantity());
         assertEquals(Proposal.ProposalStatus.APPROVED, proposal.getStatus());
 
         ArgumentCaptor<ServiceUsedPart> captor = ArgumentCaptor.forClass(ServiceUsedPart.class);
         verify(serviceUsedPartRepository).save(captor.capture());
         ServiceUsedPart usedPart = captor.getValue();
-        assertEquals(2, usedPart.getQuantityUsed());
+        assertEquals(BigDecimal.valueOf(2), usedPart.getQuantityUsed());
         assertEquals(new BigDecimal("2500"), usedPart.getSellingPriceSnapshot());
         assertEquals(new BigDecimal("1200"), usedPart.getBuyingPriceSnapshot());
         assertEquals(5L, usedPart.getInventory().getId());

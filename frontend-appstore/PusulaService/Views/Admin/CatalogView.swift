@@ -218,7 +218,7 @@ private struct CatalogItemRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Text("\(item.quantity) adet")
+            Text("\(formatInventoryQuantity(item.quantity)) \(item.unitLabel)")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(stockColor)
         }
@@ -284,6 +284,7 @@ private struct InventoryEditorSheet: View {
     @State private var buyPrice = ""
     @State private var sellPrice = ""
     @State private var criticalLevel = ""
+    @State private var unitOfMeasure = "ADET"
     @State private var brand = ""
     @State private var category = ""
     @State private var barcode = ""
@@ -296,21 +297,26 @@ private struct InventoryEditorSheet: View {
         self.initialBarcode = initialBarcode
         self.onSaved = onSaved
         _partName = State(initialValue: item?.partName ?? "")
-        _quantity = State(initialValue: String(item?.quantity ?? 1))
+        _quantity = State(initialValue: formatInventoryQuantity(item?.quantity ?? 1))
         _buyPrice = State(initialValue: item?.buyPrice.map { String(format: "%.2f", $0) } ?? "")
         _sellPrice = State(initialValue: item?.sellPrice.map { String(format: "%.2f", $0) } ?? "")
-        _criticalLevel = State(initialValue: item?.criticalLevel.map(String.init) ?? "")
+        _criticalLevel = State(initialValue: item?.criticalLevel.map(formatInventoryQuantity) ?? "")
+        _unitOfMeasure = State(initialValue: item?.unitCode ?? "ADET")
         _brand = State(initialValue: item?.brand ?? "")
         _category = State(initialValue: item?.category ?? "")
         _barcode = State(initialValue: initialBarcode ?? item?.barcode ?? "")
     }
 
     private var canSave: Bool {
+        let parsedQuantity = nonNegativeDecimal(quantity)
+        let parsedCriticalLevel = optionalNonNegativeDecimal(criticalLevel)
         !partName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        nonNegativeInteger(quantity) != nil &&
+        parsedQuantity != nil &&
+        (unitOfMeasure != "ADET" || parsedQuantity?.rounded() == parsedQuantity) &&
         optionalNonNegativeDecimal(buyPrice).isValid &&
         optionalNonNegativeDecimal(sellPrice).isValid &&
-        optionalNonNegativeInteger(criticalLevel).isValid &&
+        parsedCriticalLevel.isValid &&
+        (unitOfMeasure != "ADET" || parsedCriticalLevel.value?.rounded() == parsedCriticalLevel.value) &&
         !isSaving
     }
 
@@ -324,10 +330,17 @@ private struct InventoryEditorSheet: View {
                 }
 
                 Section("Stok ve Fiyat") {
-                    TextField("Adet", text: $quantity)
-                        .keyboardType(.numberPad)
+                    Picker("Ölçü birimi", selection: $unitOfMeasure) {
+                        Text("Adet").tag("ADET")
+                        Text("Kilogram").tag("KG")
+                        Text("Gram").tag("GRAM")
+                        Text("Metre").tag("METRE")
+                        Text("Litre").tag("LITRE")
+                    }
+                    TextField("Miktar", text: $quantity)
+                        .keyboardType(.decimalPad)
                     TextField("Kritik stok seviyesi (opsiyonel)", text: $criticalLevel)
-                        .keyboardType(.numberPad)
+                        .keyboardType(.decimalPad)
                     TextField("Alış fiyatı (opsiyonel)", text: $buyPrice)
                         .keyboardType(.decimalPad)
                     TextField("Satış fiyatı (opsiyonel)", text: $sellPrice)
@@ -369,7 +382,12 @@ private struct InventoryEditorSheet: View {
     }
 
     private func save() async {
-        guard let parsedQuantity = nonNegativeInteger(quantity) else { return }
+        guard let parsedQuantity = nonNegativeDecimal(quantity) else { return }
+        let parsedCriticalLevel = optionalNonNegativeDecimal(criticalLevel)
+        guard unitOfMeasure != "ADET" || (
+            parsedQuantity.rounded() == parsedQuantity &&
+            (parsedCriticalLevel.value == nil || parsedCriticalLevel.value?.rounded() == parsedCriticalLevel.value)
+        ) else { return }
         isSaving = true
         defer { isSaving = false }
 
@@ -379,7 +397,8 @@ private struct InventoryEditorSheet: View {
             quantity: parsedQuantity,
             buyPrice: optionalNonNegativeDecimal(buyPrice).value,
             sellPrice: optionalNonNegativeDecimal(sellPrice).value,
-            criticalLevel: optionalNonNegativeInteger(criticalLevel).value,
+            criticalLevel: parsedCriticalLevel.value,
+            unitOfMeasure: unitOfMeasure,
             brand: brand.nilIfBlank,
             category: category.nilIfBlank,
             barcode: barcode.nilIfBlank
@@ -400,6 +419,12 @@ private struct InventoryEditorSheet: View {
 
     private func nonNegativeInteger(_ text: String) -> Int? {
         guard let value = Int(text.trimmingCharacters(in: .whitespaces)), value >= 0 else { return nil }
+        return value
+    }
+
+    private func nonNegativeDecimal(_ text: String) -> Double? {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
+        guard let value = Double(normalized), value >= 0, value.isFinite else { return nil }
         return value
     }
 
@@ -454,4 +479,8 @@ private extension String {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }
+}
+
+private func formatInventoryQuantity(_ value: Double) -> String {
+    value.formatted(.number.precision(.fractionLength(0...3)).locale(Locale(identifier: "tr_TR")))
 }

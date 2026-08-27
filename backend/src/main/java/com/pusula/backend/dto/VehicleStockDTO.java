@@ -1,5 +1,7 @@
 package com.pusula.backend.dto;
 
+import java.math.BigDecimal;
+
 public class VehicleStockDTO {
     private Long id;
     private Long companyId;
@@ -7,13 +9,13 @@ public class VehicleStockDTO {
     private Long inventoryId;
     private String vehicleLicensePlate;
     private String partName;
-    private Integer quantity;
+    private BigDecimal quantity;
 
     public VehicleStockDTO() {
     }
 
     public VehicleStockDTO(Long id, Long companyId, Long vehicleId, Long inventoryId,
-            String vehicleLicensePlate, String partName, Integer quantity) {
+            String vehicleLicensePlate, String partName, BigDecimal quantity) {
         this.id = id;
         this.companyId = companyId;
         this.vehicleId = vehicleId;
@@ -71,11 +73,11 @@ public class VehicleStockDTO {
         this.partName = partName;
     }
 
-    public Integer getQuantity() {
+    public BigDecimal getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(Integer quantity) {
+    public void setQuantity(BigDecimal quantity) {
         this.quantity = quantity;
     }
 }

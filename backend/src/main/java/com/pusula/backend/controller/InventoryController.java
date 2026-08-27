@@ -107,6 +107,7 @@ public class InventoryController {
                 inv.getPartName(),
                 inv.getQuantity(),
                 inv.getSellPrice(),  // ONLY sell price — buyPrice intentionally omitted
+                inv.getUnitOfMeasure().name(),
                 inv.getBrand(),
                 inv.getCategory(),
                 inv.getBarcode()

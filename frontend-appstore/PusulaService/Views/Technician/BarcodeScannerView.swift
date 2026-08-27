@@ -9,11 +9,11 @@ struct BarcodeScannerView: View {
     @State private var foundItem: InventoryItemDTO?
     @State private var isSearching = false
     @State private var errorMessage: String?
-    @State private var quantity = 1
+    @State private var quantity = 1.0
     @State private var unitPriceText = ""
     @State private var showPriceChangeConfirmation = false
     
-    let onItemSelected: (InventoryItemDTO, Int, Double) -> Void
+    let onItemSelected: (InventoryItemDTO, Double, Double) -> Void
     
     var body: some View {
         NavigationStack {
@@ -96,7 +96,7 @@ struct BarcodeScannerView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        Text("Stok: \(item.quantity)")
+                        Text("Stok: \(formatQuantity(item.quantity)) \(item.unitLabel)")
                             .font(.caption)
                             .foregroundColor(item.quantity > 0 ? .green : .red)
                     }
@@ -109,9 +109,13 @@ struct BarcodeScannerView: View {
             
             // Quantity stepper
             HStack {
-                Text("Adet:")
+                Text("Miktar:")
                     .font(.subheadline)
-                Stepper("\(quantity)", value: $quantity, in: 1...max(item.quantity, 1))
+                TextField(item.unitLabel, value: $quantity, format: .number)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(.roundedBorder)
+                Stepper("\(formatQuantity(quantity)) \(item.unitLabel)", value: $quantity,
+                        in: quantityStep(item)...max(item.quantity, quantityStep(item)), step: quantityStep(item))
                     .font(.subheadline.weight(.semibold))
             }
 
@@ -122,7 +126,7 @@ struct BarcodeScannerView: View {
                     .keyboardType(.decimalPad)
                     .textFieldStyle(.roundedBorder)
                 if let price = parsedUnitPrice {
-                    Text("Toplam: \(formatCurrency(price * Double(quantity)))")
+                    Text("Toplam: \(formatCurrency(price * quantity))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -146,7 +150,8 @@ struct BarcodeScannerView: View {
             .background(PusulaTheme.accent)
             .foregroundColor(.white)
             .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
-            .disabled(item.quantity < 1 || quantity < 1 || quantity > item.quantity || parsedUnitPrice == nil)
+            .disabled(item.quantity <= 0 || quantity <= 0 || quantity > item.quantity || parsedUnitPrice == nil
+                      || (!item.allowsFractionalQuantity && quantity.rounded() != quantity))
         }
         .padding()
         .background(.ultraThickMaterial)
@@ -164,7 +169,7 @@ struct BarcodeScannerView: View {
             do {
                 let item = try await TicketService.lookupBarcode(code)
                 await MainActor.run {
-                    quantity = 1
+                    quantity = min(item.allowsFractionalQuantity ? 0.001 : 1, max(item.quantity, 0.001))
                     unitPriceText = (item.sellPrice ?? 0).formatted(
                         .number.precision(.fractionLength(2)).locale(Locale(identifier: "tr_TR"))
                     )
@@ -208,6 +213,12 @@ struct BarcodeScannerView: View {
 
     private func formatCurrency(_ value: Double) -> String {
         value.formatted(.currency(code: "TRY").locale(Locale(identifier: "tr_TR")))
+    }
+
+    private func quantityStep(_ item: InventoryItemDTO) -> Double { item.allowsFractionalQuantity ? 0.001 : 1 }
+
+    private func formatQuantity(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...3)).locale(Locale(identifier: "tr_TR")))
     }
 }
 

@@ -60,7 +60,7 @@ public class FinanceController {
 
         BigDecimal inventoryValue = inventoryRepository.findByCompanyId(companyId).stream()
                 .map(item -> {
-                    BigDecimal quantity = BigDecimal.valueOf(item.getQuantity());
+                    BigDecimal quantity = item.getQuantity();
                     BigDecimal buyPrice = item.getBuyPrice() != null ? item.getBuyPrice() : BigDecimal.ZERO;
                     return quantity.multiply(buyPrice);
                 })
@@ -187,7 +187,7 @@ public class FinanceController {
         List<Inventory> items = inventoryRepository.findByCompanyId(companyId);
         BigDecimal totalValue = items.stream()
                 .filter(item -> item.getBuyPrice() != null && item.getQuantity() != null)
-                .map(item -> item.getBuyPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .map(item -> item.getBuyPrice().multiply(item.getQuantity()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         return ResponseEntity.ok(Map.of("totalValue", totalValue));
     }

@@ -15,8 +15,8 @@ public class Inventory extends BaseEntity {
     @Column(name = "part_name", nullable = false)
     private String partName;
 
-    @Column(nullable = false)
-    private Integer quantity;
+    @Column(nullable = false, precision = 14, scale = 3)
+    private BigDecimal quantity;
 
     @Column(name = "buy_price")
     private BigDecimal buyPrice;
@@ -24,8 +24,13 @@ public class Inventory extends BaseEntity {
     @Column(name = "sell_price")
     private BigDecimal sellPrice;
 
-    @Column(name = "critical_level", nullable = false)
-    private Integer criticalLevel = 0;
+    @Column(name = "critical_level", nullable = false, precision = 14, scale = 3)
+    private BigDecimal criticalLevel = BigDecimal.ZERO;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "unit_of_measure", nullable = false, length = 16,
+            columnDefinition = "VARCHAR(16) DEFAULT 'ADET'")
+    private InventoryUnit unitOfMeasure = InventoryUnit.ADET;
 
     @Column(name = "brand")
     private String brand;
@@ -51,8 +56,8 @@ public class Inventory extends BaseEntity {
     public Inventory() {
     }
 
-    public Inventory(Long id, Long companyId, String partName, Integer quantity, BigDecimal buyPrice,
-            BigDecimal sellPrice, Integer criticalLevel) {
+    public Inventory(Long id, Long companyId, String partName, BigDecimal quantity, BigDecimal buyPrice,
+            BigDecimal sellPrice, BigDecimal criticalLevel, InventoryUnit unitOfMeasure) {
         this.setId(id);
         this.setCompanyId(companyId);
         this.partName = partName;
@@ -60,6 +65,7 @@ public class Inventory extends BaseEntity {
         this.buyPrice = buyPrice;
         this.sellPrice = sellPrice;
         this.criticalLevel = criticalLevel;
+        this.unitOfMeasure = unitOfMeasure == null ? InventoryUnit.ADET : unitOfMeasure;
     }
 
     public static InventoryBuilder builder() {
@@ -74,12 +80,16 @@ public class Inventory extends BaseEntity {
         this.partName = partName;
     }
 
-    public Integer getQuantity() {
+    public BigDecimal getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(Integer quantity) {
+    public void setQuantity(BigDecimal quantity) {
         this.quantity = quantity;
+    }
+
+    public void setQuantity(Integer quantity) {
+        this.quantity = quantity == null ? null : BigDecimal.valueOf(quantity);
     }
 
     public BigDecimal getBuyPrice() {
@@ -98,12 +108,31 @@ public class Inventory extends BaseEntity {
         this.sellPrice = sellPrice;
     }
 
-    public Integer getCriticalLevel() {
+    public BigDecimal getCriticalLevel() {
         return criticalLevel;
     }
 
-    public void setCriticalLevel(Integer criticalLevel) {
+    public void setCriticalLevel(BigDecimal criticalLevel) {
         this.criticalLevel = criticalLevel;
+    }
+
+    public void setCriticalLevel(Integer criticalLevel) {
+        this.criticalLevel = criticalLevel == null ? null : BigDecimal.valueOf(criticalLevel);
+    }
+
+    public InventoryUnit getUnitOfMeasure() {
+        return unitOfMeasure;
+    }
+
+    public void setUnitOfMeasure(InventoryUnit unitOfMeasure) {
+        this.unitOfMeasure = unitOfMeasure == null ? InventoryUnit.ADET : unitOfMeasure;
+    }
+
+    public Inventory(Long id, Long companyId, String partName, Integer quantity, BigDecimal buyPrice,
+            BigDecimal sellPrice, Integer criticalLevel) {
+        this(id, companyId, partName,
+                quantity == null ? null : BigDecimal.valueOf(quantity), buyPrice, sellPrice,
+                criticalLevel == null ? null : BigDecimal.valueOf(criticalLevel), InventoryUnit.ADET);
     }
 
     public String getBrand() {
@@ -150,10 +179,11 @@ public class Inventory extends BaseEntity {
         private Long id;
         private Long companyId;
         private String partName;
-        private Integer quantity;
+        private BigDecimal quantity;
         private BigDecimal buyPrice;
         private BigDecimal sellPrice;
-        private Integer criticalLevel;
+        private BigDecimal criticalLevel;
+        private InventoryUnit unitOfMeasure = InventoryUnit.ADET;
 
         InventoryBuilder() {
         }
@@ -173,9 +203,13 @@ public class Inventory extends BaseEntity {
             return this;
         }
 
-        public InventoryBuilder quantity(Integer quantity) {
+        public InventoryBuilder quantity(BigDecimal quantity) {
             this.quantity = quantity;
             return this;
+        }
+
+        public InventoryBuilder quantity(Integer quantity) {
+            return quantity(quantity == null ? null : BigDecimal.valueOf(quantity));
         }
 
         public InventoryBuilder buyPrice(BigDecimal buyPrice) {
@@ -188,13 +222,22 @@ public class Inventory extends BaseEntity {
             return this;
         }
 
-        public InventoryBuilder criticalLevel(Integer criticalLevel) {
+        public InventoryBuilder criticalLevel(BigDecimal criticalLevel) {
             this.criticalLevel = criticalLevel;
             return this;
         }
 
+        public InventoryBuilder criticalLevel(Integer criticalLevel) {
+            return criticalLevel(criticalLevel == null ? null : BigDecimal.valueOf(criticalLevel));
+        }
+
+        public InventoryBuilder unitOfMeasure(InventoryUnit unitOfMeasure) {
+            this.unitOfMeasure = unitOfMeasure;
+            return this;
+        }
+
         public Inventory build() {
-            return new Inventory(id, companyId, partName, quantity, buyPrice, sellPrice, criticalLevel);
+            return new Inventory(id, companyId, partName, quantity, buyPrice, sellPrice, criticalLevel, unitOfMeasure);
         }
     }
 }

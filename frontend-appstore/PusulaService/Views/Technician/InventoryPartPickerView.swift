@@ -3,7 +3,7 @@ import SwiftUI
 /// Selects a real inventory item without requiring a barcode scan.
 /// The selected quantity is still validated by the backend when added to a ticket.
 struct InventoryPartPickerView: View {
-    let onItemSelected: (InventoryItemDTO, Int, Double) -> Void
+    let onItemSelected: (InventoryItemDTO, Double, Double) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var inventory: [InventoryItemDTO] = []
@@ -87,14 +87,14 @@ struct InventoryPartPickerView: View {
                                             Text(formatCurrency(item.sellPrice ?? 0))
                                                 .font(.subheadline.weight(.bold))
                                                 .foregroundStyle(PusulaTheme.accent)
-                                            Text("Stok: \(item.quantity)")
+                                            Text("Stok: \(formatQuantity(item.quantity)) \(item.unitLabel)")
                                                 .font(.caption)
                                                 .foregroundStyle(item.quantity > 0 ? .green : .red)
                                         }
                                     }
                                     .contentShape(Rectangle())
                                 }
-                                .disabled(item.quantity < 1)
+                                .disabled(item.quantity <= 0)
                             }
                         }
                     }
@@ -149,6 +149,10 @@ struct InventoryPartPickerView: View {
     private func formatCurrency(_ value: Double) -> String {
         value.formatted(.currency(code: "TRY").locale(Locale(identifier: "tr_TR")))
     }
+
+    private func formatQuantity(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...3)).locale(Locale(identifier: "tr_TR")))
+    }
 }
 
 private struct InventoryPartSelectionDraft: Identifiable {
@@ -158,20 +162,20 @@ private struct InventoryPartSelectionDraft: Identifiable {
 
 private struct InventoryPartQuantitySheet: View {
     let item: InventoryItemDTO
-    let onSubmit: (InventoryItemDTO, Int, Double) -> Void
+    let onSubmit: (InventoryItemDTO, Double, Double) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var quantity: Int
+    @State private var quantity: Double
     @State private var unitPriceText: String
     @State private var showPriceChangeConfirmation = false
 
     init(
         item: InventoryItemDTO,
-        onSubmit: @escaping (InventoryItemDTO, Int, Double) -> Void
+        onSubmit: @escaping (InventoryItemDTO, Double, Double) -> Void
     ) {
         self.item = item
         self.onSubmit = onSubmit
-        _quantity = State(initialValue: 1)
+        _quantity = State(initialValue: min(item.allowsFractionalQuantity ? 0.001 : 1, max(item.quantity, 0.001)))
         _unitPriceText = State(initialValue: (item.sellPrice ?? 0).formatted(
             .number.precision(.fractionLength(2)).locale(Locale(identifier: "tr_TR"))
         ))
@@ -183,16 +187,19 @@ private struct InventoryPartQuantitySheet: View {
                 Section("Yedek Parça") {
                     LabeledContent("Ürün", value: item.partName)
                     LabeledContent("Envanter satış fiyatı", value: formatCurrency(item.sellPrice ?? 0))
-                    LabeledContent("Mevcut stok", value: "\(item.quantity)")
+                    LabeledContent("Mevcut stok", value: "\(formatQuantity(item.quantity)) \(item.unitLabel)")
                 }
-                Section("Kullanılacak Adet") {
-                    Stepper("\(quantity) adet", value: $quantity, in: 1...max(item.quantity, 1))
+                Section("Kullanılacak Miktar") {
+                    TextField("Miktar (\(item.unitLabel))", value: $quantity, format: .number)
+                        .keyboardType(.decimalPad)
+                    Stepper("\(formatQuantity(quantity)) \(item.unitLabel)", value: $quantity,
+                            in: quantityStep...max(item.quantity, quantityStep), step: quantityStep)
                 }
                 Section("Bu Servisteki Satış Fiyatı") {
                     TextField("Birim satış fiyatı", text: $unitPriceText)
                         .keyboardType(.decimalPad)
                     if let price = parsedUnitPrice {
-                        LabeledContent("Toplam", value: formatCurrency(price * Double(quantity)))
+                        LabeledContent("Toplam", value: formatCurrency(price * quantity))
                     }
                     Text("Değiştirmezseniz envanterdeki satış fiyatı kullanılır.")
                         .font(.caption)
@@ -235,7 +242,8 @@ private struct InventoryPartQuantitySheet: View {
     }
 
     private var isValid: Bool {
-        item.quantity >= 1 && quantity >= 1 && quantity <= item.quantity && parsedUnitPrice != nil
+        item.quantity > 0 && quantity > 0 && quantity <= item.quantity && parsedUnitPrice != nil &&
+            (item.allowsFractionalQuantity || quantity.rounded() == quantity)
     }
 
     private var isPriceChanged: Bool {
@@ -250,5 +258,11 @@ private struct InventoryPartQuantitySheet: View {
 
     private func formatCurrency(_ value: Double) -> String {
         value.formatted(.currency(code: "TRY").locale(Locale(identifier: "tr_TR")))
+    }
+
+    private var quantityStep: Double { item.allowsFractionalQuantity ? 0.001 : 1 }
+
+    private func formatQuantity(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...3)).locale(Locale(identifier: "tr_TR")))
     }
 }

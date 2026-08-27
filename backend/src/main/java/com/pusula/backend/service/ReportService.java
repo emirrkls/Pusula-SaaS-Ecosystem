@@ -331,11 +331,12 @@ public class ReportService {
                         }
                         BigDecimal unitPrice = part.getSellingPriceSnapshot() != null ? part.getSellingPriceSnapshot()
                                         : BigDecimal.ZERO;
-                        int qty = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
-                        BigDecimal price = warranty ? BigDecimal.ZERO : unitPrice.multiply(BigDecimal.valueOf(qty));
+                        BigDecimal qty = part.getQuantityUsed() != null ? part.getQuantityUsed() : BigDecimal.ZERO;
+                        BigDecimal price = warranty ? BigDecimal.ZERO : unitPrice.multiply(qty);
                         subTotal = subTotal.add(price);
 
-                        String desc = String.format("%s (x%d)", partName, qty);
+                        String desc = String.format("%s (%s %s)", partName, formatQuantity(qty),
+                                        unitLabel(part.getUnitOfMeasure()));
                         addCellToTable(table, desc, false, Element.ALIGN_LEFT);
                         addCellToTable(table, String.format("%.2f ₺", price), false, Element.ALIGN_RIGHT);
                 }
@@ -889,6 +890,22 @@ public class ReportService {
                 return String.format(Locale.forLanguageTag("tr-TR"), "%,.2f ₺", amount);
         }
 
+        private String formatQuantity(BigDecimal quantity) {
+                if (quantity == null) return "0";
+                return quantity.stripTrailingZeros().toPlainString().replace('.', ',');
+        }
+
+        private String unitLabel(InventoryUnit unit) {
+                if (unit == null) return "adet";
+                return switch (unit) {
+                        case ADET -> "adet";
+                        case KG -> "kg";
+                        case GRAM -> "gr";
+                        case METRE -> "m";
+                        case LITRE -> "lt";
+                };
+        }
+
         private BigDecimal calculateTicketPartsCost(ServiceTicket ticket) {
                 return serviceUsedPartRepository.findByServiceTicketId(ticket.getId()).stream()
                                 .map(part -> {
@@ -896,9 +913,9 @@ public class ReportService {
                                         if (unitCost == null && part.getInventory() != null) {
                                                 unitCost = part.getInventory().getBuyPrice();
                                         }
-                                        int quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
+                                        BigDecimal quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : BigDecimal.ZERO;
                                         return (unitCost != null ? unitCost : BigDecimal.ZERO)
-                                                        .multiply(BigDecimal.valueOf(quantity));
+                                                        .multiply(quantity);
                                 })
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         }

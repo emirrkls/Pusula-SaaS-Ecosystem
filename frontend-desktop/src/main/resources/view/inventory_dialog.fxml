@@ -16,6 +16,10 @@
       <Label styleClass="field-label" text="%inventory.form.partname" />
       <TextField fx:id="partNameField" promptText="e.g. AC Filter" />
    </VBox>
+   <VBox spacing="5.0">
+      <Label styleClass="field-label" text="Ölçü Birimi" />
+      <ComboBox fx:id="unitOfMeasureCombo" maxWidth="Infinity" promptText="Adet" />
+   </VBox>
    <HBox spacing="15.0">
       <VBox HBox.hgrow="ALWAYS" spacing="5.0">
          <Label styleClass="field-label" text="%inventory.form.quantity" />

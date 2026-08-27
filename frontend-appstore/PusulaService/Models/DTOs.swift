@@ -171,13 +171,27 @@ struct PlanSummaryDTO: Codable, Identifiable {
 struct InventoryItemDTO: Codable, Identifiable {
     let id: Int
     let partName: String
-    let quantity: Int
+    let quantity: Double
     let buyPrice: Double?
     let sellPrice: Double?
-    let criticalLevel: Int?
+    let criticalLevel: Double?
+    let unitOfMeasure: String?
     let brand: String?
     let category: String?
     let barcode: String?
+
+    var unitCode: String { unitOfMeasure ?? "ADET" }
+    var unitLabel: String {
+        switch unitCode {
+        case "KG": return "kg"
+        case "GRAM": return "gr"
+        case "METRE": return "m"
+        case "LITRE": return "lt"
+        default: return "adet"
+        }
+    }
+
+    var allowsFractionalQuantity: Bool { unitCode != "ADET" }
 }
 
 // MARK: - Finance DTOs (Admin Only)

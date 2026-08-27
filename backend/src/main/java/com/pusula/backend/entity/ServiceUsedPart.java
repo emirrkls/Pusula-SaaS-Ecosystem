@@ -31,8 +31,13 @@ public class ServiceUsedPart extends BaseEntity {
     @Column(name = "inventory_id", insertable = false, updatable = false)
     private Long inventoryId;
 
-    @Column(name = "quantity_used", nullable = false)
-    private Integer quantityUsed;
+    @Column(name = "quantity_used", nullable = false, precision = 14, scale = 3)
+    private BigDecimal quantityUsed;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "unit_of_measure", nullable = false, length = 16,
+            columnDefinition = "VARCHAR(16) DEFAULT 'ADET'")
+    private InventoryUnit unitOfMeasure = InventoryUnit.ADET;
 
     @Column(name = "selling_price_snapshot")
     private BigDecimal sellingPriceSnapshot;
@@ -51,7 +56,7 @@ public class ServiceUsedPart extends BaseEntity {
     }
 
     public ServiceUsedPart(Long id, Long companyId, ServiceTicket serviceTicket, Inventory inventory,
-            Integer quantityUsed, BigDecimal sellingPriceSnapshot) {
+            BigDecimal quantityUsed, BigDecimal sellingPriceSnapshot) {
         this.setId(id);
         this.setCompanyId(companyId);
         this.serviceTicket = serviceTicket;
@@ -84,12 +89,20 @@ public class ServiceUsedPart extends BaseEntity {
         return inventoryId;
     }
 
-    public Integer getQuantityUsed() {
+    public BigDecimal getQuantityUsed() {
         return quantityUsed;
     }
 
-    public void setQuantityUsed(Integer quantityUsed) {
+    public void setQuantityUsed(BigDecimal quantityUsed) {
         this.quantityUsed = quantityUsed;
+    }
+
+    public InventoryUnit getUnitOfMeasure() {
+        return unitOfMeasure;
+    }
+
+    public void setUnitOfMeasure(InventoryUnit unitOfMeasure) {
+        this.unitOfMeasure = unitOfMeasure == null ? InventoryUnit.ADET : unitOfMeasure;
     }
 
     public BigDecimal getSellingPriceSnapshot() {
@@ -129,7 +142,8 @@ public class ServiceUsedPart extends BaseEntity {
         private Long companyId;
         private ServiceTicket serviceTicket;
         private Inventory inventory;
-        private Integer quantityUsed;
+        private BigDecimal quantityUsed;
+        private InventoryUnit unitOfMeasure = InventoryUnit.ADET;
         private BigDecimal sellingPriceSnapshot;
         private BigDecimal buyingPriceSnapshot;
         private Long sourceVehicleId;
@@ -158,8 +172,17 @@ public class ServiceUsedPart extends BaseEntity {
             return this;
         }
 
-        public ServiceUsedPartBuilder quantityUsed(Integer quantityUsed) {
+        public ServiceUsedPartBuilder quantityUsed(BigDecimal quantityUsed) {
             this.quantityUsed = quantityUsed;
+            return this;
+        }
+
+        public ServiceUsedPartBuilder quantityUsed(Integer quantityUsed) {
+            return quantityUsed(quantityUsed == null ? null : BigDecimal.valueOf(quantityUsed));
+        }
+
+        public ServiceUsedPartBuilder unitOfMeasure(InventoryUnit unitOfMeasure) {
+            this.unitOfMeasure = unitOfMeasure;
             return this;
         }
 
@@ -186,6 +209,7 @@ public class ServiceUsedPart extends BaseEntity {
         public ServiceUsedPart build() {
             ServiceUsedPart part = new ServiceUsedPart(id, companyId, serviceTicket, inventory, quantityUsed,
                     sellingPriceSnapshot);
+            part.setUnitOfMeasure(unitOfMeasure);
             part.setBuyingPriceSnapshot(buyingPriceSnapshot);
             part.setSourceVehicleId(sourceVehicleId);
             part.setClientRequestId(clientRequestId);

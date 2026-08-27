@@ -16,7 +16,8 @@ public class ServiceUsedPartDTO {
     private Long ticketId;
     private Long inventoryId;
     private String partName;
-    private Integer quantityUsed;
+    private BigDecimal quantityUsed;
     private BigDecimal sellingPriceSnapshot;
+    private String unitOfMeasure;
     private Long sourceVehicleId;
 }

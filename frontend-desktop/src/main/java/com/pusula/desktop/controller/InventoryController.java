@@ -94,13 +94,13 @@ public class InventoryController {
 
     @FXML private TableColumn<InventoryDTO, String> colMeta;
 
-    @FXML private TableColumn<InventoryDTO, Integer> colQuantity;
+    @FXML private TableColumn<InventoryDTO, BigDecimal> colQuantity;
 
     @FXML private TableColumn<InventoryDTO, BigDecimal> colBuyPrice;
 
     @FXML private TableColumn<InventoryDTO, BigDecimal> colSellPrice;
 
-    @FXML private TableColumn<InventoryDTO, Integer> colCriticalLevel;
+    @FXML private TableColumn<InventoryDTO, BigDecimal> colCriticalLevel;
 
     @FXML private TableColumn<InventoryDTO, Void> colDistribution;
 
@@ -186,7 +186,7 @@ public class InventoryController {
 
             @Override
 
-            protected void updateItem(Integer item, boolean empty) {
+            protected void updateItem(BigDecimal item, boolean empty) {
 
                 super.updateItem(item, empty);
 
@@ -202,11 +202,11 @@ public class InventoryController {
 
                 InventoryDTO row = getTableRow().getItem();
 
-                int quantity = item != null ? item : 0;
-                badge.setText(String.valueOf(quantity));
+                BigDecimal quantity = item != null ? item : BigDecimal.ZERO;
+                badge.setText(formatQuantity(quantity) + " " + unitShort(row.getUnitOfMeasure()));
                 badge.getStyleClass().removeAll("mini-pill", "mini-pill-danger");
-                if (row.getCriticalLevel() != null && row.getCriticalLevel() > 0
-                        && quantity <= row.getCriticalLevel()) {
+                if (row.getCriticalLevel() != null && row.getCriticalLevel().signum() > 0
+                        && quantity.compareTo(row.getCriticalLevel()) <= 0) {
                     badge.getStyleClass().addAll("mini-pill", "mini-pill-danger");
                 }
                 setGraphic(badge);
@@ -270,9 +270,9 @@ public class InventoryController {
 
                 InventoryDTO row = getTableRow().getItem();
 
-                int wh = row.getWarehouseQuantity() != null ? row.getWarehouseQuantity() : row.getQuantity();
+                BigDecimal wh = row.getWarehouseQuantity() != null ? row.getWarehouseQuantity() : row.getQuantity();
 
-                int veh = row.getInVehicleQuantity() != null ? row.getInVehicleQuantity() : 0;
+                BigDecimal veh = row.getInVehicleQuantity() != null ? row.getInVehicleQuantity() : BigDecimal.ZERO;
 
                 warehouseLabel.setText("Depo " + wh);
                 vehicleLabel.setText("Araç " + veh);
@@ -351,7 +351,7 @@ public class InventoryController {
 
                     if (item != null && !empty && item.getCriticalLevel() != null
 
-                            && item.getQuantity() <= item.getCriticalLevel()) {
+                            && item.getQuantity().compareTo(item.getCriticalLevel()) <= 0) {
 
                         getStyleClass().add("table-row-critical");
 
@@ -525,19 +525,19 @@ public class InventoryController {
 
         }
 
-        int wh = item.getWarehouseQuantity() != null ? item.getWarehouseQuantity() : item.getQuantity();
+        BigDecimal wh = item.getWarehouseQuantity() != null ? item.getWarehouseQuantity() : item.getQuantity();
 
-        int veh = item.getInVehicleQuantity() != null ? item.getInVehicleQuantity() : 0;
+        BigDecimal veh = item.getInVehicleQuantity() != null ? item.getInVehicleQuantity() : BigDecimal.ZERO;
 
         return switch (currentFilter) {
 
             case ALL -> true;
 
-            case CRITICAL -> item.getCriticalLevel() != null && item.getQuantity() <= item.getCriticalLevel();
+            case CRITICAL -> item.getCriticalLevel() != null && item.getQuantity().compareTo(item.getCriticalLevel()) <= 0;
 
-            case IN_WAREHOUSE -> wh > 0;
+            case IN_WAREHOUSE -> wh.signum() > 0;
 
-            case IN_VEHICLE -> veh > 0;
+            case IN_VEHICLE -> veh.signum() > 0;
 
         };
 
@@ -586,7 +586,7 @@ public class InventoryController {
 
         long critical = inventoryList.stream()
 
-                .filter(i -> i.getCriticalLevel() != null && i.getQuantity() <= i.getCriticalLevel())
+                .filter(i -> i.getCriticalLevel() != null && i.getQuantity().compareTo(i.getCriticalLevel()) <= 0)
 
                 .count();
 
@@ -986,6 +986,20 @@ public class InventoryController {
 
         }
 
+    }
+
+    private static String formatQuantity(BigDecimal value) {
+        return value == null ? "0" : value.stripTrailingZeros().toPlainString().replace('.', ',');
+    }
+
+    private static String unitShort(String unit) {
+        return switch (unit == null ? "ADET" : unit) {
+            case "KG" -> "kg";
+            case "GRAM" -> "gr";
+            case "METRE" -> "m";
+            case "LITRE" -> "lt";
+            default -> "adet";
+        };
     }
 
 }

@@ -35,7 +35,7 @@ class InventoryControllerSearchTest {
         item.setBrand("Mitsubishi");
         item.setCategory("Elektronik");
         item.setBarcode("8691234567890");
-        item.setQuantity(12);
+        item.setQuantity(new BigDecimal("12"));
         item.setBuyPrice(new BigDecimal("500.00"));
         item.setSellPrice(new BigDecimal("750.00"));
         return item;

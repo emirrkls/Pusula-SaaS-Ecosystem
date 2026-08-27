@@ -75,8 +75,8 @@ class PdfReportGeneratorTest {
             BigDecimal buyPrice, BigDecimal sellPrice) {
         InventoryDTO item = new InventoryDTO();
         item.setPartName(name);
-        item.setQuantity(quantity);
-        item.setCriticalLevel(criticalLevel);
+        item.setQuantity(BigDecimal.valueOf(quantity));
+        item.setCriticalLevel(BigDecimal.valueOf(criticalLevel));
         item.setBuyPrice(buyPrice);
         item.setSellPrice(sellPrice);
         return item;

@@ -117,14 +117,21 @@ data class PlanDTO(
 data class InventoryItemDTO(
     val id: Long,
     val partName: String,
-    val quantity: Int,
+    val quantity: Double,
     val buyPrice: Double? = null,
     val sellPrice: Double? = null,
-    val criticalLevel: Int? = null,
+    val criticalLevel: Double? = null,
+    val unitOfMeasure: String? = null,
     val brand: String? = null,
     val category: String? = null,
     val barcode: String? = null
 )
+
+val InventoryItemDTO.unitCode: String get() = unitOfMeasure ?: "ADET"
+val InventoryItemDTO.unitLabel: String get() = when (unitCode) {
+    "KG" -> "kg"; "GRAM" -> "gr"; "METRE" -> "m"; "LITRE" -> "lt"; else -> "adet"
+}
+val InventoryItemDTO.allowsFractionalQuantity: Boolean get() = unitCode != "ADET"
 
 data class FinancialSummaryDTO(
     val totalIncome: Double,

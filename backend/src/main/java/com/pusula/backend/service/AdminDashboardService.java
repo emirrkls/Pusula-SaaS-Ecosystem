@@ -167,7 +167,7 @@ public class AdminDashboardService {
         // Inventory value
         BigDecimal inventoryValue = inventoryRepository.findByCompanyId(companyId).stream()
                 .filter(i -> i.getBuyPrice() != null && i.getQuantity() != null)
-                .map(i -> i.getBuyPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
+                .map(i -> i.getBuyPrice().multiply(i.getQuantity()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return DashboardKPIs.builder()
@@ -311,7 +311,7 @@ public class AdminDashboardService {
         private String partName;
         private BigDecimal buyPrice;
         private BigDecimal sellPrice;
-        private int quantitySold;
+        private BigDecimal quantitySold;
         private BigDecimal totalProfit;
         private BigDecimal marginPercent;
     }
@@ -323,9 +323,9 @@ public class AdminDashboardService {
                     if (unitCost == null && part.getInventory() != null) {
                         unitCost = part.getInventory().getBuyPrice();
                     }
-                    int quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
+                    BigDecimal quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : BigDecimal.ZERO;
                     return (unitCost != null ? unitCost : BigDecimal.ZERO)
-                            .multiply(BigDecimal.valueOf(quantity));
+                            .multiply(quantity);
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -352,10 +352,10 @@ public class AdminDashboardService {
                         : (inv.getBuyPrice() != null ? inv.getBuyPrice() : BigDecimal.ZERO);
                 BigDecimal sellPrice = part.getSellingPriceSnapshot() != null
                         ? part.getSellingPriceSnapshot() : BigDecimal.ZERO;
-                int qty = part.getQuantityUsed();
+                BigDecimal qty = part.getQuantityUsed();
 
-                BigDecimal cost = buyPrice.multiply(BigDecimal.valueOf(qty));
-                BigDecimal revenue = sellPrice.multiply(BigDecimal.valueOf(qty));
+                BigDecimal cost = buyPrice.multiply(qty);
+                BigDecimal revenue = sellPrice.multiply(qty);
 
                 totalCOGS = totalCOGS.add(cost);
                 totalRevenue = totalRevenue.add(revenue);
@@ -401,7 +401,7 @@ public class AdminDashboardService {
         String partName;
         BigDecimal buyPrice;
         BigDecimal sellPrice;
-        int totalQty = 0;
+        BigDecimal totalQty = BigDecimal.ZERO;
         BigDecimal totalProfit = BigDecimal.ZERO;
 
         PartProfitAccumulator(String partName, BigDecimal buyPrice, BigDecimal sellPrice) {
@@ -410,8 +410,8 @@ public class AdminDashboardService {
             this.sellPrice = sellPrice;
         }
 
-        void addSale(int qty, BigDecimal profit) {
-            this.totalQty += qty;
+        void addSale(BigDecimal qty, BigDecimal profit) {
+            this.totalQty = this.totalQty.add(qty);
             this.totalProfit = this.totalProfit.add(profit);
         }
     }

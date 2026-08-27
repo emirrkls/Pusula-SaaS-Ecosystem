@@ -40,13 +40,14 @@ struct UsedPartDTO: Codable, Identifiable {
     let ticketId: Int?
     let inventoryId: Int
     let partName: String
-    var quantityUsed: Int
+    var quantityUsed: Double
     let sellingPriceSnapshot: Double
+    var unitOfMeasure: String? = nil
     var sourceVehicleId: Int?
     var clientRequestId: String?
     
     var totalPrice: Double {
-        Double(quantityUsed) * sellingPriceSnapshot
+        quantityUsed * sellingPriceSnapshot
     }
 }
 

@@ -23,6 +23,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -50,6 +54,7 @@ import com.pusula.service.ui.theme.BrandNavy
 import com.pusula.service.ui.theme.ErrorTone
 import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.ui.theme.Success
+import com.pusula.service.data.model.unitLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -228,7 +233,7 @@ fun CatalogScreen(
                                 color = marginColor
                             )
                             Text(
-                                text = "Stok ${item.quantity}",
+                                text = "Stok ${formatQuantity(item.quantity)} ${item.unitLabel}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -271,13 +276,14 @@ fun CatalogScreen(
                 activeBarcodeTarget = BarcodeTarget.CREATE
                 showBarcodeScannerDialog = true
             },
-            onSave = { partName, quantity, buyPrice, sellPrice, criticalLevel, brand, category, barcode ->
+            onSave = { partName, quantity, buyPrice, sellPrice, criticalLevel, unit, brand, category, barcode ->
                 viewModel.createInventoryItem(
                     partName = partName,
                     quantity = quantity,
                     buyPrice = buyPrice,
                     sellPrice = sellPrice,
                     criticalLevel = criticalLevel,
+                    unitOfMeasure = unit,
                     brand = brand,
                     category = category,
                     barcode = barcode
@@ -298,7 +304,7 @@ fun CatalogScreen(
                 activeBarcodeTarget = BarcodeTarget.EDIT
                 showBarcodeScannerDialog = true
             },
-            onSave = { partName, quantity, buyPrice, sellPrice, criticalLevel, brand, category, barcode ->
+            onSave = { partName, quantity, buyPrice, sellPrice, criticalLevel, unit, brand, category, barcode ->
                 viewModel.updateInventoryItem(
                     id = editingItem.id,
                     partName = partName,
@@ -306,6 +312,7 @@ fun CatalogScreen(
                     buyPrice = buyPrice,
                     sellPrice = sellPrice,
                     criticalLevel = criticalLevel,
+                    unitOfMeasure = unit,
                     brand = brand,
                     category = category,
                     barcode = barcode
@@ -432,10 +439,11 @@ private fun InventoryCreateDialog(
     onScanBarcodeRequest: () -> Unit,
     onSave: (
         partName: String,
-        quantity: Int,
+        quantity: Double,
         buyPrice: Double?,
         sellPrice: Double?,
-        criticalLevel: Int?,
+        criticalLevel: Double?,
+        unitOfMeasure: String,
         brand: String?,
         category: String?,
         barcode: String?
@@ -446,6 +454,8 @@ private fun InventoryCreateDialog(
     var buyPriceText by remember(initial?.id) { mutableStateOf(initial?.buyPrice?.toString().orEmpty()) }
     var sellPriceText by remember(initial?.id) { mutableStateOf(initial?.sellPrice?.toString().orEmpty()) }
     var criticalLevelText by remember(initial?.id) { mutableStateOf(initial?.criticalLevel?.toString().orEmpty()) }
+    var unitOfMeasure by remember(initial?.id) { mutableStateOf(initial?.unitOfMeasure ?: "ADET") }
+    var unitMenuExpanded by remember { mutableStateOf(false) }
     var brand by remember(initial?.id) { mutableStateOf(initial?.brand.orEmpty()) }
     var category by remember(initial?.id) { mutableStateOf(initial?.category.orEmpty()) }
     var barcode by remember(initial?.id) { mutableStateOf(initial?.barcode.orEmpty()) }
@@ -467,13 +477,37 @@ private fun InventoryCreateDialog(
                 )
                 OutlinedTextField(
                     value = quantityText,
-                    onValueChange = { quantityText = it.filter { ch -> ch.isDigit() } },
-                    label = { Text("Adet") },
+                    onValueChange = { quantityText = it.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' } },
+                    label = { Text("Miktar") },
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = KeyboardType.Number
+                        keyboardType = KeyboardType.Decimal
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
+                ExposedDropdownMenuBox(
+                    expanded = unitMenuExpanded,
+                    onExpandedChange = { unitMenuExpanded = !unitMenuExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = unitDisplay(unitOfMeasure),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Ölçü Birimi") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = unitMenuExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                    )
+                    DropdownMenu(
+                        expanded = unitMenuExpanded,
+                        onDismissRequest = { unitMenuExpanded = false }
+                    ) {
+                        listOf("ADET", "KG", "GRAM", "METRE", "LITRE").forEach { unit ->
+                            DropdownMenuItem(
+                                text = { Text(unitDisplay(unit)) },
+                                onClick = { unitOfMeasure = unit; unitMenuExpanded = false }
+                            )
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = buyPriceText,
                     onValueChange = { buyPriceText = it.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' } },
@@ -494,10 +528,10 @@ private fun InventoryCreateDialog(
                 )
                 OutlinedTextField(
                     value = criticalLevelText,
-                    onValueChange = { criticalLevelText = it.filter { ch -> ch.isDigit() } },
+                    onValueChange = { criticalLevelText = it.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' } },
                     label = { Text("Kritik Seviye (opsiyonel)") },
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = KeyboardType.Number
+                        keyboardType = KeyboardType.Decimal
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -523,16 +557,20 @@ private fun InventoryCreateDialog(
             }
         },
         confirmButton = {
-            val quantity = quantityText.toIntOrNull() ?: 0
+            val quantity = quantityText.replace(',', '.').toDoubleOrNull() ?: 0.0
+            val criticalLevel = criticalLevelText.replace(',', '.').toDoubleOrNull()
             TextButton(
-                enabled = !saving && partName.isNotBlank() && quantity > 0,
+                enabled = !saving && partName.isNotBlank() && quantity > 0 &&
+                    (unitOfMeasure != "ADET" || (quantity % 1.0 == 0.0 &&
+                        (criticalLevel == null || criticalLevel % 1.0 == 0.0))),
                 onClick = {
                     onSave(
                         partName.trim(),
                         quantity,
                         buyPriceText.replace(",", ".").toDoubleOrNull(),
                         sellPriceText.replace(",", ".").toDoubleOrNull(),
-                        criticalLevelText.toIntOrNull(),
+                        criticalLevel,
+                        unitOfMeasure,
                         brand.trim().ifBlank { null },
                         category.trim().ifBlank { null },
                         barcode.trim().ifBlank { null }
@@ -546,8 +584,19 @@ private fun InventoryCreateDialog(
     )
 }
 
+private fun formatQuantity(value: Double): String =
+    java.text.DecimalFormat("0.###").format(value)
+
 private enum class BarcodeTarget {
     CREATE,
     EDIT,
     WORKFLOW
+}
+
+private fun unitDisplay(unit: String): String = when (unit) {
+    "KG" -> "Kilogram"
+    "GRAM" -> "Gram"
+    "METRE" -> "Metre"
+    "LITRE" -> "Litre"
+    else -> "Adet"
 }

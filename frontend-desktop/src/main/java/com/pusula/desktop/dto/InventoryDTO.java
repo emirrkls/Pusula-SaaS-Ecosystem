@@ -6,10 +6,11 @@ import java.util.List;
 public class InventoryDTO {
     private Long id;
     private String partName;
-    private Integer quantity;
+    private BigDecimal quantity;
     private BigDecimal buyPrice;
     private BigDecimal sellPrice;
-    private Integer criticalLevel;
+    private BigDecimal criticalLevel;
+    private String unitOfMeasure = "ADET";
     private String brand;
     private String category;
     private String barcode;
@@ -17,8 +18,8 @@ public class InventoryDTO {
     private Long vehicleId; // If location is VEHICLE, which vehicle
 
     // Stock distribution fields
-    private Integer warehouseQuantity;
-    private Integer inVehicleQuantity;
+    private BigDecimal warehouseQuantity;
+    private BigDecimal inVehicleQuantity;
     private List<VehicleStockInfo> vehicleDistribution;
 
     // Getters and Setters
@@ -38,11 +39,11 @@ public class InventoryDTO {
         this.partName = partName;
     }
 
-    public Integer getQuantity() {
+    public BigDecimal getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(Integer quantity) {
+    public void setQuantity(BigDecimal quantity) {
         this.quantity = quantity;
     }
 
@@ -62,11 +63,11 @@ public class InventoryDTO {
         this.sellPrice = sellPrice;
     }
 
-    public Integer getCriticalLevel() {
+    public BigDecimal getCriticalLevel() {
         return criticalLevel;
     }
 
-    public void setCriticalLevel(Integer criticalLevel) {
+    public void setCriticalLevel(BigDecimal criticalLevel) {
         this.criticalLevel = criticalLevel;
     }
 
@@ -85,6 +86,9 @@ public class InventoryDTO {
     public void setCategory(String category) {
         this.category = category;
     }
+
+    public String getUnitOfMeasure() { return unitOfMeasure; }
+    public void setUnitOfMeasure(String unitOfMeasure) { this.unitOfMeasure = unitOfMeasure; }
 
     public String getBarcode() {
         return barcode;
@@ -110,19 +114,19 @@ public class InventoryDTO {
         this.vehicleId = vehicleId;
     }
 
-    public Integer getWarehouseQuantity() {
+    public BigDecimal getWarehouseQuantity() {
         return warehouseQuantity;
     }
 
-    public void setWarehouseQuantity(Integer warehouseQuantity) {
+    public void setWarehouseQuantity(BigDecimal warehouseQuantity) {
         this.warehouseQuantity = warehouseQuantity;
     }
 
-    public Integer getInVehicleQuantity() {
+    public BigDecimal getInVehicleQuantity() {
         return inVehicleQuantity;
     }
 
-    public void setInVehicleQuantity(Integer inVehicleQuantity) {
+    public void setInVehicleQuantity(BigDecimal inVehicleQuantity) {
         this.inVehicleQuantity = inVehicleQuantity;
     }
 

@@ -5,6 +5,7 @@ import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.ServiceUsedPart;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.entity.Inventory;
+import com.pusula.backend.entity.InventoryUnit;
 import com.pusula.backend.repository.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -145,7 +146,32 @@ class ServiceTicketUsedPartsTest {
 
         assertEquals(new BigDecimal("150.00"), result.getSellingPriceSnapshot());
         assertEquals("request-1", result.getClientRequestId());
-        assertEquals(4, inventory.getQuantity());
+        assertEquals(BigDecimal.valueOf(4), inventory.getQuantity());
+    }
+
+    @Test
+    void fractionalGasUsageDeductsExactQuantityAndKeepsUnit() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = ticket(100L, 10L, null);
+        ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
+        Inventory inventory = Inventory.builder()
+                .id(51L).companyId(10L).partName("R32 Gaz").quantity(new BigDecimal("5.000"))
+                .buyPrice(new BigDecimal("600.00")).sellPrice(new BigDecimal("1500.00"))
+                .criticalLevel(new BigDecimal("1.000")).unitOfMeasure(InventoryUnit.KG).build();
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(inventoryRepository.findByIdAndCompanyIdForUpdate(51L, 10L)).thenReturn(Optional.of(inventory));
+        when(usedPartRepository.save(any(ServiceUsedPart.class))).thenAnswer(invocation -> {
+            ServiceUsedPart saved = invocation.getArgument(0);
+            saved.setId(302L);
+            return saved;
+        });
+
+        ServiceUsedPartDTO result = service.addUsedPart(100L, ServiceUsedPartDTO.builder()
+                .inventoryId(51L).quantityUsed(new BigDecimal("0.800")).build());
+
+        assertEquals(0, new BigDecimal("4.200").compareTo(inventory.getQuantity()));
+        assertEquals(0, new BigDecimal("0.800").compareTo(result.getQuantityUsed()));
+        assertEquals("KG", result.getUnitOfMeasure());
     }
 
     @Test
@@ -196,7 +222,7 @@ class ServiceTicketUsedPartsTest {
                 .build());
 
         assertEquals(300L, result.getId());
-        assertEquals(4, inventory.getQuantity());
+        assertEquals(BigDecimal.valueOf(4), inventory.getQuantity());
         verify(inventoryRepository, never()).save(any(Inventory.class));
         verify(usedPartRepository, never()).save(any(ServiceUsedPart.class));
     }
@@ -221,8 +247,8 @@ class ServiceTicketUsedPartsTest {
         ServiceUsedPartDTO result = service.updateUsedPart(100L, 300L,
                 ServiceUsedPartDTO.builder().quantityUsed(1).build());
 
-        assertEquals(7, inventory.getQuantity());
-        assertEquals(1, result.getQuantityUsed());
+        assertEquals(BigDecimal.valueOf(7), inventory.getQuantity());
+        assertEquals(BigDecimal.ONE, result.getQuantityUsed());
         verify(inventoryRepository).save(inventory);
     }
 
@@ -244,7 +270,7 @@ class ServiceTicketUsedPartsTest {
 
         service.deleteUsedPart(100L, 300L);
 
-        assertEquals(8, inventory.getQuantity());
+        assertEquals(BigDecimal.valueOf(8), inventory.getQuantity());
         verify(inventoryRepository).save(inventory);
         verify(usedPartRepository).delete(part);
     }
@@ -262,7 +288,7 @@ class ServiceTicketUsedPartsTest {
         when(part.getInventory()).thenReturn(null);
         when(part.getInventoryId()).thenReturn(93L);
         when(part.getSourceVehicleId()).thenReturn(null);
-        when(part.getQuantityUsed()).thenReturn(1);
+        when(part.getQuantityUsed()).thenReturn(BigDecimal.ONE);
 
         when(ticketRepository.findById(75L)).thenReturn(Optional.of(ticket));
         when(usedPartRepository.findByServiceTicketId(75L)).thenReturn(List.of(part));
@@ -273,7 +299,7 @@ class ServiceTicketUsedPartsTest {
         service.cancelService(75L);
 
         assertEquals(ServiceTicket.TicketStatus.CANCELLED, ticket.getStatus());
-        assertEquals(1, deletedInventory.getQuantity());
+        assertEquals(BigDecimal.ONE, deletedInventory.getQuantity());
         assertFalse(deletedInventory.isDeleted());
         verify(inventoryRepository).save(deletedInventory);
         verify(usedPartRepository).delete(part);
@@ -297,7 +323,7 @@ class ServiceTicketUsedPartsTest {
         when(part.getInventory()).thenReturn(null);
         when(part.getInventoryId()).thenReturn(93L);
         when(part.getSourceVehicleId()).thenReturn(null);
-        when(part.getQuantityUsed()).thenReturn(1);
+        when(part.getQuantityUsed()).thenReturn(BigDecimal.ONE);
 
         when(ticketRepository.findById(75L)).thenReturn(Optional.of(ticket));
         when(usedPartRepository.findByServiceTicketId(75L)).thenReturn(List.of(part));
@@ -310,7 +336,7 @@ class ServiceTicketUsedPartsTest {
         service.cancelService(75L);
 
         assertEquals(ServiceTicket.TicketStatus.CANCELLED, ticket.getStatus());
-        assertEquals(5, activeReplacement.getQuantity());
+        assertEquals(BigDecimal.valueOf(5), activeReplacement.getQuantity());
         assertTrue(deletedInventory.isDeleted());
         verify(part).setInventory(activeReplacement);
         verify(inventoryRepository).save(activeReplacement);

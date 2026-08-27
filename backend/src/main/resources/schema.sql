@@ -44,10 +44,11 @@ CREATE TABLE inventory (
     id UUID DEFAULT random_uuid() PRIMARY KEY,
     company_id UUID NOT NULL,
     part_name VARCHAR(255) NOT NULL,
-    quantity INTEGER NOT NULL DEFAULT 0,
+    quantity DECIMAL(14, 3) NOT NULL DEFAULT 0,
     buy_price DECIMAL(10, 2),
     sell_price DECIMAL(10, 2),
-    critical_level INTEGER DEFAULT 5,
+    critical_level DECIMAL(14, 3) DEFAULT 5,
+    unit_of_measure VARCHAR(16) NOT NULL DEFAULT 'ADET',
     CONSTRAINT fk_inventory_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 );
 

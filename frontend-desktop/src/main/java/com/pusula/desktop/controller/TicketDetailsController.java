@@ -63,7 +63,7 @@ public class TicketDetailsController {
     @FXML
     private TableColumn<ServiceUsedPartDTO, String> colPartName;
     @FXML
-    private TableColumn<ServiceUsedPartDTO, Integer> colQuantity;
+    private TableColumn<ServiceUsedPartDTO, BigDecimal> colQuantity;
     @FXML
     private TableColumn<ServiceUsedPartDTO, BigDecimal> colPrice;
     @FXML
@@ -132,7 +132,7 @@ public class TicketDetailsController {
             return new javafx.beans.property.SimpleStringProperty(name != null ? name : "-");
         });
         colQuantity.setCellValueFactory(cellData -> {
-            Integer qty = cellData.getValue().getQuantityUsed();
+            BigDecimal qty = cellData.getValue().getQuantityUsed();
             System.out.println("CellValue quantity: " + qty);
             return new javafx.beans.property.SimpleObjectProperty<>(qty);
         });
@@ -170,7 +170,8 @@ public class TicketDetailsController {
                 super.updateItem(item, empty);
                 ServiceUsedPartDTO part = empty ? null : getCurrentPart();
                 boolean disabled = part == null || !canModifyParts();
-                decreaseBtn.setDisable(disabled || part.getQuantityUsed() == null || part.getQuantityUsed() <= 1);
+                decreaseBtn.setDisable(disabled || part.getQuantityUsed() == null
+                        || part.getQuantityUsed().compareTo(quantityStep(part)) <= 0);
                 increaseBtn.setDisable(disabled);
                 editBtn.setDisable(disabled);
                 deleteBtn.setDisable(disabled);
@@ -670,8 +671,8 @@ public class TicketDetailsController {
         if (part == null || !canModifyParts() || part.getQuantityUsed() == null) {
             return;
         }
-        int newQuantity = part.getQuantityUsed() + change;
-        if (newQuantity > 0) {
+        BigDecimal newQuantity = part.getQuantityUsed().add(quantityStep(part).multiply(BigDecimal.valueOf(change)));
+        if (newQuantity.signum() > 0) {
             updatePartQuantity(part, newQuantity);
         }
     }
@@ -680,20 +681,23 @@ public class TicketDetailsController {
         if (part == null || !canModifyParts()) {
             return;
         }
-        Dialog<Integer> dialog = new Dialog<>();
+        TextInputDialog dialog = new TextInputDialog(formatQuantity(part.getQuantityUsed()));
         com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow());
-        dialog.setTitle("Parça Adedini Düzenle");
+        dialog.setTitle("Kullanılan Miktarı Düzenle");
         dialog.setHeaderText(part.getPartName());
-        Spinner<Integer> quantitySpinner = new Spinner<>(1, 1_000_000,
-                part.getQuantityUsed() != null ? part.getQuantityUsed() : 1);
-        quantitySpinner.setEditable(true);
-        dialog.getDialogPane().setContent(new HBox(10, new Label("Adet:"), quantitySpinner));
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        dialog.setResultConverter(button -> button == ButtonType.OK ? quantitySpinner.getValue() : null);
-        dialog.showAndWait().ifPresent(quantity -> updatePartQuantity(part, quantity));
+        dialog.setContentText("Miktar (" + unitShort(part.getUnitOfMeasure()) + "):");
+        dialog.showAndWait().ifPresent(value -> {
+            try {
+                BigDecimal quantity = new BigDecimal(value.trim().replace(',', '.'));
+                if (quantity.signum() > 0) updatePartQuantity(part, quantity);
+            } catch (NumberFormatException ignored) {
+                AlertHelper.showAlert(Alert.AlertType.WARNING, lblStatus.getScene().getWindow(),
+                        "Geçersiz Miktar", "Lütfen geçerli bir miktar girin.");
+            }
+        });
     }
 
-    private void updatePartQuantity(ServiceUsedPartDTO part, int quantity) {
+    private void updatePartQuantity(ServiceUsedPartDTO part, BigDecimal quantity) {
         ServiceUsedPartDTO request = ServiceUsedPartDTO.builder()
                 .quantityUsed(quantity)
                 .build();
@@ -1090,7 +1094,7 @@ public class TicketDetailsController {
             // Set callback for when part is selected
             controller.setOnPartSelected(() -> {
                 InventoryDTO selectedPart = controller.getSelectedPart();
-                Integer quantity = controller.getSelectedQuantity();
+                BigDecimal quantity = controller.getSelectedQuantity();
 
                 if (selectedPart != null && quantity != null) {
                     addPartToTicket(selectedPart.getId(), quantity);
@@ -1107,7 +1111,7 @@ public class TicketDetailsController {
         }
     }
 
-    private void addPartToTicket(Long inventoryId, int quantity) {
+    private void addPartToTicket(Long inventoryId, BigDecimal quantity) {
         ServiceUsedPartDTO dto = ServiceUsedPartDTO.builder()
                 .inventoryId(inventoryId)
                 .quantityUsed(quantity)
@@ -1299,6 +1303,24 @@ public class TicketDetailsController {
         return String.format(Locale.of("tr", "TR"), "%,.2f ₺", safeAmount);
     }
 
+    private static BigDecimal quantityStep(ServiceUsedPartDTO part) {
+        return "ADET".equals(part.getUnitOfMeasure()) ? BigDecimal.ONE : new BigDecimal("0.001");
+    }
+
+    private static String formatQuantity(BigDecimal quantity) {
+        return quantity == null ? "0" : quantity.stripTrailingZeros().toPlainString().replace('.', ',');
+    }
+
+    private static String unitShort(String unit) {
+        return switch (unit == null ? "ADET" : unit) {
+            case "KG" -> "kg";
+            case "GRAM" -> "gr";
+            case "METRE" -> "m";
+            case "LITRE" -> "lt";
+            default -> "adet";
+        };
+    }
+
     @FXML
     private void handleCompleteService() {
         if (currentTicket == null)
@@ -1324,8 +1346,8 @@ public class TicketDetailsController {
                     BigDecimal unitPrice = part.getSellingPriceSnapshot() != null
                             ? part.getSellingPriceSnapshot()
                             : BigDecimal.ZERO;
-                    int quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
-                    return unitPrice.multiply(BigDecimal.valueOf(quantity));
+                    BigDecimal quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : BigDecimal.ZERO;
+                    return unitPrice.multiply(quantity);
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 

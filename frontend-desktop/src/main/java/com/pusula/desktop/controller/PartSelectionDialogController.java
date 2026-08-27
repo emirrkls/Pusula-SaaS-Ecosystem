@@ -17,6 +17,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 public class PartSelectionDialogController {
 
@@ -36,12 +37,12 @@ public class PartSelectionDialogController {
     private TableColumn<InventoryDTO, String> colPrice;
 
     @FXML
-    private Spinner<Integer> quantitySpinner;
+    private Spinner<Double> quantitySpinner;
 
     private final ObservableList<InventoryDTO> partsList = FXCollections.observableArrayList();
     private FilteredList<InventoryDTO> filteredParts;
     private InventoryDTO selectedPart;
-    private Integer selectedQuantity;
+    private BigDecimal selectedQuantity;
     private Runnable onPartSelected;
 
     @FXML
@@ -50,6 +51,15 @@ public class PartSelectionDialogController {
         setupSpinner();
         setupSearch();
         loadParts();
+        partsTable.getSelectionModel().selectedItemProperty().addListener((obs, oldItem, item) -> {
+            if (item == null) return;
+            double max = item.getQuantity() != null ? item.getQuantity().doubleValue() : 0.0;
+            boolean wholeUnits = "ADET".equals(item.getUnitOfMeasure());
+            double step = wholeUnits ? 1.0 : 0.001;
+            double initial = Math.min(wholeUnits ? 1.0 : 0.001, Math.max(max, step));
+            quantitySpinner.setValueFactory(new SpinnerValueFactory.DoubleSpinnerValueFactory(
+                    step, Math.max(max, step), initial, step));
+        });
     }
 
     private void setupTable() {
@@ -64,7 +74,7 @@ public class PartSelectionDialogController {
     }
 
     private void setupSpinner() {
-        SpinnerValueFactory<Integer> valueFactory = new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 100, 1);
+        SpinnerValueFactory<Double> valueFactory = new SpinnerValueFactory.DoubleSpinnerValueFactory(0.001, 100, 1, 0.001);
         quantitySpinner.setValueFactory(valueFactory);
     }
 
@@ -112,10 +122,10 @@ public class PartSelectionDialogController {
             return;
         }
 
-        selectedQuantity = quantitySpinner.getValue();
+        selectedQuantity = BigDecimal.valueOf(quantitySpinner.getValue()).stripTrailingZeros();
 
         // Check if enough stock is available
-        if (selectedQuantity > selectedPart.getQuantity()) {
+        if (selectedQuantity.compareTo(selectedPart.getQuantity()) > 0) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, partsTable.getScene().getWindow(),
                     "Yetersiz Stok", "Mevcut: " + selectedPart.getQuantity() + ", İstenen: " + selectedQuantity);
             return;
@@ -144,7 +154,7 @@ public class PartSelectionDialogController {
         return selectedPart;
     }
 
-    public Integer getSelectedQuantity() {
+    public BigDecimal getSelectedQuantity() {
         return selectedQuantity;
     }
 

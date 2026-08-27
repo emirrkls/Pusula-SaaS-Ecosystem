@@ -159,7 +159,7 @@ public class PdfReportGenerator {
 
                 // Table data
                 for (InventoryDTO item : inventoryList) {
-                    boolean isCritical = safeInt(item.getQuantity()) <= safeInt(item.getCriticalLevel());
+                    boolean isCritical = safeDecimal(item.getQuantity()).compareTo(safeDecimal(item.getCriticalLevel())) <= 0;
                     addTableRow(table, item, isCritical);
                 }
 
@@ -190,18 +190,16 @@ public class PdfReportGenerator {
     private static void addSummaryBox(Document document, List<InventoryDTO> inventoryList) throws DocumentException {
         int totalItems = inventoryList.size();
         long criticalCount = inventoryList.stream()
-                .filter(i -> safeInt(i.getQuantity()) <= safeInt(i.getCriticalLevel()))
+                .filter(i -> safeDecimal(i.getQuantity()).compareTo(safeDecimal(i.getCriticalLevel())) <= 0)
                 .count();
-        int totalQuantity = inventoryList.stream()
-                .mapToInt(i -> safeInt(i.getQuantity()))
-                .sum();
+        long unitCount = inventoryList.stream()
+                .map(i -> i.getUnitOfMeasure() == null ? "ADET" : i.getUnitOfMeasure()).distinct().count();
         java.math.BigDecimal inventoryValue = inventoryList.stream()
                 .map(i -> safeMoney(i.getBuyPrice())
-                        .multiply(java.math.BigDecimal.valueOf(safeInt(i.getQuantity()))))
+                        .multiply(safeDecimal(i.getQuantity())))
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
         java.math.BigDecimal estimatedSalesValue = inventoryList.stream()
-                .map(i -> estimatedSellPrice(i).multiply(
-                        java.math.BigDecimal.valueOf(safeInt(i.getQuantity()))))
+                .map(i -> estimatedSellPrice(i).multiply(safeDecimal(i.getQuantity())))
                 .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
 
         PdfPTable summaryTable = new PdfPTable(3);
@@ -209,7 +207,7 @@ public class PdfReportGenerator {
         summaryTable.setSpacingAfter(10);
 
         addSummaryCell(summaryTable, "Toplam Ürün", String.valueOf(totalItems));
-        addSummaryCell(summaryTable, "Toplam Stok", String.valueOf(totalQuantity));
+        addSummaryCell(summaryTable, "Ölçü Birimi", String.valueOf(unitCount));
         addSummaryCell(summaryTable, "Kritik Stok", String.valueOf(criticalCount), criticalCount > 0);
 
         document.add(summaryTable);
@@ -267,10 +265,10 @@ public class PdfReportGenerator {
         Font font = isCritical ? CRITICAL_FONT : NORMAL_FONT;
 
         addCell(table, item.getPartName() == null ? "-" : item.getPartName(), font, bgColor, Element.ALIGN_LEFT);
-        addCell(table, String.valueOf(safeInt(item.getQuantity())), font, bgColor, Element.ALIGN_CENTER);
+        addCell(table, formatQuantity(item.getQuantity()) + " " + unitShort(item.getUnitOfMeasure()), font, bgColor, Element.ALIGN_CENTER);
         addCell(table, formatCurrency(item.getBuyPrice()), NORMAL_FONT, bgColor, Element.ALIGN_RIGHT);
         addCell(table, formatCurrency(estimatedSellPrice(item)), NORMAL_FONT, bgColor, Element.ALIGN_RIGHT);
-        addCell(table, String.valueOf(safeInt(item.getCriticalLevel())), NORMAL_FONT, bgColor, Element.ALIGN_CENTER);
+        addCell(table, formatQuantity(item.getCriticalLevel()), NORMAL_FONT, bgColor, Element.ALIGN_CENTER);
     }
 
     private static void addCell(PdfPTable table, String text, Font font, Color bgColor, int alignment) {
@@ -302,8 +300,22 @@ public class PdfReportGenerator {
         return formatter.format(amount);
     }
 
-    private static int safeInt(Integer value) {
-        return value == null ? 0 : value;
+    private static java.math.BigDecimal safeDecimal(java.math.BigDecimal value) {
+        return value == null ? java.math.BigDecimal.ZERO : value;
+    }
+
+    private static String formatQuantity(java.math.BigDecimal value) {
+        return safeDecimal(value).stripTrailingZeros().toPlainString().replace('.', ',');
+    }
+
+    private static String unitShort(String unit) {
+        return switch (unit == null ? "ADET" : unit) {
+            case "KG" -> "kg";
+            case "GRAM" -> "gr";
+            case "METRE" -> "m";
+            case "LITRE" -> "lt";
+            default -> "adet";
+        };
     }
 
     private static java.math.BigDecimal safeMoney(java.math.BigDecimal value) {

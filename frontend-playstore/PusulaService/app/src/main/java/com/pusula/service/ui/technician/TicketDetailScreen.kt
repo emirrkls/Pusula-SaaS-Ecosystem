@@ -297,7 +297,7 @@ fun TicketDetailScreen(
                                 maxLines = 1
                             )
                             Text(
-                                text = "${part.quantityUsed} adet",
+                                text = "${formatPartQuantity(part.quantityUsed)} ${partUnitLabel(part.unitOfMeasure)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -686,4 +686,10 @@ private fun timelineActionLabel(actionType: String?): String = when (actionType?
 private fun formatTimelineTimestamp(raw: String?): String {
     if (raw.isNullOrBlank()) return "-"
     return raw.replace('T', ' ').take(16)
+}
+
+private fun formatPartQuantity(value: Double): String = java.text.DecimalFormat("0.###").format(value)
+
+private fun partUnitLabel(unit: String?): String = when (unit ?: "ADET") {
+    "KG" -> "kg"; "GRAM" -> "gr"; "METRE" -> "m"; "LITRE" -> "lt"; else -> "adet"
 }

@@ -41,7 +41,7 @@ struct PartProfit: Codable, Identifiable {
     let partName: String
     let buyPrice: Double?
     let sellPrice: Double?
-    let quantitySold: Int?
+    let quantitySold: Double?
     let totalProfit: Double?
     let marginPercent: Double?
     

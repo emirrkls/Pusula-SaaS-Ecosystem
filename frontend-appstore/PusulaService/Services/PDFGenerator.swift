@@ -162,7 +162,8 @@ class ServiceFormPDFGenerator {
                 }
                 
                 part.partName.draw(at: CGPoint(x: margin + 8, y: y + 2), withAttributes: rowAttrs)
-                "\(part.quantityUsed)".draw(at: CGPoint(x: margin + 308, y: y + 2), withAttributes: rowAttrs)
+                formatQuantity(part.quantityUsed, unit: part.unitOfMeasure).draw(
+                    at: CGPoint(x: margin + 308, y: y + 2), withAttributes: rowAttrs)
                 "₺\(String(format: "%.2f", part.sellingPriceSnapshot))".draw(
                     at: CGPoint(x: margin + 370, y: y + 2), withAttributes: rowAttrs)
                 "₺\(String(format: "%.2f", part.totalPrice))".draw(
@@ -251,5 +252,18 @@ class ServiceFormPDFGenerator {
     private static func drawLabelValue(_ label: String, _ value: String, at y: CGFloat, margin: CGFloat, valueX: CGFloat, attrs: [NSAttributedString.Key: Any]) {
         label.draw(at: CGPoint(x: margin, y: y), withAttributes: attrs)
         value.draw(at: CGPoint(x: valueX, y: y), withAttributes: attrs)
+    }
+
+    private static func formatQuantity(_ value: Double, unit: String?) -> String {
+        let quantity = value.formatted(.number.precision(.fractionLength(0...3)).locale(Locale(identifier: "tr_TR")))
+        let label: String
+        switch unit ?? "ADET" {
+        case "KG": label = "kg"
+        case "GRAM": label = "gr"
+        case "METRE": label = "m"
+        case "LITRE": label = "lt"
+        default: label = "adet"
+        }
+        return "\(quantity) \(label)"
     }
 }

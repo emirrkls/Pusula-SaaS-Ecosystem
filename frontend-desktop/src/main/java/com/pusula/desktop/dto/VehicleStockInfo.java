@@ -1,12 +1,14 @@
 package com.pusula.desktop.dto;
 
+import java.math.BigDecimal;
+
 /**
  * DTO for vehicle stock distribution info
  */
 public class VehicleStockInfo {
     private Long vehicleId;
     private String vehiclePlate;
-    private Integer quantity;
+    private BigDecimal quantity;
 
     public VehicleStockInfo() {
     }
@@ -27,11 +29,11 @@ public class VehicleStockInfo {
         this.vehiclePlate = vehiclePlate;
     }
 
-    public Integer getQuantity() {
+    public BigDecimal getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(Integer quantity) {
+    public void setQuantity(BigDecimal quantity) {
         this.quantity = quantity;
     }
 }

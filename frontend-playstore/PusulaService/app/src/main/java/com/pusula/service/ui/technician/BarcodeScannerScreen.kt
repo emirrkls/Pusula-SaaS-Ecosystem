@@ -22,6 +22,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,7 +32,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -56,6 +56,8 @@ import com.pusula.service.ui.theme.Info
 import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.ui.theme.Success
 import com.pusula.service.ui.theme.Warning
+import com.pusula.service.data.model.allowsFractionalQuantity
+import com.pusula.service.data.model.unitLabel
 import kotlinx.coroutines.delay
 
 @Composable
@@ -68,7 +70,7 @@ fun BarcodeScannerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
-    var quantity by remember { mutableIntStateOf(1) }
+    var quantityText by remember { mutableStateOf("1") }
     var showInventoryLockedDialog by remember { mutableStateOf(false) }
     var partAddedMessage by remember { mutableStateOf<String?>(null) }
 
@@ -153,7 +155,7 @@ fun BarcodeScannerScreen(
                                 Text(
                                     text = listOfNotNull(
                                         item.brand?.takeIf { it.isNotBlank() },
-                                        "Stok: ${item.quantity}"
+                                        "Stok: ${formatQuantity(item.quantity)} ${item.unitLabel}"
                                     ).joinToString(" • "),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -178,25 +180,32 @@ fun BarcodeScannerScreen(
                             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            QuantityButton(icon = Icons.Outlined.Remove) { if (quantity > 1) quantity-- }
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            ) {
-                                Text(
-                                    text = "$quantity",
-                                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm),
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                                )
+                            val quantity = quantityText.replace(',', '.').toDoubleOrNull() ?: 0.0
+                            val step = if (item.allowsFractionalQuantity) 0.001 else 1.0
+                            QuantityButton(icon = Icons.Outlined.Remove) {
+                                quantityText = formatQuantity((quantity - step).coerceAtLeast(step))
                             }
-                            QuantityButton(icon = Icons.Outlined.Add) { quantity++ }
+                            OutlinedTextField(
+                                value = quantityText,
+                                onValueChange = { value ->
+                                    quantityText = value.filter { it.isDigit() || it == ',' || it == '.' }
+                                },
+                                label = { Text(item.unitLabel) },
+                                singleLine = true,
+                                modifier = Modifier.width(110.dp)
+                            )
+                            QuantityButton(icon = Icons.Outlined.Add) {
+                                quantityText = formatQuantity((quantity + step).coerceAtMost(item.quantity))
+                            }
                             Spacer(Modifier.weight(1f))
                             Button(
                                 onClick = {
                                     viewModel.addUsedPart(ticketId, item, quantity)
                                     partAddedMessage = "${item.partName} fişe eklendi"
-                                    quantity = 1
+                                    quantityText = if (item.allowsFractionalQuantity) "0,001" else "1"
                                 }
+                                , enabled = quantity > 0 && quantity <= item.quantity &&
+                                    (item.allowsFractionalQuantity || quantity % 1.0 == 0.0)
                             ) {
                                 Text("Sepete Ekle")
                             }
@@ -231,6 +240,8 @@ fun BarcodeScannerScreen(
         }
     }
 }
+
+private fun formatQuantity(value: Double): String = java.text.DecimalFormat("0.###").format(value)
 
 @Composable
 private fun QuantityButton(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {

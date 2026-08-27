@@ -26,8 +26,9 @@ data class UsedPartDTO(
     val ticketId: Long? = null,
     val inventoryId: Long,
     val partName: String,
-    val quantityUsed: Int,
+    val quantityUsed: Double,
     val sellingPriceSnapshot: Double,
+    val unitOfMeasure: String? = null,
     val sourceVehicleId: Long? = null,
     val clientRequestId: String? = null
 )

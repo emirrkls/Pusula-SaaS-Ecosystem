@@ -22,6 +22,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -90,7 +91,7 @@ class InventoryServiceTenantSecurityTest {
 
         assertTrue(updated.isPresent());
         assertEquals("New Filter", inventory.getPartName());
-        assertEquals(7, inventory.getQuantity());
+        assertEquals(BigDecimal.valueOf(7), inventory.getQuantity());
         assertTrue(deleted);
         verify(inventoryRepository).save(inventory);
         verify(inventoryRepository).delete(inventory);
@@ -108,6 +109,29 @@ class InventoryServiceTenantSecurityTest {
         verify(inventoryRepository, never()).save(any());
         verify(inventoryRepository, never()).delete(any());
         verifyNoInteractions(auditLogService);
+    }
+
+    @Test
+    void adetRejectsFractionalQuantityWhileKilogramAcceptsIt() {
+        InventoryDTO invalid = inventoryDto("Vida", 1);
+        invalid.setQuantity(new BigDecimal("0.800"));
+        invalid.setUnitOfMeasure("ADET");
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.createInventory(invalid));
+
+        InventoryDTO gas = inventoryDto("R32 Gaz", 1);
+        gas.setQuantity(new BigDecimal("5.800"));
+        gas.setCriticalLevel(new BigDecimal("1.500"));
+        gas.setUnitOfMeasure("KG");
+        when(inventoryRepository.save(any(Inventory.class))).thenAnswer(invocation -> {
+            Inventory saved = invocation.getArgument(0);
+            saved.setId(2L);
+            return saved;
+        });
+        when(vehicleStockRepository.findByInventoryIdAndCompanyId(2L, 10L)).thenReturn(List.of());
+
+        InventoryDTO created = inventoryService.createInventory(gas);
+        assertEquals(0, new BigDecimal("5.800").compareTo(created.getQuantity()));
+        assertEquals("KG", created.getUnitOfMeasure());
     }
 
     private void authenticate(Long companyId) {

@@ -4,6 +4,7 @@ import com.pusula.backend.annotation.CheckQuota;
 import com.pusula.backend.dto.InventoryDTO;
 import com.pusula.backend.dto.VehicleStockInfo;
 import com.pusula.backend.entity.Inventory;
+import com.pusula.backend.entity.InventoryUnit;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.entity.VehicleStock;
 import com.pusula.backend.repository.InventoryRepository;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,10 +58,11 @@ public class InventoryService {
         Inventory inventory = Inventory.builder()
                 .companyId(user.getCompanyId())
                 .partName(dto.getPartName())
-                .quantity(dto.getQuantity())
+                .quantity(normalizeQuantity(dto.getQuantity()))
                 .buyPrice(dto.getBuyPrice())
                 .sellPrice(dto.getSellPrice())
                 .criticalLevel(defaultCriticalLevel(dto.getCriticalLevel()))
+                .unitOfMeasure(InventoryUnit.fromNullable(dto.getUnitOfMeasure()))
                 .build();
         inventory.setBrand(dto.getBrand());
         inventory.setCategory(dto.getCategory());
@@ -91,13 +94,14 @@ public class InventoryService {
         oldValues.put("sellPrice", inventory.getSellPrice());
         oldValues.put("criticalLevel", inventory.getCriticalLevel());
 
-        int oldQuantity = inventory.getQuantity();
+        BigDecimal oldQuantity = inventory.getQuantity();
 
         inventory.setPartName(dto.getPartName());
-        inventory.setQuantity(dto.getQuantity());
+        inventory.setQuantity(normalizeQuantity(dto.getQuantity()));
         inventory.setBuyPrice(dto.getBuyPrice());
         inventory.setSellPrice(dto.getSellPrice());
         inventory.setCriticalLevel(defaultCriticalLevel(dto.getCriticalLevel()));
+        inventory.setUnitOfMeasure(InventoryUnit.fromNullable(dto.getUnitOfMeasure()));
         inventory.setBrand(dto.getBrand());
         inventory.setCategory(dto.getCategory());
         inventory.setBarcode(normalizeBarcode(dto.getBarcode()));
@@ -114,7 +118,7 @@ public class InventoryService {
 
         // Log with quantity change details
         String description = saved.getPartName() + " güncellendi";
-        if (oldQuantity != dto.getQuantity()) {
+        if (oldQuantity.compareTo(inventory.getQuantity()) != 0) {
             description += " (Stok: " + oldQuantity + " → " + dto.getQuantity() + ")";
         }
         auditLogService.logChange("UPDATE", "INVENTORY", saved.getId(), description, oldValues, newValues);
@@ -147,21 +151,21 @@ public class InventoryService {
         List<VehicleStock> vehicleStocks = vehicleStockRepository
                 .findByInventoryIdAndCompanyId(inventory.getId(), inventory.getCompanyId());
 
-        int inVehicleTotal = 0;
+        BigDecimal inVehicleTotal = BigDecimal.ZERO;
         List<VehicleStockInfo> distribution = new ArrayList<>();
 
         for (VehicleStock vs : vehicleStocks) {
-            if (vs.getQuantity() > 0 && vs.getVehicle() != null) {
-                inVehicleTotal += vs.getQuantity();
+            if (vs.getQuantity().signum() > 0 && vs.getVehicle() != null) {
+                inVehicleTotal = inVehicleTotal.add(vs.getQuantity());
                 String plate = vs.getVehicle().getLicensePlate() != null ? vs.getVehicle().getLicensePlate()
                         : "Unknown";
                 distribution.add(new VehicleStockInfo(vs.getVehicle().getId(), plate, vs.getQuantity()));
             }
         }
 
-        int warehouseQty = inventory.getQuantity() - inVehicleTotal;
-        if (warehouseQty < 0)
-            warehouseQty = 0; // Safety check
+        BigDecimal warehouseQty = inventory.getQuantity().subtract(inVehicleTotal);
+        if (warehouseQty.signum() < 0)
+            warehouseQty = BigDecimal.ZERO; // Safety check
 
         InventoryDTO dto = InventoryDTO.builder()
                 .id(inventory.getId())
@@ -170,6 +174,7 @@ public class InventoryService {
                 .buyPrice(inventory.getBuyPrice())
                 .sellPrice(inventory.getSellPrice())
                 .criticalLevel(inventory.getCriticalLevel())
+                .unitOfMeasure(inventory.getUnitOfMeasure().name())
                 .brand(inventory.getBrand())
                 .category(inventory.getCategory())
                 .barcode(inventory.getBarcode())
@@ -195,8 +200,16 @@ public class InventoryService {
         if (dto.getPartName() == null || dto.getPartName().isBlank()) {
             throw new IllegalArgumentException("Ürün adı zorunludur.");
         }
-        if (dto.getQuantity() == null || dto.getQuantity() < 0) {
+        if (dto.getQuantity() == null || dto.getQuantity().signum() < 0) {
             throw new IllegalArgumentException("Stok adedi negatif olamaz.");
+        }
+        InventoryUnit unit = InventoryUnit.fromNullable(dto.getUnitOfMeasure());
+        validateQuantityForUnit(dto.getQuantity(), unit);
+        if (dto.getCriticalLevel() != null) {
+            if (dto.getCriticalLevel().signum() < 0) {
+                throw new IllegalArgumentException("Kritik seviye negatif olamaz.");
+            }
+            validateQuantityForUnit(dto.getCriticalLevel(), unit);
         }
         if (dto.getBuyPrice() != null && dto.getBuyPrice().compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Alış fiyatı negatif olamaz.");
@@ -214,7 +227,20 @@ public class InventoryService {
         }
     }
 
-    private static int defaultCriticalLevel(Integer criticalLevel) {
-        return criticalLevel == null ? 0 : criticalLevel;
+    private static BigDecimal defaultCriticalLevel(BigDecimal criticalLevel) {
+        return criticalLevel == null ? BigDecimal.ZERO : normalizeQuantity(criticalLevel);
+    }
+
+    private static BigDecimal normalizeQuantity(BigDecimal value) {
+        return value.setScale(3, RoundingMode.HALF_UP).stripTrailingZeros();
+    }
+
+    private static void validateQuantityForUnit(BigDecimal value, InventoryUnit unit) {
+        if (!unit.allowsFractionalQuantity() && value.stripTrailingZeros().scale() > 0) {
+            throw new IllegalArgumentException("Adet birimli ürünlerde miktar tam sayı olmalıdır.");
+        }
+        if (value.compareTo(new BigDecimal("99999999999.999")) > 0) {
+            throw new IllegalArgumentException("Miktar izin verilen üst sınırı aşıyor.");
+        }
     }
 }

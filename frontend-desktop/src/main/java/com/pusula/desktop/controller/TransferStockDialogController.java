@@ -22,6 +22,7 @@ import retrofit2.Response;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.math.BigDecimal;
 
 public class TransferStockDialogController {
 
@@ -38,7 +39,7 @@ public class TransferStockDialogController {
     @FXML
     private Label vehicleStockLabel;
     @FXML
-    private Spinner<Integer> quantitySpinner;
+    private Spinner<Double> quantitySpinner;
     @FXML
     private Button transferButton;
     @FXML
@@ -137,7 +138,7 @@ public class TransferStockDialogController {
         });
 
         // Setup quantity spinner
-        SpinnerValueFactory<Integer> valueFactory = new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 999, 1);
+        SpinnerValueFactory<Double> valueFactory = new SpinnerValueFactory.DoubleSpinnerValueFactory(0.001, 999999, 1, 0.001);
         quantitySpinner.setValueFactory(valueFactory);
 
         // Setup vehicle stock list view
@@ -202,12 +203,13 @@ public class TransferStockDialogController {
         VehicleDTO selectedVehicle = vehicleComboBox.getValue();
 
         if (selectedItem != null) {
+            configureQuantitySpinner(selectedItem);
             // Warehouse stock from InventoryDTO - use warehouseQuantity if available, else
             // total quantity
-            Integer warehouseQty = selectedItem.getWarehouseQuantity();
-            Integer totalQty = selectedItem.getQuantity();
-            int displayQty = warehouseQty != null ? warehouseQty : (totalQty != null ? totalQty : 0);
-            warehouseStockLabel.setText(String.valueOf(displayQty));
+            BigDecimal warehouseQty = selectedItem.getWarehouseQuantity();
+            BigDecimal totalQty = selectedItem.getQuantity();
+            BigDecimal displayQty = warehouseQty != null ? warehouseQty : (totalQty != null ? totalQty : BigDecimal.ZERO);
+            warehouseStockLabel.setText(formatQuantity(displayQty));
             System.out.println("Selected item: " + selectedItem.getPartName() + " - Warehouse: " + displayQty
                     + " (warehouseQty=" + warehouseQty + ", totalQty=" + totalQty + ")");
 
@@ -218,12 +220,12 @@ public class TransferStockDialogController {
                     public void onResponse(Call<List<VehicleStockDTO>> call, Response<List<VehicleStockDTO>> response) {
                         if (response.isSuccessful() && response.body() != null) {
                             Platform.runLater(() -> {
-                                int vehicleQty = response.body().stream()
+                                BigDecimal vehicleQty = response.body().stream()
                                         .filter(vs -> vs.getInventoryId() != null
                                                 && vs.getInventoryId().equals(selectedItem.getId()))
-                                        .mapToInt(vs -> vs.getQuantity() != null ? vs.getQuantity() : 0)
-                                        .sum();
-                                vehicleStockLabel.setText(String.valueOf(vehicleQty));
+                                        .map(vs -> vs.getQuantity() != null ? vs.getQuantity() : BigDecimal.ZERO)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                                vehicleStockLabel.setText(formatQuantity(vehicleQty));
                             });
                         }
                     }
@@ -266,8 +268,12 @@ public class TransferStockDialogController {
                             for (VehicleStockDTO stock : stocks) {
                                 String partName = stock.getPartName() != null ? stock.getPartName()
                                         : "Bilinmeyen Parça";
-                                int qty = stock.getQuantity() != null ? stock.getQuantity() : 0;
-                                vehicleStockItems.add(partName + " → " + qty + " adet");
+                                BigDecimal qty = stock.getQuantity() != null ? stock.getQuantity() : BigDecimal.ZERO;
+                                InventoryDTO inventory = inventoryList.stream()
+                                        .filter(item -> item.getId() != null && item.getId().equals(stock.getInventoryId()))
+                                        .findFirst().orElse(null);
+                                vehicleStockItems.add(partName + " → " + formatQuantity(qty) + " "
+                                        + unitLabel(inventory != null ? inventory.getUnitOfMeasure() : null));
                             }
                         }
                     });
@@ -292,9 +298,10 @@ public class TransferStockDialogController {
     private void handleTransfer() {
         VehicleDTO vehicle = vehicleComboBox.getValue();
         InventoryDTO item = inventoryComboBox.getValue();
-        Integer quantity = quantitySpinner.getValue();
+        BigDecimal quantity = quantitySpinner.getValue() == null
+                ? null : BigDecimal.valueOf(quantitySpinner.getValue()).stripTrailingZeros();
 
-        if (vehicle == null || item == null || quantity == null || quantity <= 0) {
+        if (vehicle == null || item == null || quantity == null || quantity.signum() <= 0) {
             AlertHelper.showAlert(Alert.AlertType.WARNING, transferButton.getScene().getWindow(),
                     "Eksik Bilgi", "Lütfen araç, parça ve miktar seçiniz.");
             return;
@@ -315,7 +322,8 @@ public class TransferStockDialogController {
                     Platform.runLater(() -> {
                         if (response.isSuccessful()) {
                             AlertHelper.showAlert(Alert.AlertType.INFORMATION, transferButton.getScene().getWindow(),
-                                    "Başarılı", quantity + " adet " + item.getPartName() + " araca transfer edildi.");
+                                    "Başarılı", formatQuantity(quantity) + " " + unitLabel(item.getUnitOfMeasure())
+                                            + " " + item.getPartName() + " araca transfer edildi.");
                             if (onTransferSuccess != null)
                                 onTransferSuccess.run();
                             closeDialog();
@@ -344,7 +352,7 @@ public class TransferStockDialogController {
                                 .findFirst()
                                 .orElse(null);
 
-                        if (stock == null || stock.getQuantity() < quantity) {
+                        if (stock == null || stock.getQuantity().compareTo(quantity) < 0) {
                             Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.WARNING,
                                     transferButton.getScene().getWindow(), "Yetersiz Stok",
                                     "Araçta yeterli stok yok."));
@@ -355,7 +363,7 @@ public class TransferStockDialogController {
                         Map<String, Object> updateRequest = new HashMap<>();
                         updateRequest.put("vehicleId", vehicle.getId());
                         updateRequest.put("inventoryId", item.getId());
-                        updateRequest.put("quantity", stock.getQuantity() - quantity);
+                        updateRequest.put("quantity", stock.getQuantity().subtract(quantity));
 
                         vehicleStockApi.update(stock.getId(), updateRequest).enqueue(new Callback<>() {
                             @Override
@@ -364,7 +372,8 @@ public class TransferStockDialogController {
                                     if (response2.isSuccessful()) {
                                         AlertHelper.showAlert(Alert.AlertType.INFORMATION,
                                                 transferButton.getScene().getWindow(), "Başarılı",
-                                                quantity + " adet " + item.getPartName() + " depoya transfer edildi.");
+                                                formatQuantity(quantity) + " " + unitLabel(item.getUnitOfMeasure())
+                                                        + " " + item.getPartName() + " depoya transfer edildi.");
                                         if (onTransferSuccess != null)
                                             onTransferSuccess.run();
                                         closeDialog();
@@ -404,5 +413,29 @@ public class TransferStockDialogController {
     private void closeDialog() {
         Stage stage = (Stage) transferButton.getScene().getWindow();
         stage.close();
+    }
+
+    private void configureQuantitySpinner(InventoryDTO item) {
+        double step = "ADET".equals(item.getUnitOfMeasure()) || item.getUnitOfMeasure() == null ? 1.0 : 0.001;
+        if (quantitySpinner.getValueFactory() instanceof SpinnerValueFactory.DoubleSpinnerValueFactory current
+                && Double.compare(current.getAmountToStepBy(), step) == 0) {
+            return;
+        }
+        quantitySpinner.setValueFactory(
+                new SpinnerValueFactory.DoubleSpinnerValueFactory(step, 999999, step, step));
+    }
+
+    private static String unitLabel(String unit) {
+        return switch (unit == null ? "ADET" : unit) {
+            case "KG" -> "kg";
+            case "GRAM" -> "gr";
+            case "METRE" -> "m";
+            case "LITRE" -> "lt";
+            default -> "adet";
+        };
+    }
+
+    private static String formatQuantity(BigDecimal value) {
+        return value == null ? "0" : value.stripTrailingZeros().toPlainString().replace('.', ',');
     }
 }

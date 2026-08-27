@@ -134,10 +134,11 @@ class AdminViewModel @Inject constructor(
 
     fun createInventoryItem(
         partName: String,
-        quantity: Int,
+        quantity: Double,
         buyPrice: Double?,
         sellPrice: Double?,
-        criticalLevel: Int?,
+        criticalLevel: Double?,
+        unitOfMeasure: String,
         brand: String?,
         category: String?,
         barcode: String?
@@ -150,6 +151,7 @@ class AdminViewModel @Inject constructor(
                 buyPrice = buyPrice,
                 sellPrice = sellPrice,
                 criticalLevel = criticalLevel,
+                unitOfMeasure = unitOfMeasure,
                 brand = brand,
                 category = category,
                 barcode = barcode
@@ -179,10 +181,11 @@ class AdminViewModel @Inject constructor(
     fun updateInventoryItem(
         id: Long,
         partName: String,
-        quantity: Int,
+        quantity: Double,
         buyPrice: Double?,
         sellPrice: Double?,
-        criticalLevel: Int?,
+        criticalLevel: Double?,
+        unitOfMeasure: String,
         brand: String?,
         category: String?,
         barcode: String?
@@ -196,6 +199,7 @@ class AdminViewModel @Inject constructor(
                 buyPrice = buyPrice,
                 sellPrice = sellPrice,
                 criticalLevel = criticalLevel,
+                unitOfMeasure = unitOfMeasure,
                 brand = brand,
                 category = category,
                 barcode = barcode

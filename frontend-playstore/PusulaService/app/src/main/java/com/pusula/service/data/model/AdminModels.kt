@@ -36,7 +36,7 @@ data class PartProfit(
     val partName: String,
     val buyPrice: Double? = null,
     val sellPrice: Double? = null,
-    val quantitySold: Int? = null,
+    val quantitySold: Double? = null,
     val totalProfit: Double? = null,
     val marginPercent: Double? = null
 )

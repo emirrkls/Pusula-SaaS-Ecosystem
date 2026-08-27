@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 @RestController
 @RequestMapping("/api/vehicle-stocks")
@@ -84,8 +86,8 @@ public class VehicleStockController {
         }
         Long vehicleId = ((Number) request.get("vehicleId")).longValue();
         Long inventoryId = ((Number) request.get("inventoryId")).longValue();
-        Integer quantity = ((Number) request.get("quantity")).intValue();
-        if (quantity <= 0) {
+        BigDecimal quantity = new BigDecimal(request.get("quantity").toString()).setScale(3, RoundingMode.HALF_UP);
+        if (quantity.signum() <= 0) {
             return ResponseEntity.badRequest().body(Map.of("error", "Adet sıfırdan büyük olmalıdır."));
         }
 
@@ -103,7 +105,7 @@ public class VehicleStockController {
 
         if (existingStock != null) {
             // Update existing stock
-            existingStock.setQuantity(existingStock.getQuantity() + quantity);
+            existingStock.setQuantity(existingStock.getQuantity().add(quantity));
             return ResponseEntity.ok(mapToDTO(vehicleStockRepository.save(existingStock)));
         }
 
@@ -121,12 +123,13 @@ public class VehicleStockController {
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<VehicleStockDTO> update(@PathVariable Long id,
             @RequestBody Map<String, Object> request) {
-        if (!(request.get("quantity") instanceof Number number) || number.intValue() < 0) {
+        if (!(request.get("quantity") instanceof Number number)
+                || new BigDecimal(number.toString()).signum() < 0) {
             return ResponseEntity.badRequest().build();
         }
         return vehicleStockRepository.findByIdAndCompanyId(id, getCompanyId())
                 .map(stock -> {
-                    Integer quantity = number.intValue();
+                    BigDecimal quantity = new BigDecimal(number.toString()).setScale(3, RoundingMode.HALF_UP);
                     stock.setQuantity(quantity);
                     return ResponseEntity.ok(mapToDTO(vehicleStockRepository.save(stock)));
                 })

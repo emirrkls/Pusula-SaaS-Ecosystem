@@ -16,7 +16,7 @@ public class InventoryDTO {
 
     @NotNull(message = "Miktar zorunludur")
     @PositiveOrZero(message = "Miktar negatif olamaz")
-    private Integer quantity;
+    private BigDecimal quantity;
 
     @DecimalMin(value = "0.0", inclusive = true, message = "Alis fiyati negatif olamaz")
     private BigDecimal buyPrice;
@@ -25,27 +25,29 @@ public class InventoryDTO {
     private BigDecimal sellPrice;
 
     @PositiveOrZero(message = "Kritik seviye negatif olamaz")
-    private Integer criticalLevel;
+    private BigDecimal criticalLevel;
+    private String unitOfMeasure = "ADET";
     private String brand;
     private String category;
     private String barcode;
 
     // Stock distribution fields
-    private Integer warehouseQuantity; // Parts in main warehouse (quantity - inVehicle)
-    private Integer inVehicleQuantity; // Total parts in all vehicles
+    private BigDecimal warehouseQuantity; // Parts in main warehouse (quantity - inVehicle)
+    private BigDecimal inVehicleQuantity; // Total parts in all vehicles
     private List<VehicleStockInfo> vehicleDistribution; // Per-vehicle breakdown
 
     public InventoryDTO() {
     }
 
-    public InventoryDTO(Long id, String partName, Integer quantity, BigDecimal buyPrice, BigDecimal sellPrice,
-            Integer criticalLevel, String brand, String category) {
+    public InventoryDTO(Long id, String partName, BigDecimal quantity, BigDecimal buyPrice, BigDecimal sellPrice,
+            BigDecimal criticalLevel, String unitOfMeasure, String brand, String category) {
         this.id = id;
         this.partName = partName;
         this.quantity = quantity;
         this.buyPrice = buyPrice;
         this.sellPrice = sellPrice;
         this.criticalLevel = criticalLevel;
+        this.unitOfMeasure = unitOfMeasure;
         this.brand = brand;
         this.category = category;
     }
@@ -70,11 +72,11 @@ public class InventoryDTO {
         this.partName = partName;
     }
 
-    public Integer getQuantity() {
+    public BigDecimal getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(Integer quantity) {
+    public void setQuantity(BigDecimal quantity) {
         this.quantity = quantity;
     }
 
@@ -94,13 +96,16 @@ public class InventoryDTO {
         this.sellPrice = sellPrice;
     }
 
-    public Integer getCriticalLevel() {
+    public BigDecimal getCriticalLevel() {
         return criticalLevel;
     }
 
-    public void setCriticalLevel(Integer criticalLevel) {
+    public void setCriticalLevel(BigDecimal criticalLevel) {
         this.criticalLevel = criticalLevel;
     }
+
+    public String getUnitOfMeasure() { return unitOfMeasure; }
+    public void setUnitOfMeasure(String unitOfMeasure) { this.unitOfMeasure = unitOfMeasure; }
 
     public String getBrand() {
         return brand;
@@ -126,19 +131,19 @@ public class InventoryDTO {
         this.barcode = barcode;
     }
 
-    public Integer getWarehouseQuantity() {
+    public BigDecimal getWarehouseQuantity() {
         return warehouseQuantity;
     }
 
-    public void setWarehouseQuantity(Integer warehouseQuantity) {
+    public void setWarehouseQuantity(BigDecimal warehouseQuantity) {
         this.warehouseQuantity = warehouseQuantity;
     }
 
-    public Integer getInVehicleQuantity() {
+    public BigDecimal getInVehicleQuantity() {
         return inVehicleQuantity;
     }
 
-    public void setInVehicleQuantity(Integer inVehicleQuantity) {
+    public void setInVehicleQuantity(BigDecimal inVehicleQuantity) {
         this.inVehicleQuantity = inVehicleQuantity;
     }
 
@@ -153,10 +158,11 @@ public class InventoryDTO {
     public static class InventoryDTOBuilder {
         private Long id;
         private String partName;
-        private Integer quantity;
+        private BigDecimal quantity;
         private BigDecimal buyPrice;
         private BigDecimal sellPrice;
-        private Integer criticalLevel;
+        private BigDecimal criticalLevel;
+        private String unitOfMeasure = "ADET";
         private String brand;
         private String category;
         private String barcode;
@@ -174,9 +180,13 @@ public class InventoryDTO {
             return this;
         }
 
-        public InventoryDTOBuilder quantity(Integer quantity) {
+        public InventoryDTOBuilder quantity(BigDecimal quantity) {
             this.quantity = quantity;
             return this;
+        }
+
+        public InventoryDTOBuilder quantity(Integer quantity) {
+            return quantity(quantity == null ? null : BigDecimal.valueOf(quantity));
         }
 
         public InventoryDTOBuilder buyPrice(BigDecimal buyPrice) {
@@ -189,8 +199,17 @@ public class InventoryDTO {
             return this;
         }
 
-        public InventoryDTOBuilder criticalLevel(Integer criticalLevel) {
+        public InventoryDTOBuilder criticalLevel(BigDecimal criticalLevel) {
             this.criticalLevel = criticalLevel;
+            return this;
+        }
+
+        public InventoryDTOBuilder criticalLevel(Integer criticalLevel) {
+            return criticalLevel(criticalLevel == null ? null : BigDecimal.valueOf(criticalLevel));
+        }
+
+        public InventoryDTOBuilder unitOfMeasure(String unitOfMeasure) {
+            this.unitOfMeasure = unitOfMeasure;
             return this;
         }
 
@@ -210,7 +229,8 @@ public class InventoryDTO {
         }
 
         public InventoryDTO build() {
-            InventoryDTO dto = new InventoryDTO(id, partName, quantity, buyPrice, sellPrice, criticalLevel, brand, category);
+            InventoryDTO dto = new InventoryDTO(id, partName, quantity, buyPrice, sellPrice, criticalLevel,
+                    unitOfMeasure, brand, category);
             dto.setBarcode(barcode);
             return dto;
         }

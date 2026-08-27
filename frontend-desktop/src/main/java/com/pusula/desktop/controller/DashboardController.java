@@ -440,7 +440,7 @@ public class DashboardController {
                     retrofit2.Response<java.util.List<com.pusula.desktop.dto.InventoryDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     long criticalCount = response.body().stream()
-                            .filter(i -> i.getQuantity() <= i.getCriticalLevel())
+                            .filter(i -> i.getQuantity().compareTo(i.getCriticalLevel()) <= 0)
                             .count();
                     Platform.runLater(() -> AnimationHelper.animateCounter(criticalStockLabel, criticalCount, 1500));
                 }

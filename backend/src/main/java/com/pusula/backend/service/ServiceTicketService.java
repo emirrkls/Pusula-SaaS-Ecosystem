@@ -537,7 +537,7 @@ public class ServiceTicketService {
                 .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
         validatePartMutationAccess(ticket, currentUser);
 
-        if (dto.getQuantityUsed() == null || dto.getQuantityUsed() <= 0) {
+        if (dto.getQuantityUsed() == null || dto.getQuantityUsed().signum() <= 0) {
             throw new IllegalArgumentException("Parça adedi sıfırdan büyük olmalıdır.");
         }
 
@@ -559,8 +559,8 @@ public class ServiceTicketService {
                 .orElseThrow(() -> new RuntimeException("Inventory item not found"));
 
         Long sourceVehicleId = null;
-        int quantityNeeded = dto.getQuantityUsed();
-        if (inventory.getQuantity() == null || inventory.getQuantity() < quantityNeeded) {
+        BigDecimal quantityNeeded = normalizeUsedQuantity(dto.getQuantityUsed(), inventory.getUnitOfMeasure());
+        if (inventory.getQuantity() == null || inventory.getQuantity().compareTo(quantityNeeded) < 0) {
             throw new RuntimeException("Yetersiz stok: " + inventory.getPartName());
         }
 
@@ -571,23 +571,23 @@ public class ServiceTicketService {
                             dto.getSourceVehicleId(), dto.getInventoryId(), currentUser.getCompanyId())
                     .orElse(null);
 
-            if (vehicleStock != null && vehicleStock.getQuantity() >= quantityNeeded) {
+            if (vehicleStock != null && vehicleStock.getQuantity().compareTo(quantityNeeded) >= 0) {
                 // Deduct from vehicle stock
-                vehicleStock.setQuantity(vehicleStock.getQuantity() - quantityNeeded);
+                vehicleStock.setQuantity(vehicleStock.getQuantity().subtract(quantityNeeded));
                 vehicleStockRepository.save(vehicleStock);
                 sourceVehicleId = dto.getSourceVehicleId();
 
                 // Also deduct from main inventory (vehicle parts are part of total)
-                inventory.setQuantity(inventory.getQuantity() - quantityNeeded);
+                inventory.setQuantity(inventory.getQuantity().subtract(quantityNeeded));
                 inventoryRepository.save(inventory);
             } else {
                 // Vehicle doesn't have enough, fall back to main inventory
-                inventory.setQuantity(inventory.getQuantity() - quantityNeeded);
+                inventory.setQuantity(inventory.getQuantity().subtract(quantityNeeded));
                 inventoryRepository.save(inventory);
             }
         } else {
             // No vehicle specified, use main inventory directly
-            inventory.setQuantity(inventory.getQuantity() - quantityNeeded);
+            inventory.setQuantity(inventory.getQuantity().subtract(quantityNeeded));
             inventoryRepository.save(inventory);
         }
 
@@ -602,7 +602,8 @@ public class ServiceTicketService {
                 .companyId(currentUser.getCompanyId())
                 .serviceTicket(ticket)
                 .inventory(inventory)
-                .quantityUsed(dto.getQuantityUsed())
+                .quantityUsed(quantityNeeded)
+                .unitOfMeasure(inventory.getUnitOfMeasure())
                 .sellingPriceSnapshot(effectiveSellingPrice)
                 .buyingPriceSnapshot(inventory.getBuyPrice())
                 .sourceVehicleId(sourceVehicleId)
@@ -625,7 +626,8 @@ public class ServiceTicketService {
                 saved.getQuantityUsed(),
                 saved.getSellingPriceSnapshot(),
                 saved.getSourceVehicleId(),
-                saved.getClientRequestId());
+                saved.getClientRequestId(),
+                saved.getUnitOfMeasure().name());
     }
 
     private String normalizeClientRequestId(String value) {
@@ -650,6 +652,17 @@ public class ServiceTicketService {
         return normalized;
     }
 
+    private BigDecimal normalizeUsedQuantity(BigDecimal value, com.pusula.backend.entity.InventoryUnit unit) {
+        BigDecimal normalized = value.setScale(3, RoundingMode.HALF_UP).stripTrailingZeros();
+        if (normalized.signum() <= 0) {
+            throw new IllegalArgumentException("Kullanılan miktar en az 0,001 olmalıdır.");
+        }
+        if (!unit.allowsFractionalQuantity() && normalized.scale() > 0) {
+            throw new IllegalArgumentException("Adet birimli ürünlerde miktar tam sayı olmalıdır.");
+        }
+        return normalized;
+    }
+
     @Transactional
     public ServiceUsedPartDTO updateUsedPart(Long ticketId, Long partId, ServiceUsedPartDTO dto) {
         User currentUser = getCurrentUser();
@@ -657,7 +670,7 @@ public class ServiceTicketService {
                 .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Servis fişi bulunamadı veya erişim reddedildi."));
         validatePartMutationAccess(ticket, currentUser);
-        if (dto.getQuantityUsed() == null || dto.getQuantityUsed() <= 0) {
+        if (dto.getQuantityUsed() == null || dto.getQuantityUsed().signum() <= 0) {
             throw new IllegalArgumentException("Parça adedi sıfırdan büyük olmalıdır.");
         }
 
@@ -666,10 +679,11 @@ public class ServiceTicketService {
                 .filter(p -> p.getServiceTicket() != null && ticketId.equals(p.getServiceTicket().getId()))
                 .orElseThrow(() -> new RuntimeException("Kullanılan parça bulunamadı."));
 
-        int oldQuantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
-        int delta = dto.getQuantityUsed() - oldQuantity;
+        BigDecimal oldQuantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : BigDecimal.ZERO;
+        BigDecimal requestedQuantity = normalizeUsedQuantity(dto.getQuantityUsed(), part.getUnitOfMeasure());
+        BigDecimal delta = requestedQuantity.subtract(oldQuantity);
         adjustUsedPartStock(part, delta, currentUser.getCompanyId());
-        part.setQuantityUsed(dto.getQuantityUsed());
+        part.setQuantityUsed(requestedQuantity);
         com.pusula.backend.entity.ServiceUsedPart saved = serviceUsedPartRepository.save(part);
 
         auditLogService.log("UPDATE", "TICKET", ticketId,
@@ -690,9 +704,9 @@ public class ServiceTicketService {
                 .findByIdAndCompanyId(partId, currentUser.getCompanyId())
                 .filter(p -> p.getServiceTicket() != null && ticketId.equals(p.getServiceTicket().getId()))
                 .orElseThrow(() -> new RuntimeException("Kullanılan parça bulunamadı."));
-        int quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
+        BigDecimal quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : BigDecimal.ZERO;
         String partName = partDisplayName(part);
-        adjustUsedPartStock(part, -quantity, currentUser.getCompanyId());
+        adjustUsedPartStock(part, quantity.negate(), currentUser.getCompanyId());
         serviceUsedPartRepository.delete(part);
         auditLogService.log("DELETE", "TICKET", ticketId,
                 "Kullanılan parça silindi ve stoğa iade edildi: " + partName + " x" + quantity);
@@ -710,8 +724,8 @@ public class ServiceTicketService {
         }
     }
 
-    private void adjustUsedPartStock(com.pusula.backend.entity.ServiceUsedPart part, int delta, Long companyId) {
-        if (delta == 0) {
+    private void adjustUsedPartStock(com.pusula.backend.entity.ServiceUsedPart part, BigDecimal delta, Long companyId) {
+        if (delta.signum() == 0) {
             return;
         }
         Inventory linkedInventory = part.getInventory();
@@ -730,7 +744,7 @@ public class ServiceTicketService {
                     .orElseThrow(() -> new IllegalStateException("Parçanın envanter kaydı bulunamadı."));
         }
 
-        if (delta > 0 && inventory.isDeleted()) {
+        if (delta.signum() > 0 && inventory.isDeleted()) {
             throw new IllegalStateException("Silinmiş bir envanter kaleminden yeni parça kullanılamaz.");
         }
         Inventory stockOrigin = inventory;
@@ -739,7 +753,7 @@ public class ServiceTicketService {
         // If the deleted row's barcode was recreated in the meantime, merge the
         // return into that active row. Reviving the historical row would violate
         // the active-barcode uniqueness constraint and abort ticket cancellation.
-        if (delta < 0 && inventory.isDeleted()) {
+        if (delta.signum() < 0 && inventory.isDeleted()) {
             String barcode = inventory.getBarcode();
             Optional<Inventory> activeReplacement = barcode == null || barcode.isBlank()
                     ? Optional.empty()
@@ -747,9 +761,9 @@ public class ServiceTicketService {
                             barcode, companyId, inventory.getId());
             if (activeReplacement.isPresent()) {
                 Inventory replacement = activeReplacement.get();
-                int historicalQuantity = inventory.getQuantity() != null ? inventory.getQuantity() : 0;
-                int replacementQuantity = replacement.getQuantity() != null ? replacement.getQuantity() : 0;
-                replacement.setQuantity(replacementQuantity + historicalQuantity);
+                BigDecimal historicalQuantity = inventory.getQuantity() != null ? inventory.getQuantity() : BigDecimal.ZERO;
+                BigDecimal replacementQuantity = replacement.getQuantity() != null ? replacement.getQuantity() : BigDecimal.ZERO;
+                replacement.setQuantity(replacementQuantity.add(historicalQuantity));
                 inventory = replacement;
                 part.setInventory(replacement);
                 mergedIntoReplacement = true;
@@ -757,8 +771,8 @@ public class ServiceTicketService {
                 inventory.setDeleted(false);
             }
         }
-        int currentInventory = inventory.getQuantity() != null ? inventory.getQuantity() : 0;
-        if (delta > 0 && currentInventory < delta) {
+        BigDecimal currentInventory = inventory.getQuantity() != null ? inventory.getQuantity() : BigDecimal.ZERO;
+        if (delta.signum() > 0 && currentInventory.compareTo(delta) < 0) {
             throw new IllegalStateException("Yetersiz stok: " + inventory.getPartName());
         }
 
@@ -768,8 +782,8 @@ public class ServiceTicketService {
                     .findForUpdate(
                             part.getSourceVehicleId(), stockOrigin.getId(), companyId)
                     .orElseThrow(() -> new IllegalStateException("Aracın parça stok kaydı bulunamadı."));
-            int currentVehicleStock = vehicleStock.getQuantity() != null ? vehicleStock.getQuantity() : 0;
-            if (delta > 0 && currentVehicleStock < delta) {
+            BigDecimal currentVehicleStock = vehicleStock.getQuantity() != null ? vehicleStock.getQuantity() : BigDecimal.ZERO;
+            if (delta.signum() > 0 && currentVehicleStock.compareTo(delta) < 0) {
                 throw new IllegalStateException("Araçta yeterli parça stoğu yok.");
             }
             if (mergedIntoReplacement) {
@@ -777,23 +791,23 @@ public class ServiceTicketService {
                         part.getSourceVehicleId(), inventory.getId(), companyId);
                 if (replacementVehicleStock.isPresent()) {
                     VehicleStock targetVehicleStock = replacementVehicleStock.get();
-                    int targetQuantity = targetVehicleStock.getQuantity() != null
-                            ? targetVehicleStock.getQuantity() : 0;
-                    targetVehicleStock.setQuantity(targetQuantity + currentVehicleStock - delta);
+                    BigDecimal targetQuantity = targetVehicleStock.getQuantity() != null
+                            ? targetVehicleStock.getQuantity() : BigDecimal.ZERO;
+                    targetVehicleStock.setQuantity(targetQuantity.add(currentVehicleStock).subtract(delta));
                     vehicleStockRepository.save(targetVehicleStock);
                     vehicleStockRepository.delete(vehicleStock);
                 } else {
                     vehicleStock.setInventory(inventory);
-                    vehicleStock.setQuantity(currentVehicleStock - delta);
+                    vehicleStock.setQuantity(currentVehicleStock.subtract(delta));
                     vehicleStockRepository.save(vehicleStock);
                 }
             } else {
-                vehicleStock.setQuantity(currentVehicleStock - delta);
+                vehicleStock.setQuantity(currentVehicleStock.subtract(delta));
                 vehicleStockRepository.save(vehicleStock);
             }
         }
 
-        inventory.setQuantity(currentInventory - delta);
+        inventory.setQuantity(currentInventory.subtract(delta));
         inventoryRepository.save(inventory);
     }
 
@@ -813,7 +827,8 @@ public class ServiceTicketService {
                 part.getQuantityUsed(),
                 part.getSellingPriceSnapshot() != null ? part.getSellingPriceSnapshot() : BigDecimal.ZERO,
                 part.getSourceVehicleId(),
-                part.getClientRequestId());
+                part.getClientRequestId(),
+                part.getUnitOfMeasure().name());
     }
 
     public List<ServiceUsedPartDTO> getUsedParts(Long ticketId) {
@@ -886,8 +901,8 @@ public class ServiceTicketService {
                     BigDecimal unitPrice = part.getSellingPriceSnapshot() != null
                             ? part.getSellingPriceSnapshot()
                             : BigDecimal.ZERO;
-                    int quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : 0;
-                    return unitPrice.multiply(BigDecimal.valueOf(quantity));
+                    BigDecimal quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : BigDecimal.ZERO;
+                    return unitPrice.multiply(quantity);
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -1058,11 +1073,11 @@ public class ServiceTicketService {
                 .findByServiceTicketId(ticketId);
 
         for (com.pusula.backend.entity.ServiceUsedPart usedPart : usedParts) {
-            int quantity = usedPart.getQuantityUsed() != null ? usedPart.getQuantityUsed() : 0;
+            BigDecimal quantity = usedPart.getQuantityUsed() != null ? usedPart.getQuantityUsed() : BigDecimal.ZERO;
             String partName = partDisplayName(usedPart);
             Long inventoryId = usedPart.getInventory() != null
                     ? usedPart.getInventory().getId() : usedPart.getInventoryId();
-            adjustUsedPartStock(usedPart, -quantity, ticket.getCompanyId());
+            adjustUsedPartStock(usedPart, quantity.negate(), ticket.getCompanyId());
 
             // Log the return
             auditLogService.log(

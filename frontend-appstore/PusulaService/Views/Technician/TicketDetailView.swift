@@ -327,7 +327,7 @@ struct TicketDetailView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(part.partName)
                                 .font(.subheadline.weight(.medium))
-                            Text("\(formatCurrency(part.sellingPriceSnapshot)) × \(part.quantityUsed)")
+                            Text("\(formatCurrency(part.sellingPriceSnapshot)) × \(formatQuantity(part.quantityUsed)) \(unitLabel(part.unitOfMeasure))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -602,7 +602,7 @@ struct TicketDetailView: View {
     }
     
     @MainActor
-    private func addPart(from item: InventoryItemDTO, quantity: Int, unitPrice: Double) async {
+    private func addPart(from item: InventoryItemDTO, quantity: Double, unitPrice: Double) async {
         guard !isAddingPart else { return }
         isAddingPart = true
         errorMessage = nil
@@ -617,6 +617,7 @@ struct TicketDetailView: View {
             partName: item.partName,
             quantityUsed: quantity,
             sellingPriceSnapshot: unitPrice,
+            unitOfMeasure: item.unitCode,
             sourceVehicleId: nil,
             clientRequestId: requestId
         )
@@ -723,6 +724,20 @@ struct TicketDetailView: View {
         let encoded = address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? address
         if let url = URL(string: "http://maps.apple.com/?q=\(encoded)") {
             UIApplication.shared.open(url)
+        }
+    }
+
+    private func formatQuantity(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...3)).locale(Locale(identifier: "tr_TR")))
+    }
+
+    private func unitLabel(_ unit: String?) -> String {
+        switch unit ?? "ADET" {
+        case "KG": return "kg"
+        case "GRAM": return "gr"
+        case "METRE": return "m"
+        case "LITRE": return "lt"
+        default: return "adet"
         }
     }
 }

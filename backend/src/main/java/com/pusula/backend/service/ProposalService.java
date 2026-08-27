@@ -167,8 +167,8 @@ public class ProposalService {
                     .findByIdAndCompanyIdForUpdate(requirement.getKey(), proposal.getCompanyId())
                     .orElseThrow(() -> new RuntimeException("Teklifteki envanter ürünü artık bulunamıyor (ID: "
                             + requirement.getKey() + ")"));
-            int available = inventory.getQuantity() != null ? inventory.getQuantity() : 0;
-            if (available < requirement.getValue()) {
+            BigDecimal available = inventory.getQuantity() != null ? inventory.getQuantity() : BigDecimal.ZERO;
+            if (available.compareTo(BigDecimal.valueOf(requirement.getValue())) < 0) {
                 throw new RuntimeException(inventory.getPartName() + " için stok yetersiz. Gerekli: "
                         + requirement.getValue() + ", mevcut: " + available);
             }
@@ -196,7 +196,7 @@ public class ProposalService {
 
         for (Map.Entry<Long, Integer> requirement : requiredStock.entrySet()) {
             Inventory inventory = lockedInventory.get(requirement.getKey());
-            inventory.setQuantity(inventory.getQuantity() - requirement.getValue());
+            inventory.setQuantity(inventory.getQuantity().subtract(BigDecimal.valueOf(requirement.getValue())));
             inventoryRepository.save(inventory);
         }
 
@@ -209,7 +209,8 @@ public class ProposalService {
                     .companyId(proposal.getCompanyId())
                     .serviceTicket(savedTicket)
                     .inventory(inventory)
-                    .quantityUsed(item.getQuantity())
+                    .quantityUsed(BigDecimal.valueOf(item.getQuantity()))
+                    .unitOfMeasure(inventory.getUnitOfMeasure())
                     .sellingPriceSnapshot(item.getUnitPrice())
                     .buyingPriceSnapshot(item.getUnitCost())
                     .sourceVehicleId(null)

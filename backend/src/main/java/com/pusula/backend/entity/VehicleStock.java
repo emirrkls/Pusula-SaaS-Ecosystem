@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "vehicle_stocks", uniqueConstraints = {
@@ -31,6 +32,6 @@ public class VehicleStock {
     @JoinColumn(name = "inventory_id", nullable = false)
     private Inventory inventory;
 
-    @Column(nullable = false)
-    private Integer quantity;
+    @Column(nullable = false, precision = 14, scale = 3)
+    private BigDecimal quantity;
 }

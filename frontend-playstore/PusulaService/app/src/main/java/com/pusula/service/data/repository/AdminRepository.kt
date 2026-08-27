@@ -29,10 +29,11 @@ class AdminRepository @Inject constructor(
 
     suspend fun createInventoryItem(
         partName: String,
-        quantity: Int,
+        quantity: Double,
         buyPrice: Double?,
         sellPrice: Double?,
-        criticalLevel: Int?,
+        criticalLevel: Double?,
+        unitOfMeasure: String,
         brand: String?,
         category: String?,
         barcode: String?
@@ -44,6 +45,7 @@ class AdminRepository @Inject constructor(
             buyPrice = buyPrice,
             sellPrice = sellPrice,
             criticalLevel = criticalLevel,
+            unitOfMeasure = unitOfMeasure,
             brand = brand,
             category = category,
             barcode = barcode
@@ -53,10 +55,11 @@ class AdminRepository @Inject constructor(
     suspend fun updateInventoryItem(
         id: Long,
         partName: String,
-        quantity: Int,
+        quantity: Double,
         buyPrice: Double?,
         sellPrice: Double?,
-        criticalLevel: Int?,
+        criticalLevel: Double?,
+        unitOfMeasure: String,
         brand: String?,
         category: String?,
         barcode: String?
@@ -69,6 +72,7 @@ class AdminRepository @Inject constructor(
             buyPrice = buyPrice,
             sellPrice = sellPrice,
             criticalLevel = criticalLevel,
+            unitOfMeasure = unitOfMeasure,
             brand = brand,
             category = category,
             barcode = barcode

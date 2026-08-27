@@ -7,15 +7,16 @@ public class ServiceUsedPartDTO {
     private Long ticketId;
     private Long inventoryId;
     private String partName;
-    private Integer quantityUsed;
+    private BigDecimal quantityUsed;
     private BigDecimal sellingPriceSnapshot;
+    private String unitOfMeasure = "ADET";
     private Long sourceVehicleId; // NULL = main inventory, set = from vehicle
     private String clientRequestId;
 
     public ServiceUsedPartDTO() {
     }
 
-    public ServiceUsedPartDTO(Long id, Long ticketId, Long inventoryId, String partName, Integer quantityUsed,
+    public ServiceUsedPartDTO(Long id, Long ticketId, Long inventoryId, String partName, BigDecimal quantityUsed,
             BigDecimal sellingPriceSnapshot) {
         this.id = id;
         this.ticketId = ticketId;
@@ -25,16 +26,23 @@ public class ServiceUsedPartDTO {
         this.sellingPriceSnapshot = sellingPriceSnapshot;
     }
 
-    public ServiceUsedPartDTO(Long id, Long ticketId, Long inventoryId, String partName, Integer quantityUsed,
+    public ServiceUsedPartDTO(Long id, Long ticketId, Long inventoryId, String partName, BigDecimal quantityUsed,
             BigDecimal sellingPriceSnapshot, Long sourceVehicleId) {
         this(id, ticketId, inventoryId, partName, quantityUsed, sellingPriceSnapshot);
         this.sourceVehicleId = sourceVehicleId;
     }
 
-    public ServiceUsedPartDTO(Long id, Long ticketId, Long inventoryId, String partName, Integer quantityUsed,
-            BigDecimal sellingPriceSnapshot, Long sourceVehicleId, String clientRequestId) {
+    public ServiceUsedPartDTO(Long id, Long ticketId, Long inventoryId, String partName, BigDecimal quantityUsed,
+            BigDecimal sellingPriceSnapshot, Long sourceVehicleId, String clientRequestId, String unitOfMeasure) {
         this(id, ticketId, inventoryId, partName, quantityUsed, sellingPriceSnapshot, sourceVehicleId);
         this.clientRequestId = clientRequestId;
+        this.unitOfMeasure = unitOfMeasure;
+    }
+
+    public ServiceUsedPartDTO(Long id, Long ticketId, Long inventoryId, String partName, BigDecimal quantityUsed,
+            BigDecimal sellingPriceSnapshot, Long sourceVehicleId, String clientRequestId) {
+        this(id, ticketId, inventoryId, partName, quantityUsed, sellingPriceSnapshot, sourceVehicleId,
+                clientRequestId, "ADET");
     }
 
     public static ServiceUsedPartDTOBuilder builder() {
@@ -73,11 +81,11 @@ public class ServiceUsedPartDTO {
         this.partName = partName;
     }
 
-    public Integer getQuantityUsed() {
+    public BigDecimal getQuantityUsed() {
         return quantityUsed;
     }
 
-    public void setQuantityUsed(Integer quantityUsed) {
+    public void setQuantityUsed(BigDecimal quantityUsed) {
         this.quantityUsed = quantityUsed;
     }
 
@@ -97,6 +105,9 @@ public class ServiceUsedPartDTO {
         this.sourceVehicleId = sourceVehicleId;
     }
 
+    public String getUnitOfMeasure() { return unitOfMeasure; }
+    public void setUnitOfMeasure(String unitOfMeasure) { this.unitOfMeasure = unitOfMeasure; }
+
     public String getClientRequestId() {
         return clientRequestId;
     }
@@ -110,10 +121,11 @@ public class ServiceUsedPartDTO {
         private Long ticketId;
         private Long inventoryId;
         private String partName;
-        private Integer quantityUsed;
+        private BigDecimal quantityUsed;
         private BigDecimal sellingPriceSnapshot;
         private Long sourceVehicleId;
         private String clientRequestId;
+        private String unitOfMeasure = "ADET";
 
         ServiceUsedPartDTOBuilder() {
         }
@@ -138,9 +150,13 @@ public class ServiceUsedPartDTO {
             return this;
         }
 
-        public ServiceUsedPartDTOBuilder quantityUsed(Integer quantityUsed) {
+        public ServiceUsedPartDTOBuilder quantityUsed(BigDecimal quantityUsed) {
             this.quantityUsed = quantityUsed;
             return this;
+        }
+
+        public ServiceUsedPartDTOBuilder quantityUsed(Integer quantityUsed) {
+            return quantityUsed(quantityUsed == null ? null : BigDecimal.valueOf(quantityUsed));
         }
 
         public ServiceUsedPartDTOBuilder sellingPriceSnapshot(BigDecimal sellingPriceSnapshot) {
@@ -153,6 +169,11 @@ public class ServiceUsedPartDTO {
             return this;
         }
 
+        public ServiceUsedPartDTOBuilder unitOfMeasure(String unitOfMeasure) {
+            this.unitOfMeasure = unitOfMeasure;
+            return this;
+        }
+
         public ServiceUsedPartDTOBuilder clientRequestId(String clientRequestId) {
             this.clientRequestId = clientRequestId;
             return this;
@@ -160,7 +181,7 @@ public class ServiceUsedPartDTO {
 
         public ServiceUsedPartDTO build() {
             return new ServiceUsedPartDTO(id, ticketId, inventoryId, partName, quantityUsed, sellingPriceSnapshot,
-                    sourceVehicleId, clientRequestId);
+                    sourceVehicleId, clientRequestId, unitOfMeasure);
         }
     }
 }

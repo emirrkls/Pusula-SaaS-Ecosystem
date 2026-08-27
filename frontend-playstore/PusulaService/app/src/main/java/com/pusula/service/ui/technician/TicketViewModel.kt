@@ -286,7 +286,7 @@ class TicketViewModel @Inject constructor(
             .onFailure { _uiState.update { s -> s.copy(error = it.toUserMessage("Parçalar alınamadı")) } }
     }
 
-    fun addUsedPart(ticketId: Long, item: InventoryItemDTO, quantity: Int) = viewModelScope.launch {
+    fun addUsedPart(ticketId: Long, item: InventoryItemDTO, quantity: Double) = viewModelScope.launch {
         runCatching {
             repository.addUsedPart(
                 ticketId = ticketId,
@@ -295,6 +295,7 @@ class TicketViewModel @Inject constructor(
                     partName = item.partName,
                     quantityUsed = quantity,
                     sellingPriceSnapshot = item.sellPrice ?: 0.0,
+                    unitOfMeasure = item.unitOfMeasure,
                     clientRequestId = UUID.randomUUID().toString()
                 )
             )
