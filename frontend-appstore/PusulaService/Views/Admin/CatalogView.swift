@@ -310,7 +310,7 @@ private struct InventoryEditorSheet: View {
     private var canSave: Bool {
         let parsedQuantity = nonNegativeDecimal(quantity)
         let parsedCriticalLevel = optionalNonNegativeDecimal(criticalLevel)
-        !partName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        return !partName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         parsedQuantity != nil &&
         (unitOfMeasure != "ADET" || parsedQuantity?.rounded() == parsedQuantity) &&
         optionalNonNegativeDecimal(buyPrice).isValid &&
