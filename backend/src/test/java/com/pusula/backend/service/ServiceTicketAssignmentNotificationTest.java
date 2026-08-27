@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -142,6 +143,45 @@ class ServiceTicketAssignmentNotificationTest {
         assertThrows(IllegalArgumentException.class, () -> service.assignTechnician(100L, 8L));
         verify(ticketRepository, never()).save(any());
         verify(publisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void privateAssignmentNoteIsVisibleOnlyToAdminAndCurrentlyAssignedTechnician() {
+        ServiceTicket ticket = ticket(100L, 10L, 7L);
+        ticket.setTechnicianPrivateNote("Müşteriye önceden 2.500 TL fiyat verildi.");
+        User assignedTechnician = user(7L, 10L, "TECHNICIAN");
+        when(userRepository.findById(7L)).thenReturn(Optional.of(assignedTechnician));
+        when(ticketRepository.findByCompanyId(10L)).thenReturn(List.of(ticket));
+
+        assertEquals(ticket.getTechnicianPrivateNote(), service.getAllTickets().get(0).getTechnicianPrivateNote());
+
+        authenticate(7L, 10L, "TECHNICIAN");
+        assertEquals(ticket.getTechnicianPrivateNote(), service.getAllTickets().get(0).getTechnicianPrivateNote());
+
+        authenticate(8L, 10L, "TECHNICIAN");
+        assertNull(service.getAllTickets().get(0).getTechnicianPrivateNote());
+    }
+
+    @Test
+    void adminCanStorePrivateAssignmentNoteWhenCreatingTicket() {
+        User technician = user(7L, 10L, "TECHNICIAN");
+        Customer customer = Customer.builder().id(20L).companyId(10L).name("Müşteri").build();
+        when(userRepository.findByIdAndCompanyId(7L, 10L)).thenReturn(Optional.of(technician));
+        when(userRepository.findById(7L)).thenReturn(Optional.of(technician));
+        when(customerRepository.findByIdAndCompanyId(20L, 10L)).thenReturn(Optional.of(customer));
+        when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
+        when(ticketRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        ServiceTicketDTO request = new ServiceTicketDTO();
+        request.setCustomerId(20L);
+        request.setAssignedTechnicianId(7L);
+        request.setTechnicianPrivateNote("  Ön fiyat 2.500 TL  ");
+
+        ServiceTicketDTO result = service.createTicket(request);
+
+        assertEquals("Ön fiyat 2.500 TL", result.getTechnicianPrivateNote());
+        ArgumentCaptor<ServiceTicket> saved = ArgumentCaptor.forClass(ServiceTicket.class);
+        verify(ticketRepository).save(saved.capture());
+        assertEquals("Ön fiyat 2.500 TL", saved.getValue().getTechnicianPrivateNote());
     }
 
     @Test

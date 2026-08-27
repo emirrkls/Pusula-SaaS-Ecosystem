@@ -68,6 +68,10 @@ struct TicketDetailView: View {
                     infoCard(title: "İş Açıklaması", icon: "doc.text", content: desc)
                 }
 
+                if let privateNote = currentTicket.technicianPrivateNote, !privateNote.isEmpty {
+                    infoCard(title: "Teknisyene Özel Not", icon: "lock.fill", content: privateNote)
+                }
+
                 statusSection
 
                 if let operationMessage {

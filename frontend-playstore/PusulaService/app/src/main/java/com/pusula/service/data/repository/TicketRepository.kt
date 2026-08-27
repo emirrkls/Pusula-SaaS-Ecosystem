@@ -113,12 +113,14 @@ class TicketRepository @Inject constructor(
         customerId: Long,
         description: String,
         notes: String,
+        technicianPrivateNote: String,
         assignedTechnicianId: Long?
     ): FieldTicketDTO = apiService.createTicket(
         CreateTicketRequest(
             customerId = customerId,
             description = description,
             notes = notes.ifBlank { null },
+            technicianPrivateNote = technicianPrivateNote.ifBlank { null },
             assignedTechnicianId = assignedTechnicianId
         )
     )
@@ -141,6 +143,7 @@ class TicketRepository @Inject constructor(
         scheduledDate = dto.scheduledDate,
         description = dto.description,
         notes = dto.notes,
+        technicianPrivateNote = dto.technicianPrivateNote,
         collectedAmount = dto.collectedAmount,
         paymentMethod = dto.paymentMethod,
         isWarrantyCall = dto.isWarrantyCall,

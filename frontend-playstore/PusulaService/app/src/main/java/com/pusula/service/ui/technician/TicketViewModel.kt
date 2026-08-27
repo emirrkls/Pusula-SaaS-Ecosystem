@@ -136,6 +136,7 @@ class TicketViewModel @Inject constructor(
         customerId: Long,
         description: String,
         notes: String,
+        technicianPrivateNote: String,
         technicianId: Long?
     ) = viewModelScope.launch {
         _uiState.update { it.copy(creatingTicket = true, error = null) }
@@ -144,6 +145,7 @@ class TicketViewModel @Inject constructor(
                 customerId = customerId,
                 description = description,
                 notes = notes,
+                technicianPrivateNote = technicianPrivateNote,
                 assignedTechnicianId = technicianId
             )
         }

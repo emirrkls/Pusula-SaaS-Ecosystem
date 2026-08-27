@@ -53,6 +53,9 @@ public class TicketDialogController {
     @FXML
     private TextArea notesArea;
 
+    @FXML
+    private TextArea technicianPrivateNoteArea;
+
     private Runnable onSaveSuccess;
     private ObservableList<CustomerDTO> allCustomers;
     private ObservableList<CustomerDTO> filteredCustomers;
@@ -242,6 +245,7 @@ public class TicketDialogController {
         newTicket.setCustomerId(selectedCustomer.getId());
         newTicket.setDescription(description);
         newTicket.setNotes(notesArea.getText());
+        newTicket.setTechnicianPrivateNote(technicianPrivateNoteArea.getText());
         newTicket.setStatus("PENDING");
 
         if (datePicker.getValue() != null) {

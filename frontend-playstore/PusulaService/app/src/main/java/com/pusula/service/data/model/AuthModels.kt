@@ -80,6 +80,7 @@ data class ServiceTicketDTO(
     val customerId: Long? = null,
     val description: String? = null,
     val notes: String? = null,
+    val technicianPrivateNote: String? = null,
     val status: String? = null,
     val scheduledDate: String? = null,
     val customerName: String? = null,

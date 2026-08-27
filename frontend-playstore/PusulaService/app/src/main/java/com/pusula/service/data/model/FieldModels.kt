@@ -14,6 +14,7 @@ data class FieldTicketDTO(
     val scheduledDate: String? = null,
     val description: String? = null,
     val notes: String? = null,
+    val technicianPrivateNote: String? = null,
     val collectedAmount: Double? = null,
     val paymentMethod: String? = null,
     val isWarrantyCall: Boolean? = null,

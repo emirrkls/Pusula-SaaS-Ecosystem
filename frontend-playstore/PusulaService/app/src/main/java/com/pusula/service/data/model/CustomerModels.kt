@@ -12,6 +12,7 @@ data class CreateTicketRequest(
     val customerId: Long,
     val description: String,
     val notes: String? = null,
+    val technicianPrivateNote: String? = null,
     val status: String = "PENDING",
     val assignedTechnicianId: Long? = null
 )

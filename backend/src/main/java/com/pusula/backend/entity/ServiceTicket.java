@@ -39,6 +39,10 @@ public class ServiceTicket extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    /** Internal assignment instruction. Never included in customer-facing documents. */
+    @Column(name = "technician_private_note", columnDefinition = "TEXT")
+    private String technicianPrivateNote;
+
     @Column(name = "collected_amount")
     private BigDecimal collectedAmount;
 
@@ -176,6 +180,14 @@ public class ServiceTicket extends BaseEntity {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public String getTechnicianPrivateNote() {
+        return technicianPrivateNote;
+    }
+
+    public void setTechnicianPrivateNote(String technicianPrivateNote) {
+        this.technicianPrivateNote = technicianPrivateNote;
     }
 
     public BigDecimal getCollectedAmount() {

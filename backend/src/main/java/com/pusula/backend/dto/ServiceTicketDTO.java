@@ -16,6 +16,7 @@ public class ServiceTicketDTO {
     private LocalDateTime scheduledEndDate;
     private String description;
     private String notes;
+    private String technicianPrivateNote;
     private BigDecimal collectedAmount;
     private BigDecimal laborFee;
     private BigDecimal partsTotal;
@@ -126,6 +127,9 @@ public class ServiceTicketDTO {
     public void setNotes(String notes) {
         this.notes = notes;
     }
+
+    public String getTechnicianPrivateNote() { return technicianPrivateNote; }
+    public void setTechnicianPrivateNote(String technicianPrivateNote) { this.technicianPrivateNote = technicianPrivateNote; }
 
     public BigDecimal getCollectedAmount() {
         return collectedAmount;
@@ -238,6 +242,7 @@ public class ServiceTicketDTO {
         private LocalDateTime scheduledEndDate;
         private String description;
         private String notes;
+        private String technicianPrivateNote;
         private BigDecimal collectedAmount;
         private BigDecimal laborFee;
         private BigDecimal partsTotal;
@@ -293,6 +298,11 @@ public class ServiceTicketDTO {
 
         public ServiceTicketDTOBuilder notes(String notes) {
             this.notes = notes;
+            return this;
+        }
+
+        public ServiceTicketDTOBuilder technicianPrivateNote(String technicianPrivateNote) {
+            this.technicianPrivateNote = technicianPrivateNote;
             return this;
         }
 
@@ -363,6 +373,7 @@ public class ServiceTicketDTO {
             dto.setPartsTotal(partsTotal);
             dto.setInvoiceTotal(invoiceTotal);
             dto.setOutstandingAmount(outstandingAmount);
+            dto.setTechnicianPrivateNote(technicianPrivateNote);
             return dto;
         }
     }

@@ -53,6 +53,8 @@ public class TicketDetailsController {
     private TextArea txtDescription;
     @FXML
     private TextArea txtNotes;
+    @FXML private VBox technicianPrivateNoteBox;
+    @FXML private TextArea txtTechnicianPrivateNote;
     @FXML
     private ComboBox<UserDTO> comboTechnician;
     @FXML private DatePicker assignmentDatePicker;
@@ -430,6 +432,12 @@ public class TicketDetailsController {
                 : getStatusTranslation(currentTicket.getStatus()));
         txtDescription.setText(currentTicket.getDescription());
         txtNotes.setText(currentTicket.getNotes());
+        boolean hasPrivateNote = currentTicket.getTechnicianPrivateNote() != null
+                && !currentTicket.getTechnicianPrivateNote().isBlank();
+        boolean showPrivateNote = hasPrivateNote || com.pusula.desktop.util.SessionManager.isAdmin();
+        technicianPrivateNoteBox.setVisible(showPrivateNote);
+        technicianPrivateNoteBox.setManaged(showPrivateNote);
+        txtTechnicianPrivateNote.setText(hasPrivateNote ? currentTicket.getTechnicianPrivateNote() : "");
         if (currentTicket.getScheduledDate() != null) {
             assignmentDatePicker.setValue(currentTicket.getScheduledDate().toLocalDate());
             assignmentStartTime.setValue(currentTicket.getScheduledDate().toLocalTime()
@@ -461,6 +469,7 @@ public class TicketDetailsController {
 
         // Disable editing for closed tickets
         txtNotes.setEditable(!isClosed);
+        txtTechnicianPrivateNote.setEditable(com.pusula.desktop.util.SessionManager.isAdmin() && !isClosed);
         comboTechnician.setDisable(isClosed);
         assignmentDatePicker.setDisable(isClosed);
         assignmentStartTime.setDisable(isClosed);
@@ -984,6 +993,9 @@ public class TicketDetailsController {
             return;
         setButtonBusy(btnSaveNotes, true, "Kaydediliyor…", "Notları Kaydet");
         currentTicket.setNotes(txtNotes.getText());
+        if (com.pusula.desktop.util.SessionManager.isAdmin()) {
+            currentTicket.setTechnicianPrivateNote(txtTechnicianPrivateNote.getText());
+        }
 
         ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
         api.updateTicket(currentTicket.getId(), currentTicket).enqueue(new Callback<ServiceTicketDTO>() {

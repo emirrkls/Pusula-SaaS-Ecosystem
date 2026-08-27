@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Receipt
@@ -44,7 +45,7 @@ fun CreateTicketFromOperationDialog(
     onDismiss: () -> Unit,
     onRefreshCustomers: () -> Unit,
     onQuickCreateCustomer: (String, String, String, (CustomerDTO) -> Unit) -> Unit,
-    onCreateTicket: (Long, String, String, Long?) -> Unit
+    onCreateTicket: (Long, String, String, String, Long?) -> Unit
 ) {
     var customerInput by remember { mutableStateOf("") }
     var selectedCustomerId by remember { mutableStateOf<Long?>(null) }
@@ -53,6 +54,7 @@ fun CreateTicketFromOperationDialog(
 
     var description by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
+    var technicianPrivateNote by remember { mutableStateOf("") }
 
     var technicianExpanded by remember { mutableStateOf(false) }
     var selectedTechName by remember { mutableStateOf("Atamasız") }
@@ -174,6 +176,14 @@ fun CreateTicketFromOperationDialog(
                         }
                     }
                 }
+                OutlinedTextField(
+                    value = technicianPrivateNote,
+                    onValueChange = { technicianPrivateNote = it },
+                    label = { Text("Teknisyene özel not") },
+                    supportingText = { Text("Yalnızca yönetici ve atanan teknisyen görür; müşteri PDF'ine eklenmez.") },
+                    leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         },
         confirmButton = {
@@ -184,6 +194,7 @@ fun CreateTicketFromOperationDialog(
                         selectedCustomerId ?: return@TextButton,
                         description.trim(),
                         notes.trim(),
+                        technicianPrivateNote.trim(),
                         selectedTechId
                     )
                 }

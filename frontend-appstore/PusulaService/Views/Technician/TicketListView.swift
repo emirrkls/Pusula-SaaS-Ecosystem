@@ -442,6 +442,7 @@ struct CreateTicketSheet: View {
     @State private var showCreateCustomer = false
     @State private var description = ""
     @State private var notes = ""
+    @State private var technicianPrivateNote = ""
     @State private var selectedTechId: Int?
     @State private var scheduledDay: Date
     @State private var scheduledStart: Date
@@ -595,6 +596,11 @@ struct CreateTicketSheet: View {
                                 Text(tech.fullName ?? "Teknisyen").tag(Optional(tech.id))
                             }
                         }
+                        TextField("Teknisyene özel not", text: $technicianPrivateNote, axis: .vertical)
+                            .lineLimit(2...5)
+                        Label("Yalnızca yönetici ve atanan teknisyen görür. Müşteri PDF'ine eklenmez.", systemImage: "lock.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -650,6 +656,7 @@ struct CreateTicketSheet: View {
                 customerId: customerId,
                 description: description,
                 notes: notes.isEmpty ? nil : notes,
+                technicianPrivateNote: technicianPrivateNote.isEmpty ? nil : technicianPrivateNote,
                 assignedTechnicianId: selectedTechId,
                 scheduledDate: backendDateTime(start),
                 scheduledEndDate: backendDateTime(end)

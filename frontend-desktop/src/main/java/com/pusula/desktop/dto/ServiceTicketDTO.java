@@ -14,6 +14,7 @@ public class ServiceTicketDTO {
     private LocalDateTime scheduledEndDate;
     private String description;
     private String notes;
+    private String technicianPrivateNote;
     private BigDecimal collectedAmount;
     private BigDecimal laborFee;
     private BigDecimal partsTotal;
@@ -102,6 +103,9 @@ public class ServiceTicketDTO {
     public void setNotes(String notes) {
         this.notes = notes;
     }
+
+    public String getTechnicianPrivateNote() { return technicianPrivateNote; }
+    public void setTechnicianPrivateNote(String technicianPrivateNote) { this.technicianPrivateNote = technicianPrivateNote; }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;

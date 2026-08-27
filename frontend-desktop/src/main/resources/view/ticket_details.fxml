@@ -90,6 +90,13 @@
                                           <Label styleClass="muted-label" text="%ticket.notes" />
                                           <TextArea fx:id="txtNotes" prefHeight="70.0" wrapText="true" />
                                           <Button fx:id="btnSaveNotes" mnemonicParsing="false" onAction="#handleSaveNotes" styleClass="btn-secondary" text="%ticket.save.notes" />
+                                          <VBox fx:id="technicianPrivateNoteBox" managed="false" spacing="5.0" styleClass="ticket-details-panel" visible="false">
+                                             <children>
+                                                <Label styleClass="section-heading" text="🔒 Teknisyene Özel Not" />
+                                                <TextArea fx:id="txtTechnicianPrivateNote" editable="false" prefHeight="72.0" wrapText="true" />
+                                                <Label styleClass="muted-label" text="Müşteri formunda ve PDF'de gösterilmez." wrapText="true" />
+                                             </children>
+                                          </VBox>
                                        </children>
                                     </VBox>
                                     

@@ -178,6 +178,9 @@ public class ServiceTicketService {
                 .notes(dto.getNotes())
                 .build();
         ticket.setScheduledEndDate(dto.getScheduledEndDate());
+        if (isAdmin(user)) {
+            ticket.setTechnicianPrivateNote(normalizePrivateNote(dto.getTechnicianPrivateNote()));
+        }
 
         if (assignedTechnician == null && dto.getStatus() != null) {
             ticket.setStatus(dto.getStatus());
@@ -270,6 +273,15 @@ public class ServiceTicketService {
         }
         if (dto.getNotes() != null)
             ticket.setNotes(dto.getNotes());
+        if (dto.getTechnicianPrivateNote() != null) {
+            String requestedPrivateNote = normalizePrivateNote(dto.getTechnicianPrivateNote());
+            if (!isAdmin(user) && !Objects.equals(requestedPrivateNote, ticket.getTechnicianPrivateNote())) {
+                throw new AccessDeniedException("Teknisyene özel notu yalnızca işletme yöneticisi değiştirebilir.");
+            }
+            if (isAdmin(user)) {
+                ticket.setTechnicianPrivateNote(requestedPrivateNote);
+            }
+        }
 
         boolean scheduleChanged = !Objects.equals(oldScheduledDate, ticket.getScheduledDate())
                 || !Objects.equals(oldScheduledEndDate, ticket.getScheduledEndDate());
@@ -1183,6 +1195,9 @@ public class ServiceTicketService {
                 .scheduledEndDate(ticket.getScheduledEndDate())
                 .description(ticket.getDescription())
                 .notes(ticket.getNotes())
+                .technicianPrivateNote(canViewTechnicianPrivateNote(ticket)
+                        ? ticket.getTechnicianPrivateNote()
+                        : null)
                 .collectedAmount(ticket.getCollectedAmount())
                 .laborFee(ticket.getLaborFee())
                 .partsTotal(ticket.getPartsTotal())
@@ -1206,6 +1221,21 @@ public class ServiceTicketService {
         dto.setAssignedTechnicianName(assignedTechnicianName);
 
         return dto;
+    }
+
+    private boolean canViewTechnicianPrivateNote(ServiceTicket ticket) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof User user)) {
+            return false;
+        }
+        return isAdmin(user) || ("TECHNICIAN".equals(user.getRole())
+                && Objects.equals(ticket.getAssignedTechnicianId(), user.getId()));
+    }
+
+    private String normalizePrivateNote(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     /**

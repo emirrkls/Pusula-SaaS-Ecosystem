@@ -22,11 +22,13 @@ class OperationTicketUseCase @Inject constructor(
         customerId: Long,
         description: String,
         notes: String,
+        technicianPrivateNote: String,
         assignedTechnicianId: Long?
     ): FieldTicketDTO = ticketRepository.createTicketForCustomer(
         customerId = customerId,
         description = description,
         notes = notes,
+        technicianPrivateNote = technicianPrivateNote,
         assignedTechnicianId = assignedTechnicianId
     )
 }

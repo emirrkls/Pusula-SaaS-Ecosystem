@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.PhotoLibrary
@@ -219,6 +220,13 @@ fun TicketDetailScreen(
                                 label = "Notlar",
                                 value = ticket.notes.safeForComposeText().ifBlank { "-" }
                             )
+                            ticket.technicianPrivateNote?.takeIf { it.isNotBlank() }?.let { privateNote ->
+                                DetailRow(
+                                    icon = Icons.Outlined.Lock,
+                                    label = "Teknisyene Özel Not",
+                                    value = privateNote.safeForComposeText()
+                                )
+                            }
                             DetailRow(
                                 icon = Icons.Outlined.Build,
                                 label = "Garanti çağrısı",

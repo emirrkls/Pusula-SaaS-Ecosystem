@@ -319,8 +319,8 @@ fun TicketListScreen(
             onQuickCreateCustomer = { name, phone, address, onCreated ->
                 viewModel.createCustomerQuick(name, phone, address, onCreated)
             },
-            onCreateTicket = { customerId, description, notes, techId ->
-                viewModel.createServiceTicket(customerId, description, notes, techId)
+            onCreateTicket = { customerId, description, notes, privateNote, techId ->
+                viewModel.createServiceTicket(customerId, description, notes, privateNote, techId)
             }
         )
     }
