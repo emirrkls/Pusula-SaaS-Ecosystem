@@ -200,6 +200,14 @@ public class ServiceTicketService {
             publishAssignment(saved, assignedTechnician.getId());
         }
 
+        // Customer notification is non-blocking from the business flow: a Meta/API
+        // failure must never prevent the service ticket from being created.
+        try {
+            whatsAppNotificationService.notifyServiceCreated(saved.getId());
+        } catch (Exception e) {
+            log.warn("WhatsApp creation notification failed (non-blocking): {}", e.getMessage());
+        }
+
         return mapToDTO(saved);
     }
 

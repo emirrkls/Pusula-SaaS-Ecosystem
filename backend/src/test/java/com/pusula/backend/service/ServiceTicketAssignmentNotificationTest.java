@@ -112,6 +112,7 @@ class ServiceTicketAssignmentNotificationTest {
 
         assertEquals(ServiceTicket.TicketStatus.ASSIGNED, result.getStatus());
         verify(publisher).publishEvent(new TicketAssignedEvent(10L, 7L, 101L));
+        verify(whatsAppNotificationService).notifyServiceCreated(101L);
     }
 
     @Test
