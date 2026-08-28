@@ -2,6 +2,7 @@ package com.pusula.backend.service;
 
 import com.pusula.backend.annotation.RequiresFeature;
 import com.pusula.backend.entity.Customer;
+import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
@@ -113,9 +114,10 @@ public class WhatsAppNotificationService {
         Customer customer = findEligibleCustomer(ticket);
         if (customer == null) return;
 
-        String message = buildCompletionMessage(customer.getName(), ticketId, collectedAmount, remainingDebt);
+        String paymentStatus = buildPaymentStatus(ticket.getPaymentMethod(), collectedAmount, remainingDebt);
+        String message = buildCompletionMessage(customer.getName(), ticketId, paymentStatus);
         sendNotification(customer.getPhone(), serviceCompletedTemplate,
-                List.of(customer.getName(), String.valueOf(ticketId), money(collectedAmount), money(remainingDebt)),
+                List.of(customer.getName(), String.valueOf(ticketId), paymentStatus),
                 message);
     }
 
@@ -140,22 +142,38 @@ public class WhatsAppNotificationService {
                 .formatted(customerName, ticketId, scheduledAt, description);
     }
 
-    private String buildCompletionMessage(String customerName, Long ticketId,
-                                           BigDecimal collected, BigDecimal remainingDebt) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("✅ *Servis Tamamlandı*\n\n");
-        sb.append("Sayın ").append(customerName).append(",\n\n");
-        sb.append("📋 Fiş No: #").append(ticketId).append("\n");
-        sb.append("💰 Tahsil Edilen: ₺").append(String.format("%.2f", collected)).append("\n");
+    private String buildCompletionMessage(String customerName, Long ticketId, String paymentStatus) {
+        return "Merhaba %s, %d numaralı servis iş emriniz tamamlanmıştır. Ödeme durumu: %s. "
+                .formatted(customerName, ticketId, paymentStatus)
+                + "Bizi tercih ettiğiniz için teşekkür ederiz.";
+    }
 
-        if (remainingDebt != null && remainingDebt.compareTo(BigDecimal.ZERO) > 0) {
-            sb.append("⚠️ Kalan Borç (Cari): ₺").append(String.format("%.2f", remainingDebt)).append("\n");
+    String buildPaymentStatus(PaymentMethod paymentMethod, BigDecimal collectedAmount, BigDecimal remainingDebt) {
+        BigDecimal collected = collectedAmount == null ? BigDecimal.ZERO : collectedAmount;
+        BigDecimal debt = remainingDebt == null ? BigDecimal.ZERO : remainingDebt;
+        PaymentMethod method = paymentMethod == null ? PaymentMethod.CASH : paymentMethod;
+
+        if (method == PaymentMethod.WARRANTY) {
+            return "Garanti kapsamında; tahsilat alınmadı";
+        }
+        if (method == PaymentMethod.CURRENT_ACCOUNT) {
+            return debt.signum() > 0
+                    ? money(debt) + " TL cari hesaba aktarıldı; tahsilat alınmadı"
+                    : "Cari hesaba aktarıldı; tahsilat alınmadı";
         }
 
-        sb.append("\nHizmetimizi tercih ettiğiniz için teşekkür ederiz. 🙏\n");
-        sb.append("_Pusula Servis Yönetim Sistemi_");
-
-        return sb.toString();
+        String paymentLabel = method == PaymentMethod.CREDIT_CARD ? "kartla" : "nakit";
+        if (collected.signum() > 0 && debt.signum() > 0) {
+            return money(collected) + " TL " + paymentLabel + " tahsil edildi; "
+                    + money(debt) + " TL cari hesaba aktarıldı";
+        }
+        if (collected.signum() > 0) {
+            return money(collected) + " TL " + paymentLabel + " tahsil edildi";
+        }
+        if (debt.signum() > 0) {
+            return money(debt) + " TL cari hesaba aktarıldı; tahsilat alınmadı";
+        }
+        return "Ücretsiz işlem; tahsilat alınmadı";
     }
 
     private String buildCariMessage(String customerName, BigDecimal balance) {
@@ -337,7 +355,7 @@ public class WhatsAppNotificationService {
 
     private String money(BigDecimal amount) {
         BigDecimal safe = amount == null ? BigDecimal.ZERO : amount;
-        return String.format(Locale.forLanguageTag("tr-TR"), "%.2f", safe);
+        return String.format(Locale.forLanguageTag("tr-TR"), "%,.2f", safe);
     }
 
     private String summarize(String value, String fallback, int maxLength) {

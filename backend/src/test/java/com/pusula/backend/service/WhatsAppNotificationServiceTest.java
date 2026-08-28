@@ -1,6 +1,7 @@
 package com.pusula.backend.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
@@ -11,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -64,6 +66,22 @@ class WhatsAppNotificationServiceTest {
         assertTrue(payload.contains("\"code\":\"tr\""));
         assertTrue(payload.contains("Ayşe \\\"Test\\\""));
         new ObjectMapper().readTree(payload);
+    }
+
+    @Test
+    void buildsCustomerFriendlyCompletionPaymentStatuses() {
+        assertEquals("3.500,00 TL nakit tahsil edildi",
+                service.buildPaymentStatus(PaymentMethod.CASH, new BigDecimal("3500"), BigDecimal.ZERO));
+        assertEquals("300,00 TL kartla tahsil edildi; 200,00 TL cari hesaba aktarıldı",
+                service.buildPaymentStatus(PaymentMethod.CREDIT_CARD,
+                        new BigDecimal("300"), new BigDecimal("200")));
+        assertEquals("500,00 TL cari hesaba aktarıldı; tahsilat alınmadı",
+                service.buildPaymentStatus(PaymentMethod.CURRENT_ACCOUNT,
+                        BigDecimal.ZERO, new BigDecimal("500")));
+        assertEquals("Garanti kapsamında; tahsilat alınmadı",
+                service.buildPaymentStatus(PaymentMethod.WARRANTY, BigDecimal.ZERO, BigDecimal.ZERO));
+        assertEquals("Ücretsiz işlem; tahsilat alınmadı",
+                service.buildPaymentStatus(PaymentMethod.CASH, BigDecimal.ZERO, BigDecimal.ZERO));
     }
 
     @Test
