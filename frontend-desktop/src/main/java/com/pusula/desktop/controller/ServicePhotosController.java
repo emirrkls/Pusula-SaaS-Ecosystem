@@ -119,7 +119,15 @@ public class ServicePhotosController {
         ThemeHelper.applyToDialog(dialog, photoTable.getScene().getWindow());
         dialog.setTitle(photo.getCustomerName() + " · Fiş #" + photo.getTicketId());
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        ImageView imageView = new ImageView(new Image(photo.getUrl(), true));
+        String absoluteUrl = resolvePhotoUrl(photo.getUrl());
+        Image image = new Image(absoluteUrl, true);
+        image.errorProperty().addListener((observable, wasError, hasError) -> {
+            if (hasError) {
+                Platform.runLater(() -> showError("Görsel açılamadı: " +
+                        (image.getException() != null ? image.getException().getMessage() : absoluteUrl)));
+            }
+        });
+        ImageView imageView = new ImageView(image);
         imageView.setPreserveRatio(true);
         imageView.setFitWidth(1050);
         imageView.setFitHeight(720);
@@ -153,7 +161,7 @@ public class ServicePhotosController {
         File destination = chooser.showSaveDialog(photoTable.getScene().getWindow());
         if (destination == null) return;
         Thread thread = new Thread(() -> {
-            try (InputStream input = URI.create(photo.getUrl()).toURL().openStream()) {
+            try (InputStream input = URI.create(resolvePhotoUrl(photo.getUrl())).toURL().openStream()) {
                 Files.copy(input, destination.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.INFORMATION,
                         photoTable.getScene().getWindow(), "Tamamlandı", "Görsel kaydedildi."));
@@ -161,6 +169,17 @@ public class ServicePhotosController {
         }, "service-photo-download");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    static String resolvePhotoUrl(String rawUrl) {
+        if (rawUrl == null || rawUrl.isBlank()) {
+            throw new IllegalArgumentException("Görsel URL'si boş.");
+        }
+        URI value = URI.create(rawUrl.trim());
+        if (value.isAbsolute()) {
+            return value.toString();
+        }
+        return URI.create(RetrofitClient.BASE_URL).resolve(value).toString();
     }
 
     private void showError(String message) {

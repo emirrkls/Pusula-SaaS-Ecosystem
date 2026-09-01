@@ -148,23 +148,24 @@ struct ServicePhotoViewer: View {
     @Environment(\.dismiss) private var dismiss
     @State private var zoom: CGFloat = 1
     @State private var zoomAtGestureStart: CGFloat = 1
+    @State private var zoomAnchor: UnitPoint = .center
+    @State private var imageOffset: CGSize = .zero
+    @State private var offsetAtGestureStart: CGSize = .zero
     var body: some View {
         NavigationStack {
-            ZStack {
-                Color.black.ignoresSafeArea()
-                AsyncImage(url: photo.fullURL) { phase in
-                    if case .success(let image) = phase {
-                        image.resizable().scaledToFit()
-                            .scaleEffect(zoom)
-                            .gesture(
-                                MagnificationGesture()
-                                    .onChanged { value in zoom = min(max(zoomAtGestureStart * value, 1), 6) }
-                                    .onEnded { _ in zoomAtGestureStart = zoom }
-                            )
-                            .onTapGesture(count: 2) {
-                                withAnimation { zoom = zoom > 1 ? 1 : 2.5; zoomAtGestureStart = zoom }
-                            }
-                    } else { ProgressView().tint(.white) }
+            GeometryReader { proxy in
+                ZStack {
+                    Color.black.ignoresSafeArea()
+                    AsyncImage(url: photo.fullURL) { phase in
+                        if case .success(let image) = phase {
+                            image.resizable().scaledToFit()
+                                .scaleEffect(zoom, anchor: zoomAnchor)
+                                .offset(imageOffset)
+                                .gesture(magnifyGesture)
+                                .simultaneousGesture(dragGesture)
+                                .simultaneousGesture(doubleTapGesture(in: proxy.size))
+                        } else { ProgressView().tint(.white) }
+                    }
                 }
             }
             .navigationTitle(photo.typeLabel).navigationBarTitleDisplayMode(.inline)
@@ -175,9 +176,64 @@ struct ServicePhotoViewer: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                if zoom == 1 { Text("Yakınlaştırmak için çift dokunun veya iki parmak kullanın")
+                if zoom == 1 { Text("İncelemek istediğiniz noktaya çift dokunun veya iki parmakla yakınlaştırın")
                     .font(.caption).foregroundStyle(.white.opacity(0.75)).padding(.bottom, 18) }
             }
         }
+    }
+
+    private var magnifyGesture: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
+                zoomAnchor = value.startAnchor
+                zoom = min(max(zoomAtGestureStart * value.magnification, 1), 6)
+                if zoom <= 1 {
+                    imageOffset = .zero
+                    offsetAtGestureStart = .zero
+                }
+            }
+            .onEnded { _ in
+                zoomAtGestureStart = zoom
+                if zoom <= 1 { resetView() }
+            }
+    }
+
+    private var dragGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                guard zoom > 1 else { return }
+                imageOffset = CGSize(
+                    width: offsetAtGestureStart.width + value.translation.width,
+                    height: offsetAtGestureStart.height + value.translation.height
+                )
+            }
+            .onEnded { _ in
+                offsetAtGestureStart = imageOffset
+            }
+    }
+
+    private func doubleTapGesture(in size: CGSize) -> some Gesture {
+        SpatialTapGesture(count: 2).onEnded { value in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                if zoom > 1 {
+                    resetView()
+                } else {
+                    zoomAnchor = UnitPoint(
+                        x: min(max(value.location.x / max(size.width, 1), 0), 1),
+                        y: min(max(value.location.y / max(size.height, 1), 0), 1)
+                    )
+                    zoom = 2.5
+                    zoomAtGestureStart = zoom
+                }
+            }
+        }
+    }
+
+    private func resetView() {
+        zoom = 1
+        zoomAtGestureStart = 1
+        zoomAnchor = .center
+        imageOffset = .zero
+        offsetAtGestureStart = .zero
     }
 }

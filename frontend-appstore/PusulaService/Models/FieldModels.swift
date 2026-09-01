@@ -145,8 +145,8 @@ struct ServicePhotoDTO: Codable, Identifiable {
     }
     
     var fullURL: URL? {
-        if url.hasPrefix("http") { return URL(string: url) }
-        return URL(string: "https://api.pusulaiklimlendirme.com" + url)
+        guard let baseURL = URL(string: "https://api.pusulaiklimlendirme.com/") else { return nil }
+        return URL(string: url, relativeTo: baseURL)?.absoluteURL
     }
 }
 
