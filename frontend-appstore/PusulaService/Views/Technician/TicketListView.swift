@@ -23,10 +23,10 @@ struct TicketListView: View {
     }
     
     private var filteredTickets: [FieldTicketDTO] {
-        tickets.filter {
+        TicketFilters.sorted(tickets.filter {
             TicketFilters.matches($0, filter: selectedFilter, isAdmin: isAdmin) &&
             TicketFilters.matchesSearch($0, query: searchText)
-        }
+        }, filter: selectedFilter)
     }
     
     private var pendingUnassigned: [FieldTicketDTO] {

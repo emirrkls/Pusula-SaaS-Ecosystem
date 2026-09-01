@@ -12,6 +12,7 @@ struct ServicePhotoView: View {
     @State private var note = ""
     @State private var selectedLibraryItem: PhotosPickerItem?
     @State private var showSourcePicker = false
+    @State private var showPhotoLibrary = false
     @State private var showCamera = false
     @State private var selectedPhoto: ServicePhotoDTO?
     @State private var errorMessage: String?
@@ -55,9 +56,10 @@ struct ServicePhotoView: View {
         .task { await loadPhotos() }
         .confirmationDialog("Görsel kaynağı", isPresented: $showSourcePicker) {
             Button("Kamera ile Çek") { showCamera = true }
-            PhotosPicker(selection: $selectedLibraryItem, matching: .images) { Text("Galeriden Seç") }
+            Button("Galeriden Seç") { showPhotoLibrary = true }
             Button("Vazgeç", role: .cancel) {}
         }
+        .photosPicker(isPresented: $showPhotoLibrary, selection: $selectedLibraryItem, matching: .images)
         .onChange(of: selectedLibraryItem) { _, item in
             guard let item else { return }
             Task { await upload(item: item) }

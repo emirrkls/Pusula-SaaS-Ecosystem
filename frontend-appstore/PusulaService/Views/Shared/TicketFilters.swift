@@ -79,6 +79,28 @@ enum TicketFilters {
         }
     }
 
+    static func sorted(_ tickets: [FieldTicketDTO], filter: String) -> [FieldTicketDTO] {
+        let ascending = filter == "Bugünün Çağrıları" || filter == "İleri Tarihli"
+        return tickets.sorted { left, right in
+            let leftDate = sortDate(left)
+            let rightDate = sortDate(right)
+            switch (leftDate, rightDate) {
+            case let (lhs?, rhs?) where lhs != rhs:
+                return ascending ? lhs < rhs : lhs > rhs
+            case (_?, nil):
+                return true
+            case (nil, _?):
+                return false
+            default:
+                return left.id > right.id
+            }
+        }
+    }
+
+    private static func sortDate(_ ticket: FieldTicketDTO) -> Date? {
+        parseBusinessDate(ticket.scheduledDate) ?? parseBusinessDate(ticket.createdAt)
+    }
+
     static func parseBusinessDate(_ raw: String?) -> Date? {
         guard let raw, !raw.isEmpty else { return nil }
         let formatter = DateFormatter()

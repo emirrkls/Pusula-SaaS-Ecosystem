@@ -89,8 +89,8 @@ android {
         applicationId = "com.pusula.service"
         minSdk = 26
         targetSdk = 35
-        versionCode = 27
-        versionName = "1.3.3"
+        versionCode = 28
+        versionName = "1.3.4"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
         manifestPlaceholders["googleMapsApiKey"] = googleMapsApiKey
 

@@ -66,7 +66,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
 private val adminFilters = listOf("Atama Bekleyen", "Bugün Açılan", "Atanan", "Devam Eden", "Kapanan", "Tümü")
-private val technicianFilters = listOf("Atanan", "Kapanan", "Tümü")
+private val technicianFilters = listOf("Bugünün Çağrıları", "İleri Tarihli", "Kapanan", "İptal Edilen")
 private val businessZoneId: ZoneId = ZoneId.of("Europe/Istanbul")
 private val localDateTimeParsers = listOf(
     DateTimeFormatter.ISO_LOCAL_DATE_TIME,
@@ -110,9 +110,50 @@ private fun ticketMatchesFilter(ticket: FieldTicketDTO, filter: String, isAdmin:
         } else {
             s == "ASSIGNED" || s == "IN_PROGRESS"
         }
+        "Bugünün Çağrıları" -> {
+            if (s != "ASSIGNED" && s != "IN_PROGRESS") false
+            else ticket.scheduledDate?.let { !ticketDateAfterToday(it) } ?: true
+        }
+        "İleri Tarihli" -> {
+            (s == "ASSIGNED" || s == "IN_PROGRESS") &&
+                ticket.scheduledDate?.let(::ticketDateAfterToday) == true
+        }
         "Devam Eden" -> s == "IN_PROGRESS"
-        "Kapanan" -> s == "COMPLETED" || s == "CANCELLED"
+        "Kapanan" -> s == "COMPLETED"
+        "İptal Edilen" -> s == "CANCELLED"
         else -> s.equals(filter, ignoreCase = true)
+    }
+}
+
+private fun ticketDateAfterToday(raw: String): Boolean {
+    val date = parseTicketDate(raw) ?: return false
+    return date.toLocalDate().isAfter(LocalDate.now(businessZoneId))
+}
+
+private fun parseTicketDate(raw: String?): ZonedDateTime? {
+    if (raw.isNullOrBlank()) return null
+    runCatching { OffsetDateTime.parse(raw).atZoneSameInstant(businessZoneId) }.getOrNull()?.let { return it }
+    runCatching { ZonedDateTime.parse(raw).withZoneSameInstant(businessZoneId) }.getOrNull()?.let { return it }
+    for (formatter in localDateTimeParsers) {
+        runCatching {
+            java.time.LocalDateTime.parse(raw, formatter).atZone(businessZoneId)
+        }.getOrNull()?.let { return it }
+    }
+    return null
+}
+
+internal fun sortTicketsForCategory(tickets: List<FieldTicketDTO>, filter: String): List<FieldTicketDTO> {
+    val ascending = filter == "Bugünün Çağrıları" || filter == "İleri Tarihli"
+    return tickets.sortedWith { left, right ->
+        val leftDate = parseTicketDate(left.scheduledDate ?: left.createdAt)?.toInstant()?.toEpochMilli()
+        val rightDate = parseTicketDate(right.scheduledDate ?: right.createdAt)?.toInstant()?.toEpochMilli()
+        when {
+            leftDate != null && rightDate != null && leftDate != rightDate ->
+                if (ascending) leftDate.compareTo(rightDate) else rightDate.compareTo(leftDate)
+            leftDate != null && rightDate == null -> -1
+            leftDate == null && rightDate != null -> 1
+            else -> right.id.compareTo(left.id)
+        }
     }
 }
 
@@ -166,7 +207,7 @@ fun TicketListScreen(
     val uiState by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
     val availableFilters = if (session.isAdmin) adminFilters else technicianFilters
-    val defaultFilter = if (session.isAdmin) "Atama Bekleyen" else "Atanan"
+    val defaultFilter = if (session.isAdmin) "Atama Bekleyen" else "Bugünün Çağrıları"
     var selectedFilter by remember(session.isAdmin) { mutableStateOf(defaultFilter) }
     var searchQuery by remember { mutableStateOf("") }
     var showCreateTicketDialog by remember { mutableStateOf(false) }
@@ -220,10 +261,10 @@ fun TicketListScreen(
                 }
             }
             else -> {
-                val filtered = uiState.tickets.filter {
+                val filtered = sortTicketsForCategory(uiState.tickets.filter {
                     ticketMatchesFilter(it, selectedFilter, session.isAdmin) &&
                         ticketMatchesSearch(it, searchQuery)
-                }
+                }, selectedFilter)
                 val pendingUnassigned = pendingUnassignedTickets(uiState.tickets)
                 val activeCount = uiState.tickets.count { (it.status?.uppercase() ?: "") == "IN_PROGRESS" }
 

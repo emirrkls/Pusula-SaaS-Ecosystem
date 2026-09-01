@@ -116,7 +116,7 @@ fun ServicePhotoScreen(
         }
     }
 
-    val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             createMultipartFromUri(context, uri, sourceFile = null, partName = "file")?.let { part ->
                 viewModel.uploadServicePhoto(ticketId, pendingType, pendingNote, part)
@@ -141,7 +141,9 @@ fun ServicePhotoScreen(
             },
             onGallery = {
                 showSourcePicker = false
-                galleryPicker.launch("image/*")
+                galleryPicker.launch(
+                    androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
             }
         )
     }

@@ -27,4 +27,13 @@ class TicketSearchTest {
         assertTrue(ticketMatchesSearch(ticket, "  "))
         assertFalse(ticketMatchesSearch(ticket, "gaz şarjı"))
     }
+
+    @Test
+    fun sortsPastCategoriesNewestFirstAndUpcomingCallsSoonestFirst() {
+        val older = FieldTicketDTO(id = 1, scheduledDate = "2025-05-26T10:00:00")
+        val newer = FieldTicketDTO(id = 2, scheduledDate = "2025-06-03T14:00:00")
+
+        assertTrue(sortTicketsForCategory(listOf(older, newer), "Kapanan").map { it.id } == listOf(2L, 1L))
+        assertTrue(sortTicketsForCategory(listOf(newer, older), "İleri Tarihli").map { it.id } == listOf(1L, 2L))
+    }
 }
