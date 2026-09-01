@@ -125,10 +125,23 @@ struct ServicePhotoDTO: Codable, Identifiable {
     let ticketId: Int
     let url: String
     let type: String
+    let note: String?
+    let uploadedByName: String?
     let uploadedAt: String?
+    let serviceDate: String?
+    let customerName: String?
+    let ticketDescription: String?
+
+    static let supportedTypes: [(String, String)] = [
+        ("BEFORE", "İşlem Öncesi"), ("AFTER", "İşlem Sonrası"),
+        ("INDOOR_UNIT_SERIAL", "İç Ünite Seri No"),
+        ("OUTDOOR_UNIT_SERIAL", "Dış Ünite Seri No"),
+        ("DEVICE_LABEL", "Cihaz Etiketi"), ("FAULT_DETAIL", "Arıza Detayı"),
+        ("INSTALLATION", "Montaj / Tesisat"), ("OTHER", "Diğer")
+    ]
     
     var typeLabel: String {
-        type == "BEFORE" ? "Öncesi" : "Sonrası"
+        Self.supportedTypes.first(where: { $0.0 == type })?.1 ?? "Diğer"
     }
     
     var fullURL: URL? {

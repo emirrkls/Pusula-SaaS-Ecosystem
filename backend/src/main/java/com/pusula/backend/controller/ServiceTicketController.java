@@ -197,8 +197,9 @@ public class ServiceTicketController {
     public ResponseEntity<ServicePhotoDTO> uploadServicePhoto(
             @PathVariable Long id,
             @RequestParam("type") ServicePhoto.PhotoType type,
+            @RequestParam(value = "note", required = false) String note,
             @RequestParam("file") MultipartFile file) {
-        return ResponseEntity.ok(service.uploadServicePhoto(id, type, file));
+        return ResponseEntity.ok(service.uploadServicePhoto(id, type, note, file));
     }
 
     @GetMapping("/{id}/photos")
@@ -213,8 +214,9 @@ public class ServiceTicketController {
             @RequestParam(value = "ticketId", required = false) Long ticketId,
             @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "query", required = false) String query,
             @RequestParam(value = "limit", required = false) Integer limit) {
-        return ResponseEntity.ok(service.getCompanyServicePhotos(type, ticketId, startDate, endDate, limit));
+        return ResponseEntity.ok(service.getCompanyServicePhotos(type, ticketId, startDate, endDate, query, limit));
     }
 
     @DeleteMapping("/{ticketId}/photos/{photoId}")

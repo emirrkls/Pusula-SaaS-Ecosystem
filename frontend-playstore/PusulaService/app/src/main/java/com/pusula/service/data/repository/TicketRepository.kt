@@ -67,10 +67,12 @@ class TicketRepository @Inject constructor(
     suspend fun uploadServicePhoto(
         ticketId: Long,
         type: String,
+        note: String,
         filePart: MultipartBody.Part
     ): ServicePhotoDTO = apiService.uploadServicePhoto(
         ticketId = ticketId,
         type = type.toRequestBody("text/plain".toMediaType()),
+        note = note.toRequestBody("text/plain".toMediaType()),
         file = filePart
     )
 
@@ -81,12 +83,14 @@ class TicketRepository @Inject constructor(
         ticketId: Long? = null,
         startDate: String? = null,
         endDate: String? = null,
+        query: String? = null,
         limit: Int? = null
     ): List<ServicePhotoDTO> = apiService.getCompanyServicePhotos(
         type = type,
         ticketId = ticketId,
         startDate = startDate,
         endDate = endDate,
+        query = query,
         limit = limit
     )
 

@@ -118,13 +118,13 @@ enum TicketService {
         try await NetworkManager.shared.get("/api/tickets/\(ticketId)/photos")
     }
     
-    static func uploadServicePhoto(ticketId: Int, type: String, imageData: Data) async throws -> ServicePhotoDTO {
+    static func uploadServicePhoto(ticketId: Int, type: String, note: String, imageData: Data) async throws -> ServicePhotoDTO {
         try await NetworkManager.shared.uploadMultipart(
             path: "/api/tickets/\(ticketId)/photos",
             fileData: imageData,
             fileName: "photo.jpg",
             mimeType: "image/jpeg",
-            textFields: ["type": type]
+            textFields: ["type": type, "note": note]
         )
     }
     
@@ -137,6 +137,7 @@ enum TicketService {
         ticketId: Int? = nil,
         startDate: String? = nil,
         endDate: String? = nil,
+        searchText: String? = nil,
         limit: Int? = 200
     ) async throws -> [ServicePhotoDTO] {
         var query: [String] = []
@@ -144,6 +145,11 @@ enum TicketService {
         if let ticketId { query.append("ticketId=\(ticketId)") }
         if let startDate { query.append("startDate=\(startDate)") }
         if let endDate { query.append("endDate=\(endDate)") }
+        if let searchText, !searchText.isEmpty {
+            let safeQueryCharacters = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=?+#"))
+            let encoded = searchText.addingPercentEncoding(withAllowedCharacters: safeQueryCharacters) ?? searchText
+            query.append("query=\(encoded)")
+        }
         if let limit { query.append("limit=\(limit)") }
         let suffix = query.isEmpty ? "" : "?" + query.joined(separator: "&")
         return try await NetworkManager.shared.get("/api/tickets/photos\(suffix)")

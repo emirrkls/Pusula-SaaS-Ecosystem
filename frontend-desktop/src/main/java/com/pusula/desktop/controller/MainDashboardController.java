@@ -30,6 +30,7 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignA;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignH;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignI;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignV;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignW;
@@ -59,6 +60,8 @@ public class MainDashboardController {
     private Button navDashboard;
     @FXML
     private Button navTickets;
+    @FXML
+    private Button navServicePhotos;
     @FXML
     private Button navInventory;
     @FXML
@@ -100,6 +103,7 @@ public class MainDashboardController {
             hideButton(btnFinance);
             hideButton(btnSettings);
             hideButton(btnActivityLog);
+            hideButton(navServicePhotos);
         }
 
         applyPlanFeatures();
@@ -156,6 +160,7 @@ public class MainDashboardController {
     private void setupNavigationIcons() {
         setNavIcon(navDashboard, MaterialDesignV.VIEW_DASHBOARD);
         setNavIcon(navTickets, MaterialDesignC.CLIPBOARD_TEXT);
+        setNavIcon(navServicePhotos, MaterialDesignI.IMAGE_MULTIPLE);
         setNavIcon(navInventory, MaterialDesignP.PACKAGE_VARIANT);
         setNavIcon(navCustomers, MaterialDesignA.ACCOUNT_MULTIPLE);
         setNavIcon(btnCommercial, MaterialDesignA.AIR_CONDITIONER);
@@ -320,6 +325,18 @@ public class MainDashboardController {
             loadContent(view, bundle().getString("tickets.title"), "Servis fişlerini yönetin", navTickets);
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    @FXML
+    public void showServicePhotos() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/service_photos.fxml"), bundle());
+            Parent view = loader.load();
+            loadContent(view, "Servis Görselleri", "Müşteri ve iş emrine göre servis görselleri", navServicePhotos);
+        } catch (Exception e) {
+            AlertHelper.showAlert(Alert.AlertType.ERROR, contentArea.getScene().getWindow(),
+                    "Hata", "Servis görselleri yüklenemedi: " + e.getMessage());
         }
     }
 

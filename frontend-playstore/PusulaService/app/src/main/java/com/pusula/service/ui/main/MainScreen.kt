@@ -180,7 +180,7 @@ fun MainScreen(
         MainTab("Müşteriler", Icons.Default.Group),
         MainTab("Teklifler", Icons.Default.RequestQuote),
         MainTab("Stok", Icons.Default.Inventory2, featureKey = "BASIC_INVENTORY"),
-        MainTab("Servis Kalite", Icons.Default.PhotoLibrary)
+        MainTab("Servis Görselleri", Icons.Default.PhotoLibrary)
     ).filter { tab ->
         tab.featureKey == null || (session.features[tab.featureKey] ?: false)
     }
@@ -500,7 +500,7 @@ fun MainScreen(
                                     if (tab.title in secondaryModuleTabs) {
                                         lastMainTab = selectedTab
                                     }
-                                    if (tab.title == "Servis Kalite" && session.isAdmin) {
+                                    if (tab.title == "Servis Görselleri" && session.isAdmin) {
                                         onNavigateServiceQuality()
                                     } else {
                                         selectedTab = tab.title

@@ -295,6 +295,7 @@ class AdminViewModel @Inject constructor(
         ticketId: Long? = null,
         startDate: String? = null,
         endDate: String? = null,
+        query: String? = null,
         limit: Int? = null
     ) = viewModelScope.launch {
         _uiState.update {
@@ -311,6 +312,7 @@ class AdminViewModel @Inject constructor(
                 ticketId = ticketId,
                 startDate = startDate,
                 endDate = endDate,
+                query = query,
                 limit = limit
             )
         }
@@ -319,7 +321,7 @@ class AdminViewModel @Inject constructor(
             }
             .onFailure { throwable ->
                 _uiState.update {
-                    it.copy(error = throwable.toUserMessage("Servis kalite görselleri yüklenemedi"))
+                    it.copy(error = throwable.toUserMessage("Servis görselleri yüklenemedi"))
                 }
             }
     }

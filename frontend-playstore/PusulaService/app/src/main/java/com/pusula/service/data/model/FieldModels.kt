@@ -68,7 +68,12 @@ data class ServicePhotoDTO(
     val ticketId: Long,
     val url: String,
     val type: String,
-    val uploadedAt: String? = null
+    val note: String? = null,
+    val uploadedByName: String? = null,
+    val uploadedAt: String? = null,
+    val serviceDate: String? = null,
+    val customerName: String? = null,
+    val ticketDescription: String? = null
 )
 
 data class AuditLogDTO(

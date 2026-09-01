@@ -88,7 +88,7 @@ struct TicketDetailView: View {
                 if isEditable {
                     quickActionsGrid
                     primaryActions
-                } else if currentTicket.statusEnum == .completed {
+                } else {
                     secondaryActions
                 }
             }
@@ -483,6 +483,14 @@ struct TicketDetailView: View {
     
     private var secondaryActions: some View {
         VStack(spacing: 10) {
+            Button { showPhotos = true } label: {
+                Label("Servis Görselleri", systemImage: "photo.on.rectangle.angled")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            }
+            .buttonStyle(.bordered)
+            .readOnlyProtected()
+
             Button(action: { Task { await generatePDF() } }) {
                 Label(isGeneratingPDF ? "PDF Hazırlanıyor..." : "Servis Formu PDF", systemImage: "doc.richtext")
                     .frame(maxWidth: .infinity)
@@ -492,7 +500,7 @@ struct TicketDetailView: View {
             .tint(.orange)
             .disabled(isGeneratingPDF)
 
-            if isAdmin {
+            if isAdmin && currentTicket.statusEnum == .completed {
                 Button { showFollowUpConfirmation = true } label: {
                     Label("Takip / Garanti Kaydı", systemImage: "arrow.clockwise.circle")
                         .frame(maxWidth: .infinity)

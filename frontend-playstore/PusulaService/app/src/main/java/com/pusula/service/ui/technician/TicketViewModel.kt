@@ -385,9 +385,9 @@ class TicketViewModel @Inject constructor(
         }
     }
 
-    fun uploadServicePhoto(ticketId: Long, type: String, filePart: MultipartBody.Part) = viewModelScope.launch {
+    fun uploadServicePhoto(ticketId: Long, type: String, note: String, filePart: MultipartBody.Part) = viewModelScope.launch {
         _uiState.update { it.copy(photoUploading = true, error = null) }
-        runCatching { repository.uploadServicePhoto(ticketId, type, filePart) }
+        runCatching { repository.uploadServicePhoto(ticketId, type, note, filePart) }
             .onSuccess { created ->
                 _uiState.update { state ->
                     state.copy(

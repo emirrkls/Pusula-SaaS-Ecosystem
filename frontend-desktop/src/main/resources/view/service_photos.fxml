@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<VBox spacing="14" styleClass="page-view" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.pusula.desktop.controller.ServicePhotosController">
+    <padding><Insets top="18" right="18" bottom="18" left="18"/></padding>
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <TextField fx:id="searchField" promptText="Müşteri, iş başlığı, fiş no veya not ara" HBox.hgrow="ALWAYS"/>
+        <ComboBox fx:id="categoryFilter" prefWidth="190"/>
+        <DatePicker fx:id="startDatePicker" promptText="Başlangıç"/>
+        <DatePicker fx:id="endDatePicker" promptText="Bitiş"/>
+        <Button text="Filtrele" onAction="#loadPhotos" styleClass="btn-primary"/>
+    </HBox>
+    <TableView fx:id="photoTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colServiceDate" text="Servis Tarihi" prefWidth="125"/>
+            <TableColumn fx:id="colTicket" text="Fiş No" prefWidth="75"/>
+            <TableColumn fx:id="colCustomer" text="Müşteri" prefWidth="170"/>
+            <TableColumn fx:id="colDescription" text="İş Emri" prefWidth="240"/>
+            <TableColumn fx:id="colCategory" text="Kategori" prefWidth="155"/>
+            <TableColumn fx:id="colNote" text="Görsel Notu" prefWidth="260"/>
+            <TableColumn fx:id="colUploader" text="Ekleyen" prefWidth="130"/>
+        </columns>
+        <placeholder><Label text="Servis görseli bulunamadı."/></placeholder>
+    </TableView>
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <Label text="Bir görsele çift tıklayarak büyütebilirsiniz." HBox.hgrow="ALWAYS"/>
+        <Button text="Görseli Aç" onAction="#openSelected"/>
+        <Button text="İndir" onAction="#downloadSelected" styleClass="btn-primary"/>
+    </HBox>
+</VBox>

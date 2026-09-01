@@ -26,6 +26,7 @@
                      <children>
                         <Button fx:id="navDashboard" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showDashboard" styleClass="nav-button" text="%menu.dashboard" />
                         <Button fx:id="navTickets" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showServiceManagement" styleClass="nav-button" text="%menu.tickets" />
+                        <Button fx:id="navServicePhotos" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showServicePhotos" styleClass="nav-button" text="Servis Görselleri" />
                         <Button fx:id="navInventory" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showInventory" styleClass="nav-button" text="%menu.inventory" />
                         <Button fx:id="navCustomers" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showCustomers" styleClass="nav-button" text="%menu.customers" />
                         <Button fx:id="btnCommercial" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showCommercialDevices" styleClass="nav-button" text="%menu.commercial" />

@@ -4,6 +4,7 @@ import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.dto.ServiceUsedPartDTO;
 import com.pusula.desktop.dto.BulkTicketAssignmentRequest;
 import com.pusula.desktop.dto.AuthRequest;
+import com.pusula.desktop.dto.ServicePhotoDTO;
 import retrofit2.Call;
 import retrofit2.http.*;
 
@@ -59,4 +60,12 @@ public interface ServiceTicketApi {
 
     @POST("api/tickets/{id}/follow-up")
     Call<ServiceTicketDTO> createFollowUp(@Path("id") Long id);
+
+    @GET("api/tickets/photos")
+    Call<List<ServicePhotoDTO>> getCompanyServicePhotos(
+            @Query("type") String type,
+            @Query("startDate") String startDate,
+            @Query("endDate") String endDate,
+            @Query("query") String query,
+            @Query("limit") Integer limit);
 }

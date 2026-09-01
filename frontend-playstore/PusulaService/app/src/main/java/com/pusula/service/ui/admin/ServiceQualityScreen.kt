@@ -1,6 +1,14 @@
 package com.pusula.service.ui.admin
 
 import android.app.DatePickerDialog
+import android.app.DownloadManager
+import android.content.Context
+import android.net.Uri
+import android.os.Environment
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,6 +29,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.LaunchedEffect
@@ -32,16 +42,21 @@ import androidx.compose.runtime.setValue
 import androidx.activity.compose.BackHandler
 import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.ContentScale
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.pusula.service.BuildConfig
 import com.pusula.service.ui.components.AppEmptyState
 import com.pusula.service.ui.theme.AccentPurple
 import com.pusula.service.ui.theme.Spacing
 import java.time.LocalDate
+import com.pusula.service.data.model.ServicePhotoDTO
 
 @Composable
 fun ServiceQualityScreen(
@@ -51,17 +66,51 @@ fun ServiceQualityScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var filterType by remember { mutableStateOf<String?>(null) }
-    var ticketNoInput by remember { mutableStateOf("") }
-    var startDateInput by remember { mutableStateOf(LocalDate.now().toString()) }
-    var endDateInput by remember { mutableStateOf(LocalDate.now().toString()) }
+    var searchInput by remember { mutableStateOf("") }
+    var startDateInput by remember { mutableStateOf("") }
+    var endDateInput by remember { mutableStateOf("") }
+    var selectedPhoto by remember { mutableStateOf<ServicePhotoDTO?>(null) }
 
     LaunchedEffect(Unit) {
-        viewModel.loadServiceQualityPhotos(type = null, ticketId = null, startDate = startDateInput, endDate = endDateInput, limit = 200)
+        viewModel.loadServiceQualityPhotos(type = null, ticketId = null, startDate = null, endDate = null, limit = 500)
     }
 
     BackHandler(onBack = onBack)
 
-    Scaffold(topBar = { AppTopBar(title = "Servis Kalite", onBack = onBack) }) { padding ->
+    selectedPhoto?.let { photo ->
+        var imageScale by remember(photo.id) { mutableStateOf(1f) }
+        Dialog(
+            onDismissRequest = { selectedPhoto = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Card(modifier = Modifier.fillMaxSize().padding(Spacing.sm)) {
+                Column(modifier = Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    AsyncImage(
+                        model = toAbsoluteUrl(photo.url), contentDescription = "Büyük servis görseli",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxWidth().weight(1f)
+                            .graphicsLayer(scaleX = imageScale, scaleY = imageScale)
+                            .pointerInput(photo.id) {
+                                detectTransformGestures { _, _, zoom, _ ->
+                                    imageScale = (imageScale * zoom).coerceIn(1f, 6f)
+                                }
+                            }
+                            .clip(RoundedCornerShape(10.dp))
+                    )
+                    Text(servicePhotoCategoryLabel(photo.type), style = MaterialTheme.typography.titleMedium)
+                    photo.note?.takeIf { it.isNotBlank() }?.let { Text(it) }
+                    androidx.compose.foundation.layout.Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { selectedPhoto = null }) { Text("Kapat") }
+                        TextButton(onClick = {
+                            downloadServicePhoto(context, toAbsoluteUrl(photo.url), "servis-${photo.ticketId}-${photo.id}.jpg")
+                        }) { Text("İndir") }
+                    }
+                }
+            }
+        }
+    }
+
+    Scaffold(topBar = { AppTopBar(title = "Servis Görselleri", onBack = onBack) }) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -70,7 +119,10 @@ fun ServiceQualityScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             item {
-                androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
                     FilledTonalButton(
                         onClick = { filterType = null },
                         enabled = filterType != null
@@ -83,6 +135,12 @@ fun ServiceQualityScreen(
                         onClick = { filterType = "AFTER" },
                         enabled = filterType != "AFTER"
                     ) { Text("Sonrası") }
+                    listOf(
+                        "INDOOR_UNIT_SERIAL" to "İç Seri No", "OUTDOOR_UNIT_SERIAL" to "Dış Seri No",
+                        "DEVICE_LABEL" to "Etiket", "FAULT_DETAIL" to "Arıza", "INSTALLATION" to "Montaj", "OTHER" to "Diğer"
+                    ).forEach { (type, label) ->
+                        OutlinedButton(onClick = { filterType = type }, enabled = filterType != type) { Text(label) }
+                    }
                 }
             }
             item {
@@ -133,9 +191,10 @@ fun ServiceQualityScreen(
             }
             item {
                 OutlinedTextField(
-                    value = ticketNoInput,
-                    onValueChange = { ticketNoInput = it },
-                    label = { Text("Ticket No") },
+                    value = searchInput,
+                    onValueChange = { searchInput = it },
+                    label = { Text("Ara") },
+                    placeholder = { Text("Müşteri, iş başlığı, fiş no veya not") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -144,10 +203,11 @@ fun ServiceQualityScreen(
                     onClick = {
                         viewModel.loadServiceQualityPhotos(
                             type = filterType,
-                            ticketId = ticketNoInput.toLongOrNull(),
+                            ticketId = null,
                             startDate = startDateInput.ifBlank { null },
                             endDate = endDateInput.ifBlank { null },
-                            limit = 200
+                            query = searchInput.ifBlank { null },
+                            limit = 500
                         )
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -158,7 +218,7 @@ fun ServiceQualityScreen(
                 item {
                     AppEmptyState(
                         title = "Görsel bulunamadı",
-                        subtitle = "Seçilen filtreye uygun servis kalite görseli yok.",
+                        subtitle = "Seçilen filtreye uygun servis görseli yok.",
                         icon = Icons.Outlined.PhotoLibrary,
                         tint = AccentPurple
                     )
@@ -177,33 +237,57 @@ fun ServiceQualityScreen(
                         ) {
                             AsyncImage(
                                 model = toAbsoluteUrl(photo.url),
-                                contentDescription = "Servis kalite görseli",
+                                contentDescription = "Servis görseli",
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(180.dp)
+                                    .clickable { selectedPhoto = photo }
                                     .clip(RoundedCornerShape(10.dp))
                             )
                             Text(
-                                text = if (photo.type == "BEFORE") "Öncesi" else "Sonrası",
+                                text = servicePhotoCategoryLabel(photo.type),
                                 style = MaterialTheme.typography.titleSmall
                             )
                             Text(
-                                text = "Fiş #${photo.ticketId}",
+                                text = "${photo.customerName ?: "Müşteri"} · Fiş #${photo.ticketId}",
                                 style = MaterialTheme.typography.bodySmall
                             )
                             Text(
-                                text = photo.url,
+                                text = photo.ticketDescription ?: "Servis iş emri",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+                            photo.note?.takeIf { it.isNotBlank() }?.let {
+                                Text(text = it, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                            }
+                            Text(text = photo.serviceDate ?: photo.uploadedAt.orEmpty(), style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
             }
         }
     }
+}
+
+private fun servicePhotoCategoryLabel(type: String): String = when (type) {
+    "BEFORE" -> "İşlem Öncesi"
+    "AFTER" -> "İşlem Sonrası"
+    "INDOOR_UNIT_SERIAL" -> "İç Ünite Seri No"
+    "OUTDOOR_UNIT_SERIAL" -> "Dış Ünite Seri No"
+    "DEVICE_LABEL" -> "Cihaz Etiketi"
+    "FAULT_DETAIL" -> "Arıza Detayı"
+    "INSTALLATION" -> "Montaj / Tesisat"
+    else -> "Diğer"
+}
+
+private fun downloadServicePhoto(context: Context, url: String, fileName: String) {
+    val request = DownloadManager.Request(Uri.parse(url))
+        .setTitle(fileName)
+        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+    (context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
 }
 
 private fun toAbsoluteUrl(url: String): String {

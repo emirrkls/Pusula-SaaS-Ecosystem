@@ -1,13 +1,12 @@
-package com.pusula.backend.dto;
+package com.pusula.desktop.dto;
 
-import com.pusula.backend.entity.ServicePhoto;
 import java.time.LocalDateTime;
 
 public class ServicePhotoDTO {
     private Long id;
     private Long ticketId;
     private String url;
-    private ServicePhoto.PhotoType type;
+    private String type;
     private String note;
     private String uploadedByName;
     private LocalDateTime uploadedAt;
@@ -15,32 +14,14 @@ public class ServicePhotoDTO {
     private String customerName;
     private String ticketDescription;
 
-    public ServicePhotoDTO() {
-    }
-
-    public ServicePhotoDTO(Long id, Long ticketId, String url, ServicePhoto.PhotoType type, String note,
-                           String uploadedByName, LocalDateTime uploadedAt, LocalDateTime serviceDate,
-                           String customerName, String ticketDescription) {
-        this.id = id;
-        this.ticketId = ticketId;
-        this.url = url;
-        this.type = type;
-        this.note = note;
-        this.uploadedByName = uploadedByName;
-        this.uploadedAt = uploadedAt;
-        this.serviceDate = serviceDate;
-        this.customerName = customerName;
-        this.ticketDescription = ticketDescription;
-    }
-
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Long getTicketId() { return ticketId; }
     public void setTicketId(Long ticketId) { this.ticketId = ticketId; }
     public String getUrl() { return url; }
     public void setUrl(String url) { this.url = url; }
-    public ServicePhoto.PhotoType getType() { return type; }
-    public void setType(ServicePhoto.PhotoType type) { this.type = type; }
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
     public String getNote() { return note; }
     public void setNote(String note) { this.note = note; }
     public String getUploadedByName() { return uploadedByName; }
@@ -53,4 +34,17 @@ public class ServicePhotoDTO {
     public void setCustomerName(String customerName) { this.customerName = customerName; }
     public String getTicketDescription() { return ticketDescription; }
     public void setTicketDescription(String ticketDescription) { this.ticketDescription = ticketDescription; }
+
+    public String getTypeLabel() {
+        return switch (type == null ? "" : type) {
+            case "BEFORE" -> "İşlem Öncesi";
+            case "AFTER" -> "İşlem Sonrası";
+            case "INDOOR_UNIT_SERIAL" -> "İç Ünite Seri No";
+            case "OUTDOOR_UNIT_SERIAL" -> "Dış Ünite Seri No";
+            case "DEVICE_LABEL" -> "Cihaz Etiketi";
+            case "FAULT_DETAIL" -> "Arıza Detayı";
+            case "INSTALLATION" -> "Montaj / Tesisat";
+            default -> "Diğer";
+        };
+    }
 }

@@ -259,7 +259,7 @@ struct AdminTabView: View {
             if session.isFeatureEnabled("BASIC_INVENTORY") {
                 Button("Stok") { quickActionDestination = .catalog }
             }
-            Button("Servis Kalite") { quickActionDestination = .serviceQuality }
+            Button("Servis Görselleri") { quickActionDestination = .serviceQuality }
             Button("İptal", role: .cancel) { }
         }
         .sheet(item: $quickActionDestination) { destination in

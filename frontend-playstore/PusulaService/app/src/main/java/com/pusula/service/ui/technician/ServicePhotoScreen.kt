@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,10 +23,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -73,6 +77,8 @@ fun ServicePhotoScreen(
     val session by viewModel.sessionManager.state.collectAsState()
     val context = LocalContext.current
     var pendingType by remember { mutableStateOf("BEFORE") }
+    var pendingNote by remember { mutableStateOf("") }
+    var categoryMenuExpanded by remember { mutableStateOf(false) }
     var showSourcePicker by remember { mutableStateOf(false) }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
     var cameraFile by remember { mutableStateOf<File?>(null) }
@@ -83,7 +89,7 @@ fun ServicePhotoScreen(
         val file = cameraFile
         if (success && (file != null || uri != null)) {
             createMultipartFromUri(context, uri, file, "file")?.let { part ->
-                viewModel.uploadServicePhoto(ticketId, pendingType, part)
+                viewModel.uploadServicePhoto(ticketId, pendingType, pendingNote, part)
             } ?: viewModel.reportPhotoPrepareError()
         }
         cameraUri = null
@@ -113,7 +119,7 @@ fun ServicePhotoScreen(
     val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             createMultipartFromUri(context, uri, sourceFile = null, partName = "file")?.let { part ->
-                viewModel.uploadServicePhoto(ticketId, pendingType, part)
+                viewModel.uploadServicePhoto(ticketId, pendingType, pendingNote, part)
             } ?: viewModel.reportPhotoPrepareError()
         }
     }
@@ -133,7 +139,10 @@ fun ServicePhotoScreen(
                     cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                 }
             },
-            onGallery = { galleryPicker.launch("image/*") }
+            onGallery = {
+                showSourcePicker = false
+                galleryPicker.launch("image/*")
+            }
         )
     }
 
@@ -145,22 +154,31 @@ fun ServicePhotoScreen(
                 .padding(Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                OutlinedButton(
-                    onClick = {
-                        pendingType = "BEFORE"
-                        showSourcePicker = true
-                    },
-                    modifier = Modifier.weight(1f).readOnlyProtected(session.isReadOnly)
-                ) { Text("Öncesi Ekle") }
-                Button(
-                    onClick = {
-                        pendingType = "AFTER"
-                        showSourcePicker = true
-                    },
-                    modifier = Modifier.weight(1f).readOnlyProtected(session.isReadOnly)
-                ) { Text("Sonrası Ekle") }
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = { categoryMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Kategori: ${servicePhotoTypeLabel(pendingType)}")
+                }
+                DropdownMenu(expanded = categoryMenuExpanded, onDismissRequest = { categoryMenuExpanded = false }) {
+                    SERVICE_PHOTO_TYPES.forEach { (type, label) ->
+                        DropdownMenuItem(text = { Text(label) }, onClick = {
+                            pendingType = type
+                            categoryMenuExpanded = false
+                        })
+                    }
+                }
             }
+            OutlinedTextField(
+                value = pendingNote,
+                onValueChange = { if (it.length <= 500) pendingNote = it },
+                label = { Text("Görsel notu") },
+                placeholder = { Text("Örn. İç ünite 2, seri no 12345") },
+                minLines = 2,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Button(
+                onClick = { showSourcePicker = true },
+                modifier = Modifier.fillMaxWidth().readOnlyProtected(session.isReadOnly)
+            ) { Text("Kamera veya Galeriden Görsel Ekle") }
 
             if (uiState.photoUploading || uiState.photosLoading) {
                 CircularProgressIndicator()
@@ -177,7 +195,7 @@ fun ServicePhotoScreen(
             if (uiState.servicePhotos.isEmpty() && !uiState.photosLoading) {
                 AppEmptyState(
                     title = "Görsel eklenmemiş",
-                    subtitle = "Kalite takibi için önce/sonra fotoğrafı ekleyebilirsiniz.",
+                    subtitle = "Cihaz etiketi, seri numarası, arıza detayı veya işlem görseli ekleyebilirsiniz.",
                     icon = Icons.Outlined.Image,
                     tint = AccentPurple
                 )
@@ -198,12 +216,12 @@ fun ServicePhotoScreen(
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = if (photo.type == "BEFORE") "Öncesi" else "Sonrası",
+                                        text = servicePhotoTypeLabel(photo.type),
                                         style = MaterialTheme.typography.titleSmall
                                     )
                                     Spacer(modifier = Modifier.height(Spacing.xs))
                                     Text(
-                                        text = photo.url,
+                                        text = photo.note?.takeIf { it.isNotBlank() } ?: photo.uploadedByName.orEmpty(),
                                         style = MaterialTheme.typography.bodySmall,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis
@@ -229,6 +247,16 @@ fun ServicePhotoScreen(
         }
     }
 }
+
+private val SERVICE_PHOTO_TYPES = listOf(
+    "BEFORE" to "İşlem Öncesi", "AFTER" to "İşlem Sonrası",
+    "INDOOR_UNIT_SERIAL" to "İç Ünite Seri No", "OUTDOOR_UNIT_SERIAL" to "Dış Ünite Seri No",
+    "DEVICE_LABEL" to "Cihaz Etiketi", "FAULT_DETAIL" to "Arıza Detayı",
+    "INSTALLATION" to "Montaj / Tesisat", "OTHER" to "Diğer"
+)
+
+private fun servicePhotoTypeLabel(type: String): String =
+    SERVICE_PHOTO_TYPES.firstOrNull { it.first == type }?.second ?: "Diğer"
 
 private fun fullPhotoUrl(url: String): String {
     return if (url.startsWith("http://") || url.startsWith("https://")) {

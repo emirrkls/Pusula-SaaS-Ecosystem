@@ -131,6 +131,7 @@ interface ApiService {
     suspend fun uploadServicePhoto(
         @Path("id") ticketId: Long,
         @Part("type") type: okhttp3.RequestBody,
+        @Part("note") note: okhttp3.RequestBody,
         @Part file: MultipartBody.Part
     ): ServicePhotoDTO
 
@@ -143,6 +144,7 @@ interface ApiService {
         @Query("ticketId") ticketId: Long? = null,
         @Query("startDate") startDate: String? = null,
         @Query("endDate") endDate: String? = null,
+        @Query("query") query: String? = null,
         @Query("limit") limit: Int? = null
     ): List<ServicePhotoDTO>
 

@@ -44,8 +44,11 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Base64;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.LinkedHashSet;
@@ -1306,13 +1309,14 @@ public class ServiceTicketService {
         }
     }
 
-    public ServicePhotoDTO uploadServicePhoto(Long ticketId, ServicePhoto.PhotoType type, MultipartFile file) {
+    public ServicePhotoDTO uploadServicePhoto(Long ticketId, ServicePhoto.PhotoType type, String note, MultipartFile file) {
         User user = getCurrentUser();
         ServiceTicket ticket = repository.findById(ticketId)
                 .filter(t -> t.getCompanyId().equals(user.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
 
         validateServicePhotoUpload(file);
+        String safeNote = normalizePhotoNote(note);
 
         try {
             String relativePath = fileUploadService.uploadServicePhoto(
@@ -1326,6 +1330,9 @@ public class ServiceTicketService {
                     .ticketId(ticket.getId())
                     .url(url)
                     .type(type)
+                    .note(safeNote)
+                    .uploadedByName(user.getFullName() == null || user.getFullName().isBlank()
+                            ? user.getUsername() : user.getFullName().trim())
                     .build();
             ServicePhoto saved = servicePhotoRepository.save(photo);
             auditLogService.log(
@@ -1333,7 +1340,8 @@ public class ServiceTicketService {
                     "TICKET",
                     ticket.getId(),
                     "Servis görseli yüklendi (" + type.name() + ")");
-            return mapPhotoToDTO(saved);
+            Customer customer = customerRepository.findById(ticket.getCustomerId()).orElse(null);
+            return mapPhotoToDTO(saved, ticket, customer);
         } catch (IOException e) {
             log.error("Service photo upload failed for ticketId={}", ticketId, e);
             throw new RuntimeException("Servis görseli yüklenemedi: " + e.getMessage(), e);
@@ -1342,12 +1350,13 @@ public class ServiceTicketService {
 
     public List<ServicePhotoDTO> getServicePhotos(Long ticketId) {
         User user = getCurrentUser();
-        repository.findById(ticketId)
+        ServiceTicket ticket = repository.findById(ticketId)
                 .filter(t -> t.getCompanyId().equals(user.getCompanyId()))
                 .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
 
+        Customer customer = customerRepository.findById(ticket.getCustomerId()).orElse(null);
         return servicePhotoRepository.findByTicketIdOrderByUploadedAtDesc(ticketId).stream()
-                .map(this::mapPhotoToDTO)
+                .map(photo -> mapPhotoToDTO(photo, ticket, customer))
                 .collect(Collectors.toList());
     }
 
@@ -1356,9 +1365,11 @@ public class ServiceTicketService {
             Long ticketId,
             LocalDate startDate,
             LocalDate endDate,
+            String query,
             Integer limit) {
         User user = getCurrentUser();
-        List<Long> companyTicketIds = repository.findByCompanyId(user.getCompanyId()).stream()
+        List<ServiceTicket> companyTickets = repository.findByCompanyId(user.getCompanyId());
+        List<Long> companyTicketIds = companyTickets.stream()
                 .map(ServiceTicket::getId)
                 .collect(Collectors.toList());
 
@@ -1366,19 +1377,40 @@ public class ServiceTicketService {
             return List.of();
         }
 
+        Map<Long, ServiceTicket> ticketsById = companyTickets.stream()
+                .collect(Collectors.toMap(ServiceTicket::getId, ticket -> ticket));
+        Map<Long, Customer> customersById = new HashMap<>();
+        customerRepository.findAllById(companyTickets.stream()
+                        .map(ServiceTicket::getCustomerId)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet()))
+                .forEach(customer -> customersById.put(customer.getId(), customer));
+        String normalizedQuery = query == null ? "" : query.trim().toLowerCase(Locale.forLanguageTag("tr-TR"));
         List<ServicePhoto> photos = servicePhotoRepository.findByTicketIdInOrderByUploadedAtDesc(companyTicketIds);
         return photos.stream()
                 .filter(photo -> type == null || photo.getType() == type)
                 .filter(photo -> ticketId == null || photo.getTicketId().equals(ticketId))
                 .filter(photo -> {
-                    LocalDate photoDate = toBusinessDate(photo.getUploadedAt());
-                    if (photoDate == null) return false;
-                    boolean afterStart = startDate == null || !photoDate.isBefore(startDate);
-                    boolean beforeEnd = endDate == null || !photoDate.isAfter(endDate);
+                    ServiceTicket ticket = ticketsById.get(photo.getTicketId());
+                    LocalDate serviceDate = toBusinessDate(resolvePhotoServiceDate(ticket));
+                    if (serviceDate == null) return false;
+                    boolean afterStart = startDate == null || !serviceDate.isBefore(startDate);
+                    boolean beforeEnd = endDate == null || !serviceDate.isAfter(endDate);
                     return afterStart && beforeEnd;
                 })
+                .filter(photo -> matchesPhotoQuery(photo, ticketsById.get(photo.getTicketId()),
+                        customersById, normalizedQuery))
+                .sorted(Comparator
+                        .comparing((ServicePhoto photo) -> resolvePhotoServiceDate(ticketsById.get(photo.getTicketId())),
+                                Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(ServicePhoto::getUploadedAt,
+                                Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(limit != null && limit > 0 ? limit : Long.MAX_VALUE)
-                .map(this::mapPhotoToDTO)
+                .map(photo -> {
+                    ServiceTicket ticket = ticketsById.get(photo.getTicketId());
+                    Customer customer = ticket == null ? null : customersById.get(ticket.getCustomerId());
+                    return mapPhotoToDTO(photo, ticket, customer);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -1395,14 +1427,48 @@ public class ServiceTicketService {
         servicePhotoRepository.delete(photo);
     }
 
-    private ServicePhotoDTO mapPhotoToDTO(ServicePhoto photo) {
+    private ServicePhotoDTO mapPhotoToDTO(ServicePhoto photo, ServiceTicket ticket, Customer customer) {
         return new ServicePhotoDTO(
                 photo.getId(),
                 photo.getTicketId(),
                 uploadUrlSigner.sign(photo.getUrl()),
                 photo.getType(),
-                photo.getUploadedAt()
+                photo.getNote(),
+                photo.getUploadedByName(),
+                photo.getUploadedAt(),
+                resolvePhotoServiceDate(ticket),
+                customer == null ? null : customer.getName(),
+                ticket == null ? null : ticket.getDescription()
         );
+    }
+
+    private LocalDateTime resolvePhotoServiceDate(ServiceTicket ticket) {
+        if (ticket == null) return null;
+        if (ticket.getEffectiveCompletedAt() != null) return ticket.getEffectiveCompletedAt();
+        if (ticket.getScheduledDate() != null) return ticket.getScheduledDate();
+        return ticket.getCreatedAt();
+    }
+
+    private boolean matchesPhotoQuery(ServicePhoto photo, ServiceTicket ticket,
+                                      Map<Long, Customer> customersById, String query) {
+        if (query == null || query.isBlank()) return true;
+        Customer customer = ticket == null ? null : customersById.get(ticket.getCustomerId());
+        String haystack = String.join(" ",
+                String.valueOf(photo.getTicketId()),
+                photo.getType() == null ? "" : photo.getType().name(),
+                photo.getNote() == null ? "" : photo.getNote(),
+                customer == null || customer.getName() == null ? "" : customer.getName(),
+                ticket == null || ticket.getDescription() == null ? "" : ticket.getDescription());
+        return haystack.toLowerCase(Locale.forLanguageTag("tr-TR")).contains(query);
+    }
+
+    private String normalizePhotoNote(String note) {
+        if (note == null || note.isBlank()) return null;
+        String normalized = note.replaceAll("[\\r\\n\\t]+", " ").trim();
+        if (normalized.length() > 500) {
+            throw new RuntimeException("Görsel notu 500 karakterden uzun olamaz.");
+        }
+        return normalized;
     }
 
     private void validateServicePhotoUpload(MultipartFile file) {

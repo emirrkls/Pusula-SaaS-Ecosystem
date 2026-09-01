@@ -157,7 +157,7 @@ final class OnboardingManager: ObservableObject {
         ),
         .init(
             title: "Diğer iş araçları",
-            detail: "Alt menüdeki Diğer düğmesine dokunduğunuzda Müşteriler, Teklifler, Stok ve Servis Kalite modülleri açılır. Bu adım yalnızca menüyü tanıtır; sizin yerinize seçim yapmaz.",
+            detail: "Alt menüdeki Diğer düğmesine dokunduğunuzda Müşteriler, Teklifler, Stok ve Servis Görselleri modülleri açılır. Bu adım yalnızca menüyü tanıtır; sizin yerinize seçim yapmaz.",
             icon: "square.grid.2x2.fill",
             target: .information,
             destination: .admin(.overview)

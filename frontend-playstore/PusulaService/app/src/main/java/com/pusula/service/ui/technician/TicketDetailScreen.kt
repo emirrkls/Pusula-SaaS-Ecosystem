@@ -535,7 +535,7 @@ fun TicketDetailScreen(
                                 modifier = Modifier.weight(1f).readOnlyProtected(session.isReadOnly)
                             )
                             AppQuickActionTile(
-                                label = "Görsel",
+                                label = "Servis Görselleri",
                                 icon = Icons.Outlined.PhotoLibrary,
                                 tint = Info,
                                 onClick = { onOpenPhotos(ticketId) },
