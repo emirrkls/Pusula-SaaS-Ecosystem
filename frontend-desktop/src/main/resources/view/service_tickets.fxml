@@ -41,7 +41,7 @@
          </content>
       </ScrollPane>
 
-      <TextField fx:id="txtSearch" promptText="%search.placeholder" />
+      <TextField fx:id="txtSearch" promptText="Fiş no, müşteri, iş başlığı, not veya teknisyen ara" />
 
       <StackPane VBox.vgrow="ALWAYS">
          <children>

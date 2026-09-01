@@ -11,6 +11,7 @@ struct TicketListView: View {
     @State private var isLoading = true
     @State private var isRefreshing = false
     @State private var selectedFilter: String = TicketFilters.defaultFilter(isAdmin: SessionManager.shared.isAdmin)
+    @State private var searchText = ""
     @State private var selectedTicket: FieldTicketDTO?
     @State private var showCreateTicket = false
     @State private var showBulkAssign = false
@@ -22,7 +23,10 @@ struct TicketListView: View {
     }
     
     private var filteredTickets: [FieldTicketDTO] {
-        tickets.filter { TicketFilters.matches($0, filter: selectedFilter, isAdmin: isAdmin) }
+        tickets.filter {
+            TicketFilters.matches($0, filter: selectedFilter, isAdmin: isAdmin) &&
+            TicketFilters.matchesSearch($0, query: searchText)
+        }
     }
     
     private var pendingUnassigned: [FieldTicketDTO] {
@@ -44,6 +48,10 @@ struct TicketListView: View {
             }
             .background(PusulaTheme.page)
             .onboardingTarget(.ticketFilters)
+
+            ticketSearchField
+                .padding(.horizontal)
+                .padding(.bottom, 10)
             
             if isAdmin {
                 adminActionBar
@@ -179,6 +187,31 @@ struct TicketListView: View {
             }
         }
         .onboardingTarget(.createTicketAction)
+    }
+
+    private var ticketSearchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField("Fiş no, müşteri, telefon, iş veya teknisyen ara", text: $searchText)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            if !searchText.isEmpty {
+                Button(action: { searchText = "" }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityLabel("Aramayı temizle")
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(minHeight: 44)
+        .background(PusulaTheme.raisedSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(PusulaTheme.border, lineWidth: 1)
+        }
     }
     
     private func filterPill(_ title: String) -> some View {

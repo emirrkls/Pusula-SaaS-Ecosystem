@@ -19,9 +19,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AssignmentInd
 import androidx.compose.material.icons.outlined.AssignmentLate
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -136,6 +141,21 @@ private fun pendingUnassignedTickets(tickets: List<FieldTicketDTO>): List<FieldT
         it.assignedTechnicianId == null && status == "PENDING"
     }
 
+internal fun ticketMatchesSearch(ticket: FieldTicketDTO, query: String): Boolean {
+    val term = query.trim()
+    if (term.isEmpty()) return true
+    return listOfNotNull(
+        ticket.id.toString(),
+        ticket.customerName,
+        ticket.customerPhone,
+        ticket.customerAddress,
+        ticket.description,
+        ticket.notes,
+        ticket.assignedTechnicianName,
+        ticket.scheduledDate
+    ).any { it.contains(term, ignoreCase = true) }
+}
+
 @Composable
 fun TicketListScreen(
     onOpenTicket: (Long) -> Unit,
@@ -148,6 +168,7 @@ fun TicketListScreen(
     val availableFilters = if (session.isAdmin) adminFilters else technicianFilters
     val defaultFilter = if (session.isAdmin) "Atama Bekleyen" else "Atanan"
     var selectedFilter by remember(session.isAdmin) { mutableStateOf(defaultFilter) }
+    var searchQuery by remember { mutableStateOf("") }
     var showCreateTicketDialog by remember { mutableStateOf(false) }
     var showBulkAssignDialog by remember { mutableStateOf(false) }
 
@@ -200,7 +221,8 @@ fun TicketListScreen(
             }
             else -> {
                 val filtered = uiState.tickets.filter {
-                    ticketMatchesFilter(it, selectedFilter, session.isAdmin)
+                    ticketMatchesFilter(it, selectedFilter, session.isAdmin) &&
+                        ticketMatchesSearch(it, searchQuery)
                 }
                 val pendingUnassigned = pendingUnassignedTickets(uiState.tickets)
                 val activeCount = uiState.tickets.count { (it.status?.uppercase() ?: "") == "IN_PROGRESS" }
@@ -246,6 +268,24 @@ fun TicketListScreen(
                             )
                         }
                         item {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                label = { Text("İş emri ara") },
+                                placeholder = { Text("Fiş no, müşteri, telefon, iş veya teknisyen") },
+                                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                                trailingIcon = {
+                                    if (searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { searchQuery = "" }) {
+                                            Icon(Icons.Outlined.Close, contentDescription = "Aramayı temizle")
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        item {
                             if (session.isAdmin && pendingUnassigned.isNotEmpty()) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -284,7 +324,8 @@ fun TicketListScreen(
                                     subtitle = if (selectedFilter == "Tümü") {
                                         "Yeni bir fiş açıldığında burada görünecek."
                                     } else {
-                                        "Farklı bir filtre seçmeyi deneyin."
+                                        if (searchQuery.isBlank()) "Farklı bir filtre seçmeyi deneyin."
+                                        else "Arama ölçütünü değiştirin veya temizleyin."
                                     },
                                     icon = Icons.Outlined.AssignmentInd,
                                     tint = BrandCyan

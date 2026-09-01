@@ -42,6 +42,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.Map;
 import java.util.function.Function;
@@ -261,14 +262,34 @@ public class ServiceTicketController {
         if (!matchesStatusFilter(ticket, currentFilter)) {
             return false;
         }
-        if (selectedSuggestion == null) {
-            return true;
+        if (selectedSuggestion != null) {
+            Long searchId = selectedSuggestion.getId();
+            if (selectedSuggestion.getType() == SearchSuggestion.Type.CUSTOMER) {
+                return searchId.equals(ticket.getCustomerId());
+            }
+            return searchId.equals(ticket.getAssignedTechnicianId());
         }
-        Long searchId = selectedSuggestion.getId();
-        if (selectedSuggestion.getType() == SearchSuggestion.Type.CUSTOMER) {
-            return searchId.equals(ticket.getCustomerId());
-        }
-        return searchId.equals(ticket.getAssignedTechnicianId());
+        return matchesSearch(ticket, txtSearch.getText());
+    }
+
+    static boolean matchesSearch(ServiceTicketDTO ticket, String query) {
+        if (ticket == null || query == null || query.isBlank()) return ticket != null;
+        String term = query.trim().toLowerCase(Locale.forLanguageTag("tr-TR"));
+        return List.of(
+                        ticket.getId() != null ? ticket.getId().toString() : "",
+                        value(ticket.getCustomerName()),
+                        value(ticket.getDescription()),
+                        value(ticket.getNotes()),
+                        value(ticket.getTechnicianPrivateNote()),
+                        value(ticket.getAssignedTechnicianName()),
+                        ticket.getScheduledDate() != null ? ticket.getScheduledDate().toString() : ""
+                ).stream()
+                .map(text -> text.toLowerCase(Locale.forLanguageTag("tr-TR")))
+                .anyMatch(text -> text.contains(term));
+    }
+
+    private static String value(String text) {
+        return text != null ? text : "";
     }
 
     private boolean matchesStatusFilter(ServiceTicketDTO ticket, TicketFilter filter) {
@@ -328,10 +349,8 @@ public class ServiceTicketController {
     private void setupSmartSearch() {
         refreshSearchData();
         txtSearch.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue == null || newValue.isEmpty()) {
-                selectedSuggestion = null;
-                updateFilters();
-            }
+            selectedSuggestion = null;
+            updateFilters();
         });
     }
 

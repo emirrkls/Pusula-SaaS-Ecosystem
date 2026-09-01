@@ -60,6 +60,25 @@ enum TicketFilters {
         return dateRaw.hasPrefix(today) || dateRaw.contains(today)
     }
 
+    static func matchesSearch(_ ticket: FieldTicketDTO, query: String) -> Bool {
+        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !term.isEmpty else { return true }
+
+        let values: [String?] = [
+            String(ticket.id),
+            ticket.customerName,
+            ticket.customerPhone,
+            ticket.customerAddress,
+            ticket.description,
+            ticket.notes,
+            ticket.assignedTechnicianName,
+            ticket.scheduledDate
+        ]
+        return values.compactMap { $0 }.contains {
+            $0.localizedCaseInsensitiveContains(term)
+        }
+    }
+
     static func parseBusinessDate(_ raw: String?) -> Date? {
         guard let raw, !raw.isEmpty else { return nil }
         let formatter = DateFormatter()
