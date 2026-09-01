@@ -2889,3 +2889,109 @@
     -fx-background-color: #0F172A;
     -fx-border-color: #475569;
 }
+
+/* Service photo archive */
+.service-photo-toolbar {
+    -fx-background-color: -pusula-surface;
+    -fx-background-radius: 14;
+    -fx-border-color: -pusula-border;
+    -fx-border-radius: 14;
+    -fx-padding: 12;
+}
+
+.service-photo-scroll,
+.service-photo-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.service-folder-card,
+.service-photo-card {
+    -fx-background-color: -pusula-surface;
+    -fx-background-radius: 14;
+    -fx-border-color: -pusula-border;
+    -fx-border-radius: 14;
+    -fx-padding: 10;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.09), 14, 0.12, 0, 4);
+}
+
+.service-folder-card:hover,
+.service-photo-card:hover {
+    -fx-border-color: -pusula-primary;
+    -fx-translate-y: -2;
+    -fx-effect: dropshadow(gaussian, rgba(0, 182, 235, 0.20), 18, 0.16, 0, 6);
+}
+
+.service-photo-preview {
+    -fx-background-color: -pusula-surface-muted;
+    -fx-background-radius: 10;
+    -fx-alignment: center;
+}
+
+.service-photo-placeholder,
+.service-photo-empty {
+    -fx-text-fill: -pusula-text-muted;
+    -fx-font-size: 12px;
+}
+
+.service-photo-empty {
+    -fx-font-size: 14px;
+    -fx-padding: 32;
+}
+
+.service-photo-count {
+    -fx-background-color: rgba(15, 23, 42, 0.82);
+    -fx-background-radius: 999;
+    -fx-padding: 5 10;
+    -fx-text-fill: white;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.service-folder-customer,
+.service-gallery-title {
+    -fx-text-fill: -pusula-text;
+    -fx-font-size: 15px;
+    -fx-font-weight: 800;
+}
+
+.service-folder-description {
+    -fx-text-fill: -pusula-text;
+    -fx-font-size: 12px;
+}
+
+.service-folder-meta,
+.service-photo-note {
+    -fx-text-fill: -pusula-text-muted;
+    -fx-font-size: 11px;
+}
+
+.service-photo-category {
+    -fx-text-fill: -pusula-primary-strong;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+
+.service-gallery-header {
+    -fx-background-color: -pusula-surface;
+    -fx-background-radius: 12;
+    -fx-border-color: -pusula-border;
+    -fx-border-radius: 12;
+    -fx-padding: 10;
+}
+
+.service-photo-viewer,
+.service-photo-viewer > .viewport {
+    -fx-background-color: #07111F;
+}
+
+.dark-theme .service-folder-card,
+.dark-theme .service-photo-card,
+.dark-theme .service-photo-toolbar,
+.dark-theme .service-gallery-header {
+    -fx-background-color: #1E293B;
+    -fx-border-color: #334155;
+}
+
+.dark-theme .service-photo-preview {
+    -fx-background-color: #0F172A;
+}

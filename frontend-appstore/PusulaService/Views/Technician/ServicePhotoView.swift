@@ -145,39 +145,100 @@ struct CameraImagePicker: UIViewControllerRepresentable {
 
 struct ServicePhotoViewer: View {
     let photo: ServicePhotoDTO
+
+    var body: some View {
+        ServicePhotoGalleryViewer(photos: [photo], initialPhotoID: photo.id)
+    }
+}
+
+struct ServicePhotoGalleryViewer: View {
+    let photos: [ServicePhotoDTO]
     @Environment(\.dismiss) private var dismiss
+    @State private var currentPhotoID: Int
+
+    init(photos: [ServicePhotoDTO], initialPhotoID: Int) {
+        self.photos = photos
+        _currentPhotoID = State(initialValue: initialPhotoID)
+    }
+
+    private var currentPhoto: ServicePhotoDTO {
+        photos.first(where: { $0.id == currentPhotoID }) ?? photos[0]
+    }
+
+    private var currentIndex: Int {
+        (photos.firstIndex(where: { $0.id == currentPhotoID }) ?? 0) + 1
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.black.ignoresSafeArea()
+                TabView(selection: $currentPhotoID) {
+                    ForEach(photos) { photo in
+                        ZoomableServicePhotoImage(photo: photo)
+                            .tag(photo.id)
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+            }
+            .navigationTitle(currentPhoto.typeLabel)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) { Button("Kapat") { dismiss() } }
+                if let url = currentPhoto.fullURL {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }
+                    }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                VStack(spacing: 4) {
+                    if photos.count > 1 {
+                        Text("\(currentIndex) / \(photos.count)").font(.caption.bold())
+                    }
+                    if let note = currentPhoto.note, !note.isEmpty {
+                        Text(note).font(.caption).lineLimit(3).multilineTextAlignment(.center)
+                    }
+                    Text("Dokunulan noktaya çift dokunun; yakınlaştırınca görseli sürükleyebilirsiniz.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18).padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .background(.black.opacity(0.72))
+            }
+        }
+    }
+}
+
+private struct ZoomableServicePhotoImage: View {
+    let photo: ServicePhotoDTO
     @State private var zoom: CGFloat = 1
     @State private var zoomAtGestureStart: CGFloat = 1
     @State private var zoomAnchor: UnitPoint = .center
     @State private var imageOffset: CGSize = .zero
     @State private var offsetAtGestureStart: CGSize = .zero
+
     var body: some View {
-        NavigationStack {
-            GeometryReader { proxy in
-                ZStack {
-                    Color.black.ignoresSafeArea()
-                    AsyncImage(url: photo.fullURL) { phase in
-                        if case .success(let image) = phase {
-                            image.resizable().scaledToFit()
-                                .scaleEffect(zoom, anchor: zoomAnchor)
-                                .offset(imageOffset)
-                                .gesture(magnifyGesture)
-                                .simultaneousGesture(dragGesture)
-                                .simultaneousGesture(doubleTapGesture(in: proxy.size))
-                        } else { ProgressView().tint(.white) }
+        GeometryReader { proxy in
+            ZStack {
+                Color.black.ignoresSafeArea()
+                AsyncImage(url: photo.fullURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFit()
+                            .scaleEffect(zoom, anchor: zoomAnchor)
+                            .offset(imageOffset)
+                            .gesture(magnifyGesture)
+                            .simultaneousGesture(dragGesture)
+                            .simultaneousGesture(doubleTapGesture(in: proxy.size))
+                    case .failure:
+                        ContentUnavailableView("Görsel açılamadı", systemImage: "photo.badge.exclamationmark")
+                            .foregroundStyle(.white)
+                    default:
+                        ProgressView().tint(.white)
                     }
                 }
-            }
-            .navigationTitle(photo.typeLabel).navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("Kapat") { dismiss() } }
-                if let url = photo.fullURL {
-                    ToolbarItem(placement: .topBarTrailing) { ShareLink(item: url) { Image(systemName: "square.and.arrow.down") } }
-                }
-            }
-            .overlay(alignment: .bottom) {
-                if zoom == 1 { Text("İncelemek istediğiniz noktaya çift dokunun veya iki parmakla yakınlaştırın")
-                    .font(.caption).foregroundStyle(.white.opacity(0.75)).padding(.bottom, 18) }
             }
         }
     }
