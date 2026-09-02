@@ -1,13 +1,13 @@
 import SwiftUI
-import PencilKit
+import UIKit
 
-/// Full-screen signature capture using PencilKit.
+/// Full-screen signature capture using a finger-first SwiftUI canvas.
 /// The captured signature is converted to PNG base64 and uploaded to the backend.
 struct SignatureView: View {
     let ticketId: Int
     
     @Environment(\.dismiss) private var dismiss
-    @State private var canvasView = PKCanvasView()
+    @State private var strokes: [SignatureStroke] = []
     @State private var isUploading = false
     @State private var showSuccess = false
     @State private var errorMessage: String?
@@ -27,7 +27,7 @@ struct SignatureView: View {
                 
                 // Signature canvas
                 ZStack {
-                    SignatureCanvas(canvasView: $canvasView)
+                    SignatureDrawingCanvas(strokes: $strokes)
                         .background(.white)
                         .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
                         .overlay(
@@ -116,7 +116,7 @@ struct SignatureView: View {
                     .background(PusulaTheme.accent)
                     .foregroundColor(.white)
                     .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
-                    .disabled(isUploading)
+                    .disabled(isUploading || strokes.isEmpty)
                 }
                 .padding()
             }
@@ -131,33 +131,29 @@ struct SignatureView: View {
     }
     
     private func clearSignature() {
-        canvasView.drawing = PKDrawing()
+        strokes.removeAll()
+        errorMessage = nil
     }
     
     private func saveSignature() {
         isUploading = true
         errorMessage = nil
         
-        let drawing = canvasView.drawing
-        guard !drawing.strokes.isEmpty else {
+        guard !strokes.isEmpty else {
             errorMessage = "Lütfen önce imzanızı atın"
             isUploading = false
             return
         }
 
-        // Render the PencilKit strokes themselves so the saved image contains
-        // the complete signature instead of a cropped canvas viewport.
-        let signatureBounds = drawing.bounds.insetBy(dx: -16, dy: -16)
-        let scale = canvasView.window?.screen.scale ?? 2
-        let strokeImage = drawing.image(from: signatureBounds, scale: scale)
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = scale
+        let imageSize = CGSize(width: 1_200, height: 500)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
         format.opaque = true
-        let renderer = UIGraphicsImageRenderer(size: signatureBounds.size, format: format)
+        let renderer = UIGraphicsImageRenderer(size: imageSize, format: format)
         let image = renderer.image { context in
             UIColor.white.setFill()
-            context.cgContext.fill(CGRect(origin: .zero, size: signatureBounds.size))
-            strokeImage.draw(in: CGRect(origin: .zero, size: signatureBounds.size))
+            context.cgContext.fill(CGRect(origin: .zero, size: imageSize))
+            renderSignature(strokes, in: context.cgContext, size: imageSize)
         }
         
         guard let pngData = image.pngData() else {
@@ -188,26 +184,94 @@ struct SignatureView: View {
     }
 }
 
-// MARK: - PencilKit Canvas Wrapper
+private struct SignatureStroke: Identifiable {
+    let id = UUID()
+    var points: [CGPoint]
+}
 
-struct SignatureCanvas: UIViewRepresentable {
-    @Binding var canvasView: PKCanvasView
-    
-    func makeUIView(context: Context) -> PKCanvasView {
-        canvasView.drawingPolicy = .anyInput
-        canvasView.backgroundColor = .clear
-        canvasView.isScrollEnabled = false
-        canvasView.bounces = false
-        
-        // Set pen tool — fine black ink
-        let ink = PKInkingTool(.pen, color: .black, width: 3)
-        canvasView.tool = ink
-        
-        // Disable ruler
-        canvasView.isRulerActive = false
-        
-        return canvasView
+private struct SignatureDrawingCanvas: View {
+    @Binding var strokes: [SignatureStroke]
+    @State private var isDrawing = false
+
+    var body: some View {
+        GeometryReader { proxy in
+            Canvas { context, size in
+                for stroke in strokes {
+                    guard let first = stroke.points.first else { continue }
+                    if stroke.points.count == 1 {
+                        let point = denormalized(first, in: size)
+                        context.fill(
+                            Path(ellipseIn: CGRect(x: point.x - 1.5, y: point.y - 1.5, width: 3, height: 3)),
+                            with: .color(.black)
+                        )
+                        continue
+                    }
+
+                    var path = Path()
+                    path.move(to: denormalized(first, in: size))
+                    for point in stroke.points.dropFirst() {
+                        path.addLine(to: denormalized(point, in: size))
+                    }
+                    context.stroke(path, with: .color(.black), style: StrokeStyle(
+                        lineWidth: 3,
+                        lineCap: .round,
+                        lineJoin: .round
+                    ))
+                }
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                    .onChanged { value in
+                        let point = normalized(value.location, in: proxy.size)
+                        if !isDrawing {
+                            strokes.append(SignatureStroke(points: [point]))
+                            isDrawing = true
+                        } else if !strokes.isEmpty {
+                            strokes[strokes.count - 1].points.append(point)
+                        }
+                    }
+                    .onEnded { _ in
+                        isDrawing = false
+                    }
+            )
+            .accessibilityLabel("İmza çizim alanı")
+            .accessibilityHint("Parmağınızı veya Apple Pencil'ı sürükleyerek imza atın")
+        }
     }
-    
-    func updateUIView(_ uiView: PKCanvasView, context: Context) {}
+
+    private func normalized(_ point: CGPoint, in size: CGSize) -> CGPoint {
+        CGPoint(
+            x: min(max(point.x / max(size.width, 1), 0), 1),
+            y: min(max(point.y / max(size.height, 1), 0), 1)
+        )
+    }
+
+    private func denormalized(_ point: CGPoint, in size: CGSize) -> CGPoint {
+        CGPoint(x: point.x * size.width, y: point.y * size.height)
+    }
+}
+
+private func renderSignature(_ strokes: [SignatureStroke], in context: CGContext, size: CGSize) {
+    context.setStrokeColor(UIColor.black.cgColor)
+    context.setFillColor(UIColor.black.cgColor)
+    context.setLineWidth(6)
+    context.setLineCap(.round)
+    context.setLineJoin(.round)
+
+    for stroke in strokes {
+        guard let first = stroke.points.first else { continue }
+        let firstPoint = CGPoint(x: first.x * size.width, y: first.y * size.height)
+        if stroke.points.count == 1 {
+            context.fillEllipse(in: CGRect(x: firstPoint.x - 3, y: firstPoint.y - 3, width: 6, height: 6))
+            continue
+        }
+
+        context.beginPath()
+        context.move(to: firstPoint)
+        for point in stroke.points.dropFirst() {
+            context.addLine(to: CGPoint(x: point.x * size.width, y: point.y * size.height))
+        }
+        context.strokePath()
+    }
 }
