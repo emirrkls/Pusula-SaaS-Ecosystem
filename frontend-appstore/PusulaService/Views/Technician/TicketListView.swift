@@ -12,6 +12,9 @@ struct TicketListView: View {
     @State private var isRefreshing = false
     @State private var selectedFilter: String = TicketFilters.defaultFilter(isAdmin: SessionManager.shared.isAdmin)
     @State private var searchText = ""
+    @State private var dateFilterStart: Date?
+    @State private var dateFilterEnd: Date?
+    @State private var showDateFilter = false
     @State private var selectedTicket: FieldTicketDTO?
     @State private var showCreateTicket = false
     @State private var showBulkAssign = false
@@ -25,7 +28,8 @@ struct TicketListView: View {
     private var filteredTickets: [FieldTicketDTO] {
         TicketFilters.sorted(tickets.filter {
             TicketFilters.matches($0, filter: selectedFilter, isAdmin: isAdmin) &&
-            TicketFilters.matchesSearch($0, query: searchText)
+            TicketFilters.matchesSearch($0, query: searchText) &&
+            TicketFilters.matchesDateRange($0, startDate: dateFilterStart, endDate: dateFilterEnd)
         }, filter: selectedFilter)
     }
     
@@ -49,9 +53,7 @@ struct TicketListView: View {
             .background(PusulaTheme.page)
             .onboardingTarget(.ticketFilters)
 
-            ticketSearchField
-                .padding(.horizontal)
-                .padding(.bottom, 10)
+            ticketSearchAndDateFilter
             
             if isAdmin {
                 adminActionBar
@@ -131,6 +133,20 @@ struct TicketListView: View {
             BulkAssignSheet(tickets: pendingUnassigned, technicians: technicians) { ticketIds, techId in
                 await bulkAssign(ticketIds: ticketIds, technicianId: techId)
             }
+        }
+        .sheet(isPresented: $showDateFilter) {
+            TicketDateFilterSheet(
+                initialStartDate: dateFilterStart,
+                initialEndDate: dateFilterEnd,
+                onApply: { startDate, endDate in
+                    dateFilterStart = startDate
+                    dateFilterEnd = endDate
+                },
+                onClear: {
+                    dateFilterStart = nil
+                    dateFilterEnd = nil
+                }
+            )
         }
         .alert("Hata", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Tamam", role: .cancel) { errorMessage = nil }
@@ -213,6 +229,68 @@ struct TicketListView: View {
                 .stroke(PusulaTheme.border, lineWidth: 1)
         }
     }
+
+    private var ticketSearchAndDateFilter: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                ticketSearchField
+
+                Button(action: { showDateFilter = true }) {
+                    Image(systemName: hasActiveDateFilter ? "calendar.badge.checkmark" : "calendar")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(hasActiveDateFilter ? Color.white : PusulaTheme.accent)
+                        .frame(width: 44, height: 44)
+                        .background(hasActiveDateFilter ? PusulaTheme.accent : PusulaTheme.raisedSurface)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(hasActiveDateFilter ? Color.clear : PusulaTheme.border, lineWidth: 1)
+                        }
+                }
+                .accessibilityLabel("Tarihe göre filtrele")
+            }
+
+            if hasActiveDateFilter {
+                HStack(spacing: 8) {
+                    Label(dateFilterLabel, systemImage: "calendar")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(PusulaTheme.accent)
+                    Spacer()
+                    Button("Temizle") {
+                        dateFilterStart = nil
+                        dateFilterEnd = nil
+                    }
+                    .font(.caption.weight(.semibold))
+                }
+                .padding(.horizontal, 4)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 10)
+    }
+
+    private var hasActiveDateFilter: Bool {
+        dateFilterStart != nil || dateFilterEnd != nil
+    }
+
+    private var dateFilterLabel: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.timeZone = TimeZone(identifier: "Europe/Istanbul")
+        formatter.dateFormat = "dd.MM.yyyy"
+        switch (dateFilterStart, dateFilterEnd) {
+        case let (start?, end?) where Calendar.current.isDate(start, inSameDayAs: end):
+            return formatter.string(from: start)
+        case let (start?, end?):
+            return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
+        case let (start?, nil):
+            return "\(formatter.string(from: start)) tarihinden itibaren"
+        case let (nil, end?):
+            return "\(formatter.string(from: end)) tarihine kadar"
+        default:
+            return "Tüm tarihler"
+        }
+    }
     
     private func filterPill(_ title: String) -> some View {
         Button(action: { selectedFilter = title }) {
@@ -291,6 +369,95 @@ struct TicketListView: View {
         } catch {
             await MainActor.run { errorMessage = error.localizedDescription }
         }
+    }
+}
+
+private struct TicketDateFilterSheet: View {
+    let initialStartDate: Date?
+    let initialEndDate: Date?
+    let onApply: (Date, Date) -> Void
+    let onClear: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var startDate: Date
+    @State private var endDate: Date
+
+    init(
+        initialStartDate: Date?,
+        initialEndDate: Date?,
+        onApply: @escaping (Date, Date) -> Void,
+        onClear: @escaping () -> Void
+    ) {
+        self.initialStartDate = initialStartDate
+        self.initialEndDate = initialEndDate
+        self.onApply = onApply
+        self.onClear = onClear
+        let today = Date()
+        _startDate = State(initialValue: initialStartDate ?? today)
+        _endDate = State(initialValue: initialEndDate ?? initialStartDate ?? today)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Tarih aralığı") {
+                    DatePicker("Başlangıç", selection: $startDate, displayedComponents: .date)
+                    DatePicker("Bitiş", selection: $endDate, displayedComponents: .date)
+                }
+
+                Section("Hızlı seçim") {
+                    Button("Bugün") { selectToday() }
+                    Button("Son 7 Gün") { selectLastSevenDays() }
+                    Button("Bu Ay") { selectCurrentMonth() }
+                }
+
+                if initialStartDate != nil || initialEndDate != nil {
+                    Section {
+                        Button("Tarih Filtresini Temizle", role: .destructive) {
+                            onClear()
+                            dismiss()
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Tarih Filtresi")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Vazgeç") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Uygula") {
+                        onApply(min(startDate, endDate), max(startDate, endDate))
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private func selectToday() {
+        startDate = Date()
+        endDate = Date()
+    }
+
+    private func selectLastSevenDays() {
+        let calendar = businessCalendarForDateFilter()
+        endDate = Date()
+        startDate = calendar.date(byAdding: .day, value: -6, to: endDate) ?? endDate
+    }
+
+    private func selectCurrentMonth() {
+        let calendar = businessCalendarForDateFilter()
+        let now = Date()
+        startDate = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
+        endDate = now
+    }
+
+    private func businessCalendarForDateFilter() -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Istanbul") ?? .current
+        return calendar
     }
 }
 

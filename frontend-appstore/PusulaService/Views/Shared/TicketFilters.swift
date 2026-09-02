@@ -79,6 +79,17 @@ enum TicketFilters {
         }
     }
 
+    static func matchesDateRange(_ ticket: FieldTicketDTO, startDate: Date?, endDate: Date?) -> Bool {
+        guard startDate != nil || endDate != nil else { return true }
+        guard let ticketDate = relevantDate(ticket) else { return false }
+
+        let calendar = businessCalendar()
+        let ticketDay = calendar.startOfDay(for: ticketDate)
+        if let startDate, ticketDay < calendar.startOfDay(for: startDate) { return false }
+        if let endDate, ticketDay > calendar.startOfDay(for: endDate) { return false }
+        return true
+    }
+
     static func sorted(_ tickets: [FieldTicketDTO], filter: String) -> [FieldTicketDTO] {
         let ascending = filter == "Bugünün Çağrıları" || filter == "İleri Tarihli"
         return tickets.sorted { left, right in
@@ -98,7 +109,23 @@ enum TicketFilters {
     }
 
     private static func sortDate(_ ticket: FieldTicketDTO) -> Date? {
-        parseBusinessDate(ticket.scheduledDate) ?? parseBusinessDate(ticket.createdAt)
+        relevantDate(ticket)
+    }
+
+    private static func relevantDate(_ ticket: FieldTicketDTO) -> Date? {
+        switch ticket.status?.uppercased() {
+        case "COMPLETED":
+            return parseBusinessDate(ticket.completedAt)
+                ?? parseBusinessDate(ticket.scheduledDate)
+                ?? parseBusinessDate(ticket.createdAt)
+        case "CANCELLED":
+            return parseBusinessDate(ticket.updatedAt)
+                ?? parseBusinessDate(ticket.scheduledDate)
+                ?? parseBusinessDate(ticket.createdAt)
+        default:
+            return parseBusinessDate(ticket.scheduledDate)
+                ?? parseBusinessDate(ticket.createdAt)
+        }
     }
 
     static func parseBusinessDate(_ raw: String?) -> Date? {

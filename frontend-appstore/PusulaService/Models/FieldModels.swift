@@ -23,6 +23,8 @@ struct FieldTicketDTO: Codable, Identifiable {
     let isWarrantyCall: Bool?
     let parentTicketId: Int?
     let createdAt: String?
+    let updatedAt: String?
+    let completedAt: String?
     
     var statusEnum: TicketStatus {
         TicketStatus(rawValue: status ?? "") ?? .pending
