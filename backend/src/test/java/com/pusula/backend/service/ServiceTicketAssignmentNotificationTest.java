@@ -45,6 +45,7 @@ class ServiceTicketAssignmentNotificationTest {
     @Mock ApplicationEventPublisher publisher;
     @Mock FinanceService financeService;
     @Mock UploadUrlSigner uploadUrlSigner;
+    @Mock CurrentAccountLedgerService currentAccountLedgerService;
     private ServiceTicketService service;
 
     @BeforeEach
@@ -52,7 +53,8 @@ class ServiceTicketAssignmentNotificationTest {
         service = new ServiceTicketService(ticketRepository, customerRepository, userRepository,
                 inventoryRepository, usedPartRepository, auditLogService, currentAccountRepository,
                 vehicleStockRepository, whatsAppNotificationService, featureService, photoRepository,
-                fileUploadService, publisher, financeService, uploadUrlSigner, "Europe/Istanbul");
+                fileUploadService, publisher, financeService, uploadUrlSigner,
+                currentAccountLedgerService, "Europe/Istanbul");
         authenticate(1L, 10L, "COMPANY_ADMIN");
     }
 

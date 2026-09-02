@@ -47,6 +47,7 @@ class ServiceTicketCompletionTest {
     @Mock ApplicationEventPublisher publisher;
     @Mock FinanceService financeService;
     @Mock UploadUrlSigner uploadUrlSigner;
+    @Mock CurrentAccountLedgerService currentAccountLedgerService;
 
     private ServiceTicketService service;
 
@@ -55,7 +56,8 @@ class ServiceTicketCompletionTest {
         service = new ServiceTicketService(ticketRepository, customerRepository, userRepository,
                 inventoryRepository, usedPartRepository, auditLogService, currentAccountRepository,
                 vehicleStockRepository, whatsAppNotificationService, featureService, photoRepository,
-                fileUploadService, publisher, financeService, uploadUrlSigner, "Europe/Istanbul");
+                fileUploadService, publisher, financeService, uploadUrlSigner,
+                currentAccountLedgerService, "Europe/Istanbul");
     }
 
     @AfterEach
@@ -162,7 +164,7 @@ class ServiceTicketCompletionTest {
         when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
         when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
         when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
-        when(currentAccountRepository.findByCustomerId(20L)).thenReturn(Optional.of(account));
+        when(currentAccountRepository.findByCustomerIdAndCompanyId(20L, 10L)).thenReturn(Optional.of(account));
         when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.completeService(100L, BigDecimal.ZERO, BigDecimal.ZERO,
@@ -185,7 +187,7 @@ class ServiceTicketCompletionTest {
                 .companyId(10L).customer(customer).balance(BigDecimal.ZERO).build();
         when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
         when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
-        when(currentAccountRepository.findByCustomerId(20L)).thenReturn(Optional.of(account));
+        when(currentAccountRepository.findByCustomerIdAndCompanyId(20L, 10L)).thenReturn(Optional.of(account));
         when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.completeService(100L, new BigDecimal("500.00"), PaymentMethod.CURRENT_ACCOUNT, null);
@@ -210,7 +212,7 @@ class ServiceTicketCompletionTest {
         when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
         when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
         when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
-        when(currentAccountRepository.findByCustomerId(20L)).thenReturn(Optional.of(account));
+        when(currentAccountRepository.findByCustomerIdAndCompanyId(20L, 10L)).thenReturn(Optional.of(account));
         when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.completeService(100L, new BigDecimal("300.00"), BigDecimal.ZERO,

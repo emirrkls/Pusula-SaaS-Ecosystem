@@ -1,6 +1,7 @@
 package com.pusula.desktop.api;
 
 import com.pusula.desktop.dto.CurrentAccountDTO;
+import com.pusula.desktop.dto.CurrentAccountHistoryDTO;
 import retrofit2.Call;
 import retrofit2.http.*;
 
@@ -14,6 +15,9 @@ public interface CurrentAccountApi {
 
     @GET("api/current-accounts/by-customer/{customerId}")
     Call<CurrentAccountDTO> getByCustomer(@Path("customerId") Long customerId);
+
+    @GET("api/current-accounts/{id}/history")
+    Call<CurrentAccountHistoryDTO> getHistory(@Path("id") Long id);
 
     @POST("api/current-accounts")
     Call<CurrentAccountDTO> createOrUpdate(@Body Map<String, Object> request);

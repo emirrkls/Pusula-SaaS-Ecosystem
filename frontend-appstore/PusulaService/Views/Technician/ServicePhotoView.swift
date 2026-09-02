@@ -67,8 +67,10 @@ struct ServicePhotoView: View {
         .sheet(isPresented: $showCamera) {
             CameraImagePicker { image in
                 showCamera = false
-                guard let data = image.jpegData(compressionQuality: 0.82) else { return }
-                Task { await upload(data: data) }
+                Task {
+                    do { await upload(data: try preparedServicePhotoData(from: image)) }
+                    catch { await MainActor.run { errorMessage = error.localizedDescription } }
+                }
             }
         }
         .fullScreenCover(item: $selectedPhoto) { ServicePhotoViewer(photo: $0) }
@@ -103,7 +105,8 @@ struct ServicePhotoView: View {
     private func upload(item: PhotosPickerItem) async {
         do {
             guard let data = try await item.loadTransferable(type: Data.self) else { throw NetworkError.invalidResponse }
-            await upload(data: data)
+            guard let image = UIImage(data: data) else { throw NetworkError.invalidResponse }
+            await upload(data: try preparedServicePhotoData(from: image))
         } catch { await MainActor.run { errorMessage = error.localizedDescription } }
         await MainActor.run { selectedLibraryItem = nil }
     }
@@ -120,6 +123,30 @@ struct ServicePhotoView: View {
             await MainActor.run { photos.removeAll { $0.id == photo.id } }
         } catch { await MainActor.run { errorMessage = error.localizedDescription } }
     }
+}
+
+private func preparedServicePhotoData(from image: UIImage) throws -> Data {
+    let maxDimension: CGFloat = 2_048
+    let largestDimension = max(image.size.width, image.size.height)
+    let scale = largestDimension > maxDimension ? maxDimension / largestDimension : 1
+    let targetSize = CGSize(width: max(1, image.size.width * scale), height: max(1, image.size.height * scale))
+    let format = UIGraphicsImageRendererFormat.default()
+    format.scale = 1
+    format.opaque = true
+    let normalized = UIGraphicsImageRenderer(size: targetSize, format: format).image { _ in
+        image.draw(in: CGRect(origin: .zero, size: targetSize))
+    }
+    var quality: CGFloat = 0.82
+    guard var data = normalized.jpegData(compressionQuality: quality) else {
+        throw NetworkError.invalidResponse
+    }
+    let targetBytes = 2 * 1_024 * 1_024
+    while data.count > targetBytes && quality > 0.48 {
+        quality -= 0.08
+        guard let compressed = normalized.jpegData(compressionQuality: quality) else { break }
+        data = compressed
+    }
+    return data
 }
 
 struct CameraImagePicker: UIViewControllerRepresentable {

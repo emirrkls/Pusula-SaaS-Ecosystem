@@ -844,12 +844,29 @@ public class FinanceController {
                         ? cellData.getValue().getLastUpdated().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"))
                         : "-"));
 
-        // Actions column with Edit Balance button
+        currentAccountsTable.setRowFactory(table -> {
+            TableRow<CurrentAccountDTO> row = new TableRow<>();
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2 && !row.isEmpty()) {
+                    showCurrentAccountHistory(row.getItem());
+                }
+            });
+            return row;
+        });
+
+        // Actions column with history and collection buttons
         colAccountActions.setCellFactory(param -> new TableCell<>() {
-            private final Button btnEdit = new Button("Düzenle");
+            private final Button btnHistory = new Button("Geçmiş");
+            private final Button btnEdit = new Button("Tahsilat");
+            private final HBox actions = new HBox(8, btnHistory, btnEdit);
 
             {
+                btnHistory.getStyleClass().addAll("button-sm", "button-secondary");
                 btnEdit.getStyleClass().addAll("button-sm", "button-secondary");
+                btnHistory.setOnAction(event -> {
+                    CurrentAccountDTO account = getTableView().getItems().get(getIndex());
+                    showCurrentAccountHistory(account);
+                });
                 btnEdit.setOnAction(event -> {
                     CurrentAccountDTO account = getTableView().getItems().get(getIndex());
                     handleEditBalance(account);
@@ -859,9 +876,100 @@ public class FinanceController {
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                setGraphic(empty ? null : btnEdit);
+                setGraphic(empty ? null : actions);
             }
         });
+    }
+
+    private void showCurrentAccountHistory(CurrentAccountDTO account) {
+        Dialog<Void> dialog = new Dialog<>();
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, currentAccountsTable.getScene().getWindow());
+        dialog.setTitle("Cari Geçmişi");
+        dialog.setHeaderText(account.getCustomerName() + " - " + formatCurrency(account.getBalance()));
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        dialog.getDialogPane().setPrefSize(900, 620);
+
+        VBox content = new VBox(12);
+        content.setPadding(new javafx.geometry.Insets(12));
+        ProgressIndicator progress = new ProgressIndicator();
+        content.getChildren().add(progress);
+        dialog.getDialogPane().setContent(content);
+        dialog.show();
+
+        CurrentAccountApi api = RetrofitClient.getClient().create(CurrentAccountApi.class);
+        api.getHistory(account.getId()).enqueue(new Callback<CurrentAccountHistoryDTO>() {
+            @Override
+            public void onResponse(Call<CurrentAccountHistoryDTO> call, Response<CurrentAccountHistoryDTO> response) {
+                Platform.runLater(() -> {
+                    if (!response.isSuccessful() || response.body() == null) {
+                        content.getChildren().setAll(new Label("Cari geçmişi yüklenemedi: " + response.code()));
+                        return;
+                    }
+                    CurrentAccountHistoryDTO history = response.body();
+                    dialog.setHeaderText(history.getCustomerName() + " - Güncel bakiye: "
+                            + formatCurrency(history.getCurrentBalance()));
+                    content.getChildren().setAll(buildCurrentAccountHistoryTable(history));
+                });
+            }
+
+            @Override
+            public void onFailure(Call<CurrentAccountHistoryDTO> call, Throwable throwable) {
+                Platform.runLater(() -> content.getChildren().setAll(
+                        new Label("Cari geçmişi yüklenemedi: " + throwable.getMessage())));
+            }
+        });
+    }
+
+    private TableView<CurrentAccountHistoryDTO.Transaction> buildCurrentAccountHistoryTable(
+            CurrentAccountHistoryDTO history) {
+        TableView<CurrentAccountHistoryDTO.Transaction> table = new TableView<>();
+        table.getStyleClass().add("premium-table");
+        table.setPlaceholder(new Label("Cari hareket bulunmuyor."));
+
+        TableColumn<CurrentAccountHistoryDTO.Transaction, String> date = new TableColumn<>("Tarih");
+        date.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(
+                value.getValue().getEffectiveDate() != null
+                        ? value.getValue().getEffectiveDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "-"));
+        date.setPrefWidth(105);
+
+        TableColumn<CurrentAccountHistoryDTO.Transaction, String> type = new TableColumn<>("Hareket");
+        type.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(
+                currentAccountTransactionLabel(value.getValue().getType())));
+        type.setPrefWidth(130);
+
+        TableColumn<CurrentAccountHistoryDTO.Transaction, String> description = new TableColumn<>("Açıklama");
+        description.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(
+                value.getValue().getDescription() != null ? value.getValue().getDescription() : "-"));
+        description.setPrefWidth(330);
+
+        TableColumn<CurrentAccountHistoryDTO.Transaction, String> amount = new TableColumn<>("Tutar");
+        amount.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(
+                (value.getValue().getAmount() != null && value.getValue().getAmount().signum() > 0 ? "+" : "")
+                        + formatCurrency(value.getValue().getAmount())));
+        amount.setPrefWidth(120);
+
+        TableColumn<CurrentAccountHistoryDTO.Transaction, String> balance = new TableColumn<>("Son Bakiye");
+        balance.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(
+                formatCurrency(value.getValue().getBalanceAfter())));
+        balance.setPrefWidth(130);
+
+        table.getColumns().addAll(date, type, description, amount, balance);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setItems(FXCollections.observableArrayList(
+                history.getTransactions() != null ? history.getTransactions() : List.of()));
+        VBox.setVgrow(table, Priority.ALWAYS);
+        return table;
+    }
+
+    private String currentAccountTransactionLabel(String type) {
+        if (type == null) return "Bakiye düzeltmesi";
+        return switch (type) {
+            case "CHARGE" -> "Borç oluştu";
+            case "PAYMENT" -> "Tahsilat";
+            case "DISCOUNT" -> "İndirim";
+            case "REVERSAL" -> "Borç geri alındı";
+            default -> "Bakiye düzeltmesi";
+        };
     }
 
     private void loadCurrentAccounts() {

@@ -6,6 +6,7 @@ import com.pusula.backend.dto.ServicePhotoDTO;
 import com.pusula.backend.dto.ServiceTicketDTO;
 import com.pusula.backend.dto.ServiceUsedPartDTO;
 import com.pusula.backend.entity.CurrentAccount;
+import com.pusula.backend.entity.CurrentAccountTransaction;
 import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.Inventory;
 import com.pusula.backend.entity.PaymentMethod;
@@ -79,6 +80,7 @@ public class ServiceTicketService {
     private final ApplicationEventPublisher eventPublisher;
     private final FinanceService financeService;
     private final UploadUrlSigner uploadUrlSigner;
+    private final CurrentAccountLedgerService currentAccountLedgerService;
 
     public ServiceTicketService(ServiceTicketRepository repository,
             CustomerRepository customerRepository,
@@ -94,6 +96,7 @@ public class ServiceTicketService {
             FileUploadService fileUploadService,
             ApplicationEventPublisher eventPublisher,
             FinanceService financeService, UploadUrlSigner uploadUrlSigner,
+            CurrentAccountLedgerService currentAccountLedgerService,
             @Value("${app.business.timezone:Europe/Istanbul}") String businessTimezone) {
         this.repository = repository;
         this.customerRepository = customerRepository;
@@ -110,6 +113,7 @@ public class ServiceTicketService {
         this.eventPublisher = eventPublisher;
         this.financeService = financeService;
         this.uploadUrlSigner = uploadUrlSigner;
+        this.currentAccountLedgerService = currentAccountLedgerService;
         this.businessZone = ZoneId.of(businessTimezone);
     }
 
@@ -473,6 +477,10 @@ public class ServiceTicketService {
             }
             account.setBalance(balance.subtract(previousOutstanding));
             currentAccountRepository.save(account);
+            currentAccountLedgerService.record(account, CurrentAccountTransaction.TransactionType.REVERSAL,
+                    previousOutstanding.negate(), LocalDate.now(businessZone),
+                    "Yeniden açılan servis fişi #" + ticket.getId(), null,
+                    "SERVICE_TICKET_REOPEN", ticket.getId());
         }
 
         String previousStatus = getStatusInTurkish(ticket.getStatus());
@@ -1012,13 +1020,14 @@ public class ServiceTicketService {
         ticket.setCollectionDate(effectiveCollectedAmount.signum() > 0 ? completionDate : null);
 
         // Any unpaid portion becomes customer debt, including partial cash/card payments.
+        CurrentAccount debtAccount = null;
         if (outstandingAmount.signum() > 0 && ticket.getCustomerId() != null) {
             // Fetch customer entity
             Customer customer = customerRepository.findById(ticket.getCustomerId())
                     .orElseThrow(() -> new RuntimeException("Customer not found"));
 
             CurrentAccount account = currentAccountRepository
-                    .findByCustomerId(ticket.getCustomerId())
+                    .findByCustomerIdAndCompanyId(ticket.getCustomerId(), ticket.getCompanyId())
                     .orElseGet(() -> {
                         CurrentAccount newAccount = CurrentAccount.builder()
                                 .companyId(ticket.getCompanyId())
@@ -1031,10 +1040,16 @@ public class ServiceTicketService {
             // ADD to debt (positive balance = customer owes us)
             BigDecimal currentBalance = account.getBalance() != null ? account.getBalance() : BigDecimal.ZERO;
             account.setBalance(currentBalance.add(outstandingAmount));
-            currentAccountRepository.save(account);
+            debtAccount = currentAccountRepository.save(account);
         }
 
         ServiceTicket saved = repository.save(ticket);
+        if (debtAccount != null) {
+            currentAccountLedgerService.record(debtAccount, CurrentAccountTransaction.TransactionType.CHARGE,
+                    outstandingAmount, completionDate,
+                    "Servis fişi #" + saved.getId() + " - " + saved.getDescription(),
+                    effectivePaymentMethod, "SERVICE_TICKET", saved.getId());
+        }
         financeService.reconcileClosedDay(saved.getCompanyId(), completionDate);
         if (!completionDate.equals(businessToday)) {
             auditLogService.log("BACKDATED_COMPLETE", "TICKET", saved.getId(),

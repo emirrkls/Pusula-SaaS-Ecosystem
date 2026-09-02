@@ -8,6 +8,7 @@ import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.CurrentAccountRepository;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
+import com.pusula.backend.service.CurrentAccountLedgerService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,7 @@ class CurrentAccountControllerTest {
     @Mock CurrentAccountRepository currentAccountRepository;
     @Mock CustomerRepository customerRepository;
     @Mock ServiceTicketRepository serviceTicketRepository;
+    @Mock CurrentAccountLedgerService ledgerService;
 
     private CurrentAccountController controller;
 
@@ -42,6 +44,7 @@ class CurrentAccountControllerTest {
         ReflectionTestUtils.setField(controller, "currentAccountRepository", currentAccountRepository);
         ReflectionTestUtils.setField(controller, "customerRepository", customerRepository);
         ReflectionTestUtils.setField(controller, "serviceTicketRepository", serviceTicketRepository);
+        ReflectionTestUtils.setField(controller, "ledgerService", ledgerService);
         User admin = User.builder().id(1L).companyId(7L).username("admin")
                 .passwordHash("secret").role("COMPANY_ADMIN").fullName("Admin").build();
         SecurityContextHolder.getContext().setAuthentication(

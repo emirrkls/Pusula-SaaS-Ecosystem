@@ -62,6 +62,10 @@ enum FinanceService {
     static func getCurrentAccounts() async throws -> [CurrentAccountDTO] {
         try await NetworkManager.shared.get("/api/current-accounts")
     }
+
+    static func getCurrentAccountHistory(accountId: Int) async throws -> CurrentAccountHistoryDTO {
+        try await NetworkManager.shared.get("/api/current-accounts/\(accountId)/history")
+    }
     
     static func payDebt(accountId: Int, paymentAmount: Double, discount: Double, collectionDate: String, paymentMethod: String, notes: String?) async throws -> CurrentAccountDTO {
         let body = PayDebtRequest(paymentAmount: paymentAmount, discount: discount, collectionDate: collectionDate, paymentMethod: paymentMethod, notes: notes)

@@ -71,6 +71,8 @@ actor NetworkManager {
                 throw NetworkError.quotaExceeded(errorBody.message ?? "Kota aşıldı")
             }
             throw NetworkError.quotaExceeded("Kota limitinize ulaştınız")
+        case 413:
+            throw NetworkError.payloadTooLarge
         case 409:
             let errorBody = try? JSONDecoder().decode(ErrorResponse.self, from: data)
             throw NetworkError.conflict(
@@ -249,6 +251,8 @@ actor NetworkManager {
                 throw NetworkError.quotaExceeded(errorBody.message ?? "Kota aşıldı")
             }
             throw NetworkError.quotaExceeded("Kota limitinize ulaştınız")
+        case 413:
+            throw NetworkError.payloadTooLarge
         case 409:
             let errorBody = try? JSONDecoder().decode(ErrorResponse.self, from: data)
             throw NetworkError.conflict(
@@ -286,6 +290,7 @@ enum NetworkError: LocalizedError {
     case badRequest(String)
     case forbidden(String)
     case quotaExceeded(String)
+    case payloadTooLarge
     case conflict(code: String?, message: String?, count: Int?)
     case serverError(Int)
     case decodingError(Error)
@@ -298,6 +303,7 @@ enum NetworkError: LocalizedError {
         case .badRequest(let message): return message
         case .forbidden(let msg): return msg
         case .quotaExceeded(let msg): return msg
+        case .payloadTooLarge: return "Görsel dosyası çok büyük. Daha küçük bir fotoğraf deneyin."
         case .conflict(_, let message, _): return message ?? "İşlem mevcut verilerle çakışıyor."
         case .serverError(let code): return "Sunucu hatası (\(code))"
         case .decodingError(let err): return "Veri çözümleme hatası: \(err.localizedDescription)"

@@ -31,6 +31,7 @@ class CommercialDeviceServiceSecurityAndAccountingTest {
     @Mock CurrentAccountRepository currentAccountRepository;
     @Mock ExpenseRepository expenseRepository;
     @Mock AuditLogService auditLogService;
+    @Mock CurrentAccountLedgerService currentAccountLedgerService;
 
     private CommercialDeviceService service;
     private User admin;
@@ -38,7 +39,8 @@ class CommercialDeviceServiceSecurityAndAccountingTest {
     @BeforeEach
     void setUp() {
         service = new CommercialDeviceService(deviceRepository, deviceTypeRepository, userRepository,
-                ticketRepository, customerRepository, currentAccountRepository, expenseRepository, auditLogService);
+                ticketRepository, customerRepository, currentAccountRepository, expenseRepository, auditLogService,
+                currentAccountLedgerService);
         admin = User.builder().id(1L).companyId(10L).username("admin").passwordHash("hash")
                 .role("COMPANY_ADMIN").fullName("Admin").build();
         SecurityContextHolder.getContext().setAuthentication(

@@ -26,6 +26,7 @@ public class CommercialDeviceService {
     private final CurrentAccountRepository currentAccountRepository;
     private final ExpenseRepository expenseRepository;
     private final AuditLogService auditLogService;
+    private final CurrentAccountLedgerService currentAccountLedgerService;
 
     public CommercialDeviceService(CommercialDeviceRepository commercialDeviceRepository,
             DeviceTypeRepository deviceTypeRepository,
@@ -34,7 +35,8 @@ public class CommercialDeviceService {
             CustomerRepository customerRepository,
             CurrentAccountRepository currentAccountRepository,
             ExpenseRepository expenseRepository,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            CurrentAccountLedgerService currentAccountLedgerService) {
         this.commercialDeviceRepository = commercialDeviceRepository;
         this.deviceTypeRepository = deviceTypeRepository;
         this.userRepository = userRepository;
@@ -43,6 +45,7 @@ public class CommercialDeviceService {
         this.currentAccountRepository = currentAccountRepository;
         this.expenseRepository = expenseRepository;
         this.auditLogService = auditLogService;
+        this.currentAccountLedgerService = currentAccountLedgerService;
     }
 
     public List<CommercialDeviceDTO> getAllByCompany(Long companyId) {
@@ -233,6 +236,7 @@ public class CommercialDeviceService {
         ticket.setScheduledDate(saleDate.atStartOfDay());
         ticket.setCollectedAmount(BigDecimal.ZERO); // Installation starts at 0
 
+        CurrentAccount debtAccount = null;
         // Set payment method reference and handle cari account creation
         if (normalizedPaymentMethod == PaymentMethod.CASH) {
             ticket.setPaymentMethod(PaymentMethod.CASH);
@@ -255,10 +259,16 @@ public class CommercialDeviceService {
 
             // Add debt (positive balance = customer owes us)
             account.setBalance(account.getBalance().add(salePrice));
-            currentAccountRepository.save(account);
+            debtAccount = currentAccountRepository.save(account);
         }
 
         ServiceTicket savedTicket = serviceTicketRepository.save(ticket);
+        if (debtAccount != null) {
+            currentAccountLedgerService.record(debtAccount, CurrentAccountTransaction.TransactionType.CHARGE,
+                    salePrice, saleDate,
+                    "Ticari cihaz satışı - " + device.getBrand() + " " + device.getModel(),
+                    PaymentMethod.CURRENT_ACCOUNT, "COMMERCIAL_DEVICE_TICKET", savedTicket.getId());
+        }
 
         // 6. Decrease stock
         device.setQuantity(device.getQuantity() - 1);

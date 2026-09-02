@@ -1,14 +1,17 @@
 package com.pusula.backend.controller;
 
 import com.pusula.backend.dto.CurrentAccountDTO;
+import com.pusula.backend.dto.CurrentAccountHistoryDTO;
 import com.pusula.backend.annotation.RequiresFeature;
 import com.pusula.backend.entity.CurrentAccount;
 import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.PaymentMethod;
+import com.pusula.backend.entity.CurrentAccountTransaction;
 import com.pusula.backend.repository.CurrentAccountRepository;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
+import com.pusula.backend.service.CurrentAccountLedgerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,6 +39,9 @@ public class CurrentAccountController {
     @Autowired
     private ServiceTicketRepository serviceTicketRepository;
 
+    @Autowired
+    private CurrentAccountLedgerService ledgerService;
+
     @GetMapping
     public List<CurrentAccountDTO> getAll() {
         Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
@@ -51,7 +57,13 @@ public class CurrentAccountController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/{id}/history")
+    public ResponseEntity<CurrentAccountHistoryDTO> getHistory(@PathVariable Long id) {
+        return ResponseEntity.ok(ledgerService.getHistory(id, getCompanyId()));
+    }
+
     @PostMapping
+    @Transactional
     public ResponseEntity<?> createOrUpdate(@RequestBody Map<String, Object> request) {
         Long companyId = getCompanyId();
         Long customerId = ((Number) request.get("customerId")).longValue();
@@ -71,10 +83,14 @@ public class CurrentAccountController {
                         .build());
 
         account.setBalance(account.getBalance().add(amount));
-        return ResponseEntity.ok(currentAccountRepository.save(account));
+        CurrentAccount saved = currentAccountRepository.save(account);
+        ledgerService.record(saved, CurrentAccountTransaction.TransactionType.ADJUSTMENT, amount,
+                LocalDate.now(), "Manuel cari borç ilavesi", null, null, null);
+        return ResponseEntity.ok(saved);
     }
 
     @PutMapping("/{id}/adjust")
+    @Transactional
     public ResponseEntity<CurrentAccount> adjustBalance(@PathVariable Long id,
             @RequestBody Map<String, Object> request) {
         Long companyId = getCompanyId();
@@ -84,12 +100,16 @@ public class CurrentAccountController {
                     BigDecimal newBalance = account.getBalance().add(amount);
                     validateNonNegative(newBalance, "Cari bakiye");
                     account.setBalance(newBalance);
-                    return ResponseEntity.ok(currentAccountRepository.save(account));
+                    CurrentAccount saved = currentAccountRepository.save(account);
+                    ledgerService.record(saved, CurrentAccountTransaction.TransactionType.ADJUSTMENT, amount,
+                            LocalDate.now(), "Manuel cari bakiye düzeltmesi", null, null, null);
+                    return ResponseEntity.ok(saved);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}/set")
+    @Transactional
     public ResponseEntity<CurrentAccount> setBalance(@PathVariable Long id,
             @RequestBody Map<String, Object> request) {
         Long companyId = getCompanyId();
@@ -97,8 +117,12 @@ public class CurrentAccountController {
                 .map(account -> {
                     BigDecimal balance = new BigDecimal(request.get("balance").toString());
                     validateNonNegative(balance, "Cari bakiye");
+                    BigDecimal delta = balance.subtract(account.getBalance());
                     account.setBalance(balance);
-                    return ResponseEntity.ok(currentAccountRepository.save(account));
+                    CurrentAccount saved = currentAccountRepository.save(account);
+                    ledgerService.record(saved, CurrentAccountTransaction.TransactionType.ADJUSTMENT, delta,
+                            LocalDate.now(), "Cari bakiye doğrudan güncellendi", null, null, null);
+                    return ResponseEntity.ok(saved);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -149,12 +173,13 @@ public class CurrentAccountController {
 
                     // Create a ServiceTicket to record payment as income
                     // Only if paymentAmount > 0 (actual money received)
+                    ServiceTicket incomeTicket = null;
                     if (paymentAmount.compareTo(BigDecimal.ZERO) > 0) {
                         String customerName = account.getCustomer() != null
                                 ? account.getCustomer().getName()
                                 : "Bilinmeyen Müşteri";
 
-                        ServiceTicket incomeTicket = ServiceTicket.builder()
+                        incomeTicket = ServiceTicket.builder()
                                 .companyId(account.getCompanyId())
                                 .customerId(account.getCustomer() != null ? account.getCustomer().getId() : null)
                                 .status(ServiceTicket.TicketStatus.COMPLETED)
@@ -167,10 +192,24 @@ public class CurrentAccountController {
                         incomeTicket.setCompletedAt(collectionDate.atTime(12, 0));
                         incomeTicket.setCollectionDate(collectionDate);
 
-                        serviceTicketRepository.save(incomeTicket);
+                        incomeTicket = serviceTicketRepository.save(incomeTicket);
                     }
 
-                    return ResponseEntity.ok(mapToDTO(currentAccountRepository.save(account)));
+                    CurrentAccount saved = currentAccountRepository.save(account);
+                    if (paymentAmount.signum() > 0) {
+                        ledgerService.record(saved, CurrentAccountTransaction.TransactionType.PAYMENT,
+                                paymentAmount.negate(), collectionDate,
+                                notes.isBlank() ? "Cari hesap tahsilatı" : "Cari hesap tahsilatı - " + notes,
+                                paymentMethod, "CURRENT_ACCOUNT_PAYMENT",
+                                incomeTicket != null ? incomeTicket.getId() : null);
+                    }
+                    if (discount.signum() > 0) {
+                        ledgerService.record(saved, CurrentAccountTransaction.TransactionType.DISCOUNT,
+                                discount.negate(), collectionDate,
+                                notes.isBlank() ? "Cari hesap indirimi" : "Cari hesap indirimi - " + notes,
+                                null, null, null);
+                    }
+                    return ResponseEntity.ok(mapToDTO(saved));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

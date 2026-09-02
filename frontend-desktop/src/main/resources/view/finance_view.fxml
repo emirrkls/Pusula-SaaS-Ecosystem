@@ -301,7 +301,7 @@
                            <TableColumn fx:id="colAccountCustomer" text="%current_account.customer" prefWidth="200.0" />
                            <TableColumn fx:id="colAccountBalance" text="%current_account.balance" prefWidth="150.0" />
                            <TableColumn fx:id="colAccountLastUpdated" text="%current_account.last_updated" prefWidth="180.0" />
-                           <TableColumn fx:id="colAccountActions" text="%table.actions" prefWidth="120.0" />
+                           <TableColumn fx:id="colAccountActions" text="%table.actions" prefWidth="210.0" />
                         </columns>
                         <columnResizePolicy>
                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />

@@ -103,6 +103,27 @@ struct CurrentAccountDTO: Codable, Identifiable {
     let lastUpdated: String?
 }
 
+struct CurrentAccountHistoryDTO: Codable {
+    let accountId: Int
+    let customerId: Int
+    let customerName: String
+    let currentBalance: Double
+    let transactions: [CurrentAccountTransactionDTO]
+}
+
+struct CurrentAccountTransactionDTO: Codable, Identifiable {
+    let id: Int
+    let type: String
+    let amount: Double
+    let balanceAfter: Double
+    let effectiveDate: String
+    let description: String?
+    let paymentMethod: String?
+    let sourceType: String?
+    let sourceId: Int?
+    let createdAt: String?
+}
+
 struct CloseDayRequest: Codable {
     let companyId: Int?
     let date: String

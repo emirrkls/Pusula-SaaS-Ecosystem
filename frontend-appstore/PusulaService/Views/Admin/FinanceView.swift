@@ -278,7 +278,6 @@ struct FinanceAnalysisTab: View {
 struct FinanceAccountsTab: View {
     @State private var accounts: [CurrentAccountDTO] = []
     @State private var selectedAccount: CurrentAccountDTO?
-    @State private var showPaySheet = false
     @State private var isLoading = true
     @State private var pdfPreview: PDFPreviewItem?
     @State private var errorMessage: String?
@@ -287,7 +286,6 @@ struct FinanceAccountsTab: View {
         List(Array(accounts.enumerated()), id: \.offset) { _, account in
             Button(action: {
                 selectedAccount = account
-                showPaySheet = true
             }) {
                 HStack {
                     VStack(alignment: .leading) {
@@ -322,11 +320,9 @@ struct FinanceAccountsTab: View {
             }
         }
         .sheet(item: $pdfPreview) { PDFPreviewSheet(item: $0) }
-        .sheet(isPresented: $showPaySheet) {
-            if let account = selectedAccount {
-                PayDebtSheet(account: account) {
-                    await load()
-                }
+        .sheet(item: $selectedAccount) { account in
+            CurrentAccountHistorySheet(account: account) {
+                await load()
             }
         }
         .alert("Cari Hesaplar Yüklenemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
@@ -350,6 +346,149 @@ struct FinanceAccountsTab: View {
         do { pdfPreview = try PDFPreviewItem(data: try await FinanceService.downloadCurrentAccountsPDF(), fileName: "acik-cari-hesaplar.pdf", title: "Açık Cari Hesaplar") }
         catch { errorMessage = error.localizedDescription }
     }
+}
+
+struct CurrentAccountHistorySheet: View {
+    let account: CurrentAccountDTO
+    let onChanged: () async -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var history: CurrentAccountHistoryDTO?
+    @State private var isLoading = true
+    @State private var showPaySheet = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    LabeledContent("Müşteri", value: history?.customerName ?? account.customerName ?? "-")
+                    LabeledContent("Güncel cari bakiye", value: formatCurrency(history?.currentBalance ?? account.balance))
+                }
+                Section("Cari hareketleri") {
+                    if isLoading {
+                        HStack { Spacer(); ProgressView(); Spacer() }
+                    } else if let history, history.transactions.isEmpty {
+                        ContentUnavailableView("Cari hareket bulunamadı", systemImage: "clock.arrow.circlepath")
+                    } else {
+                        ForEach(history?.transactions ?? []) { transaction in
+                            currentAccountTransactionRow(transaction)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Cari Geçmişi")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Kapat") { dismiss() } }
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showPaySheet = true } label: { Label("Tahsilat", systemImage: "banknote") }
+                        .disabled((history?.currentBalance ?? account.balance ?? 0) <= 0)
+                        .readOnlyProtected()
+                }
+            }
+            .task { await loadHistory() }
+            .refreshable { await loadHistory() }
+            .sheet(isPresented: $showPaySheet) {
+                PayDebtSheet(account: refreshedAccount) {
+                    await onChanged()
+                    await loadHistory()
+                }
+            }
+            .alert("Cari Geçmişi Yüklenemedi", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) { Button("Tamam", role: .cancel) { errorMessage = nil } }
+            message: { Text(errorMessage ?? "") }
+        }
+    }
+
+    private var refreshedAccount: CurrentAccountDTO {
+        CurrentAccountDTO(
+            id: account.id,
+            customerId: account.customerId,
+            customerName: history?.customerName ?? account.customerName,
+            balance: history?.currentBalance ?? account.balance,
+            lastUpdated: account.lastUpdated
+        )
+    }
+
+    private func loadHistory() async {
+        guard let accountId = account.id else {
+            errorMessage = "Cari hesap kimliği bulunamadı."
+            isLoading = false
+            return
+        }
+        isLoading = true
+        defer { isLoading = false }
+        do { history = try await FinanceService.getCurrentAccountHistory(accountId: accountId) }
+        catch { errorMessage = error.localizedDescription }
+    }
+}
+
+private func currentAccountTransactionRow(_ transaction: CurrentAccountTransactionDTO) -> some View {
+    HStack(alignment: .top, spacing: 12) {
+        Image(systemName: currentAccountTransactionIcon(transaction.type))
+            .foregroundStyle(transaction.amount >= 0 ? Color.orange : Color.green)
+            .frame(width: 28, height: 28)
+            .background((transaction.amount >= 0 ? Color.orange : Color.green).opacity(0.12))
+            .clipShape(Circle())
+        VStack(alignment: .leading, spacing: 4) {
+            Text(currentAccountTransactionTitle(transaction.type)).font(.subheadline.weight(.semibold))
+            Text(transaction.description ?? "Cari hesap hareketi").font(.caption).foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Text(displayFinanceDate(transaction.effectiveDate))
+                if let method = transaction.paymentMethod { Text("• \(financePaymentMethodLabel(method))") }
+                if let sourceId = transaction.sourceId, transaction.sourceType?.contains("TICKET") == true {
+                    Text("• Fiş #\(sourceId)")
+                }
+            }
+            .font(.caption2).foregroundStyle(.secondary)
+        }
+        Spacer()
+        VStack(alignment: .trailing, spacing: 4) {
+            Text((transaction.amount >= 0 ? "+" : "") + formatCurrency(transaction.amount))
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(transaction.amount >= 0 ? Color.orange : Color.green)
+            Text("Bakiye \(formatCurrency(transaction.balanceAfter))")
+                .font(.caption2).foregroundStyle(.secondary)
+        }
+    }
+    .padding(.vertical, 4)
+}
+
+private func currentAccountTransactionTitle(_ type: String) -> String {
+    switch type {
+    case "CHARGE": return "Borç oluştu"
+    case "PAYMENT": return "Tahsilat"
+    case "DISCOUNT": return "İndirim"
+    case "REVERSAL": return "Borç geri alındı"
+    default: return "Bakiye düzeltmesi"
+    }
+}
+
+private func currentAccountTransactionIcon(_ type: String) -> String {
+    switch type {
+    case "CHARGE": return "plus"
+    case "PAYMENT": return "banknote"
+    case "DISCOUNT": return "percent"
+    case "REVERSAL": return "arrow.uturn.backward"
+    default: return "slider.horizontal.3"
+    }
+}
+
+private func financePaymentMethodLabel(_ method: String) -> String {
+    switch method {
+    case "CASH": return "Nakit"
+    case "CREDIT_CARD": return "Kart"
+    case "CURRENT_ACCOUNT": return "Cari"
+    default: return method
+    }
+}
+
+private func displayFinanceDate(_ value: String) -> String {
+    let input = DateFormatter(); input.locale = Locale(identifier: "en_US_POSIX"); input.dateFormat = "yyyy-MM-dd"
+    let output = DateFormatter(); output.locale = Locale(identifier: "tr_TR"); output.dateFormat = "dd.MM.yyyy"
+    return input.date(from: value).map(output.string) ?? value
 }
 
 struct FinanceReportsTab: View {
