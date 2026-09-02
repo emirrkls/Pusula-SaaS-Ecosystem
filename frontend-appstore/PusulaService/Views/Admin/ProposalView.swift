@@ -1,9 +1,30 @@
 import SwiftUI
 
+private enum ProposalStatusFilter: String, CaseIterable, Identifiable {
+    case all = "ALL"
+    case draft = "DRAFT"
+    case sent = "SENT"
+    case approved = "APPROVED"
+    case rejected = "REJECTED"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: return "Tümü"
+        case .draft: return "Taslak"
+        case .sent: return "Gönderildi"
+        case .approved: return "Onaylandı"
+        case .rejected: return "Reddedildi"
+        }
+    }
+}
+
 struct ProposalView: View {
     @State private var proposals: [ProposalDTO] = []
     @State private var customers: [CustomerDTO] = []
     @State private var searchText = ""
+    @State private var selectedStatus = ProposalStatusFilter.all
     @State private var isLoading = true
     @State private var editingProposal: ProposalDTO?
     @State private var showCreate = false
@@ -14,10 +35,17 @@ struct ProposalView: View {
     @State private var errorMessage: String?
     
     private var filtered: [ProposalDTO] {
-        guard !searchText.isEmpty else { return proposals }
-        return proposals.filter {
-            ($0.title ?? "").localizedCaseInsensitiveContains(searchText) ||
-            ($0.customerName ?? "").localizedCaseInsensitiveContains(searchText)
+        proposals.filter { proposal in
+            let matchesStatus = selectedStatus == .all ||
+                proposal.status?.uppercased() == selectedStatus.rawValue
+            guard matchesStatus else { return false }
+
+            let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !query.isEmpty else { return true }
+            return (proposal.title ?? "").localizedCaseInsensitiveContains(query) ||
+                (proposal.customerName ?? "").localizedCaseInsensitiveContains(query) ||
+                (proposal.preparedByName ?? "").localizedCaseInsensitiveContains(query) ||
+                (proposal.id.map { String($0) } ?? "").localizedCaseInsensitiveContains(query)
         }
     }
     
@@ -30,10 +58,54 @@ struct ProposalView: View {
             .padding(10)
             .background(Color(.systemGray6))
             .clipShape(RoundedRectangle(cornerRadius: 10))
-            .padding()
+            .padding(.horizontal)
+            .padding(.top)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(ProposalStatusFilter.allCases) { status in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                selectedStatus = status
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(status.title)
+                                Text("\(proposalCount(for: status))")
+                                    .font(.caption2.weight(.bold))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(
+                                        selectedStatus == status
+                                            ? Color.white.opacity(0.22)
+                                            : Color.secondary.opacity(0.12)
+                                    )
+                                    .clipShape(Capsule())
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(selectedStatus == status ? Color.white : Color.primary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(selectedStatus == status ? PusulaTheme.accent : Color(.systemGray6))
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 10)
+            }
             
             if isLoading {
                 Spacer(); ProgressView(); Spacer()
+            } else if filtered.isEmpty {
+                Spacer()
+                ContentUnavailableView(
+                    "Teklif bulunamadı",
+                    systemImage: "doc.text.magnifyingglass",
+                    description: Text("Aramayı veya durum kategorisini değiştirin.")
+                )
+                Spacer()
             } else {
                 List(filtered) { proposal in
                     proposalRow(proposal)
@@ -89,11 +161,12 @@ struct ProposalView: View {
                 Text(proposal.title ?? "Teklif")
                     .font(.headline)
                 Spacer()
-                Text(proposal.status ?? "TASLAK")
+                Text(proposalStatusLabel(proposal.status))
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(PusulaTheme.accent.opacity(0.10))
+                    .foregroundStyle(proposalStatusColor(proposal.status))
+                    .background(proposalStatusColor(proposal.status).opacity(0.12))
                     .clipShape(Capsule())
             }
             
@@ -177,6 +250,11 @@ struct ProposalView: View {
         }
         isLoading = false
     }
+
+    private func proposalCount(for status: ProposalStatusFilter) -> Int {
+        guard status != .all else { return proposals.count }
+        return proposals.lazy.filter { $0.status?.uppercased() == status.rawValue }.count
+    }
     
     private func downloadPDF(_ proposal: ProposalDTO) async {
         guard let id = proposal.id else { return }
@@ -215,6 +293,25 @@ struct ProposalView: View {
     private func conversionButtonTitle(_ proposal: ProposalDTO) -> String {
         if convertingProposalId == proposal.id { return "İş Emri Oluşturuluyor…" }
         return conversionAllowed(proposal) ? "İşe Dönüştür" : "İşe Dönüştürülemez"
+    }
+}
+
+private func proposalStatusLabel(_ status: String?) -> String {
+    switch status?.uppercased() {
+    case "DRAFT": return "Taslak"
+    case "SENT": return "Gönderildi"
+    case "APPROVED": return "Onaylandı"
+    case "REJECTED": return "Reddedildi"
+    default: return status ?? "Taslak"
+    }
+}
+
+private func proposalStatusColor(_ status: String?) -> Color {
+    switch status?.uppercased() {
+    case "SENT": return .blue
+    case "APPROVED": return .green
+    case "REJECTED": return .red
+    default: return .orange
     }
 }
 
