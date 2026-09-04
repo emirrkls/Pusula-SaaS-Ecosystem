@@ -12,6 +12,9 @@ public class ServiceTicketDTO {
     private String status;
     private LocalDateTime scheduledDate;
     private LocalDateTime scheduledEndDate;
+    private String workProgressReason;
+    private String workProgressNote;
+    private LocalDateTime lastRescheduledAt;
     private String description;
     private String notes;
     private String technicianPrivateNote;
@@ -87,6 +90,12 @@ public class ServiceTicketDTO {
     public void setScheduledEndDate(LocalDateTime scheduledEndDate) {
         this.scheduledEndDate = scheduledEndDate;
     }
+    public String getWorkProgressReason() { return workProgressReason; }
+    public void setWorkProgressReason(String value) { workProgressReason = value; }
+    public String getWorkProgressNote() { return workProgressNote; }
+    public void setWorkProgressNote(String value) { workProgressNote = value; }
+    public LocalDateTime getLastRescheduledAt() { return lastRescheduledAt; }
+    public void setLastRescheduledAt(LocalDateTime value) { lastRescheduledAt = value; }
 
     public String getDescription() {
         return description;

@@ -1,7 +1,9 @@
 package com.pusula.backend.service;
 
 import com.pusula.backend.dto.ServiceTicketDTO;
+import com.pusula.backend.dto.ServiceTicketRescheduleRequest;
 import com.pusula.backend.entity.ServiceTicket;
+import com.pusula.backend.entity.ServiceTicketReschedule;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.entity.Customer;
 import com.pusula.backend.event.TicketAssignedEvent;
@@ -19,6 +21,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
 import java.util.List;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -31,6 +34,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ServiceTicketAssignmentNotificationTest {
     @Mock ServiceTicketRepository ticketRepository;
+    @Mock ServiceTicketRescheduleRepository rescheduleRepository;
     @Mock CustomerRepository customerRepository;
     @Mock UserRepository userRepository;
     @Mock InventoryRepository inventoryRepository;
@@ -50,7 +54,7 @@ class ServiceTicketAssignmentNotificationTest {
 
     @BeforeEach
     void setUp() {
-        service = new ServiceTicketService(ticketRepository, customerRepository, userRepository,
+        service = new ServiceTicketService(ticketRepository, rescheduleRepository, customerRepository, userRepository,
                 inventoryRepository, usedPartRepository, auditLogService, currentAccountRepository,
                 vehicleStockRepository, whatsAppNotificationService, featureService, photoRepository,
                 fileUploadService, publisher, financeService, uploadUrlSigner,
@@ -233,6 +237,76 @@ class ServiceTicketAssignmentNotificationTest {
         List<Long> tooMany = java.util.stream.LongStream.rangeClosed(1, 201).boxed().toList();
         assertThrows(IllegalArgumentException.class,
                 () -> service.assignTechnicianBulk(tooMany, 7L));
+    }
+
+    @Test
+    void assignedTechnicianCanRescheduleWithStructuredReasonAndAuditTrail() {
+        authenticate(7L, 10L, "TECHNICIAN");
+        ServiceTicket ticket = ticket(100L, 10L, 7L);
+        ticket.setStatus(ServiceTicket.TicketStatus.ASSIGNED);
+        ticket.setScheduledDate(LocalDateTime.now().plusHours(2));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.save(ticket)).thenReturn(ticket);
+        ServiceTicketRescheduleRequest request = new ServiceTicketRescheduleRequest();
+        request.setScheduledDate(LocalDateTime.now().plusDays(2).withNano(0));
+        request.setReason(ServiceTicket.WorkProgressReason.PART_PENDING);
+        request.setNote("Kompresör sipariş edildi.");
+
+        ServiceTicketDTO result = service.rescheduleTicket(100L, request);
+
+        assertEquals(ServiceTicket.TicketStatus.IN_PROGRESS, result.getStatus());
+        assertEquals(ServiceTicket.WorkProgressReason.PART_PENDING, result.getWorkProgressReason());
+        assertEquals("Kompresör sipariş edildi.", result.getWorkProgressNote());
+        verify(rescheduleRepository).save(any(ServiceTicketReschedule.class));
+        verify(publisher).publishEvent(new TicketAssignedEvent(10L, 7L, 100L));
+    }
+
+    @Test
+    void technicianCannotChangeScheduleThroughGenericUpdate() {
+        authenticate(7L, 10L, "TECHNICIAN");
+        ServiceTicket ticket = ticket(100L, 10L, 7L);
+        ticket.setStatus(ServiceTicket.TicketStatus.ASSIGNED);
+        ticket.setScheduledDate(LocalDateTime.now().plusHours(2));
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        ServiceTicketDTO request = new ServiceTicketDTO();
+        request.setScheduledDate(LocalDateTime.now().plusDays(1));
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> service.updateTicket(100L, request));
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    void otherTechnicianCannotRescheduleAssignedTicket() {
+        authenticate(8L, 10L, "TECHNICIAN");
+        ServiceTicket ticket = ticket(100L, 10L, 7L);
+        ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
+        ServiceTicketRescheduleRequest request = new ServiceTicketRescheduleRequest();
+        request.setScheduledDate(LocalDateTime.now().plusDays(1));
+        request.setReason(ServiceTicket.WorkProgressReason.OTHER);
+        request.setNote("Başka teknisyenin işi.");
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> service.rescheduleTicket(100L, request));
+        verify(rescheduleRepository, never()).save(any());
+    }
+
+    @Test
+    void resumeClearsActiveProgressReasonButKeepsTicketInProgress() {
+        authenticate(7L, 10L, "TECHNICIAN");
+        ServiceTicket ticket = ticket(100L, 10L, 7L);
+        ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
+        ticket.setWorkProgressReason(ServiceTicket.WorkProgressReason.CUSTOMER_APPROVAL);
+        ticket.setWorkProgressNote("Müşteri teklif onayı verecek.");
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.save(ticket)).thenReturn(ticket);
+
+        ServiceTicketDTO result = service.resumeTicket(100L);
+
+        assertEquals(ServiceTicket.TicketStatus.IN_PROGRESS, result.getStatus());
+        assertNull(result.getWorkProgressReason());
+        assertNull(result.getWorkProgressNote());
     }
 
     private ServiceTicket ticket(Long id, Long companyId, Long technicianId) {

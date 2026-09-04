@@ -17,6 +17,7 @@ struct TicketDetailView: View {
     @State private var showCollection = false
     @State private var showSignature = false
     @State private var showPhotos = false
+    @State private var showReschedule = false
     @State private var isLoadingParts = false
     @State private var isAddingPart = false
     @State private var isGeneratingPDF = false
@@ -51,7 +52,7 @@ struct TicketDetailView: View {
                 $0 != .assigned || currentTicket.assignedTechnicianId != nil
             }
         }
-        return [.assigned, .inProgress]
+        return currentTicket.statusEnum == .assigned ? [.inProgress] : []
     }
     
     var totalPartsValue: Double {
@@ -73,6 +74,24 @@ struct TicketDetailView: View {
                 }
 
                 statusSection
+
+                if let progressReasonTitle {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(progressReasonTitle, systemImage: "clock.badge.exclamationmark")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.orange)
+                        if let note = currentTicket.workProgressNote, !note.isEmpty {
+                            Text(note).font(.body).foregroundStyle(.secondary)
+                        }
+                        if let scheduleText { Text("Yeni randevu: \(scheduleText)").font(.caption.weight(.medium)) }
+                        Button("İşe Devam Et") { Task { await resumeTicket() } }
+                            .buttonStyle(.bordered)
+                            .disabled(isUpdatingTicket)
+                            .readOnlyProtected()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .pusulaCard()
+                }
 
                 if let operationMessage {
                     Label(operationMessage, systemImage: "checkmark.circle.fill")
@@ -129,6 +148,16 @@ struct TicketDetailView: View {
         .sheet(isPresented: $showPhotos) {
             NavigationStack {
                 ServicePhotoView(ticketId: ticket.id)
+            }
+        }
+        .sheet(isPresented: $showReschedule) {
+            RescheduleTicketSheet(ticket: currentTicket) { updated in
+                currentTicket = updated
+                operationMessage = "İş emri yeniden planlandı."
+                Task {
+                    await loadTimeline()
+                    await onComplete()
+                }
             }
         }
         .sheet(item: $pdfPreview) { item in
@@ -253,7 +282,7 @@ struct TicketDetailView: View {
                 .font(.subheadline.weight(.semibold))
             Spacer()
 
-            if isEditable {
+            if isEditable && (isAdmin || !availableOperationalStatuses.isEmpty) {
                 Menu {
                     ForEach(availableOperationalStatuses, id: \.self) { status in
                         Button {
@@ -444,6 +473,18 @@ struct TicketDetailView: View {
         }
         return value
     }
+
+    private var progressReasonTitle: String? {
+        switch currentTicket.workProgressReason {
+        case "PART_PENDING": return "İşlemde · Parça Bekleniyor"
+        case "CUSTOMER_AVAILABILITY": return "İşlemde · Müşteri Uygunluğu Bekleniyor"
+        case "CUSTOMER_APPROVAL": return "İşlemde · Müşteri Onayı Bekleniyor"
+        case "EXTERNAL_SUPPORT": return "İşlemde · Harici Destek Bekleniyor"
+        case "RESCHEDULED": return "İşlemde · Yeniden Planlandı"
+        case "OTHER": return "İşlemde · Diğer"
+        default: return nil
+        }
+    }
     
     private var quickActionsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
@@ -451,6 +492,9 @@ struct TicketDetailView: View {
             actionTile("Barkod Okut", icon: "barcode.viewfinder", color: PusulaTheme.accent) { showScanner = true }
             actionTile("Görseller", icon: "photo.on.rectangle", color: PusulaTheme.accent) { showPhotos = true }
             actionTile("İmza", icon: "pencil.tip.crop.circle", color: PusulaTheme.accent) { showSignature = true }
+            if currentTicket.assignedTechnicianId != nil {
+                actionTile("Yeniden Planla", icon: "calendar.badge.clock", color: .orange) { showReschedule = true }
+            }
             actionTile("PDF", icon: "doc.richtext", color: .orange) { Task { await generatePDF() } }
                 .disabled(isGeneratingPDF)
         }
@@ -589,6 +633,8 @@ struct TicketDetailView: View {
         case "UPDATE": return "İş emri güncellendi"
         case "ASSIGN": return "Teknisyen atandı"
         case "COMPLETE": return "Servis tamamlandı"
+        case "RESCHEDULE": return "İş yeniden planlandı"
+        case "RESUME": return "İşe devam edildi"
         default: return action ?? "İşlem yapıldı"
         }
     }
@@ -598,6 +644,8 @@ struct TicketDetailView: View {
         case "CREATE": return "plus.circle"
         case "ASSIGN": return "person.badge.plus"
         case "COMPLETE": return "checkmark.circle"
+        case "RESCHEDULE": return "calendar.badge.clock"
+        case "RESUME": return "play.circle"
         default: return "pencil.circle"
         }
     }
@@ -737,6 +785,19 @@ struct TicketDetailView: View {
         if let url = URL(string: "http://maps.apple.com/?q=\(encoded)") {
             UIApplication.shared.open(url)
         }
+    }
+
+    private func resumeTicket() async {
+        guard !isUpdatingTicket else { return }
+        isUpdatingTicket = true
+        operationMessage = nil
+        defer { isUpdatingTicket = false }
+        do {
+            currentTicket = try await TicketService.resume(ticketId: ticket.id)
+            operationMessage = "İşe devam edildi."
+            await loadTimeline()
+            await onComplete()
+        } catch { errorMessage = error.localizedDescription }
     }
 
     private func formatQuantity(_ value: Double) -> String {

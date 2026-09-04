@@ -97,6 +97,12 @@
                                                 <Label styleClass="muted-label" text="Müşteri formunda ve PDF'de gösterilmez." wrapText="true" />
                                              </children>
                                           </VBox>
+                                          <VBox fx:id="workProgressBox" managed="false" spacing="5.0" styleClass="ticket-details-panel" visible="false">
+                                             <children>
+                                                <Label fx:id="lblWorkProgressReason" styleClass="section-heading" wrapText="true" />
+                                                <Label fx:id="lblWorkProgressNote" styleClass="muted-label" wrapText="true" />
+                                             </children>
+                                          </VBox>
                                        </children>
                                     </VBox>
                                     

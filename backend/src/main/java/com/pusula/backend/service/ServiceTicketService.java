@@ -5,18 +5,21 @@ import com.pusula.backend.dto.PublicServiceRequestDTO;
 import com.pusula.backend.dto.ServicePhotoDTO;
 import com.pusula.backend.dto.ServiceTicketDTO;
 import com.pusula.backend.dto.ServiceUsedPartDTO;
+import com.pusula.backend.dto.ServiceTicketRescheduleRequest;
 import com.pusula.backend.entity.CurrentAccount;
 import com.pusula.backend.entity.CurrentAccountTransaction;
 import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.Inventory;
 import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
+import com.pusula.backend.entity.ServiceTicketReschedule;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.event.TicketAssignedEvent;
 import com.pusula.backend.repository.CurrentAccountRepository;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.InventoryRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
+import com.pusula.backend.repository.ServiceTicketRescheduleRepository;
 import com.pusula.backend.repository.ServicePhotoRepository;
 import com.pusula.backend.repository.ServiceUsedPartRepository;
 import com.pusula.backend.repository.UserRepository;
@@ -66,6 +69,7 @@ public class ServiceTicketService {
     private final ZoneId serverZone = ZoneId.systemDefault();
 
     private final ServiceTicketRepository repository;
+    private final ServiceTicketRescheduleRepository rescheduleRepository;
     private final CustomerRepository customerRepository;
     private final UserRepository userRepository;
     private final InventoryRepository inventoryRepository;
@@ -83,6 +87,7 @@ public class ServiceTicketService {
     private final CurrentAccountLedgerService currentAccountLedgerService;
 
     public ServiceTicketService(ServiceTicketRepository repository,
+            ServiceTicketRescheduleRepository rescheduleRepository,
             CustomerRepository customerRepository,
             UserRepository userRepository,
             InventoryRepository inventoryRepository,
@@ -99,6 +104,7 @@ public class ServiceTicketService {
             CurrentAccountLedgerService currentAccountLedgerService,
             @Value("${app.business.timezone:Europe/Istanbul}") String businessTimezone) {
         this.repository = repository;
+        this.rescheduleRepository = rescheduleRepository;
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
         this.inventoryRepository = inventoryRepository;
@@ -240,6 +246,16 @@ public class ServiceTicketService {
             if (dto.getAssignedTechnicianId() != null
                     && !dto.getAssignedTechnicianId().equals(ticket.getAssignedTechnicianId())) {
                 throw new RuntimeException("Access Denied: Technicians cannot re-assign tickets.");
+            }
+            if (dto.getScheduledDate() != null
+                    && (!Objects.equals(dto.getScheduledDate(), ticket.getScheduledDate())
+                        || !Objects.equals(dto.getScheduledEndDate(), ticket.getScheduledEndDate()))) {
+                throw new AccessDeniedException("Randevu değişikliği için gerekçeli yeniden planlama işlemini kullanın.");
+            }
+            if (dto.getStatus() != null && dto.getStatus() != ticket.getStatus()
+                    && !(ticket.getStatus() == ServiceTicket.TicketStatus.ASSIGNED
+                        && dto.getStatus() == ServiceTicket.TicketStatus.IN_PROGRESS)) {
+                throw new AccessDeniedException("Teknisyen yalnızca atanmış işi İşlemde durumuna alabilir.");
             }
         }
 
@@ -445,6 +461,108 @@ public class ServiceTicketService {
         }
 
         return mapToDTO(saved);
+    }
+
+    @Transactional
+    public ServiceTicketDTO rescheduleTicket(Long ticketId, ServiceTicketRescheduleRequest request) {
+        User user = getCurrentUser();
+        ServiceTicket ticket = repository.findByIdAndCompanyIdForUpdate(ticketId, user.getCompanyId())
+                .orElseThrow(() -> new IllegalArgumentException("Servis fişi bulunamadı veya erişim reddedildi."));
+        requireOpenAssignedTicketAccess(ticket, user);
+        if (request == null || request.getScheduledDate() == null) {
+            throw new IllegalArgumentException("Yeni randevu tarihi ve saati zorunludur.");
+        }
+        if (!request.getScheduledDate().isAfter(LocalDateTime.now(businessZone))) {
+            throw new IllegalArgumentException("Yeni randevu gelecekte bir tarih olmalıdır.");
+        }
+        validateScheduleWindow(request.getScheduledDate(), request.getScheduledEndDate());
+        if (request.getReason() == null) {
+            throw new IllegalArgumentException("Yeniden planlama nedeni seçilmelidir.");
+        }
+        String note = request.getNote() == null ? "" : request.getNote().trim();
+        if (note.length() < 5) {
+            throw new IllegalArgumentException("Yeniden planlama açıklaması en az 5 karakter olmalıdır.");
+        }
+        if (note.length() > 1000) {
+            throw new IllegalArgumentException("Yeniden planlama açıklaması 1000 karakterden uzun olamaz.");
+        }
+        if (Objects.equals(ticket.getScheduledDate(), request.getScheduledDate())
+                && Objects.equals(ticket.getScheduledEndDate(), request.getScheduledEndDate())) {
+            throw new IllegalArgumentException("Yeni randevu mevcut randevudan farklı olmalıdır.");
+        }
+
+        LocalDateTime oldStart = ticket.getScheduledDate();
+        LocalDateTime oldEnd = ticket.getScheduledEndDate();
+        LocalDateTime changedAt = LocalDateTime.now(businessZone);
+
+        ServiceTicketReschedule event = new ServiceTicketReschedule();
+        event.setCompanyId(ticket.getCompanyId());
+        event.setServiceTicketId(ticket.getId());
+        event.setOldScheduledDate(oldStart);
+        event.setOldScheduledEndDate(oldEnd);
+        event.setNewScheduledDate(request.getScheduledDate());
+        event.setNewScheduledEndDate(request.getScheduledEndDate());
+        event.setReason(request.getReason());
+        event.setNote(note);
+        event.setChangedByUserId(user.getId());
+        event.setChangedByName(user.getFullName() == null || user.getFullName().isBlank()
+                ? user.getUsername() : user.getFullName().trim());
+        rescheduleRepository.save(event);
+
+        ticket.setScheduledDate(request.getScheduledDate());
+        ticket.setScheduledEndDate(request.getScheduledEndDate());
+        ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
+        ticket.setWorkProgressReason(request.getReason());
+        ticket.setWorkProgressNote(note);
+        ticket.setLastRescheduledAt(changedAt);
+        ticket.setAssignmentNotificationSentAt(null);
+        ServiceTicket saved = repository.save(ticket);
+
+        String oldValue = formatSchedule(oldStart, oldEnd);
+        String newValue = formatSchedule(saved.getScheduledDate(), saved.getScheduledEndDate());
+        auditLogService.log("RESCHEDULE", "TICKET", saved.getId(),
+                "İş yeniden planlandı · " + getProgressReasonInTurkish(request.getReason()) + " · " + note,
+                oldValue, newValue);
+        publishAssignment(saved, saved.getAssignedTechnicianId());
+        return mapToDTO(saved);
+    }
+
+    @Transactional
+    public ServiceTicketDTO resumeTicket(Long ticketId) {
+        User user = getCurrentUser();
+        ServiceTicket ticket = repository.findByIdAndCompanyIdForUpdate(ticketId, user.getCompanyId())
+                .orElseThrow(() -> new IllegalArgumentException("Servis fişi bulunamadı veya erişim reddedildi."));
+        requireOpenAssignedTicketAccess(ticket, user);
+        if (ticket.getWorkProgressReason() == null) {
+            throw new IllegalStateException("Bu iş için aktif bir bekleme/yeniden planlama kaydı bulunmuyor.");
+        }
+        String previousReason = getProgressReasonInTurkish(ticket.getWorkProgressReason());
+        ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
+        ticket.setWorkProgressReason(null);
+        ticket.setWorkProgressNote(null);
+        ServiceTicket saved = repository.save(ticket);
+        auditLogService.log("RESUME", "TICKET", saved.getId(), "İşe devam edildi", previousReason, "İşlemde");
+        return mapToDTO(saved);
+    }
+
+    private void requireOpenAssignedTicketAccess(ServiceTicket ticket, User user) {
+        if (ticket.getStatus() == ServiceTicket.TicketStatus.COMPLETED
+                || ticket.getStatus() == ServiceTicket.TicketStatus.CANCELLED) {
+            throw new IllegalStateException("Kapanmış servis yeniden planlanamaz.");
+        }
+        if (ticket.getAssignedTechnicianId() == null) {
+            throw new IllegalStateException("Yeniden planlama için servise teknisyen atanmış olmalıdır.");
+        }
+        if (!isAdmin(user) && !("TECHNICIAN".equals(user.getRole())
+                && Objects.equals(ticket.getAssignedTechnicianId(), user.getId()))) {
+            throw new AccessDeniedException("Yalnızca atanmış teknisyen veya işletme yöneticisi yeniden planlayabilir.");
+        }
+    }
+
+    private String formatSchedule(LocalDateTime start, LocalDateTime end) {
+        if (start == null) return "Planlanmamış";
+        var formatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+        return end == null ? start.format(formatter) : start.format(formatter) + " - " + end.format(formatter);
     }
 
     @Transactional
@@ -1007,6 +1125,8 @@ public class ServiceTicketService {
 
         String previousStatus = getStatusInTurkish(ticket.getStatus());
         ticket.setStatus(ServiceTicket.TicketStatus.COMPLETED);
+        ticket.setWorkProgressReason(null);
+        ticket.setWorkProgressNote(null);
         ticket.setPartsTotal(structuredPricingRequest ? (warrantyCompletion ? BigDecimal.ZERO : partsTotal) : null);
         ticket.setLaborFee(structuredPricingRequest ? effectiveLaborFee : null);
         ticket.setInvoiceTotal(structuredPricingRequest ? invoiceTotal : null);
@@ -1131,6 +1251,8 @@ public class ServiceTicketService {
         }
 
         ticket.setStatus(ServiceTicket.TicketStatus.CANCELLED);
+        ticket.setWorkProgressReason(null);
+        ticket.setWorkProgressNote(null);
 
         // Log cancellation
         auditLogService.log(
@@ -1219,6 +1341,9 @@ public class ServiceTicketService {
                 .status(ticket.getStatus())
                 .scheduledDate(ticket.getScheduledDate())
                 .scheduledEndDate(ticket.getScheduledEndDate())
+                .workProgressReason(canViewTechnicianPrivateNote(ticket) ? ticket.getWorkProgressReason() : null)
+                .workProgressNote(canViewTechnicianPrivateNote(ticket) ? ticket.getWorkProgressNote() : null)
+                .lastRescheduledAt(canViewTechnicianPrivateNote(ticket) ? ticket.getLastRescheduledAt() : null)
                 .description(ticket.getDescription())
                 .notes(ticket.getNotes())
                 .technicianPrivateNote(canViewTechnicianPrivateNote(ticket)
@@ -1533,7 +1658,7 @@ public class ServiceTicketService {
             case ASSIGNED:
                 return "Atandı";
             case IN_PROGRESS:
-                return "Devam Ediyor";
+                return "İşlemde";
             case COMPLETED:
                 return "Tamamlandı";
             case CANCELLED:
@@ -1541,5 +1666,16 @@ public class ServiceTicketService {
             default:
                 return status.toString();
         }
+    }
+
+    private String getProgressReasonInTurkish(ServiceTicket.WorkProgressReason reason) {
+        return switch (reason) {
+            case PART_PENDING -> "Parça Bekleniyor";
+            case CUSTOMER_AVAILABILITY -> "Müşteri Uygunluğu Bekleniyor";
+            case CUSTOMER_APPROVAL -> "Müşteri Onayı Bekleniyor";
+            case EXTERNAL_SUPPORT -> "Harici Destek Bekleniyor";
+            case RESCHEDULED -> "Yeniden Planlandı";
+            case OTHER -> "Diğer";
+        };
     }
 }

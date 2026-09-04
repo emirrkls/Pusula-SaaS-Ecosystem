@@ -231,7 +231,7 @@ struct AdminDashboardView: View {
                     actionRow("Saha Radarı", subtitle: "Ekip konumu ve iş yoğunluğu", icon: "map")
                 }
                 Divider().padding(.leading, 42)
-                Button(action: { AppNavigation.shared.openOperations(with: "Devam Eden") }) {
+                Button(action: { AppNavigation.shared.openOperations(with: "İşlemde") }) {
                     actionRow("Aktif İşler", subtitle: "Devam eden servis kayıtları", icon: "wrench.and.screwdriver")
                 }
                 Divider().padding(.leading, 42)

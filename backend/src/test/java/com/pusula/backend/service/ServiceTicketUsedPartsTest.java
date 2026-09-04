@@ -35,6 +35,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ServiceTicketUsedPartsTest {
     @Mock ServiceTicketRepository ticketRepository;
+    @Mock ServiceTicketRescheduleRepository rescheduleRepository;
     @Mock CustomerRepository customerRepository;
     @Mock UserRepository userRepository;
     @Mock InventoryRepository inventoryRepository;
@@ -55,7 +56,7 @@ class ServiceTicketUsedPartsTest {
 
     @BeforeEach
     void setUp() {
-        service = new ServiceTicketService(ticketRepository, customerRepository, userRepository,
+        service = new ServiceTicketService(ticketRepository, rescheduleRepository, customerRepository, userRepository,
                 inventoryRepository, usedPartRepository, auditLogService, currentAccountRepository,
                 vehicleStockRepository, whatsAppNotificationService, featureService, photoRepository,
                 fileUploadService, publisher, financeService, uploadUrlSigner,

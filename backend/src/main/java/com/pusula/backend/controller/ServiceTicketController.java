@@ -9,6 +9,7 @@ import com.pusula.backend.dto.CompleteServiceRequest;
 import com.pusula.backend.dto.BulkTicketAssignmentRequest;
 import com.pusula.backend.dto.AddServiceTicketNoteRequest;
 import com.pusula.backend.dto.ServiceTicketNoteDTO;
+import com.pusula.backend.dto.ServiceTicketRescheduleRequest;
 import com.pusula.backend.dto.AuthRequest;
 import com.pusula.backend.entity.ServicePhoto;
 import com.pusula.backend.entity.User;
@@ -91,6 +92,17 @@ public class ServiceTicketController {
     @PutMapping("/{id}")
     public ResponseEntity<ServiceTicketDTO> updateTicket(@PathVariable Long id, @RequestBody ServiceTicketDTO dto) {
         return ResponseEntity.ok(service.updateTicket(id, dto));
+    }
+
+    @PatchMapping("/{id}/reschedule")
+    public ResponseEntity<ServiceTicketDTO> rescheduleTicket(@PathVariable Long id,
+            @RequestBody ServiceTicketRescheduleRequest request) {
+        return ResponseEntity.ok(service.rescheduleTicket(id, request));
+    }
+
+    @PatchMapping("/{id}/resume")
+    public ResponseEntity<ServiceTicketDTO> resumeTicket(@PathVariable Long id) {
+        return ResponseEntity.ok(service.resumeTicket(id));
     }
 
     @PatchMapping("/{id}/assign")

@@ -120,7 +120,7 @@ public class TicketPushNotificationListener {
 
     private String payload(ServiceTicket ticket) throws JsonProcessingException {
         Map<String, Object> alert = new LinkedHashMap<>();
-        alert.put("title", "Yeni iş atandı");
+        alert.put("title", ticket.getWorkProgressReason() == null ? "Yeni iş atandı" : "İş planınız güncellendi");
         alert.put("body", notificationBody(ticket));
 
         Map<String, Object> aps = new LinkedHashMap<>();

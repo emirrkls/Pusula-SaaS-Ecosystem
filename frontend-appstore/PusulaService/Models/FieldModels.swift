@@ -15,6 +15,9 @@ struct FieldTicketDTO: Codable, Identifiable {
     let status: String?
     let scheduledDate: String?
     let scheduledEndDate: String?
+    let workProgressReason: String?
+    let workProgressNote: String?
+    let lastRescheduledAt: String?
     let description: String?
     let notes: String?
     let technicianPrivateNote: String?
@@ -150,6 +153,13 @@ struct ServicePhotoDTO: Codable, Identifiable {
         guard let baseURL = URL(string: "https://api.pusulaiklimlendirme.com/") else { return nil }
         return URL(string: url, relativeTo: baseURL)?.absoluteURL
     }
+}
+
+struct RescheduleTicketRequest: Codable {
+    let scheduledDate: String
+    let scheduledEndDate: String?
+    let reason: String
+    let note: String
 }
 
 struct AuditLogDTO: Codable, Identifiable {

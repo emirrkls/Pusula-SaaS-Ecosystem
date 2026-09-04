@@ -52,6 +52,16 @@ enum TicketService {
             return try await NetworkManager.shared.post("/api/tickets/\(ticketId)/parts", body: part)
         }
     }
+
+    static func reschedule(ticketId: Int, request: RescheduleTicketRequest) async throws -> FieldTicketDTO {
+        try await NetworkManager.shared.request(
+            .PATCH, path: "/api/tickets/\(ticketId)/reschedule", body: request
+        )
+    }
+
+    static func resume(ticketId: Int) async throws -> FieldTicketDTO {
+        try await NetworkManager.shared.request(.PATCH, path: "/api/tickets/\(ticketId)/resume")
+    }
     
     static func completeService(ticketId: Int, amount: Double, paymentMethod: String, laborFee: Double,
                                 technicianNote: String? = nil) async throws -> FieldTicketDTO {

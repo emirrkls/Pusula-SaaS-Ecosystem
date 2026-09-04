@@ -55,6 +55,9 @@ public class TicketDetailsController {
     private TextArea txtNotes;
     @FXML private VBox technicianPrivateNoteBox;
     @FXML private TextArea txtTechnicianPrivateNote;
+    @FXML private VBox workProgressBox;
+    @FXML private Label lblWorkProgressReason;
+    @FXML private Label lblWorkProgressNote;
     @FXML
     private ComboBox<UserDTO> comboTechnician;
     @FXML private DatePicker assignmentDatePicker;
@@ -412,6 +415,10 @@ public class TicketDetailsController {
                 return "İptal Edildi";
             case "REOPEN":
                 return "Fiş Yeniden Açıldı";
+            case "RESCHEDULE":
+                return "Yeniden Planlandı";
+            case "RESUME":
+                return "İşe Devam Edildi";
             case "ADD_PART":
                 return "Parça Eklendi";
             default:
@@ -438,6 +445,14 @@ public class TicketDetailsController {
         technicianPrivateNoteBox.setVisible(showPrivateNote);
         technicianPrivateNoteBox.setManaged(showPrivateNote);
         txtTechnicianPrivateNote.setText(hasPrivateNote ? currentTicket.getTechnicianPrivateNote() : "");
+        boolean hasProgressReason = currentTicket.getWorkProgressReason() != null
+                && !currentTicket.getWorkProgressReason().isBlank();
+        workProgressBox.setVisible(hasProgressReason);
+        workProgressBox.setManaged(hasProgressReason);
+        if (hasProgressReason) {
+            lblWorkProgressReason.setText("İşlemde · " + progressReasonLabel(currentTicket.getWorkProgressReason()));
+            lblWorkProgressNote.setText(currentTicket.getWorkProgressNote() == null ? "" : currentTicket.getWorkProgressNote());
+        }
         if (currentTicket.getScheduledDate() != null) {
             assignmentDatePicker.setValue(currentTicket.getScheduledDate().toLocalDate());
             assignmentStartTime.setValue(currentTicket.getScheduledDate().toLocalTime()
@@ -491,7 +506,7 @@ public class TicketDetailsController {
             // Check if assigned to current user
             if (currentUserId != null && currentTicket.getAssignedTechnicianId() != null
                     && currentUserId.equals(currentTicket.getAssignedTechnicianId())) {
-                canChangeStatus = true;
+                canChangeStatus = "ASSIGNED".equals(currentTicket.getStatus());
             }
         }
         btnChangeStatus.setVisible(canChangeStatus);
@@ -516,9 +531,13 @@ public class TicketDetailsController {
 
         // Create a map for display text -> backend status
         java.util.Map<String, String> statusMap = new java.util.LinkedHashMap<>();
-        statusMap.put(getStatusTranslation("PENDING"), "PENDING");
-        statusMap.put(getStatusTranslation("IN_PROGRESS"), "IN_PROGRESS");
-        statusMap.put(getStatusTranslation("ASSIGNED"), "ASSIGNED");
+        if (com.pusula.desktop.util.SessionManager.isTechnician()) {
+            statusMap.put(getStatusTranslation("IN_PROGRESS"), "IN_PROGRESS");
+        } else {
+            statusMap.put(getStatusTranslation("PENDING"), "PENDING");
+            statusMap.put(getStatusTranslation("IN_PROGRESS"), "IN_PROGRESS");
+            statusMap.put(getStatusTranslation("ASSIGNED"), "ASSIGNED");
+        }
 
         List<String> choices = new java.util.ArrayList<>(statusMap.keySet());
         String currentStatusDisplay = getStatusTranslation(currentTicket.getStatus());
@@ -670,6 +689,17 @@ public class TicketDetailsController {
         return currentTicket != null
                 && !"COMPLETED".equals(currentTicket.getStatus())
                 && !"CANCELLED".equals(currentTicket.getStatus());
+    }
+
+    private String progressReasonLabel(String reason) {
+        return switch (reason) {
+            case "PART_PENDING" -> "Parça Bekleniyor";
+            case "CUSTOMER_AVAILABILITY" -> "Müşteri Uygunluğu Bekleniyor";
+            case "CUSTOMER_APPROVAL" -> "Müşteri Onayı Bekleniyor";
+            case "EXTERNAL_SUPPORT" -> "Harici Destek Bekleniyor";
+            case "RESCHEDULED" -> "Yeniden Planlandı";
+            default -> "Diğer";
+        };
     }
 
     private boolean canModifyExpenses() {

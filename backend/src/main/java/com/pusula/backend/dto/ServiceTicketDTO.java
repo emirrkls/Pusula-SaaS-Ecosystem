@@ -2,6 +2,7 @@ package com.pusula.backend.dto;
 
 import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket.TicketStatus;
+import com.pusula.backend.entity.ServiceTicket.WorkProgressReason;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -14,6 +15,9 @@ public class ServiceTicketDTO {
     private TicketStatus status;
     private LocalDateTime scheduledDate;
     private LocalDateTime scheduledEndDate;
+    private WorkProgressReason workProgressReason;
+    private String workProgressNote;
+    private LocalDateTime lastRescheduledAt;
     private String description;
     private String notes;
     private String technicianPrivateNote;
@@ -111,6 +115,13 @@ public class ServiceTicketDTO {
     public void setScheduledEndDate(LocalDateTime scheduledEndDate) {
         this.scheduledEndDate = scheduledEndDate;
     }
+
+    public WorkProgressReason getWorkProgressReason() { return workProgressReason; }
+    public void setWorkProgressReason(WorkProgressReason value) { workProgressReason = value; }
+    public String getWorkProgressNote() { return workProgressNote; }
+    public void setWorkProgressNote(String value) { workProgressNote = value; }
+    public LocalDateTime getLastRescheduledAt() { return lastRescheduledAt; }
+    public void setLastRescheduledAt(LocalDateTime value) { lastRescheduledAt = value; }
 
     public String getDescription() {
         return description;
@@ -240,6 +251,9 @@ public class ServiceTicketDTO {
         private TicketStatus status;
         private LocalDateTime scheduledDate;
         private LocalDateTime scheduledEndDate;
+        private WorkProgressReason workProgressReason;
+        private String workProgressNote;
+        private LocalDateTime lastRescheduledAt;
         private String description;
         private String notes;
         private String technicianPrivateNote;
@@ -290,6 +304,10 @@ public class ServiceTicketDTO {
             this.scheduledEndDate = scheduledEndDate;
             return this;
         }
+
+        public ServiceTicketDTOBuilder workProgressReason(WorkProgressReason value) { workProgressReason = value; return this; }
+        public ServiceTicketDTOBuilder workProgressNote(String value) { workProgressNote = value; return this; }
+        public ServiceTicketDTOBuilder lastRescheduledAt(LocalDateTime value) { lastRescheduledAt = value; return this; }
 
         public ServiceTicketDTOBuilder description(String description) {
             this.description = description;
@@ -374,6 +392,9 @@ public class ServiceTicketDTO {
             dto.setInvoiceTotal(invoiceTotal);
             dto.setOutstandingAmount(outstandingAmount);
             dto.setTechnicianPrivateNote(technicianPrivateNote);
+            dto.setWorkProgressReason(workProgressReason);
+            dto.setWorkProgressNote(workProgressNote);
+            dto.setLastRescheduledAt(lastRescheduledAt);
             return dto;
         }
     }

@@ -33,6 +33,16 @@ public class ServiceTicket extends BaseEntity {
     @Column(name = "assignment_notification_sent_at")
     private LocalDateTime assignmentNotificationSentAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "work_progress_reason", length = 40)
+    private WorkProgressReason workProgressReason;
+
+    @Column(name = "work_progress_note", columnDefinition = "TEXT")
+    private String workProgressNote;
+
+    @Column(name = "last_rescheduled_at")
+    private LocalDateTime lastRescheduledAt;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 
@@ -165,6 +175,13 @@ public class ServiceTicket extends BaseEntity {
     public void setAssignmentNotificationSentAt(LocalDateTime assignmentNotificationSentAt) {
         this.assignmentNotificationSentAt = assignmentNotificationSentAt;
     }
+
+    public WorkProgressReason getWorkProgressReason() { return workProgressReason; }
+    public void setWorkProgressReason(WorkProgressReason workProgressReason) { this.workProgressReason = workProgressReason; }
+    public String getWorkProgressNote() { return workProgressNote; }
+    public void setWorkProgressNote(String workProgressNote) { this.workProgressNote = workProgressNote; }
+    public LocalDateTime getLastRescheduledAt() { return lastRescheduledAt; }
+    public void setLastRescheduledAt(LocalDateTime lastRescheduledAt) { this.lastRescheduledAt = lastRescheduledAt; }
 
     public String getDescription() {
         return description;
@@ -330,6 +347,10 @@ public class ServiceTicket extends BaseEntity {
 
     public enum TicketStatus {
         PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED
+    }
+
+    public enum WorkProgressReason {
+        PART_PENDING, CUSTOMER_AVAILABILITY, CUSTOMER_APPROVAL, EXTERNAL_SUPPORT, RESCHEDULED, OTHER
     }
 
     public static class ServiceTicketBuilder {

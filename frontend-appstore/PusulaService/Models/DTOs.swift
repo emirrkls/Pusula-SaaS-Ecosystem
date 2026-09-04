@@ -122,7 +122,7 @@ enum TicketStatus: String, Codable, CaseIterable {
         switch self {
         case .pending: return "Bekliyor"
         case .assigned: return "Atandı"
-        case .inProgress: return "Devam Ediyor"
+        case .inProgress: return "İşlemde"
         case .completed: return "Tamamlandı"
         case .cancelled: return "İptal"
         }

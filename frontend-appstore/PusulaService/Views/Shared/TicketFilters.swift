@@ -3,11 +3,11 @@ import PDFKit
 import SwiftUI
 
 enum TicketFilters {
-    static let adminFilters = ["Atama Bekleyen", "Bugün Açılan", "Atanan", "Devam Eden", "Kapanan", "Tümü"]
-    static let technicianFilters = ["Bugünün Çağrıları", "İleri Tarihli", "Kapanan", "İptal Edilen"]
+    static let adminFilters = ["Atama Bekleyen", "Bugün Açılan", "Atanan", "İşlemde", "Tamamlanan", "İptal Edilen", "Tümü"]
+    static let technicianFilters = ["Bugünkü İşler", "İleri Tarihli İşler", "Tamamlanan", "İptal Edilen"]
     
     static func defaultFilter(isAdmin: Bool) -> String {
-        isAdmin ? "Atama Bekleyen" : "Bugünün Çağrıları"
+        isAdmin ? "Atama Bekleyen" : "Bugünkü İşler"
     }
     
     static func matches(_ ticket: FieldTicketDTO, filter: String, isAdmin: Bool) -> Bool {
@@ -24,17 +24,17 @@ enum TicketFilters {
                 return status == "ASSIGNED"
             }
             return status == "ASSIGNED" || status == "IN_PROGRESS"
-        case "Bugünün Çağrıları":
+        case "Bugünkü İşler", "Bugünün Çağrıları":
             guard status == "ASSIGNED" || status == "IN_PROGRESS" else { return false }
             guard let scheduled = parseBusinessDate(ticket.scheduledDate) else { return true }
             return businessCalendar().startOfDay(for: scheduled) <= businessDayStart()
-        case "İleri Tarihli":
+        case "İleri Tarihli İşler", "İleri Tarihli":
             guard status == "ASSIGNED" || status == "IN_PROGRESS",
                   let scheduled = parseBusinessDate(ticket.scheduledDate) else { return false }
             return businessCalendar().startOfDay(for: scheduled) > businessDayStart()
-        case "Devam Eden":
+        case "İşlemde", "Devam Eden":
             return status == "IN_PROGRESS"
-        case "Kapanan":
+        case "Tamamlanan", "Kapanan":
             return status == "COMPLETED"
         case "İptal Edilen":
             return status == "CANCELLED"
@@ -91,7 +91,7 @@ enum TicketFilters {
     }
 
     static func sorted(_ tickets: [FieldTicketDTO], filter: String) -> [FieldTicketDTO] {
-        let ascending = filter == "Bugünün Çağrıları" || filter == "İleri Tarihli"
+        let ascending = ["Bugünkü İşler", "Bugünün Çağrıları", "İleri Tarihli İşler", "İleri Tarihli"].contains(filter)
         return tickets.sorted { left, right in
             let leftDate = sortDate(left)
             let rightDate = sortDate(right)
