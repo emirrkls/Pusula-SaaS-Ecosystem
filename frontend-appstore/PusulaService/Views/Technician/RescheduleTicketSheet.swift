@@ -84,7 +84,7 @@ struct RescheduleTicketSheet: View {
                         .disabled(!canSave || isSaving)
                 }
             }
-            .onChange(of: startDate) { newValue in
+            .onChange(of: startDate) { _, newValue in
                 if endDate <= newValue { endDate = newValue.addingTimeInterval(2 * 3600) }
             }
             .alert("Hata", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {

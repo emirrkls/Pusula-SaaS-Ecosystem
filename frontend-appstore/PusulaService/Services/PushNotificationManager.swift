@@ -69,7 +69,7 @@ final class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate 
         await MainActor.run {
             NotificationCenter.default.post(name: .pusulaAdminNotificationReceived, object: nil)
         }
-        [.banner, .sound, .badge]
+        return [.banner, .sound, .badge]
     }
 
     nonisolated func userNotificationCenter(
