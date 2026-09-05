@@ -49,6 +49,7 @@ class ServiceTicketCompletionTest {
     @Mock FinanceService financeService;
     @Mock UploadUrlSigner uploadUrlSigner;
     @Mock CurrentAccountLedgerService currentAccountLedgerService;
+    @Mock AdminNotificationService adminNotificationService;
 
     private ServiceTicketService service;
 
@@ -58,7 +59,7 @@ class ServiceTicketCompletionTest {
                 inventoryRepository, usedPartRepository, auditLogService, currentAccountRepository,
                 vehicleStockRepository, whatsAppNotificationService, featureService, photoRepository,
                 fileUploadService, publisher, financeService, uploadUrlSigner,
-                currentAccountLedgerService, "Europe/Istanbul");
+                currentAccountLedgerService, adminNotificationService, "Europe/Istanbul");
     }
 
     @AfterEach

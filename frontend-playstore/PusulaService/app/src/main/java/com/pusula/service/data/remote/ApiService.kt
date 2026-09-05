@@ -37,6 +37,8 @@ import com.pusula.service.data.model.VehicleDTO
 import com.pusula.service.data.model.CompanyDTO
 import com.pusula.service.data.model.TechnicianNoteDTO
 import com.pusula.service.data.model.AddTechnicianNoteRequest
+import com.pusula.service.data.model.AdminNotificationDTO
+import com.pusula.service.data.model.NotificationUnreadCountDTO
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -51,6 +53,18 @@ import okhttp3.ResponseBody
 import okhttp3.MultipartBody
 
 interface ApiService {
+    @GET("/api/notifications")
+    suspend fun notifications(): List<AdminNotificationDTO>
+
+    @GET("/api/notifications/unread-count")
+    suspend fun notificationUnreadCount(): NotificationUnreadCountDTO
+
+    @PATCH("/api/notifications/{id}/read")
+    suspend fun markNotificationRead(@Path("id") id: Long): AdminNotificationDTO
+
+    @PATCH("/api/notifications/read-all")
+    suspend fun markAllNotificationsRead()
+
     @POST("/api/auth/authenticate")
     suspend fun authenticate(@Body request: AuthRequest): AuthResponse
 

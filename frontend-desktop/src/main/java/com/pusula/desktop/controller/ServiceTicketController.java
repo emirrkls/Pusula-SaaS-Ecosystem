@@ -86,6 +86,21 @@ public class ServiceTicketController {
     private org.controlsfx.control.textfield.AutoCompletionBinding<SearchSuggestion> autoCompletionBinding;
     private TicketFilter currentFilter = TicketFilter.PENDING_ASSIGNMENT;
     private final ToggleGroup filterToggleGroup = new ToggleGroup();
+    private Long pendingOpenTicketId;
+
+    public void openTicketWhenReady(Long ticketId) {
+        pendingOpenTicketId = ticketId;
+        openPendingTicketIfAvailable();
+    }
+
+    private void openPendingTicketIfAvailable() {
+        if (pendingOpenTicketId == null) return;
+        allTicketsList.stream().filter(ticket -> pendingOpenTicketId.equals(ticket.getId())).findFirst().ifPresent(ticket -> {
+            pendingOpenTicketId = null;
+            ticketsListView.getSelectionModel().select(ticket);
+            openTicketDetails(ticket);
+        });
+    }
 
     @FXML
     public void initialize() {
@@ -618,6 +633,7 @@ public class ServiceTicketController {
                     if (response.isSuccessful() && response.body() != null) {
                         allTicketsList.setAll(response.body());
                         AnimationHelper.fadeInUp(ticketsListView, 0);
+                        openPendingTicketIfAvailable();
                     } else {
                         NotificationHelper.showError("Fişler yüklenemedi: " + response.code());
                     }

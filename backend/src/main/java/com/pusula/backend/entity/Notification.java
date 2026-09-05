@@ -16,7 +16,7 @@ public class Notification extends BaseEntity {
     @Column(nullable = false)
     private String title;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
 
     @Column(name = "is_read", nullable = false)
@@ -25,6 +25,16 @@ public class Notification extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private NotificationType type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", nullable = false, length = 40)
+    private NotificationCategory category = NotificationCategory.GENERAL;
+
+    @Column(name = "reference_type", length = 40)
+    private String referenceType;
+
+    @Column(name = "reference_id")
+    private Long referenceId;
 
     public Notification() {
     }
@@ -84,8 +94,19 @@ public class Notification extends BaseEntity {
         this.type = type;
     }
 
+    public NotificationCategory getCategory() { return category; }
+    public void setCategory(NotificationCategory category) { this.category = category; }
+    public String getReferenceType() { return referenceType; }
+    public void setReferenceType(String referenceType) { this.referenceType = referenceType; }
+    public Long getReferenceId() { return referenceId; }
+    public void setReferenceId(Long referenceId) { this.referenceId = referenceId; }
+
     public enum NotificationType {
         INFO, WARNING, CRITICAL
+    }
+
+    public enum NotificationCategory {
+        NEW_SERVICE, SERVICE_RESCHEDULED, SERVICE_COMPLETED, CRITICAL_STOCK, IMPORTANT_NOTE, GENERAL
     }
 
     public static class NotificationBuilder {

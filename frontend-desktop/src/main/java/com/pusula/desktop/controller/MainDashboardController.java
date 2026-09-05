@@ -1,6 +1,7 @@
 package com.pusula.desktop.controller;
 
 import com.pusula.desktop.api.AuthApi;
+import com.pusula.desktop.api.NotificationApi;
 import com.pusula.desktop.dto.AuthRequest;
 import com.pusula.desktop.dto.AuthResponse;
 import com.pusula.desktop.network.RetrofitClient;
@@ -12,6 +13,8 @@ import com.pusula.desktop.util.SessionManager;
 import com.pusula.desktop.util.ThemeHelper;
 import com.pusula.desktop.util.ViewTransitionHelper;
 import javafx.animation.PauseTransition;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -27,6 +30,7 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignA;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignB;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignH;
@@ -56,6 +60,8 @@ public class MainDashboardController {
     private Label pageSubtitleLabel;
     @FXML
     private Button btnThemeToggle;
+    @FXML private Button btnNotifications;
+    @FXML private Label notificationBadge;
     @FXML
     private Button navDashboard;
     @FXML
@@ -79,6 +85,7 @@ public class MainDashboardController {
 
     private boolean isDark = false;
     private Button activeNavButton;
+    private Timeline notificationRefreshTimer;
 
     // Load saved theme preference
     {
@@ -97,6 +104,17 @@ public class MainDashboardController {
         setupUserProfile();
         setupNavigationIcons();
         setupThemeToggleIcon();
+        if (SessionManager.isAdmin()) {
+            btnNotifications.setGraphic(FontIcon.of(MaterialDesignB.BELL_OUTLINE, 18));
+            refreshNotificationBadge();
+            notificationRefreshTimer = new Timeline(new KeyFrame(Duration.seconds(60), event -> refreshNotificationBadge()));
+            notificationRefreshTimer.setCycleCount(Timeline.INDEFINITE);
+            notificationRefreshTimer.play();
+        } else {
+            hideButton(btnNotifications);
+            notificationBadge.setVisible(false);
+            notificationBadge.setManaged(false);
+        }
 
         // Hide Finance, Settings and Activity Log for Technicians
         if (SessionManager.isTechnician()) {
@@ -326,6 +344,49 @@ public class MainDashboardController {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    @FXML
+    public void showNotifications() {
+        if (!SessionManager.isAdmin()) return;
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/notifications.fxml"), bundle());
+            Parent view = loader.load();
+            NotificationsController controller = loader.getController();
+            controller.setMainController(this);
+            loadContent(view, "Bildirimler", "Önemli operasyon hareketleri", null);
+            refreshNotificationBadge();
+        } catch (Exception e) {
+            AlertHelper.showAlert(Alert.AlertType.ERROR, contentArea.getScene().getWindow(), "Hata", "Bildirimler açılamadı.");
+        }
+    }
+
+    public void openTicketFromNotification(Long ticketId) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/service_tickets.fxml"), bundle());
+            Parent view = loader.load();
+            ServiceTicketController controller = loader.getController();
+            controller.openTicketWhenReady(ticketId);
+            loadContent(view, bundle().getString("tickets.title"), "Servis fişi #" + ticketId, navTickets);
+        } catch (Exception e) {
+            showServiceManagement();
+        }
+    }
+
+    public void refreshNotificationBadge() {
+        if (!SessionManager.isAdmin() || notificationBadge == null) return;
+        NotificationApi api = RetrofitClient.getClient().create(NotificationApi.class);
+        api.unreadCount().enqueue(new Callback<>() {
+            @Override public void onResponse(Call<Map<String, Long>> call, Response<Map<String, Long>> response) {
+                long count = response.isSuccessful() && response.body() != null
+                        ? response.body().getOrDefault("count", 0L) : 0L;
+                Platform.runLater(() -> {
+                    notificationBadge.setText(count > 99 ? "99+" : Long.toString(count));
+                    notificationBadge.setVisible(count > 0); notificationBadge.setManaged(count > 0);
+                });
+            }
+            @Override public void onFailure(Call<Map<String, Long>> call, Throwable throwable) { }
+        });
     }
 
     @FXML

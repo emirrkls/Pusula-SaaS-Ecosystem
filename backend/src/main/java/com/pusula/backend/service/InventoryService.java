@@ -5,6 +5,7 @@ import com.pusula.backend.dto.InventoryDTO;
 import com.pusula.backend.dto.VehicleStockInfo;
 import com.pusula.backend.entity.Inventory;
 import com.pusula.backend.entity.InventoryUnit;
+import com.pusula.backend.entity.Notification;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.entity.VehicleStock;
 import com.pusula.backend.repository.InventoryRepository;
@@ -29,15 +30,18 @@ public class InventoryService {
     private final VehicleStockRepository vehicleStockRepository;
     private final AuditLogService auditLogService;
     private final FeatureService featureService;
+    private final AdminNotificationService adminNotificationService;
 
     public InventoryService(InventoryRepository repository,
             VehicleStockRepository vehicleStockRepository,
             AuditLogService auditLogService,
-            FeatureService featureService) {
+            FeatureService featureService,
+            AdminNotificationService adminNotificationService) {
         this.repository = repository;
         this.vehicleStockRepository = vehicleStockRepository;
         this.auditLogService = auditLogService;
         this.featureService = featureService;
+        this.adminNotificationService = adminNotificationService;
     }
 
     private User getCurrentUser() {
@@ -95,6 +99,7 @@ public class InventoryService {
         oldValues.put("criticalLevel", inventory.getCriticalLevel());
 
         BigDecimal oldQuantity = inventory.getQuantity();
+        BigDecimal oldCriticalLevel = defaultCriticalLevel(inventory.getCriticalLevel());
 
         inventory.setPartName(dto.getPartName());
         inventory.setQuantity(normalizeQuantity(dto.getQuantity()));
@@ -122,6 +127,15 @@ public class InventoryService {
             description += " (Stok: " + oldQuantity + " → " + dto.getQuantity() + ")";
         }
         auditLogService.logChange("UPDATE", "INVENTORY", saved.getId(), description, oldValues, newValues);
+
+        boolean wasCritical = oldQuantity.compareTo(oldCriticalLevel) <= 0;
+        boolean isCritical = saved.getQuantity().compareTo(defaultCriticalLevel(saved.getCriticalLevel())) <= 0;
+        if (!wasCritical && isCritical) {
+            adminNotificationService.notifyCompanyAdmins(user.getCompanyId(), "Kritik stok seviyesi",
+                    saved.getPartName() + " · Kalan " + saved.getQuantity().stripTrailingZeros().toPlainString(),
+                    Notification.NotificationType.WARNING, Notification.NotificationCategory.CRITICAL_STOCK,
+                    "INVENTORY", saved.getId(), null);
+        }
 
         return Optional.of(mapToDTO(saved));
     }

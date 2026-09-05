@@ -73,11 +73,13 @@ struct TechnicianNoteDTO: Codable, Identifiable {
     let authorName: String
     let noteType: String
     let content: String
+    let important: Bool
     let createdAt: String
 }
 
 struct AddTechnicianNoteRequest: Codable {
     let content: String
+    let important: Bool
 }
 
 // MARK: - Signature Upload

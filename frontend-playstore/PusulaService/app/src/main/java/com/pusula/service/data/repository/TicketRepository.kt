@@ -51,8 +51,8 @@ class TicketRepository @Inject constructor(
     suspend fun getTechnicianNotes(ticketId: Long): List<TechnicianNoteDTO> =
         apiService.technicianNotes(ticketId)
 
-    suspend fun addTechnicianNote(ticketId: Long, content: String): TechnicianNoteDTO =
-        apiService.addTechnicianNote(ticketId, AddTechnicianNoteRequest(content.trim()))
+    suspend fun addTechnicianNote(ticketId: Long, content: String, important: Boolean = false): TechnicianNoteDTO =
+        apiService.addTechnicianNote(ticketId, AddTechnicianNoteRequest(content.trim(), important))
 
     suspend fun getTechnicians(): List<TechnicianDTO> = apiService.technicians()
 

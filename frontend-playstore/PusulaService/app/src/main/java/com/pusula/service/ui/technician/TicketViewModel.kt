@@ -217,10 +217,10 @@ class TicketViewModel @Inject constructor(
             .onFailure { error -> _uiState.update { it.copy(technicianNotesLoading = false, error = error.toUserMessage("Teknisyen notları yüklenemedi")) } }
     }
 
-    fun addTechnicianNote(ticketId: Long, content: String, onSaved: () -> Unit = {}) = viewModelScope.launch {
+    fun addTechnicianNote(ticketId: Long, content: String, important: Boolean = false, onSaved: () -> Unit = {}) = viewModelScope.launch {
         if (content.isBlank()) return@launch
         _uiState.update { it.copy(technicianNoteSaving = true, error = null) }
-        runCatching { repository.addTechnicianNote(ticketId, content) }
+        runCatching { repository.addTechnicianNote(ticketId, content, important) }
             .onSuccess { note ->
                 _uiState.update { it.copy(technicianNoteSaving = false, technicianNotes = it.technicianNotes + note) }
                 onSaved()

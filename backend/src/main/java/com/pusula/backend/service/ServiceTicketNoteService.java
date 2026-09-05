@@ -3,6 +3,7 @@ package com.pusula.backend.service;
 import com.pusula.backend.dto.ServiceTicketNoteDTO;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.ServiceTicketNote;
+import com.pusula.backend.entity.Notification;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.ServiceTicketNoteRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
@@ -18,12 +19,15 @@ public class ServiceTicketNoteService {
     private final ServiceTicketNoteRepository noteRepository;
     private final ServiceTicketRepository ticketRepository;
     private final AuditLogService auditLogService;
+    private final AdminNotificationService adminNotificationService;
 
     public ServiceTicketNoteService(ServiceTicketNoteRepository noteRepository,
-            ServiceTicketRepository ticketRepository, AuditLogService auditLogService) {
+            ServiceTicketRepository ticketRepository, AuditLogService auditLogService,
+            AdminNotificationService adminNotificationService) {
         this.noteRepository = noteRepository;
         this.ticketRepository = ticketRepository;
         this.auditLogService = auditLogService;
+        this.adminNotificationService = adminNotificationService;
     }
 
     @Transactional(readOnly = true)
@@ -36,24 +40,30 @@ public class ServiceTicketNoteService {
 
     @Transactional
     public ServiceTicketNoteDTO addWorkLog(Long ticketId, String content) {
+        return addWorkLog(ticketId, content, false);
+    }
+
+    @Transactional
+    public ServiceTicketNoteDTO addWorkLog(Long ticketId, String content, boolean important) {
         User user = currentUser();
         ServiceTicket ticket = requireVisibleTicket(ticketId, user);
         if (ticket.getStatus() == ServiceTicket.TicketStatus.COMPLETED
                 || ticket.getStatus() == ServiceTicket.TicketStatus.CANCELLED) {
             throw new IllegalStateException("Kapali servis fisine teknisyen notu eklenemez.");
         }
-        return save(ticket, user, content, ServiceTicketNote.NoteType.WORK_LOG);
+        return save(ticket, user, content, ServiceTicketNote.NoteType.WORK_LOG,
+                important && "TECHNICIAN".equals(user.getRole()));
     }
 
     @Transactional
     public ServiceTicketNoteDTO addClosureNote(Long ticketId, String content) {
         User user = currentUser();
         ServiceTicket ticket = requireVisibleTicket(ticketId, user);
-        return save(ticket, user, content, ServiceTicketNote.NoteType.CLOSURE);
+        return save(ticket, user, content, ServiceTicketNote.NoteType.CLOSURE, false);
     }
 
     private ServiceTicketNoteDTO save(ServiceTicket ticket, User user, String content,
-            ServiceTicketNote.NoteType type) {
+            ServiceTicketNote.NoteType type, boolean important) {
         String normalized = content != null ? content.trim() : "";
         if (normalized.isEmpty()) {
             throw new IllegalArgumentException("Teknisyen notu bos olamaz.");
@@ -66,9 +76,18 @@ public class ServiceTicketNoteService {
                 ? user.getFullName() : user.getUsername());
         note.setNoteType(type);
         note.setContent(normalized);
+        note.setImportant(important);
         ServiceTicketNote saved = noteRepository.save(note);
         auditLogService.log("NOTE", "TICKET", ticket.getId(),
                 type == ServiceTicketNote.NoteType.CLOSURE ? "Kapanis teknisyen notu eklendi" : "Teknisyen notu eklendi");
+        if (important) {
+            String author = saved.getAuthorName() != null ? saved.getAuthorName() : "Teknisyen";
+            String preview = normalized.length() > 140 ? normalized.substring(0, 137) + "..." : normalized;
+            adminNotificationService.notifyCompanyAdmins(user.getCompanyId(), "Önemli servis notu",
+                    "#" + ticket.getId() + " · " + author + ": " + preview,
+                    Notification.NotificationType.WARNING, Notification.NotificationCategory.IMPORTANT_NOTE,
+                    "TICKET", ticket.getId(), user.getId());
+        }
         return toDto(saved);
     }
 
@@ -96,6 +115,7 @@ public class ServiceTicketNoteService {
         dto.setAuthorName(note.getAuthorName());
         dto.setNoteType(note.getNoteType().name());
         dto.setContent(note.getContent());
+        dto.setImportant(note.isImportant());
         dto.setCreatedAt(note.getCreatedAt());
         return dto;
     }

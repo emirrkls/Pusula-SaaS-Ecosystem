@@ -42,6 +42,7 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.Checkbox
 import androidx.compose.runtime.Composable
 import androidx.activity.compose.BackHandler
 import com.pusula.service.ui.components.AppTopBar
@@ -321,6 +322,7 @@ fun TicketDetailScreen(
 
             item {
                 var newTechnicianNote by remember(ticketId) { mutableStateOf("") }
+                var importantNote by remember(ticketId) { mutableStateOf(false) }
                 AppDashboardSection(title = "Teknisyen Notları") {
                     AppGhostCard {
                         Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
@@ -337,6 +339,7 @@ fun TicketDetailScreen(
                                             note.authorName,
                                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                                         )
+                                        if (note.important) Text("Önemli", style = MaterialTheme.typography.labelSmall, color = AccentOrange)
                                         Text(note.content, style = MaterialTheme.typography.bodyMedium)
                                     }
                                 }
@@ -349,11 +352,16 @@ fun TicketDetailScreen(
                                     minLines = 3,
                                     modifier = Modifier.fillMaxWidth()
                                 )
+                                if (!session.isAdmin) Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(checked = importantNote, onCheckedChange = { importantNote = it })
+                                    Text("Yöneticiye önemli olarak bildir", style = MaterialTheme.typography.bodySmall)
+                                }
                                 AppPrimaryButton(
                                     text = if (uiState.technicianNoteSaving) "Kaydediliyor…" else "Not Ekle",
                                     onClick = {
-                                        viewModel.addTechnicianNote(ticketId, newTechnicianNote) {
+                                        viewModel.addTechnicianNote(ticketId, newTechnicianNote, importantNote) {
                                             newTechnicianNote = ""
+                                            importantNote = false
                                         }
                                     },
                                     enabled = newTechnicianNote.isNotBlank() && !uiState.technicianNoteSaving,

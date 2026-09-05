@@ -12,6 +12,7 @@ import com.pusula.service.data.model.ProfitAnalysis
 import com.pusula.service.data.model.PlanDTO
 import com.pusula.service.data.model.QuotaStatus
 import com.pusula.service.data.model.ServicePhotoDTO
+import com.pusula.service.data.model.AdminNotificationDTO
 import com.pusula.service.data.model.TechnicianStat
 import com.pusula.service.data.repository.AdminRepository
 import com.pusula.service.data.repository.TicketRepository
@@ -50,7 +51,10 @@ data class AdminUiState(
     val serviceQualityFilterType: String? = null,
     val serviceQualityFilterTicketId: Long? = null,
     val serviceQualityFilterStartDate: String? = null,
-    val serviceQualityFilterEndDate: String? = null
+    val serviceQualityFilterEndDate: String? = null,
+    val notifications: List<AdminNotificationDTO> = emptyList(),
+    val unreadNotificationCount: Long = 0,
+    val notificationsLoading: Boolean = false
 )
 
 @HiltViewModel
@@ -62,6 +66,35 @@ class AdminViewModel @Inject constructor(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AdminUiState())
     val uiState: StateFlow<AdminUiState> = _uiState.asStateFlow()
+
+    fun loadNotificationCount() = viewModelScope.launch {
+        runCatching { adminRepository.getNotificationUnreadCount() }
+            .onSuccess { count -> _uiState.update { it.copy(unreadNotificationCount = count) } }
+    }
+
+    fun loadNotifications() = viewModelScope.launch {
+        _uiState.update { it.copy(notificationsLoading = true) }
+        runCatching { adminRepository.getNotifications() }
+            .onSuccess { items -> _uiState.update { it.copy(notificationsLoading = false, notifications = items,
+                unreadNotificationCount = items.count { item -> !item.read }.toLong()) } }
+            .onFailure { error -> _uiState.update { it.copy(notificationsLoading = false,
+                error = error.toUserMessage("Bildirimler yüklenemedi")) } }
+    }
+
+    fun markNotificationRead(item: AdminNotificationDTO, onOpen: (Long?) -> Unit) = viewModelScope.launch {
+        if (!item.read) runCatching { adminRepository.markNotificationRead(item.id) }
+            .onSuccess { updated -> _uiState.update { state -> state.copy(
+                notifications = state.notifications.map { if (it.id == updated.id) updated else it },
+                unreadNotificationCount = (state.unreadNotificationCount - 1).coerceAtLeast(0)) } }
+        onOpen(if (item.referenceType == "TICKET") item.referenceId else null)
+    }
+
+    fun markAllNotificationsRead() = viewModelScope.launch {
+        runCatching { adminRepository.markAllNotificationsRead() }.onSuccess {
+            _uiState.update { state -> state.copy(notifications = state.notifications.map { it.copy(read = true) },
+                unreadNotificationCount = 0) }
+        }
+    }
 
     fun loadFieldRadar() = viewModelScope.launch {
         _uiState.update { it.copy(loading = true, error = null) }

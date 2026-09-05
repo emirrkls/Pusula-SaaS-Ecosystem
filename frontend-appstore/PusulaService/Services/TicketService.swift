@@ -76,10 +76,10 @@ enum TicketService {
         try await NetworkManager.shared.get("/api/tickets/\(ticketId)/technician-notes")
     }
 
-    static func addTechnicianNote(ticketId: Int, content: String) async throws -> TechnicianNoteDTO {
+    static func addTechnicianNote(ticketId: Int, content: String, important: Bool = false) async throws -> TechnicianNoteDTO {
         try await NetworkManager.shared.post(
             "/api/tickets/\(ticketId)/technician-notes",
-            body: AddTechnicianNoteRequest(content: content.trimmingCharacters(in: .whitespacesAndNewlines))
+            body: AddTechnicianNoteRequest(content: content.trimmingCharacters(in: .whitespacesAndNewlines), important: important)
         )
     }
     

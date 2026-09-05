@@ -7,6 +7,7 @@ import com.pusula.service.data.model.ProfitAnalysis
 import com.pusula.service.data.model.QuotaStatus
 import com.pusula.service.data.model.TechnicianStat
 import com.pusula.service.data.model.PlanDTO
+import com.pusula.service.data.model.AdminNotificationDTO
 import com.pusula.service.data.remote.ApiService
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,6 +27,11 @@ class AdminRepository @Inject constructor(
     suspend fun getPlans(): List<PlanDTO> = apiService.plans()
 
     suspend fun getFieldRadar(): List<FieldPin> = apiService.fieldRadar()
+
+    suspend fun getNotifications(): List<AdminNotificationDTO> = apiService.notifications()
+    suspend fun getNotificationUnreadCount(): Long = apiService.notificationUnreadCount().count
+    suspend fun markNotificationRead(id: Long): AdminNotificationDTO = apiService.markNotificationRead(id)
+    suspend fun markAllNotificationsRead() = apiService.markAllNotificationsRead()
 
     suspend fun createInventoryItem(
         partName: String,

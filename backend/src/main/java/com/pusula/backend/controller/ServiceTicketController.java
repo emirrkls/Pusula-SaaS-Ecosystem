@@ -148,7 +148,7 @@ public class ServiceTicketController {
     @PostMapping("/{id}/technician-notes")
     public ResponseEntity<ServiceTicketNoteDTO> addTechnicianNote(@PathVariable Long id,
             @RequestBody AddServiceTicketNoteRequest request) {
-        return ResponseEntity.ok(noteService.addWorkLog(id, request.getContent()));
+        return ResponseEntity.ok(noteService.addWorkLog(id, request.getContent(), request.isImportant()));
     }
 
     @PutMapping("/{id}/parts/{partId}")

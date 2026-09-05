@@ -30,6 +30,9 @@ public class ServiceTicketNote extends BaseEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Column(name = "important", nullable = false)
+    private boolean important;
+
     public Long getServiceTicketId() { return serviceTicketId; }
     public void setServiceTicketId(Long serviceTicketId) { this.serviceTicketId = serviceTicketId; }
     public Long getAuthorUserId() { return authorUserId; }
@@ -40,6 +43,8 @@ public class ServiceTicketNote extends BaseEntity {
     public void setNoteType(NoteType noteType) { this.noteType = noteType; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+    public boolean isImportant() { return important; }
+    public void setImportant(boolean important) { this.important = important; }
 
     public enum NoteType {
         WORK_LOG,

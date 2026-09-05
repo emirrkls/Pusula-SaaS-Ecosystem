@@ -66,6 +66,9 @@ final class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate 
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
+        await MainActor.run {
+            NotificationCenter.default.post(name: .pusulaAdminNotificationReceived, object: nil)
+        }
         [.banner, .sound, .badge]
     }
 
@@ -125,6 +128,10 @@ final class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate 
 #endif
         }
     }
+}
+
+extension Notification.Name {
+    static let pusulaAdminNotificationReceived = Notification.Name("pusulaAdminNotificationReceived")
 }
 
 private struct PushDeviceRequest: Encodable {

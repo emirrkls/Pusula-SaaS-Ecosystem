@@ -10,6 +10,7 @@ import com.pusula.backend.entity.CurrentAccount;
 import com.pusula.backend.entity.CurrentAccountTransaction;
 import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.Inventory;
+import com.pusula.backend.entity.Notification;
 import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.ServiceTicketReschedule;
@@ -85,6 +86,7 @@ public class ServiceTicketService {
     private final FinanceService financeService;
     private final UploadUrlSigner uploadUrlSigner;
     private final CurrentAccountLedgerService currentAccountLedgerService;
+    private final AdminNotificationService adminNotificationService;
 
     public ServiceTicketService(ServiceTicketRepository repository,
             ServiceTicketRescheduleRepository rescheduleRepository,
@@ -102,6 +104,7 @@ public class ServiceTicketService {
             ApplicationEventPublisher eventPublisher,
             FinanceService financeService, UploadUrlSigner uploadUrlSigner,
             CurrentAccountLedgerService currentAccountLedgerService,
+            AdminNotificationService adminNotificationService,
             @Value("${app.business.timezone:Europe/Istanbul}") String businessTimezone) {
         this.repository = repository;
         this.rescheduleRepository = rescheduleRepository;
@@ -120,6 +123,7 @@ public class ServiceTicketService {
         this.financeService = financeService;
         this.uploadUrlSigner = uploadUrlSigner;
         this.currentAccountLedgerService = currentAccountLedgerService;
+        this.adminNotificationService = adminNotificationService;
         this.businessZone = ZoneId.of(businessTimezone);
     }
 
@@ -211,6 +215,9 @@ public class ServiceTicketService {
 
         if (assignedTechnician != null) {
             publishAssignment(saved, assignedTechnician.getId());
+        } else {
+            notifyAdmins(saved, "Yeni atanmamış servis", ticketSummary(saved),
+                    Notification.NotificationType.INFO, Notification.NotificationCategory.NEW_SERVICE, null);
         }
 
         // Customer notification is non-blocking from the business flow: a Meta/API
@@ -376,6 +383,9 @@ public class ServiceTicketService {
                 saved.getId(),
                 "Web formundan servis talebi: " + dto.getCustomerName() + " - " + dto.getDeviceType());
 
+        notifyAdmins(saved, "Yeni web servis talebi", ticketSummary(saved),
+                Notification.NotificationType.INFO, Notification.NotificationCategory.NEW_SERVICE, null);
+
         return mapToDTO(saved);
     }
 
@@ -524,6 +534,13 @@ public class ServiceTicketService {
                 "İş yeniden planlandı · " + getProgressReasonInTurkish(request.getReason()) + " · " + note,
                 oldValue, newValue);
         publishAssignment(saved, saved.getAssignedTechnicianId());
+        if ("TECHNICIAN".equals(user.getRole())) {
+            notifyAdmins(saved, "İş yeniden planlandı",
+                    "#" + saved.getId() + " · " + displayName(user) + " · "
+                            + getProgressReasonInTurkish(request.getReason()) + " · " + formatSchedule(saved.getScheduledDate(), saved.getScheduledEndDate()),
+                    Notification.NotificationType.WARNING, Notification.NotificationCategory.SERVICE_RESCHEDULED,
+                    user.getId());
+        }
         return mapToDTO(saved);
     }
 
@@ -706,6 +723,7 @@ public class ServiceTicketService {
         com.pusula.backend.entity.Inventory inventory = inventoryRepository
                 .findByIdAndCompanyIdForUpdate(dto.getInventoryId(), currentUser.getCompanyId())
                 .orElseThrow(() -> new RuntimeException("Inventory item not found"));
+        BigDecimal inventoryQuantityBefore = inventory.getQuantity() != null ? inventory.getQuantity() : BigDecimal.ZERO;
 
         Long sourceVehicleId = null;
         BigDecimal quantityNeeded = normalizeUsedQuantity(dto.getQuantityUsed(), inventory.getUnitOfMeasure());
@@ -766,6 +784,8 @@ public class ServiceTicketService {
                 "TICKET",
                 ticket.getId(),
                 "Parça eklendi: " + inventory.getPartName() + " x" + dto.getQuantityUsed());
+
+        notifyCriticalStockCrossing(inventory, inventoryQuantityBefore, currentUser, ticket.getId());
 
         return new ServiceUsedPartDTO(
                 saved.getId(),
@@ -831,13 +851,17 @@ public class ServiceTicketService {
         BigDecimal oldQuantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : BigDecimal.ZERO;
         BigDecimal requestedQuantity = normalizeUsedQuantity(dto.getQuantityUsed(), part.getUnitOfMeasure());
         BigDecimal delta = requestedQuantity.subtract(oldQuantity);
-        adjustUsedPartStock(part, delta, currentUser.getCompanyId());
+        StockAdjustment stockAdjustment = adjustUsedPartStock(part, delta, currentUser.getCompanyId());
         part.setQuantityUsed(requestedQuantity);
         com.pusula.backend.entity.ServiceUsedPart saved = serviceUsedPartRepository.save(part);
 
         auditLogService.log("UPDATE", "TICKET", ticketId,
                 "Parça adedi güncellendi: " + partDisplayName(saved) + " x" + oldQuantity + " → x"
                         + saved.getQuantityUsed());
+        if (delta.signum() > 0 && stockAdjustment != null) {
+            notifyCriticalStockCrossing(stockAdjustment.inventory(), stockAdjustment.previousQuantity(),
+                    currentUser, ticketId);
+        }
         return mapUsedPart(saved, ticketId);
     }
 
@@ -873,9 +897,9 @@ public class ServiceTicketService {
         }
     }
 
-    private void adjustUsedPartStock(com.pusula.backend.entity.ServiceUsedPart part, BigDecimal delta, Long companyId) {
+    private StockAdjustment adjustUsedPartStock(com.pusula.backend.entity.ServiceUsedPart part, BigDecimal delta, Long companyId) {
         if (delta.signum() == 0) {
-            return;
+            return null;
         }
         Inventory linkedInventory = part.getInventory();
         Inventory inventory;
@@ -958,7 +982,10 @@ public class ServiceTicketService {
 
         inventory.setQuantity(currentInventory.subtract(delta));
         inventoryRepository.save(inventory);
+        return new StockAdjustment(inventory, currentInventory);
     }
+
+    private record StockAdjustment(Inventory inventory, BigDecimal previousQuantity) { }
 
     private String partDisplayName(com.pusula.backend.entity.ServiceUsedPart part) {
         return part.getInventory() != null && part.getInventory().getPartName() != null
@@ -1201,7 +1228,45 @@ public class ServiceTicketService {
             log.warn("WhatsApp notification failed (non-blocking): {}", e.getMessage());
         }
 
+        if ("TECHNICIAN".equals(currentUser.getRole())) {
+            notifyAdmins(saved, "Servis tamamlandı",
+                    "#" + saved.getId() + " · " + displayName(currentUser) + " · " + saved.getDescription(),
+                    Notification.NotificationType.INFO, Notification.NotificationCategory.SERVICE_COMPLETED,
+                    currentUser.getId());
+        }
+
         return mapToDTO(saved);
+    }
+
+    private void notifyCriticalStockCrossing(Inventory inventory, BigDecimal previousQuantity, User actor,
+            Long ticketId) {
+        BigDecimal critical = inventory.getCriticalLevel() != null ? inventory.getCriticalLevel() : BigDecimal.ZERO;
+        BigDecimal current = inventory.getQuantity() != null ? inventory.getQuantity() : BigDecimal.ZERO;
+        if (previousQuantity.compareTo(critical) > 0 && current.compareTo(critical) <= 0) {
+            adminNotificationService.notifyCompanyAdmins(actor.getCompanyId(), "Kritik stok seviyesi",
+                    inventory.getPartName() + " · Kalan " + current.stripTrailingZeros().toPlainString(),
+                    Notification.NotificationType.WARNING, Notification.NotificationCategory.CRITICAL_STOCK,
+                    ticketId != null ? "TICKET" : "INVENTORY", ticketId != null ? ticketId : inventory.getId(), null);
+        }
+    }
+
+    private void notifyAdmins(ServiceTicket ticket, String title, String message,
+            Notification.NotificationType severity, Notification.NotificationCategory category, Long excludedUserId) {
+        adminNotificationService.notifyCompanyAdmins(ticket.getCompanyId(), title, truncate(message, 500), severity,
+                category, "TICKET", ticket.getId(), excludedUserId);
+    }
+
+    private String ticketSummary(ServiceTicket ticket) {
+        return "#" + ticket.getId() + " · " + (ticket.getDescription() == null ? "Servis talebi" : ticket.getDescription());
+    }
+
+    private String displayName(User user) {
+        return user.getFullName() == null || user.getFullName().isBlank() ? user.getUsername() : user.getFullName().trim();
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) return value;
+        return value.substring(0, maxLength - 3) + "...";
     }
 
     @Transactional

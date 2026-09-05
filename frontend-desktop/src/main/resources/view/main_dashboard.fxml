@@ -69,6 +69,10 @@
                      </children>
                   </VBox>
                   <Region HBox.hgrow="ALWAYS" />
+                  <StackPane>
+                     <Button fx:id="btnNotifications" mnemonicParsing="false" onAction="#showNotifications" styleClass="icon-button" />
+                     <Label fx:id="notificationBadge" text="0" visible="false" managed="false" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT" />
+                  </StackPane>
                   <Button fx:id="btnThemeToggle" mnemonicParsing="false" onAction="#toggleTheme" styleClass="icon-button" />
                </children>
             </HBox>

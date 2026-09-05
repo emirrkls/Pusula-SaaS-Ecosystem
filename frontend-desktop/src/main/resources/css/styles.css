@@ -2995,3 +2995,25 @@
 .dark-theme .service-photo-preview {
     -fx-background-color: #0F172A;
 }
+
+/* Minimal notification center */
+.notification-badge {
+    -fx-background-color: #EF4444; -fx-background-radius: 999;
+    -fx-text-fill: white; -fx-font-size: 9px; -fx-font-weight: 800;
+    -fx-padding: 2 5; -fx-translate-x: 7; -fx-translate-y: -6;
+}
+.notification-toolbar, .notification-card {
+    -fx-background-color: -pusula-surface; -fx-background-radius: 14;
+    -fx-border-color: -pusula-border; -fx-border-radius: 14;
+}
+.notification-toolbar { -fx-padding: 14 16; }
+.notification-card { -fx-padding: 14 16; -fx-cursor: hand; }
+.notification-card:hover { -fx-border-color: -pusula-primary; }
+.notification-unread { -fx-background-color: derive(-pusula-primary, 92%); }
+.notification-dot, .notification-dot-read { -fx-min-width: 8; -fx-min-height: 8; -fx-max-width: 8; -fx-max-height: 8; -fx-background-radius: 99; -fx-background-color: -pusula-primary; }
+.notification-dot-read { -fx-background-color: -pusula-border; }
+.notification-title { -fx-text-fill: -pusula-text; -fx-font-size: 14px; -fx-font-weight: 800; }
+.notification-message { -fx-text-fill: -pusula-text-muted; -fx-font-size: 12px; }
+.notification-meta { -fx-text-fill: -pusula-text-muted; -fx-font-size: 10px; }
+.dark-theme .notification-toolbar, .dark-theme .notification-card { -fx-background-color: #1E293B; -fx-border-color: #334155; }
+.dark-theme .notification-unread { -fx-background-color: #172A3A; }

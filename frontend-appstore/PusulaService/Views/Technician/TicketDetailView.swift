@@ -12,6 +12,7 @@ struct TicketDetailView: View {
     @State private var technicianNotes: [TechnicianNoteDTO] = []
     @State private var newTechnicianNote = ""
     @State private var isSavingTechnicianNote = false
+    @State private var isImportantTechnicianNote = false
     @State private var showScanner = false
     @State private var showPartPicker = false
     @State private var showCollection = false
@@ -438,7 +439,13 @@ struct TicketDetailView: View {
             } else {
                 ForEach(technicianNotes) { note in
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(note.authorName).font(.caption.weight(.semibold))
+                        HStack(spacing: 5) {
+                            Text(note.authorName).font(.caption.weight(.semibold))
+                            if note.important {
+                                Label("Önemli", systemImage: "exclamationmark.circle.fill")
+                                    .font(.caption2.weight(.semibold)).foregroundStyle(.orange)
+                            }
+                        }
                         Text(note.content).font(.subheadline)
                     }
                     Divider()
@@ -448,6 +455,10 @@ struct TicketDetailView: View {
                 TextField("Yeni teknisyen notu", text: $newTechnicianNote, axis: .vertical)
                     .lineLimit(3...8)
                     .textFieldStyle(.roundedBorder)
+                if !SessionManager.shared.isAdmin {
+                    Toggle("Yöneticiye önemli olarak bildir", isOn: $isImportantTechnicianNote)
+                        .font(.caption).tint(.orange)
+                }
                 Button {
                     Task { await saveTechnicianNote() }
                 } label: {
@@ -608,9 +619,11 @@ struct TicketDetailView: View {
         guard !content.isEmpty else { return }
         isSavingTechnicianNote = true
         do {
-            let saved = try await TicketService.addTechnicianNote(ticketId: ticket.id, content: content)
+            let saved = try await TicketService.addTechnicianNote(ticketId: ticket.id, content: content,
+                                                                  important: isImportantTechnicianNote)
             technicianNotes.append(saved)
             newTechnicianNote = ""
+            isImportantTechnicianNote = false
         } catch {
             errorMessage = error.localizedDescription
         }

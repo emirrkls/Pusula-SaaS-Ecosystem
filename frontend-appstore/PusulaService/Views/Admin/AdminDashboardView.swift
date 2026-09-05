@@ -1,10 +1,13 @@
 import SwiftUI
+import UserNotifications
 
 struct AdminDashboardView: View {
     @State private var kpis: DashboardKPIs?
     @State private var techStats: [TechnicianStat] = []
     @State private var quotaStatus: QuotaStatus?
     @State private var isLoading = true
+    @State private var showNotifications = false
+    @State private var unreadNotificationCount = 0
 
     private let metricColumns = [
         GridItem(.flexible(), spacing: 10),
@@ -40,8 +43,29 @@ struct AdminDashboardView: View {
         .background(PusulaTheme.page)
         .navigationTitle("Genel Bakış")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showNotifications = true } label: {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: unreadNotificationCount > 0 ? "bell.fill" : "bell")
+                        if unreadNotificationCount > 0 {
+                            Text(unreadNotificationCount > 99 ? "99+" : "\(unreadNotificationCount)")
+                                .font(.system(size: 8, weight: .bold)).foregroundStyle(.white)
+                                .padding(.horizontal, 4).frame(minWidth: 16, minHeight: 16)
+                                .background(.red).clipShape(Capsule()).offset(x: 9, y: -8)
+                        }
+                    }
+                }.accessibilityLabel("Bildirimler, \(unreadNotificationCount) okunmamış")
+            }
+        }
+        .sheet(isPresented: $showNotifications, onDismiss: { Task { await loadUnreadCount() } }) {
+            NavigationStack { AdminNotificationsView(onChanged: loadUnreadCount) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .pusulaAdminNotificationReceived)) { _ in
+            Task { await loadUnreadCount() }
+        }
         .refreshable { await loadData() }
-        .task { await loadData() }
+        .task { await loadData(); await loadUnreadCount() }
         .overlay {
             if isLoading {
                 ZStack {
@@ -317,5 +341,14 @@ struct AdminDashboardView: View {
             return String(format: "%.1fK", value / 1_000)
         }
         return String(format: "%.0f", value)
+    }
+
+    private func loadUnreadCount() async {
+        if let count = try? await AdminNotificationService.unreadCount() {
+            await MainActor.run {
+                unreadNotificationCount = count
+                UNUserNotificationCenter.current().setBadgeCount(count) { _ in }
+            }
+        }
     }
 }

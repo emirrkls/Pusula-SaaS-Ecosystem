@@ -53,6 +53,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -64,6 +67,7 @@ import com.pusula.service.core.featureGated
 import com.pusula.service.core.featureLabelTr
 import com.pusula.service.core.quotaNearOrExceededMessage
 import com.pusula.service.ui.admin.AdminDashboardScreen
+import com.pusula.service.ui.admin.AdminNotificationsScreen
 import com.pusula.service.ui.admin.AdminViewModel
 import com.pusula.service.ui.admin.CatalogScreen
 import com.pusula.service.ui.finance.FinanceScreen
@@ -76,12 +80,18 @@ import com.pusula.service.ui.theme.BrandCyan
 import com.pusula.service.ui.theme.BrandNavy
 import com.pusula.service.ui.theme.Spacing
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 private val secondaryModuleTabs = setOf("Müşteriler", "Teklifler", "Stok")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MainTopBarActions(selectedTab: String, isAdmin: Boolean) {
+private fun MainTopBarActions(selectedTab: String, isAdmin: Boolean, unreadCount: Long, onNotifications: () -> Unit) {
+    if (isAdmin) {
+        BadgedBox(badge = { if (unreadCount > 0) Badge { Text(if (unreadCount > 99) "99+" else unreadCount.toString()) } }) {
+            IconButton(onClick = onNotifications) { Icon(Icons.Outlined.Notifications, contentDescription = "Bildirimler") }
+        }
+    }
     if (selectedTab == "Hesap" && isAdmin) {
         val viewModel: SettingsViewModel = hiltViewModel()
         val uiState by viewModel.uiState.collectAsState()
@@ -124,6 +134,13 @@ fun MainScreen(
     }
 
     val adminViewModel: AdminViewModel = hiltViewModel()
+    val adminState by adminViewModel.uiState.collectAsState()
+    LaunchedEffect(session.isAdmin) {
+        while (session.isAdmin) {
+            adminViewModel.loadNotificationCount()
+            delay(60_000)
+        }
+    }
     val tabs = remember(session.isAdmin) {
         if (session.isAdmin) {
             listOf(
@@ -190,7 +207,10 @@ fun MainScreen(
             AppTopBar(
                 title = selectedTab,
                 onBack = if (canGoBack) goBack else null,
-                actions = { MainTopBarActions(selectedTab = selectedTab, isAdmin = session.isAdmin) }
+                actions = { MainTopBarActions(selectedTab = selectedTab, isAdmin = session.isAdmin,
+                    unreadCount = adminState.unreadNotificationCount, onNotifications = {
+                        lastMainTab = selectedTab; selectedTab = "Bildirimler"
+                    }) }
             )
         },
         bottomBar = {
@@ -381,6 +401,9 @@ fun MainScreen(
                     } else {
                         PlaceholderPanel(title = selectedTab)
                     }
+                    "Bildirimler" -> if (session.isAdmin) {
+                        AdminNotificationsScreen(viewModel = adminViewModel, onOpenTicket = onOpenTicket)
+                    } else PlaceholderPanel(title = selectedTab)
                     "Finans" -> if (session.isAdmin) {
                         FinanceScreen()
                     } else {

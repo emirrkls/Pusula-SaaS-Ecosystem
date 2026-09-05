@@ -48,10 +48,11 @@ data class TechnicianNoteDTO(
     val authorName: String,
     val noteType: String,
     val content: String,
+    val important: Boolean = false,
     val createdAt: String
 )
 
-data class AddTechnicianNoteRequest(val content: String)
+data class AddTechnicianNoteRequest(val content: String, val important: Boolean = false)
 
 data class SignatureRequest(
     val signature: String

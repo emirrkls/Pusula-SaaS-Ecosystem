@@ -44,6 +44,9 @@ class InventoryServiceTenantSecurityTest {
     @Mock
     private FeatureService featureService;
 
+    @Mock
+    private AdminNotificationService adminNotificationService;
+
     private InventoryService inventoryService;
 
     @BeforeEach
@@ -52,7 +55,8 @@ class InventoryServiceTenantSecurityTest {
                 inventoryRepository,
                 vehicleStockRepository,
                 auditLogService,
-                featureService);
+                featureService,
+                adminNotificationService);
         authenticate(10L);
     }
 
