@@ -47,14 +47,48 @@ class ServicePhotoRepositoryPaginationTest {
         entityManager.flush();
 
         Page<Long> firstPage = repository.findServiceFileTicketIds(
-                1L, null, null, null, null, null, PageRequest.of(0, 1));
+                1L,
+                false, ServicePhoto.PhotoType.BEFORE,
+                false, 0L,
+                false, LocalDateTime.of(1970, 1, 1, 0, 0),
+                false, LocalDateTime.of(2100, 1, 1, 0, 0),
+                false, "%",
+                PageRequest.of(0, 1));
         assertEquals(2, firstPage.getTotalElements());
         assertEquals(firstTicket, firstPage.getContent().get(0));
 
         Page<Long> searched = repository.findServiceFileTicketIds(
-                1L, null, null, null, null, "%vrf%", PageRequest.of(0, 10));
+                1L,
+                false, ServicePhoto.PhotoType.BEFORE,
+                false, 0L,
+                false, LocalDateTime.of(1970, 1, 1, 0, 0),
+                false, LocalDateTime.of(2100, 1, 1, 0, 0),
+                true, "%vrf%",
+                PageRequest.of(0, 10));
         assertEquals(1, searched.getTotalElements());
         assertEquals(secondTicket, searched.getContent().get(0));
+
+        Page<Long> dated = repository.findServiceFileTicketIds(
+                1L,
+                false, ServicePhoto.PhotoType.BEFORE,
+                false, 0L,
+                true, LocalDateTime.of(2026, 8, 1, 0, 0),
+                false, LocalDateTime.of(2100, 1, 1, 0, 0),
+                false, "%",
+                PageRequest.of(0, 10));
+        assertEquals(1, dated.getTotalElements());
+        assertEquals(firstTicket, dated.getContent().get(0));
+
+        Page<Long> beforePhotos = repository.findServiceFileTicketIds(
+                1L,
+                true, ServicePhoto.PhotoType.BEFORE,
+                false, 0L,
+                false, LocalDateTime.of(1970, 1, 1, 0, 0),
+                false, LocalDateTime.of(2100, 1, 1, 0, 0),
+                false, "%",
+                PageRequest.of(0, 10));
+        assertEquals(1, beforePhotos.getTotalElements());
+        assertEquals(secondTicket, beforePhotos.getContent().get(0));
     }
 
     private Long createTicketWithPhoto(Long companyId, String customerName, String description,

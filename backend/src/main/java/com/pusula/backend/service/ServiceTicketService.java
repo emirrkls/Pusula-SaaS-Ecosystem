@@ -1635,13 +1635,18 @@ public class ServiceTicketService {
         int safeSize = size == null ? 24 : Math.max(1, Math.min(size, 48));
         String normalizedQuery = query == null ? "" : query.trim()
                 .toLowerCase(Locale.forLanguageTag("tr-TR"));
-        String queryPattern = normalizedQuery.isBlank() ? null : "%" + normalizedQuery + "%";
+        String queryPattern = normalizedQuery.isBlank() ? "%" : "%" + normalizedQuery + "%";
         LocalDateTime startDateTime = toServerDateTime(startDate);
         LocalDateTime endDateTime = endDate == null ? null : toServerDateTime(endDate.plusDays(1));
 
         Page<Long> ticketPage = servicePhotoRepository.findServiceFileTicketIds(
-                user.getCompanyId(), type, ticketId, startDateTime, endDateTime,
-                queryPattern, PageRequest.of(safePage, safeSize));
+                user.getCompanyId(),
+                type != null, type == null ? ServicePhoto.PhotoType.BEFORE : type,
+                ticketId != null, ticketId == null ? 0L : ticketId,
+                startDateTime != null, startDateTime == null ? LocalDateTime.of(1970, 1, 1, 0, 0) : startDateTime,
+                endDateTime != null, endDateTime == null ? LocalDateTime.of(2100, 1, 1, 0, 0) : endDateTime,
+                !normalizedQuery.isBlank(), queryPattern,
+                PageRequest.of(safePage, safeSize));
         if (ticketPage.isEmpty()) {
             return new ServicePhotoPageDTO(List.of(), safePage, safeSize,
                     ticketPage.getTotalElements(), ticketPage.getTotalPages(), false);

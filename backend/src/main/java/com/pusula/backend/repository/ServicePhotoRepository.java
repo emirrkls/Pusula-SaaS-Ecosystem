@@ -21,11 +21,11 @@ public interface ServicePhotoRepository extends JpaRepository<ServicePhoto, Long
             WHERE p.ticketId = t.id
               AND t.customerId = c.id
               AND t.companyId = :companyId
-              AND (:type IS NULL OR p.type = :type)
-              AND (:ticketId IS NULL OR p.ticketId = :ticketId)
-              AND (:startDateTime IS NULL OR COALESCE(t.completedAt, t.updatedAt, t.scheduledDate, t.createdAt) >= :startDateTime)
-              AND (:endDateTime IS NULL OR COALESCE(t.completedAt, t.updatedAt, t.scheduledDate, t.createdAt) < :endDateTime)
-              AND (:queryPattern IS NULL
+              AND (:filterByType = FALSE OR p.type = :type)
+              AND (:filterByTicket = FALSE OR p.ticketId = :ticketId)
+              AND (:filterByStart = FALSE OR COALESCE(t.completedAt, t.updatedAt, t.scheduledDate, t.createdAt) >= :startDateTime)
+              AND (:filterByEnd = FALSE OR COALESCE(t.completedAt, t.updatedAt, t.scheduledDate, t.createdAt) < :endDateTime)
+              AND (:filterByQuery = FALSE
                    OR LOWER(c.name) LIKE :queryPattern
                    OR LOWER(t.description) LIKE :queryPattern
                    OR LOWER(p.note) LIKE :queryPattern
@@ -39,11 +39,11 @@ public interface ServicePhotoRepository extends JpaRepository<ServicePhoto, Long
             WHERE p.ticketId = t.id
               AND t.customerId = c.id
               AND t.companyId = :companyId
-              AND (:type IS NULL OR p.type = :type)
-              AND (:ticketId IS NULL OR p.ticketId = :ticketId)
-              AND (:startDateTime IS NULL OR COALESCE(t.completedAt, t.updatedAt, t.scheduledDate, t.createdAt) >= :startDateTime)
-              AND (:endDateTime IS NULL OR COALESCE(t.completedAt, t.updatedAt, t.scheduledDate, t.createdAt) < :endDateTime)
-              AND (:queryPattern IS NULL
+              AND (:filterByType = FALSE OR p.type = :type)
+              AND (:filterByTicket = FALSE OR p.ticketId = :ticketId)
+              AND (:filterByStart = FALSE OR COALESCE(t.completedAt, t.updatedAt, t.scheduledDate, t.createdAt) >= :startDateTime)
+              AND (:filterByEnd = FALSE OR COALESCE(t.completedAt, t.updatedAt, t.scheduledDate, t.createdAt) < :endDateTime)
+              AND (:filterByQuery = FALSE
                    OR LOWER(c.name) LIKE :queryPattern
                    OR LOWER(t.description) LIKE :queryPattern
                    OR LOWER(p.note) LIKE :queryPattern
@@ -51,10 +51,15 @@ public interface ServicePhotoRepository extends JpaRepository<ServicePhoto, Long
             """)
     Page<Long> findServiceFileTicketIds(
             @Param("companyId") Long companyId,
+            @Param("filterByType") boolean filterByType,
             @Param("type") ServicePhoto.PhotoType type,
+            @Param("filterByTicket") boolean filterByTicket,
             @Param("ticketId") Long ticketId,
+            @Param("filterByStart") boolean filterByStart,
             @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("filterByEnd") boolean filterByEnd,
             @Param("endDateTime") LocalDateTime endDateTime,
+            @Param("filterByQuery") boolean filterByQuery,
             @Param("queryPattern") String queryPattern,
             Pageable pageable);
 }
