@@ -6,6 +6,7 @@ import com.pusula.desktop.dto.ServicePhotoDTO;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import javafx.geometry.Rectangle2D;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,6 +42,24 @@ class ServicePhotosControllerUrlTest {
         assertEquals(20L, groups.getFirst().ticketId());
         assertEquals(2, groups.getFirst().photos().size());
         assertEquals(3L, groups.getFirst().photos().getFirst().getId());
+    }
+
+    @Test
+    void coverViewportCropsWithoutDistortingPortraitAndLandscapeImages() {
+        assertEquals(new Rectangle2D(0, 375, 1000, 500),
+                ServicePhotosController.coverViewport(1000, 1250, 2, 1));
+        assertEquals(new Rectangle2D(500, 0, 1000, 1000),
+                ServicePhotosController.coverViewport(2000, 1000, 1, 1));
+    }
+
+    @Test
+    void prefersAfterPhotoAsServiceFolderCover() {
+        ServicePhotoDTO before = photo(10L, 1L, "Müşteri", LocalDateTime.now());
+        before.setType("BEFORE");
+        ServicePhotoDTO after = photo(10L, 2L, "Müşteri", LocalDateTime.now());
+        after.setType("AFTER");
+
+        assertEquals(after, ServicePhotosController.selectCover(List.of(before, after)));
     }
 
     private ServicePhotoDTO photo(Long ticketId, Long id, String customer, LocalDateTime serviceDate) {

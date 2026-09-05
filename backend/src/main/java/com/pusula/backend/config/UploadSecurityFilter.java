@@ -24,7 +24,9 @@ public class UploadSecurityFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
         String path = request.getRequestURI();
-        return !(path.startsWith("/uploads/service-photos/") || path.startsWith("/uploads/signatures/"));
+        return !(path.startsWith("/uploads/service-photos/")
+                || path.startsWith("/uploads/service-photo-thumbnails/")
+                || path.startsWith("/uploads/signatures/"));
     }
 
     @Override

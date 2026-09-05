@@ -19,6 +19,7 @@ public class UploadStorageInitializer {
         for (String dir : new String[] {
                 "uploads",
                 "uploads/service-photos",
+                "uploads/service-photo-thumbnails",
                 "uploads/signatures",
                 "uploads/companies"
         }) {

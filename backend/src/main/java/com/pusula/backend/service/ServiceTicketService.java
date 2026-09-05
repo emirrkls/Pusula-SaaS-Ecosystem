@@ -3,6 +3,7 @@ package com.pusula.backend.service;
 import com.pusula.backend.annotation.CheckQuota;
 import com.pusula.backend.dto.PublicServiceRequestDTO;
 import com.pusula.backend.dto.ServicePhotoDTO;
+import com.pusula.backend.dto.ServicePhotoPageDTO;
 import com.pusula.backend.dto.ServiceTicketDTO;
 import com.pusula.backend.dto.ServiceUsedPartDTO;
 import com.pusula.backend.dto.ServiceTicketRescheduleRequest;
@@ -36,6 +37,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -1619,6 +1622,63 @@ public class ServiceTicketService {
                 .collect(Collectors.toList());
     }
 
+    public ServicePhotoPageDTO getCompanyServicePhotoPage(
+            ServicePhoto.PhotoType type,
+            Long ticketId,
+            LocalDate startDate,
+            LocalDate endDate,
+            String query,
+            Integer page,
+            Integer size) {
+        User user = getCurrentUser();
+        int safePage = page == null ? 0 : Math.max(0, page);
+        int safeSize = size == null ? 24 : Math.max(1, Math.min(size, 48));
+        String normalizedQuery = query == null ? "" : query.trim()
+                .toLowerCase(Locale.forLanguageTag("tr-TR"));
+        String queryPattern = normalizedQuery.isBlank() ? null : "%" + normalizedQuery + "%";
+        LocalDateTime startDateTime = toServerDateTime(startDate);
+        LocalDateTime endDateTime = endDate == null ? null : toServerDateTime(endDate.plusDays(1));
+
+        Page<Long> ticketPage = servicePhotoRepository.findServiceFileTicketIds(
+                user.getCompanyId(), type, ticketId, startDateTime, endDateTime,
+                queryPattern, PageRequest.of(safePage, safeSize));
+        if (ticketPage.isEmpty()) {
+            return new ServicePhotoPageDTO(List.of(), safePage, safeSize,
+                    ticketPage.getTotalElements(), ticketPage.getTotalPages(), false);
+        }
+
+        List<ServiceTicket> tickets = repository.findAllById(ticketPage.getContent());
+        Map<Long, ServiceTicket> ticketsById = tickets.stream()
+                .filter(ticket -> user.getCompanyId().equals(ticket.getCompanyId()))
+                .collect(Collectors.toMap(ServiceTicket::getId, ticket -> ticket));
+        Map<Long, Customer> customersById = new HashMap<>();
+        customerRepository.findAllById(tickets.stream()
+                        .map(ServiceTicket::getCustomerId)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet()))
+                .forEach(customer -> customersById.put(customer.getId(), customer));
+
+        List<ServicePhotoDTO> items = servicePhotoRepository
+                .findByTicketIdInOrderByUploadedAtDesc(ticketPage.getContent()).stream()
+                .filter(photo -> type == null || photo.getType() == type)
+                .filter(photo -> matchesPhotoQuery(photo, ticketsById.get(photo.getTicketId()),
+                        customersById, normalizedQuery))
+                .sorted(Comparator
+                        .comparing((ServicePhoto photo) -> resolvePhotoServiceDate(ticketsById.get(photo.getTicketId())),
+                                Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(ServicePhoto::getUploadedAt,
+                                Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(photo -> {
+                    ServiceTicket ticket = ticketsById.get(photo.getTicketId());
+                    Customer customer = ticket == null ? null : customersById.get(ticket.getCustomerId());
+                    return mapPhotoToDTO(photo, ticket, customer, true);
+                })
+                .toList();
+
+        return new ServicePhotoPageDTO(items, safePage, safeSize,
+                ticketPage.getTotalElements(), ticketPage.getTotalPages(), ticketPage.hasNext());
+    }
+
     public void deleteServicePhoto(Long ticketId, Long photoId) {
         User user = getCurrentUser();
         repository.findById(ticketId)
@@ -1628,15 +1688,28 @@ public class ServiceTicketService {
         ServicePhoto photo = servicePhotoRepository.findById(photoId)
                 .filter(p -> p.getTicketId().equals(ticketId))
                 .orElseThrow(() -> new RuntimeException("Photo not found"));
-        deletePhotoFileIfExists(photo.getUrl());
+        fileUploadService.deleteServicePhotoAndThumbnail(photo.getUrl());
         servicePhotoRepository.delete(photo);
     }
 
     private ServicePhotoDTO mapPhotoToDTO(ServicePhoto photo, ServiceTicket ticket, Customer customer) {
+        return mapPhotoToDTO(photo, ticket, customer, false);
+    }
+
+    private ServicePhotoDTO mapPhotoToDTO(ServicePhoto photo, ServiceTicket ticket,
+                                           Customer customer, boolean includeThumbnail) {
+        String signedUrl = uploadUrlSigner.sign(photo.getUrl());
+        String thumbnailPath = includeThumbnail
+                ? fileUploadService.getOrCreateServicePhotoThumbnail(photo.getUrl())
+                : null;
+        String thumbnailUrl = thumbnailPath == null
+                ? signedUrl
+                : uploadUrlSigner.sign("/uploads/" + thumbnailPath);
         return new ServicePhotoDTO(
                 photo.getId(),
                 photo.getTicketId(),
-                uploadUrlSigner.sign(photo.getUrl()),
+                signedUrl,
+                thumbnailUrl,
                 photo.getType(),
                 photo.getNote(),
                 photo.getUploadedByName(),
@@ -1731,6 +1804,11 @@ public class ServiceTicketService {
             default:
                 return status.toString();
         }
+    }
+
+    private LocalDateTime toServerDateTime(LocalDate date) {
+        if (date == null) return null;
+        return date.atStartOfDay(businessZone).withZoneSameInstant(serverZone).toLocalDateTime();
     }
 
     private String getProgressReasonInTurkish(ServiceTicket.WorkProgressReason reason) {

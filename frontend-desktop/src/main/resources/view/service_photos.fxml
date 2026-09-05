@@ -7,13 +7,13 @@
       fx:controller="com.pusula.desktop.controller.ServicePhotosController">
     <padding><Insets top="18" right="18" bottom="18" left="18"/></padding>
 
-    <HBox spacing="10" alignment="CENTER_LEFT" styleClass="service-photo-toolbar">
-        <TextField fx:id="searchField" promptText="Müşteri, iş başlığı, fiş no veya not ara" HBox.hgrow="ALWAYS"/>
+    <FlowPane hgap="10" vgap="10" alignment="CENTER_LEFT" styleClass="service-photo-toolbar">
+        <TextField fx:id="searchField" promptText="Müşteri, iş başlığı, fiş no veya not ara" prefWidth="340"/>
         <ComboBox fx:id="categoryFilter" prefWidth="190"/>
-        <DatePicker fx:id="startDatePicker" promptText="Başlangıç"/>
-        <DatePicker fx:id="endDatePicker" promptText="Bitiş"/>
+        <DatePicker fx:id="startDatePicker" promptText="Başlangıç" prefWidth="155"/>
+        <DatePicker fx:id="endDatePicker" promptText="Bitiş" prefWidth="155"/>
         <Button text="Filtrele" onAction="#loadPhotos" styleClass="btn-primary"/>
-    </HBox>
+    </FlowPane>
 
     <StackPane VBox.vgrow="ALWAYS">
         <ScrollPane fx:id="folderScroll" fitToWidth="true" hbarPolicy="NEVER" styleClass="service-photo-scroll">
@@ -26,6 +26,11 @@
                         </VBox>
                     </HBox>
                     <FlowPane fx:id="folderFlow" hgap="14" vgap="14" prefWrapLength="1050"/>
+                    <HBox alignment="CENTER">
+                        <Button fx:id="loadMoreButton" text="Daha Fazla Servis Dosyası Göster"
+                                onAction="#loadNextPage" visible="false" managed="false"
+                                styleClass="btn-secondary"/>
+                    </HBox>
                     <Label fx:id="emptyArchiveLabel" text="Filtrelere uygun servis görseli bulunamadı."
                            visible="false" managed="false" styleClass="service-photo-empty"/>
                 </VBox>

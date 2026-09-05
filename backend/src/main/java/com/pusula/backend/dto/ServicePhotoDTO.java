@@ -7,6 +7,7 @@ public class ServicePhotoDTO {
     private Long id;
     private Long ticketId;
     private String url;
+    private String thumbnailUrl;
     private ServicePhoto.PhotoType type;
     private String note;
     private String uploadedByName;
@@ -18,12 +19,14 @@ public class ServicePhotoDTO {
     public ServicePhotoDTO() {
     }
 
-    public ServicePhotoDTO(Long id, Long ticketId, String url, ServicePhoto.PhotoType type, String note,
+    public ServicePhotoDTO(Long id, Long ticketId, String url, String thumbnailUrl,
+                           ServicePhoto.PhotoType type, String note,
                            String uploadedByName, LocalDateTime uploadedAt, LocalDateTime serviceDate,
                            String customerName, String ticketDescription) {
         this.id = id;
         this.ticketId = ticketId;
         this.url = url;
+        this.thumbnailUrl = thumbnailUrl;
         this.type = type;
         this.note = note;
         this.uploadedByName = uploadedByName;
@@ -39,6 +42,8 @@ public class ServicePhotoDTO {
     public void setTicketId(Long ticketId) { this.ticketId = ticketId; }
     public String getUrl() { return url; }
     public void setUrl(String url) { this.url = url; }
+    public String getThumbnailUrl() { return thumbnailUrl; }
+    public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
     public ServicePhoto.PhotoType getType() { return type; }
     public void setType(ServicePhoto.PhotoType type) { this.type = type; }
     public String getNote() { return note; }

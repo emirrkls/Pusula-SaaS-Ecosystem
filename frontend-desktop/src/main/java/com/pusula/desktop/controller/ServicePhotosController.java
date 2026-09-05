@@ -2,19 +2,29 @@ package com.pusula.desktop.controller;
 
 import com.pusula.desktop.api.ServiceTicketApi;
 import com.pusula.desktop.dto.ServicePhotoDTO;
+import com.pusula.desktop.dto.ServicePhotoPageDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.ThemeHelper;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.CacheHint;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.*;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.FileChooser;
+import javafx.stage.Screen;
+import javafx.stage.Window;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -35,11 +45,15 @@ public class ServicePhotosController {
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private static final double FOLDER_WIDTH = 310;
     private static final double PHOTO_WIDTH = 250;
+    private static final int PAGE_SIZE = 24;
 
     private final ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
     private final Map<String, String> categories = new LinkedHashMap<>();
     private List<ServicePhotoDTO> loadedPhotos = List.of();
     private TicketPhotoGroup selectedGroup;
+    private int currentPage;
+    private long totalServiceFiles;
+    private boolean hasNextPage;
 
     @FXML private VBox rootPane;
     @FXML private TextField searchField;
@@ -57,6 +71,7 @@ public class ServicePhotosController {
     @FXML private Label galleryMetaLabel;
     @FXML private Label statusLabel;
     @FXML private ProgressIndicator loadingIndicator;
+    @FXML private Button loadMoreButton;
 
     @FXML
     public void initialize() {
@@ -80,18 +95,33 @@ public class ServicePhotosController {
 
     @FXML
     public void loadPhotos() {
+        requestPage(0, true);
+    }
+
+    @FXML
+    public void loadNextPage() {
+        if (!hasNextPage) return;
+        requestPage(currentPage + 1, false);
+    }
+
+    private void requestPage(int page, boolean replace) {
         setLoading(true);
         String category = categories.get(categoryFilter.getValue());
-        api.getCompanyServicePhotos(category,
+        api.getCompanyServicePhotoPage(category,
                 startDatePicker.getValue() == null ? null : startDatePicker.getValue().toString(),
                 endDatePicker.getValue() == null ? null : endDatePicker.getValue().toString(),
                 searchField.getText() == null || searchField.getText().isBlank() ? null : searchField.getText().trim(),
-                1000).enqueue(new Callback<>() {
-            @Override public void onResponse(Call<List<ServicePhotoDTO>> call, Response<List<ServicePhotoDTO>> response) {
+                page, PAGE_SIZE).enqueue(new Callback<>() {
+            @Override public void onResponse(Call<ServicePhotoPageDTO> call, Response<ServicePhotoPageDTO> response) {
                 Platform.runLater(() -> {
                     setLoading(false);
                     if (response.isSuccessful() && response.body() != null) {
-                        loadedPhotos = List.copyOf(response.body());
+                        ServicePhotoPageDTO result = response.body();
+                        List<ServicePhotoDTO> items = result.getItems() == null ? List.of() : result.getItems();
+                        loadedPhotos = replace ? List.copyOf(items) : mergePhotos(loadedPhotos, items);
+                        currentPage = result.getPage();
+                        totalServiceFiles = result.getTotalServiceFiles();
+                        hasNextPage = result.isHasNext();
                         renderArchive();
                     } else {
                         showError("Servis görselleri alınamadı (HTTP " + response.code() + ").");
@@ -99,13 +129,20 @@ public class ServicePhotosController {
                 });
             }
 
-            @Override public void onFailure(Call<List<ServicePhotoDTO>> call, Throwable throwable) {
+            @Override public void onFailure(Call<ServicePhotoPageDTO> call, Throwable throwable) {
                 Platform.runLater(() -> {
                     setLoading(false);
                     showError("Servis görselleri alınamadı: " + throwable.getMessage());
                 });
             }
         });
+    }
+
+    private List<ServicePhotoDTO> mergePhotos(List<ServicePhotoDTO> current, List<ServicePhotoDTO> incoming) {
+        Map<Long, ServicePhotoDTO> merged = new LinkedHashMap<>();
+        for (ServicePhotoDTO photo : current) merged.put(photo.getId(), photo);
+        for (ServicePhotoDTO photo : incoming) merged.put(photo.getId(), photo);
+        return List.copyOf(merged.values());
     }
 
     @FXML
@@ -127,14 +164,17 @@ public class ServicePhotosController {
         }
         emptyArchiveLabel.setVisible(groups.isEmpty());
         emptyArchiveLabel.setManaged(groups.isEmpty());
-        archiveSummaryLabel.setText(groups.size() + " servis dosyası · " + loadedPhotos.size() + " görsel");
+        archiveSummaryLabel.setText(groups.size() + " / " + totalServiceFiles
+                + " servis dosyası · " + loadedPhotos.size() + " görsel yüklendi");
+        loadMoreButton.setVisible(hasNextPage);
+        loadMoreButton.setManaged(hasNextPage);
         statusLabel.setText(groups.isEmpty()
                 ? "Filtrelere uygun görsel bulunamadı."
                 : groups.size() + " servis dosyası listeleniyor.");
     }
 
     private VBox createFolderCard(TicketPhotoGroup group) {
-        ServicePhotoDTO cover = group.photos().getFirst();
+        ServicePhotoDTO cover = selectCover(group.photos());
         StackPane preview = createPreview(cover, FOLDER_WIDTH, 155);
 
         Label countBadge = new Label(group.photos().size() + " görsel");
@@ -182,7 +222,7 @@ public class ServicePhotosController {
     }
 
     private VBox createPhotoCard(ServicePhotoDTO photo, List<ServicePhotoDTO> gallery) {
-        StackPane preview = createPreview(photo, PHOTO_WIDTH, 170);
+        StackPane preview = createPreview(photo, PHOTO_WIDTH, 170, false);
         Label category = new Label(photo.getTypeLabel());
         category.getStyleClass().add("service-photo-category");
 
@@ -215,12 +255,16 @@ public class ServicePhotosController {
     }
 
     private StackPane createPreview(ServicePhotoDTO photo, double width, double height) {
+        return createPreview(photo, width, height, true);
+    }
+
+    private StackPane createPreview(ServicePhotoDTO photo, double width, double height, boolean cropToFill) {
         Label placeholder = new Label("Görsel yükleniyor…");
         placeholder.getStyleClass().add("service-photo-placeholder");
         ImageView imageView = new ImageView();
         imageView.setFitWidth(width);
         imageView.setFitHeight(height);
-        imageView.setPreserveRatio(false);
+        imageView.setPreserveRatio(!cropToFill);
         imageView.setSmooth(true);
 
         Rectangle clip = new Rectangle(width, height);
@@ -229,14 +273,25 @@ public class ServicePhotosController {
         imageView.setClip(clip);
 
         try {
-            Image image = new Image(resolvePhotoUrl(photo.getUrl()), width, height, false, true, true);
+            String previewUrl = photo.getThumbnailUrl() == null || photo.getThumbnailUrl().isBlank()
+                    ? photo.getUrl() : photo.getThumbnailUrl();
+            Image image = new Image(resolvePhotoUrl(previewUrl), width * 2, height * 2, true, true, true);
             imageView.setImage(image);
             image.progressProperty().addListener((observable, oldValue, value) -> {
-                if (value.doubleValue() >= 1) placeholder.setVisible(false);
+                if (value.doubleValue() >= 1) {
+                    if (cropToFill) applyCoverViewport(imageView, image, width, height);
+                    placeholder.setVisible(false);
+                }
             });
             image.errorProperty().addListener((observable, oldValue, hasError) -> {
                 if (hasError) Platform.runLater(() -> placeholder.setText("Önizleme yüklenemedi"));
             });
+            if (image.getProgress() >= 1) {
+                if (cropToFill) applyCoverViewport(imageView, image, width, height);
+                placeholder.setVisible(false);
+            } else if (image.isError()) {
+                placeholder.setText("Önizleme yüklenemedi");
+            }
         } catch (RuntimeException exception) {
             placeholder.setText("Önizleme yüklenemedi");
         }
@@ -248,6 +303,33 @@ public class ServicePhotosController {
         return pane;
     }
 
+    static ServicePhotoDTO selectCover(List<ServicePhotoDTO> photos) {
+        if (photos == null || photos.isEmpty()) throw new IllegalArgumentException("Photo list is empty");
+        return photos.stream().filter(photo -> "AFTER".equals(photo.getType())).findFirst()
+                .or(() -> photos.stream().filter(photo -> "BEFORE".equals(photo.getType())).findFirst())
+                .orElse(photos.getFirst());
+    }
+
+    static Rectangle2D coverViewport(double sourceWidth, double sourceHeight,
+                                     double targetWidth, double targetHeight) {
+        if (sourceWidth <= 0 || sourceHeight <= 0 || targetWidth <= 0 || targetHeight <= 0) {
+            return Rectangle2D.EMPTY;
+        }
+        double sourceRatio = sourceWidth / sourceHeight;
+        double targetRatio = targetWidth / targetHeight;
+        if (sourceRatio > targetRatio) {
+            double viewportWidth = sourceHeight * targetRatio;
+            return new Rectangle2D((sourceWidth - viewportWidth) / 2d, 0, viewportWidth, sourceHeight);
+        }
+        double viewportHeight = sourceWidth / targetRatio;
+        return new Rectangle2D(0, (sourceHeight - viewportHeight) / 2d, sourceWidth, viewportHeight);
+    }
+
+    private void applyCoverViewport(ImageView imageView, Image image, double width, double height) {
+        Rectangle2D viewport = coverViewport(image.getWidth(), image.getHeight(), width, height);
+        if (!Rectangle2D.EMPTY.equals(viewport)) imageView.setViewport(viewport);
+    }
+
     private void openPhoto(ServicePhotoDTO selected, List<ServicePhotoDTO> gallery) {
         List<ServicePhotoDTO> photos = gallery == null || gallery.isEmpty() ? List.of(selected) : gallery;
         int[] index = {Math.max(0, photos.indexOf(selected))};
@@ -256,68 +338,274 @@ public class ServicePhotosController {
         ThemeHelper.applyToDialog(dialog, rootPane.getScene().getWindow());
         dialog.setTitle("Servis Görseli");
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        Node defaultClose = dialog.getDialogPane().lookupButton(ButtonType.CLOSE);
+        defaultClose.setVisible(false);
+        defaultClose.setManaged(false);
 
         ImageView imageView = new ImageView();
         imageView.setPreserveRatio(true);
         imageView.setSmooth(true);
-        ScrollPane imageScroll = new ScrollPane(imageView);
+        imageView.setCache(true);
+        imageView.setCacheHint(CacheHint.SCALE);
+        StackPane imageCanvas = new StackPane(imageView);
+        imageCanvas.getStyleClass().add("service-viewer-canvas");
+
+        ScrollPane imageScroll = new ScrollPane(imageCanvas);
         imageScroll.setPannable(true);
         imageScroll.setFitToWidth(false);
         imageScroll.setFitToHeight(false);
+        imageScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        imageScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         imageScroll.getStyleClass().add("service-photo-viewer");
+
+        Label viewerMessage = new Label("Görsel yükleniyor…");
+        viewerMessage.getStyleClass().add("service-viewer-message");
+        StackPane viewerArea = new StackPane(imageScroll, viewerMessage);
+        viewerArea.getStyleClass().add("service-viewer-area");
 
         Label title = new Label();
         title.getStyleClass().add("service-gallery-title");
+        title.setWrapText(true);
         Label meta = new Label();
         meta.getStyleClass().add("section-caption");
+        meta.setWrapText(true);
 
-        Slider zoom = new Slider(0.5, 5, 1);
-        zoom.setPrefWidth(190);
-        zoom.valueProperty().addListener((observable, oldValue, newValue) -> {
-            imageView.setFitWidth(1000 * newValue.doubleValue());
-            imageView.setFitHeight(680 * newValue.doubleValue());
+        Label zoomLabel = new Label("Sığdır");
+        zoomLabel.getStyleClass().add("service-viewer-zoom-label");
+
+        Button previous = viewerButton("‹", "Önceki görsel (Sol ok)");
+        Button next = viewerButton("›", "Sonraki görsel (Sağ ok)");
+        Button zoomOut = viewerButton("−", "Uzaklaştır");
+        Button zoomIn = viewerButton("+", "Yakınlaştır");
+        Button fit = viewerButton("Sığdır", "Görseli pencereye sığdır");
+        Button actualSize = viewerButton("%100", "Görseli gerçek piksel boyutunda göster");
+        Button download = viewerButton("İndir", "Özgün görseli indir");
+        download.getStyleClass().add("btn-primary");
+        Button close = viewerButton("Kapat", "Görüntüleyiciyi kapat (Esc)");
+
+        class ZoomController {
+            private double baseWidth = 1;
+            private double baseHeight = 1;
+            private double fitScale = 1;
+            private double factor = 1;
+
+            void fitToWindow() {
+                Image image = imageView.getImage();
+                if (image == null || image.getWidth() <= 0 || image.getHeight() <= 0) return;
+                Bounds viewport = imageScroll.getViewportBounds();
+                double availableWidth = Math.max(320, viewport.getWidth() - 28);
+                double availableHeight = Math.max(240, viewport.getHeight() - 28);
+                fitScale = Math.min(1d, Math.min(
+                        availableWidth / image.getWidth(), availableHeight / image.getHeight()));
+                baseWidth = Math.max(1, image.getWidth() * fitScale);
+                baseHeight = Math.max(1, image.getHeight() * fitScale);
+                factor = 1;
+                resize(-1, -1);
+            }
+
+            void actualSize() {
+                setFactor(Math.min(8d, 1d / Math.max(0.0001d, fitScale)), -1, -1);
+            }
+
+            void toggleActualSize() {
+                double actualFactor = Math.min(8d, 1d / Math.max(0.0001d, fitScale));
+                if (Math.abs(factor - actualFactor) < 0.04) fitToWindow();
+                else actualSize();
+            }
+
+            void changeBy(double multiplier, double anchorX, double anchorY) {
+                setFactor(factor * multiplier, anchorX, anchorY);
+            }
+
+            boolean isFitMode() {
+                return Math.abs(factor - 1d) < 0.01d;
+            }
+
+            void setFactor(double requested, double anchorX, double anchorY) {
+                double newFactor = Math.max(0.5d, Math.min(8d, requested));
+                if (Math.abs(newFactor - factor) < 0.001d) return;
+                Bounds viewport = imageScroll.getViewportBounds();
+                double viewportWidth = viewport.getWidth();
+                double viewportHeight = viewport.getHeight();
+                double oldContentWidth = Math.max(viewportWidth, imageCanvas.getWidth());
+                double oldContentHeight = Math.max(viewportHeight, imageCanvas.getHeight());
+                double pointX = anchorX < 0 ? viewportWidth / 2d : anchorX;
+                double pointY = anchorY < 0 ? viewportHeight / 2d : anchorY;
+                double oldOffsetX = imageScroll.getHvalue() * Math.max(0, oldContentWidth - viewportWidth);
+                double oldOffsetY = imageScroll.getVvalue() * Math.max(0, oldContentHeight - viewportHeight);
+                double relativeX = oldContentWidth <= 0 ? 0.5d : (oldOffsetX + pointX) / oldContentWidth;
+                double relativeY = oldContentHeight <= 0 ? 0.5d : (oldOffsetY + pointY) / oldContentHeight;
+                factor = newFactor;
+                resize(pointX, pointY);
+                Platform.runLater(() -> {
+                    double newContentWidth = Math.max(viewportWidth, imageCanvas.getWidth());
+                    double newContentHeight = Math.max(viewportHeight, imageCanvas.getHeight());
+                    double horizontalRange = Math.max(0, newContentWidth - viewportWidth);
+                    double verticalRange = Math.max(0, newContentHeight - viewportHeight);
+                    if (horizontalRange > 0) {
+                        imageScroll.setHvalue(clamp01((relativeX * newContentWidth - pointX) / horizontalRange));
+                    }
+                    if (verticalRange > 0) {
+                        imageScroll.setVvalue(clamp01((relativeY * newContentHeight - pointY) / verticalRange));
+                    }
+                });
+            }
+
+            void resize(double anchorX, double anchorY) {
+                Bounds viewport = imageScroll.getViewportBounds();
+                double displayWidth = Math.max(1, baseWidth * factor);
+                double displayHeight = Math.max(1, baseHeight * factor);
+                imageView.setFitWidth(displayWidth);
+                imageView.setFitHeight(displayHeight);
+                imageCanvas.setPrefSize(
+                        Math.max(viewport.getWidth(), displayWidth),
+                        Math.max(viewport.getHeight(), displayHeight));
+                double actualPercent = fitScale * factor * 100d;
+                zoomLabel.setText(Math.round(actualPercent) + "%");
+            }
+        }
+        ZoomController zoom = new ZoomController();
+
+        imageScroll.addEventFilter(ScrollEvent.SCROLL, event -> {
+            if (event.getDeltaY() == 0) return;
+            zoom.changeBy(event.getDeltaY() > 0 ? 1.16d : 1d / 1.16d, event.getX(), event.getY());
+            event.consume();
+        });
+        imageCanvas.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                zoom.toggleActualSize();
+                event.consume();
+            }
         });
 
-        Button previous = new Button("← Önceki");
-        Button next = new Button("Sonraki →");
-        Button reset = new Button("Boyutu Sıfırla");
-        Button download = new Button("İndir");
-        download.getStyleClass().add("btn-primary");
+        HBox filmstrip = new HBox(8);
+        filmstrip.setAlignment(Pos.CENTER_LEFT);
+        filmstrip.getStyleClass().add("service-viewer-filmstrip");
+        List<StackPane> filmstripItems = new ArrayList<>();
+        Runnable[] refreshHolder = new Runnable[1];
+        for (int itemIndex = 0; itemIndex < photos.size(); itemIndex++) {
+            int targetIndex = itemIndex;
+            StackPane thumbnail = createPreview(photos.get(itemIndex), 76, 54);
+            thumbnail.getStyleClass().add("service-viewer-thumb");
+            thumbnail.setCursor(Cursor.HAND);
+            thumbnail.setOnMouseClicked(event -> {
+                index[0] = targetIndex;
+                refreshHolder[0].run();
+            });
+            filmstripItems.add(thumbnail);
+            filmstrip.getChildren().add(thumbnail);
+        }
+        ScrollPane filmstripScroll = new ScrollPane(filmstrip);
+        filmstripScroll.setFitToHeight(true);
+        filmstripScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        filmstripScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        filmstripScroll.setMaxHeight(82);
+        filmstripScroll.getStyleClass().add("service-viewer-filmstrip-scroll");
 
         Runnable refresh = () -> {
             ServicePhotoDTO photo = photos.get(index[0]);
             title.setText(photo.getTypeLabel() + " · " + (index[0] + 1) + "/" + photos.size());
-            meta.setText(safe(photo.getNote(), "Görsel notu yok") + " · "
-                    + safe(photo.getUploadedByName(), "Ekleyen belirtilmemiş"));
-            zoom.setValue(1);
+            meta.setText(safe(photo.getNote(), "Görsel notu yok") + "  •  "
+                    + safe(photo.getUploadedByName(), "Ekleyen belirtilmemiş") + "  •  "
+                    + formatDate(photo.getUploadedAt()));
             imageScroll.setHvalue(0.5);
             imageScroll.setVvalue(0.5);
+            viewerMessage.setText("Görsel yükleniyor…");
+            viewerMessage.setVisible(true);
             Image image = new Image(resolvePhotoUrl(photo.getUrl()), true);
             imageView.setImage(image);
+            image.progressProperty().addListener((observable, oldValue, progress) -> {
+                if (progress.doubleValue() >= 1) Platform.runLater(() -> {
+                    viewerMessage.setVisible(false);
+                    zoom.fitToWindow();
+                });
+            });
+            image.errorProperty().addListener((observable, oldValue, failed) -> {
+                if (failed) Platform.runLater(() -> {
+                    viewerMessage.setText("Görsel yüklenemedi");
+                    viewerMessage.setVisible(true);
+                });
+            });
+            if (image.getProgress() >= 1) {
+                viewerMessage.setVisible(false);
+                Platform.runLater(zoom::fitToWindow);
+            } else if (image.isError()) {
+                viewerMessage.setText("Görsel yüklenemedi");
+            }
             previous.setDisable(index[0] == 0);
             next.setDisable(index[0] == photos.size() - 1);
+            for (int i = 0; i < filmstripItems.size(); i++) {
+                filmstripItems.get(i).getStyleClass().remove("service-viewer-thumb-selected");
+                if (i == index[0]) filmstripItems.get(i).getStyleClass().add("service-viewer-thumb-selected");
+            }
             dialog.setTitle(safe(photo.getCustomerName(), "Müşteri") + " · Fiş #" + photo.getTicketId());
         };
+        refreshHolder[0] = refresh;
 
         previous.setOnAction(event -> { if (index[0] > 0) { index[0]--; refresh.run(); } });
         next.setOnAction(event -> { if (index[0] < photos.size() - 1) { index[0]++; refresh.run(); } });
-        reset.setOnAction(event -> zoom.setValue(1));
+        zoomOut.setOnAction(event -> zoom.changeBy(1d / 1.2d, -1, -1));
+        zoomIn.setOnAction(event -> zoom.changeBy(1.2d, -1, -1));
+        fit.setOnAction(event -> zoom.fitToWindow());
+        actualSize.setOnAction(event -> zoom.actualSize());
         download.setOnAction(event -> downloadPhoto(photos.get(index[0])));
+        close.setOnAction(event -> dialog.close());
 
-        Region headerSpacer = new Region();
-        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
-        HBox controls = new HBox(9, previous, next, headerSpacer, new Label("Yakınlaştır:"), zoom, reset, download);
+        HBox navigationControls = new HBox(7, previous, next);
+        HBox zoomControls = new HBox(7, zoomOut, zoomLabel, zoomIn, fit, actualSize);
+        HBox actionControls = new HBox(7, download, close);
+        navigationControls.setAlignment(Pos.CENTER_LEFT);
+        zoomControls.setAlignment(Pos.CENTER_LEFT);
+        actionControls.setAlignment(Pos.CENTER_LEFT);
+        FlowPane controls = new FlowPane(12, 8, navigationControls, zoomControls, actionControls);
         controls.setAlignment(Pos.CENTER_LEFT);
-        VBox header = new VBox(4, title, meta, controls);
+        controls.getStyleClass().add("service-viewer-controls");
+        VBox header = new VBox(5, title, meta, controls);
+        header.getStyleClass().add("service-viewer-header");
 
-        BorderPane pane = new BorderPane(imageScroll);
+        BorderPane pane = new BorderPane(viewerArea);
         pane.setTop(header);
-        pane.setPrefSize(1120, 800);
-        BorderPane.setMargin(header, new javafx.geometry.Insets(0, 0, 10, 0));
+        pane.setBottom(filmstripScroll);
+        pane.getStyleClass().add("service-viewer-root");
+        BorderPane.setMargin(header, new javafx.geometry.Insets(0, 0, 8, 0));
+        BorderPane.setMargin(filmstripScroll, new javafx.geometry.Insets(8, 0, 0, 0));
+
+        Window owner = rootPane.getScene().getWindow();
+        List<Screen> screens = Screen.getScreensForRectangle(
+                owner.getX(), owner.getY(), owner.getWidth(), owner.getHeight());
+        Rectangle2D visualBounds = (screens.isEmpty() ? Screen.getPrimary() : screens.getFirst()).getVisualBounds();
+        pane.setPrefSize(Math.max(680, Math.min(1280, visualBounds.getWidth() * 0.92)),
+                Math.max(520, Math.min(900, visualBounds.getHeight() * 0.90)));
         dialog.getDialogPane().setContent(pane);
         dialog.setResizable(true);
+        dialog.getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.LEFT && index[0] > 0) {
+                index[0]--;
+                refresh.run();
+                event.consume();
+            } else if (event.getCode() == KeyCode.RIGHT && index[0] < photos.size() - 1) {
+                index[0]++;
+                refresh.run();
+                event.consume();
+            }
+        });
+        imageScroll.viewportBoundsProperty().addListener((observable, oldBounds, newBounds) -> {
+            if (imageView.getImage() != null && zoom.isFitMode()) Platform.runLater(zoom::fitToWindow);
+        });
         refresh.run();
+        dialog.setOnShown(event -> Platform.runLater(zoom::fitToWindow));
         dialog.showAndWait();
+    }
+
+    private Button viewerButton(String text, String tooltip) {
+        Button button = new Button(text);
+        button.setTooltip(new Tooltip(tooltip));
+        button.getStyleClass().add("service-viewer-button");
+        return button;
+    }
+
+    private static double clamp01(double value) {
+        return Math.max(0d, Math.min(1d, value));
     }
 
     private void downloadPhoto(ServicePhotoDTO photo) {
@@ -401,6 +689,7 @@ public class ServicePhotosController {
         loadingIndicator.setManaged(loading);
         folderScroll.setDisable(loading);
         galleryPane.setDisable(loading);
+        loadMoreButton.setDisable(loading);
     }
 
     private void showError(String message) {

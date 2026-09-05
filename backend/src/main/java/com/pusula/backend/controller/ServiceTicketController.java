@@ -3,6 +3,7 @@ package com.pusula.backend.controller;
 import com.pusula.backend.annotation.RequiresFeature;
 
 import com.pusula.backend.dto.ServicePhotoDTO;
+import com.pusula.backend.dto.ServicePhotoPageDTO;
 import com.pusula.backend.dto.ServiceTicketDTO;
 import com.pusula.backend.dto.ServiceUsedPartDTO;
 import com.pusula.backend.dto.CompleteServiceRequest;
@@ -229,6 +230,20 @@ public class ServiceTicketController {
             @RequestParam(value = "query", required = false) String query,
             @RequestParam(value = "limit", required = false) Integer limit) {
         return ResponseEntity.ok(service.getCompanyServicePhotos(type, ticketId, startDate, endDate, query, limit));
+    }
+
+    @GetMapping("/photos/page")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ServicePhotoPageDTO> getCompanyServicePhotoPage(
+            @RequestParam(value = "type", required = false) ServicePhoto.PhotoType type,
+            @RequestParam(value = "ticketId", required = false) Long ticketId,
+            @RequestParam(value = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(value = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "query", required = false) String query,
+            @RequestParam(value = "page", defaultValue = "0") Integer page,
+            @RequestParam(value = "size", defaultValue = "24") Integer size) {
+        return ResponseEntity.ok(service.getCompanyServicePhotoPage(
+                type, ticketId, startDate, endDate, query, page, size));
     }
 
     @DeleteMapping("/{ticketId}/photos/{photoId}")
