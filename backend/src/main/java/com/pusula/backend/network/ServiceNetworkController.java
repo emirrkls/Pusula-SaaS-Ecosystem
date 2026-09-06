@@ -15,6 +15,7 @@ public class ServiceNetworkController {
     @PutMapping("/policies/{companyId}") @PreAuthorize("hasRole('SUPER_ADMIN')")
     public void configure(@PathVariable Long companyId,@Valid @RequestBody PolicyRequest request) { service.configure(companyId,request); }
     @GetMapping("/members") public PageResult<Member> members(@RequestParam(defaultValue="0") int page,@RequestParam(required=false) String query) { return service.listMembers(page,query); }
+    @GetMapping("/members/{id}") public Member member(@PathVariable Long id) { return service.getMember(id); }
     @PostMapping("/members/invite") public Member invite(@Valid @RequestBody Invite request) { return service.invite(request); }
     @PostMapping("/members/create") public CreatedChild create(@Valid @RequestBody CreateChild request) { return service.createChild(request); }
     @PostMapping("/members/{id}/decision") public Member decide(@PathVariable Long id,@Valid @RequestBody Decision request) { return service.decideInvite(id,request.accept()); }

@@ -6,11 +6,12 @@ final class AppNavigation: ObservableObject {
     
     @Published var adminSelectedTab: AdminTab = .overview
     @Published var operationFilter: String?
-    @Published var showServiceNetwork = false
+    @Published var networkDestination: NetworkNotificationRoute?
 
-    func openNetwork() {
+    func openNetwork(referenceType: String, referenceId: Int) {
+        guard let destination = NetworkNotificationRoute(referenceType: referenceType, referenceId: referenceId) else { return }
         adminSelectedTab = .overview
-        showServiceNetwork = true
+        networkDestination = destination
     }
     @Published private(set) var pendingTicketId: Int?
     

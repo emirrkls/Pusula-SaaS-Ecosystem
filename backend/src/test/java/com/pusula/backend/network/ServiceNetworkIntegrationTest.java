@@ -118,10 +118,10 @@ class ServiceNetworkIntegrationTest {
         assertThrows(IllegalArgumentException.class,()->service.invite(new Invite(parent.getOrgCode(),"")));
         login(childAdmin);service.decideInvite(invitation.id(),true);policy(child,400,5000);
         assertThrows(IllegalStateException.class,()->service.invite(new Invite(other.getOrgCode(),"")));
-        assertThrows(IllegalStateException.class,()->service.createChild(new CreateChild("Nested","","Admin","admin","Password123")));
+        assertThrows(IllegalStateException.class,()->service.createChild(new CreateChild(UUID.randomUUID().toString(),"Nested","","Admin","admin","Password123")));
     }
     @Test void newChildHasIndependentTrialAndHashedCredentials() {
-        CreatedChild result=service.createChild(new CreateChild("Fresh service","Ege","Service Admin","admin","StrongPass123"));
+        CreatedChild result=service.createChild(new CreateChild(UUID.randomUUID().toString(),"Fresh service","Ege","Service Admin","admin","StrongPass123"));
         Company company=companies.findById(result.member().childCompanyId()).orElseThrow();
         assertEquals(PlanType.CIRAK,company.getPlanType());assertEquals("TRIAL",company.getSubscriptionStatus());
         assertNotNull(company.getTrialEndsAt());assertNotEquals(parent.getId(),company.getId());
@@ -131,7 +131,7 @@ class ServiceNetworkIntegrationTest {
     }
     @Test void weakPasswordRollsBackChildCreation() {
         long count=companies.count();
-        assertThrows(IllegalArgumentException.class,()->service.createChild(new CreateChild("Bad","","Admin","admin","12345")));
+        assertThrows(IllegalArgumentException.class,()->service.createChild(new CreateChild(UUID.randomUUID().toString(),"Bad","","Admin","admin","12345")));
         assertEquals(count,companies.count());assertEquals(0,service.context().usedMembers());
     }
     @Test void idempotentDispatchUsesOneMonthlySlotAndDoesNotCreateFinancialTicket() {
@@ -270,6 +270,45 @@ class ServiceNetworkIntegrationTest {
             assertNotEquals(a.get(20,TimeUnit.SECONDS),b.get(20,TimeUnit.SECONDS));
             assertEquals(1,service.context().usedMonthlyOrders());
         } finally {executor.shutdownNow();}
+    }
+
+    @Test void accountCreationRetryReturnsOriginalReceiptWithoutChangingPasswordOrQuota() {
+        policy(parent,1,5000);
+        CreateChild request=new CreateChild("retry-account","Service","Ege","Admin","admin","StrongPass123");
+        CreatedChild first=service.createChild(request);
+        User manager=users.findByUsernameAndCompanyId("admin",first.member().childCompanyId()).orElseThrow();
+        manager.setPasswordHash(passwords.encode("ChangedPassword456"));users.saveAndFlush(manager);
+        CreatedChild retry=service.createChild(request);
+        assertSameAccount(first,retry);assertEquals(1,service.context().usedMembers());
+        assertTrue(passwords.matches("ChangedPassword456",users.findById(manager.getId()).orElseThrow().getPasswordHash()));
+        assertThrows(IllegalStateException.class,()->service.createChild(new CreateChild("retry-account","Different service","Ege","Admin","admin","StrongPass123")));
+        login(outsider);policy(other,1,5000);
+        CreatedChild otherReceipt=service.createChild(request);
+        assertNotEquals(first.member().childCompanyId(),otherReceipt.member().childCompanyId());
+    }
+
+    @Test void concurrentAccountCreationWithSameKeyCreatesOneCompany() throws Exception {
+        policy(parent,1,5000);
+        CreateChild request=new CreateChild("concurrent-account","Service","Ege","Admin","admin","StrongPass123");
+        ExecutorService executor=Executors.newFixedThreadPool(2);CountDownLatch ready=new CountDownLatch(2),go=new CountDownLatch(1);
+        try {
+            Callable<CreatedChild> create=()->{login(parentAdmin);ready.countDown();assertTrue(go.await(5,TimeUnit.SECONDS));try{return service.createChild(request);}finally{SecurityContextHolder.clearContext();}};
+            Future<CreatedChild> a=executor.submit(create),b=executor.submit(create);assertTrue(ready.await(5,TimeUnit.SECONDS));go.countDown();
+            assertSameAccount(a.get(20,TimeUnit.SECONDS),b.get(20,TimeUnit.SECONDS));assertEquals(1,service.context().usedMembers());
+        } finally {executor.shutdownNow();}
+    }
+
+    private static void assertSameAccount(CreatedChild expected,CreatedChild actual) {
+        assertEquals(expected.member().id(),actual.member().id());
+        assertEquals(expected.member().childCompanyId(),actual.member().childCompanyId());
+        assertEquals(expected.orgCode(),actual.orgCode());
+        assertEquals(expected.username(),actual.username());
+    }
+
+    @Test void memberNotificationLookupOnlyExposesTheTwoParticipants() {
+        Member member=active();assertEquals(member.id(),service.getMember(member.id()).id());
+        login(childAdmin);assertEquals(member.id(),service.getMember(member.id()).id());
+        login(outsider);assertThrows(AccessDeniedException.class,()->service.getMember(member.id()));
     }
 
     private Member active(){login(parentAdmin);Member m=service.invite(new Invite(child.getOrgCode(),"Ege"));login(childAdmin);service.decideInvite(m.id(),true);login(parentAdmin);return m;}

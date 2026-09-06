@@ -1,5 +1,19 @@
 import Foundation
 
+enum NetworkNotificationRoute: Hashable {
+    case order(Int)
+    case member(Int)
+
+    init?(referenceType: String, referenceId: Int) {
+        guard referenceId > 0 else { return nil }
+        switch referenceType {
+        case "NETWORK_ORDER": self = .order(referenceId)
+        case "NETWORK_MEMBER": self = .member(referenceId)
+        default: return nil
+        }
+    }
+}
+
 struct ServiceNetworkContext: Decodable {
     let companyId: Int
     let canManage: Bool

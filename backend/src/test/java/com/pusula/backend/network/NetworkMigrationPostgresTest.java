@@ -22,13 +22,15 @@ class NetworkMigrationPostgresTest {
                 sql.execute("CREATE TABLE users(id BIGINT PRIMARY KEY)");
                 sql.execute("CREATE TABLE service_tickets(id BIGINT PRIMARY KEY)");
                 ScriptUtils.executeSqlScript(connection,new ClassPathResource("db/migration/V35__service_network.sql"));
+                ScriptUtils.executeSqlScript(connection,new ClassPathResource("db/migration/V36__network_child_creation_idempotency.sql"));
                 sql.execute("INSERT INTO companies VALUES (1),(2),(3)");
                 sql.execute("INSERT INTO users VALUES (1)");
                 sql.execute("INSERT INTO service_tickets VALUES (100)");
                 sql.execute("INSERT INTO service_network_policies(company_id,enabled,max_members,max_monthly_orders) VALUES(1,true,400,20000)");
                 assertThrows(SQLException.class,()->sql.execute("INSERT INTO service_network_policies(company_id,max_members) VALUES(2,-1)"));
-                sql.execute("INSERT INTO service_network_memberships(id,parent_company_id,child_company_id,parent_name,child_name,status,created_at) VALUES(1,1,2,'Parent','Child','INVITED',now())");
-                assertThrows(SQLException.class,()->sql.execute("INSERT INTO service_network_memberships(parent_company_id,child_company_id,parent_name,child_name,status,created_at) VALUES(3,2,'Other','Child','ACTIVE',now())"));
+                sql.execute("INSERT INTO service_network_memberships(parent_company_id,child_company_id,parent_name,child_name,status,created_at) VALUES(1,2,'Parent','Child','INVITED',now())");
+                SQLException duplicateParent=assertThrows(SQLException.class,()->sql.execute("INSERT INTO service_network_memberships(parent_company_id,child_company_id,parent_name,child_name,status,created_at) VALUES(3,2,'Other','Child','ACTIVE',now())"));
+                assertEquals("23505",duplicateParent.getSQLState());assertTrue(duplicateParent.getMessage().contains("uq_network_child_live"),duplicateParent.getMessage());
                 sql.execute("UPDATE service_network_memberships SET status='ACTIVE' WHERE id=1");
                 String insert="INSERT INTO service_network_orders(membership_id,parent_company_id,child_company_id,parent_name,child_name,request_key,title,customer_name,scheduled_date,status,created_at) VALUES(1,1,2,'Parent','Child','retry-key','Job','Customer',now(),'SENT',now())";
                 sql.execute(insert);
@@ -39,6 +41,10 @@ class NetworkMigrationPostgresTest {
                 sql.execute("INSERT INTO service_network_order_events(order_id,actor_company_id,actor_user_id,action,note,created_at) SELECT id,2,1,'ACCEPTED','Accepted',now() FROM service_network_orders");
                 sql.execute("UPDATE service_network_memberships SET status='CLOSED' WHERE id=1");
                 sql.execute("INSERT INTO service_network_memberships(parent_company_id,child_company_id,parent_name,child_name,status,created_at) VALUES(3,2,'Other','Child','ACTIVE',now())");
+                String receipt="INSERT INTO service_network_memberships(parent_company_id,child_company_id,parent_name,child_name,status,created_at,creation_request_key) VALUES(1,3,'Parent','Other','CLOSED',now(),'account-key')";
+                sql.execute(receipt);
+                SQLException duplicateReceipt=assertThrows(SQLException.class,()->sql.execute(receipt));
+                assertEquals("23505",duplicateReceipt.getSQLState());assertTrue(duplicateReceipt.getMessage().contains("uq_network_child_creation"),duplicateReceipt.getMessage());
                 try(ResultSet result=sql.executeQuery("SELECT count(*) FROM service_network_order_events")){assertTrue(result.next());assertEquals(1,result.getInt(1));}
             } finally {
                 sql.execute("SET search_path TO public");

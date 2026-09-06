@@ -5,7 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import java.time.LocalDateTime;
 
-@Entity @Table(name = "service_network_memberships") @Getter @Setter
+@Entity @Table(name = "service_network_memberships", uniqueConstraints =
+        @UniqueConstraint(columnNames = {"parent_company_id", "creation_request_key"})) @Getter @Setter
 public class NetworkMembership {
     public enum Status { INVITED, ACTIVE, DECLINED, CLOSED }
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
@@ -15,6 +16,9 @@ public class NetworkMembership {
     @Column(nullable = false) private String parentName;
     @Column(nullable = false) private String childName;
     private String region;
+    @Column(length = 64) private String creationRequestKey;
+    @Column(length = 100) private String creationAdminName;
+    @Column(length = 100) private String creationUsername;
     @Column(nullable = false) private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     @Version private long version;

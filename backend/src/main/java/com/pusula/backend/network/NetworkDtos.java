@@ -11,7 +11,8 @@ public final class NetworkDtos {
     public record Context(Long companyId, boolean canManage, boolean writable, int maxMembers,
                           long usedMembers, int maxMonthlyOrders, long usedMonthlyOrders) {}
     public record Invite(@NotBlank @Size(max=20) String orgCode, @Size(max=255) String region) {}
-    public record CreateChild(@NotBlank @Size(max=255) String name, @Size(max=255) String region,
+    public record CreateChild(@NotBlank @Size(max=64) String requestKey,
+                              @NotBlank @Size(max=255) String name, @Size(max=255) String region,
                               @NotBlank @Size(max=100) String adminName,
                               @NotBlank @Size(max=100) String username,
                               @NotBlank @Size(max=72) String password) {

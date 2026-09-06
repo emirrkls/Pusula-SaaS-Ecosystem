@@ -5,6 +5,7 @@ import java.util.Map;
 import com.pusula.desktop.dto.NetworkDTOs.*;
 
 public interface ServiceNetworkApi {
+    @GET("api/service-network/members/{id}") Call<Member> member(@Path("id") Long id);
     @GET("api/service-network/context") Call<Context> context();
     @GET("api/service-network/members") Call<Page<Member>> members(@Query("page") int page,@Query("query") String query);
     @POST("api/service-network/members/invite") Call<Member> invite(@Body Map<String,Object> body);

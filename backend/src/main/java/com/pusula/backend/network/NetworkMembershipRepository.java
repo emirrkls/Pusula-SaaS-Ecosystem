@@ -12,4 +12,5 @@ public interface NetworkMembershipRepository extends JpaRepository<NetworkMember
     Optional<NetworkMembership> lockVisible(@Param("id") Long id, @Param("company") Long company);
     long countByParentCompanyIdAndStatusIn(Long company, Collection<NetworkMembership.Status> statuses);
     boolean existsByChildCompanyIdAndStatusIn(Long company, Collection<NetworkMembership.Status> statuses);
+    Optional<NetworkMembership> findByParentCompanyIdAndCreationRequestKey(Long company, String requestKey);
 }

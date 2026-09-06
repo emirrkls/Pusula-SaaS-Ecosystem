@@ -1,5 +1,41 @@
 import SwiftUI
 
+/// Resolves a notification's exact record through tenant-scoped endpoints.
+@MainActor
+struct NetworkNotificationDestination: View {
+    let route: NetworkNotificationRoute
+    @State private var context: ServiceNetworkContext?
+    @State private var member: ServiceNetworkMember?
+    @State private var error: String?
+
+    var body: some View {
+        Group {
+            if let error {
+                VStack(spacing: 16) {
+                    Text(error).multilineTextAlignment(.center)
+                    Button("Tekrar Dene") { Task { await load() } }
+                }.padding()
+            } else if let context {
+                switch route {
+                case .order(let id): NetworkOrderDetail(id: id, context: context)
+                case .member:
+                    if let member { NetworkMemberDetail(member: member, context: context) }
+                    else { ProgressView("Bağlantı yükleniyor…") }
+                }
+            } else { ProgressView("Servis ağı yükleniyor…") }
+        }.task(id: route) { await load() }
+    }
+
+    private func load() async {
+        error = nil; context = nil; member = nil
+        do {
+            let loadedContext: ServiceNetworkContext = try await ServiceNetworkAPI.get("/context")
+            if case .member(let id) = route { member = try await ServiceNetworkAPI.get("/members/\(id)") }
+            context = loadedContext
+        } catch { self.error = error.localizedDescription }
+    }
+}
+
 @MainActor
 struct ServiceNetworkView: View {
     @State private var context: ServiceNetworkContext?
@@ -148,6 +184,7 @@ private struct NetworkOrderRow: View {
 @MainActor
 private struct NetworkMemberForm: View {
     let create: Bool
+    @State private var requestKey = UUID().uuidString
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var code = ""
@@ -196,7 +233,7 @@ private struct NetworkMemberForm: View {
         busy = true; error = nil; defer { busy = false }
         do {
             if create {
-                receipt = try await ServiceNetworkAPI.post("/members/create", ["name": name, "region": region, "adminName": admin, "username": username, "password": password])
+                receipt = try await ServiceNetworkAPI.post("/members/create", ["requestKey": requestKey, "name": name, "region": region, "adminName": admin, "username": username, "password": password])
                 password = ""
             } else {
                 let _: ServiceNetworkMember = try await ServiceNetworkAPI.post("/members/invite", ["orgCode": code, "region": region])

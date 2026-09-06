@@ -406,8 +406,11 @@ public class MainDashboardController {
 
     @FXML
     public void showServiceNetwork() {
+        showServiceNetwork(null,null);
+    }
+    public void showServiceNetwork(String reference,Long id) {
         if (!SessionManager.isAdmin()) return;
-        loadContent(new ServiceNetworkView(this), "Servis Ağı", "Alt servisler, iş gönderimi ve operasyon takibi", navServiceNetwork);
+        loadContent(new ServiceNetworkView(this,reference,id), "Servis Ağı", "Alt servisler, iş gönderimi ve operasyon takibi", navServiceNetwork);
     }
 
     @FXML

@@ -69,6 +69,13 @@ public class ServiceNetworkService {
     }
 
     @Transactional(readOnly=true)
+    public Member getMember(Long id) {
+        Long own=admin().getCompanyId();
+        return member(members.findById(id).filter(m->m.getParentCompanyId().equals(own)||m.getChildCompanyId().equals(own))
+                .orElseThrow(ServiceNetworkService::denied));
+    }
+
+    @Transactional(readOnly=true)
     public PageResult<Member> listMembers(int page, String query) {
         Long own=admin().getCompanyId(); String pattern=pattern(query);
         Page<NetworkMembership> result=members.findAll((root,cq,cb)-> {
@@ -94,6 +101,16 @@ public class ServiceNetworkService {
 
     public CreatedChild createChild(CreateChild request) {
         User u=admin(); Company parent=lockCompany(u.getCompanyId());
+        Optional<NetworkMembership> previous=members.findByParentCompanyIdAndCreationRequestKey(parent.getId(),request.requestKey().trim());
+        if(previous.isPresent()) {
+            NetworkMembership m=previous.get();
+            if(!m.getChildName().equals(request.name().trim()) || !Objects.equals(m.getRegion(),trim(request.region()))
+                    || !Objects.equals(m.getCreationAdminName(),request.adminName().trim())
+                    || !Objects.equals(m.getCreationUsername(),request.username().trim()))
+                throw new IllegalStateException("Bu oluşturma anahtarı farklı hesap bilgileriyle kullanılmış. Önce oluşturulan alt servisi kontrol edin.");
+            // A retry returns the original receipt; it must never reset the administrator's password.
+            return new CreatedChild(member(m),company(m.getChildCompanyId()).getOrgCode(),m.getCreationUsername());
+        }
         requireWritable(parent); requireCapacity(parent.getId());
         if (members.existsByChildCompanyIdAndStatusIn(parent.getId(),LIVE)) throw new IllegalStateException("Alt servis ikinci kademe ağ açamaz.");
         PasswordPolicy.requireStrong(request.password());
@@ -106,6 +123,8 @@ public class ServiceNetworkService {
                 .fullName(request.adminName().trim()).passwordHash(passwords.encode(request.password())).role("COMPANY_ADMIN").build();
         users.save(manager);
         NetworkMembership m=newMembership(parent,child,request.region(),NetworkMembership.Status.ACTIVE);
+        m.setCreationRequestKey(request.requestKey().trim());m.setCreationAdminName(request.adminName().trim());
+        m.setCreationUsername(manager.getUsername());members.saveAndFlush(m);
         audit.log("CREATE","NETWORK_MEMBER",m.getId(),"Ayrı işletme ve alt servis yöneticisi oluşturuldu");
         return new CreatedChild(member(m),child.getOrgCode(),manager.getUsername());
     }

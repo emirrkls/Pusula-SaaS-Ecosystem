@@ -42,7 +42,7 @@ jobs:
         env:
           NETWORK_TEST_JDBC_URL: jdbc:postgresql://127.0.0.1:5432/network_integration
           NETWORK_TEST_DB_USER: network_test
-        run: mvn --batch-mode --no-transfer-progress -Dtest=ServiceNetworkIntegrationTest,NetworkMigrationPostgresTest test
+        run: mvn --batch-mode --no-transfer-progress -Dtest=ServiceNetworkIntegrationTest,NetworkMigrationPostgresTest,NetworkTicketLifecycleIntegrationTest test
 
   ios-compile:
     runs-on: macos-latest

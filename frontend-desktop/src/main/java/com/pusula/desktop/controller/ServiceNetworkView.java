@@ -37,9 +37,21 @@ public class ServiceNetworkView extends VBox {
         this(shell,RetrofitClient.getClient().create(ServiceNetworkApi.class));
     }
     ServiceNetworkView(MainDashboardController shell,ServiceNetworkApi api) {
+        this(shell,api,null,null);
+    }
+    public ServiceNetworkView(MainDashboardController shell,String reference,Long id) {
+        this(shell,RetrofitClient.getClient().create(ServiceNetworkApi.class),reference,id);
+    }
+    ServiceNetworkView(MainDashboardController shell,ServiceNetworkApi api,String reference,Long id) {
         this.api=api;this.shell=shell;setSpacing(12);setPadding(new Insets(8));feedback.setWrapText(true);
         if(!SessionManager.isAdmin()) { getChildren().setAll(text("Servis ağı yalnızca yöneticilere açıktır."));return; }
-        reloadContext();
+        frame("Servis Ağı",text("Yükleniyor…"));
+        call(api.context(),c->{
+            context=c;
+            if("NETWORK_ORDER".equals(reference)&&id!=null)detail(id);
+            else if("NETWORK_MEMBER".equals(reference)&&id!=null)call(api.member(id),m->{memberMode=true;showForm("Servis Ağı Bağlantısı",new VBox(12,memberCard(m)),button("Listeyi Aç",this::browse));});
+            else browse();
+        });
     }
     private void reloadContext() { call(api.context(),c->{context=c;browse();}); }
     private void frame(String title,Node body,Node... actions) {
@@ -95,12 +107,13 @@ public class ServiceNetworkView extends VBox {
         card.getStyleClass().add("network-card");return card;
     }
     private void memberForm(boolean create) {
+        String requestKey=UUID.randomUUID().toString();
         VBox form=new VBox(12);TextField code=field("İşletme kodu"),name=field("İşletme adı"),region=field("Bölge / il"),admin=field("Yönetici adı soyadı"),username=field("Kullanıcı adı");PasswordField password=new PasswordField();password.setPromptText("En az 8 karakter, harf ve rakam");
         if(create) form.getChildren().addAll(text("Alt servis ayrı bir işletme ve Çırak planında 14 günlük deneme hesabı olarak açılır. Giriş kodu ve kullanıcı adını işlem sonunda kaydedin."),name,admin,username,password);
         else form.getChildren().addAll(text("Davet, işletmenin kendi yöneticisi kabul ettikten sonra etkinleşir."),code);
         form.getChildren().add(region);
         Button save=button(create?"Alt Servis Oluştur":"Davet Gönder",()->{
-            if(create) call(api.create(Map.of("name",name.getText(),"region",region.getText(),"adminName",admin.getText(),"username",username.getText(),"password",password.getText())),created->{password.clear();VBox receipt=new VBox(12,text("Alt servis oluşturuldu: "+created.member().childName()),text("İşletme kodu ve kullanıcı adını alt servis yöneticisiyle paylaşın."));TextArea credentials=new TextArea("İşletme kodu: "+created.orgCode()+"\nKullanıcı adı: "+created.username());credentials.setEditable(false);receipt.getChildren().add(credentials);frame("Hesap Bilgileri",receipt,button("Ağa Dön",this::reloadContext));});
+            if(create) call(api.create(Map.of("requestKey",requestKey,"name",name.getText(),"region",region.getText(),"adminName",admin.getText(),"username",username.getText(),"password",password.getText())),created->{password.clear();VBox receipt=new VBox(12,text("Alt servis oluşturuldu: "+created.member().childName()),text("İşletme kodu ve kullanıcı adını alt servis yöneticisiyle paylaşın."));TextArea credentials=new TextArea("İşletme kodu: "+created.orgCode()+"\nKullanıcı adı: "+created.username());credentials.setEditable(false);receipt.getChildren().add(credentials);frame("Hesap Bilgileri",receipt,button("Ağa Dön",this::reloadContext));});
             else call(api.invite(Map.of("orgCode",code.getText(),"region",region.getText())),x->reloadContext());
         });
         showForm(create?"Yeni Alt Servis":"İşletme Daveti",form,save);
@@ -122,6 +135,7 @@ public class ServiceNetworkView extends VBox {
     }
     private void detail(Long id) { generation++;call(api.order(id),this::renderDetail); }
     private void renderDetail(Order o) {
+        memberMode=false;direction=Objects.equals(context.companyId(),o.parentCompanyId())?"outgoing":"incoming";
         VBox content=new VBox(12,text(o.parentName()+" → "+o.childName()),text(o.customerName()+" · "+safe(o.customerPhone())),text(safe(o.customerAddress())),
                 text("İlk randevu: "+date(o.scheduledDate())+" – "+date(o.scheduledEndDate())),text("Durum: "+label(o.status())+" · "+label(o.ticketStatus())),
                 text("Güncel randevu: "+date(o.currentScheduledDate())),text("İş talimatı: "+safe(o.instruction())),text("Sonuç: "+safe(o.resolutionNote())));

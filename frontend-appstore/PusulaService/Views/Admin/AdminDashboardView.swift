@@ -43,7 +43,7 @@ struct AdminDashboardView: View {
         }
         .background(PusulaTheme.page)
         .navigationTitle("Genel Bakış")
-        .navigationDestination(isPresented: $navigation.showServiceNetwork) { ServiceNetworkView() }
+        .navigationDestination(item: $navigation.networkDestination) { NetworkNotificationDestination(route: $0) }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
