@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Optional;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -124,7 +125,7 @@ class TicketPushNotificationListenerTest {
         ServiceTicket ticket = ServiceTicket.builder()
                 .id(100L).companyId(10L).assignedTechnicianId(7L)
                 .status(ServiceTicket.TicketStatus.ASSIGNED)
-                .scheduledDate(LocalDateTime.now().plusHours(25)).build();
+                .scheduledDate(LocalDateTime.now(ZoneId.of("Europe/Istanbul")).plusHours(25)).build();
         when(tickets.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
         TicketPushNotificationListener listener = new TicketPushNotificationListener(
                 devices, tickets, mock(PushTokenCrypto.class), mock(ApnsGateway.class),
