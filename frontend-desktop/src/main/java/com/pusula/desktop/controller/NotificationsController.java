@@ -74,6 +74,8 @@ public class NotificationsController {
         }
         if ("TICKET".equals(item.getReferenceType()) && mainController != null) {
             mainController.openTicketFromNotification(item.getReferenceId());
+        } else if (item.getReferenceType() != null && item.getReferenceType().startsWith("NETWORK_") && mainController != null) {
+            mainController.showServiceNetwork();
         }
     }
 

@@ -73,6 +73,10 @@ struct AdminNotificationsView: View {
     private func open(_ item: AdminNotificationDTO) {
         Task {
             if !item.read { await markRead(item) }
+            if item.referenceType?.hasPrefix("NETWORK_") == true {
+                await MainActor.run { dismiss(); AppNavigation.shared.openNetwork() }
+                return
+            }
             if item.referenceType == "TICKET", let id = item.referenceId {
                 await MainActor.run {
                     AppNavigation.shared.openTicket(id: id)

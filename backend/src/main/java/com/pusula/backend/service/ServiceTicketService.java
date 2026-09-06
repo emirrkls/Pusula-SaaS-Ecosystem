@@ -65,6 +65,14 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class ServiceTicketService {
+    private ServiceTicket saveNetworkAware(ServiceTicket ticket) {
+        ServiceTicket saved = repository.save(ticket);
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        Long actor = authentication != null && authentication.getPrincipal() instanceof User user ? user.getId() : null;
+        eventPublisher.publishEvent(new com.pusula.backend.network.NetworkTicketChanged(saved.getId(), saved.getCompanyId(),
+                actor, saved.getStatus().name(), saved.getScheduledDate(), saved.getScheduledEndDate()));
+        return saved;
+    }
     private static final long MAX_SERVICE_PHOTO_SIZE_BYTES = 5L * 1024 * 1024; // 5 MB
 
 
@@ -206,7 +214,7 @@ public class ServiceTicketService {
             ticket.setStatus(dto.getStatus());
         }
 
-        ServiceTicket saved = repository.save(ticket);
+        ServiceTicket saved = saveNetworkAware(ticket);
         featureService.incrementUsage(user.getCompanyId(), "TICKETS");
 
         // Log ticket creation
@@ -330,7 +338,7 @@ public class ServiceTicketService {
             ticket.setAssignmentNotificationSentAt(null);
         }
 
-        ServiceTicket saved = repository.save(ticket);
+        ServiceTicket saved = saveNetworkAware(ticket);
         if (newTechnicianId != null || (scheduleChanged && saved.getAssignedTechnicianId() != null)) {
             publishAssignment(saved, saved.getAssignedTechnicianId());
         }
@@ -376,7 +384,7 @@ public class ServiceTicketService {
                 .notes("[WEB FORMU] " + dto.getCustomerName() + " — " + normalizedPhone)
                 .build();
 
-        ServiceTicket saved = repository.save(ticket);
+        ServiceTicket saved = saveNetworkAware(ticket);
         featureService.incrementUsage(dto.getCompanyId(), "TICKETS");
 
         // 6. Audit log kaydı
@@ -462,7 +470,7 @@ public class ServiceTicketService {
             ticket.setAssignmentNotificationSentAt(null);
         }
 
-        ServiceTicket saved = repository.save(ticket);
+        ServiceTicket saved = saveNetworkAware(ticket);
 
         if (changed) {
             auditLogService.log(
@@ -529,7 +537,7 @@ public class ServiceTicketService {
         ticket.setWorkProgressNote(note);
         ticket.setLastRescheduledAt(changedAt);
         ticket.setAssignmentNotificationSentAt(null);
-        ServiceTicket saved = repository.save(ticket);
+        ServiceTicket saved = saveNetworkAware(ticket);
 
         String oldValue = formatSchedule(oldStart, oldEnd);
         String newValue = formatSchedule(saved.getScheduledDate(), saved.getScheduledEndDate());
@@ -560,7 +568,7 @@ public class ServiceTicketService {
         ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
         ticket.setWorkProgressReason(null);
         ticket.setWorkProgressNote(null);
-        ServiceTicket saved = repository.save(ticket);
+        ServiceTicket saved = saveNetworkAware(ticket);
         auditLogService.log("RESUME", "TICKET", saved.getId(), "İşe devam edildi", previousReason, "İşlemde");
         return mapToDTO(saved);
     }
@@ -624,7 +632,7 @@ public class ServiceTicketService {
         String previousStatus = getStatusInTurkish(ticket.getStatus());
         ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
         ticket.setReopenedAt(LocalDateTime.now(businessZone));
-        ServiceTicket saved = repository.save(ticket);
+        ServiceTicket saved = saveNetworkAware(ticket);
         if (saved.getCompletedAt() != null) {
             financeService.reconcileClosedDay(saved.getCompanyId(), saved.getCompletedAt().toLocalDate());
         }
@@ -671,7 +679,7 @@ public class ServiceTicketService {
             ticket.setAssignedTechnicianId(technician.getId());
             ticket.setStatus(ServiceTicket.TicketStatus.ASSIGNED);
             ticket.setAssignmentNotificationSentAt(null);
-            ServiceTicket saved = repository.save(ticket);
+            ServiceTicket saved = saveNetworkAware(ticket);
             auditLogService.log("UPDATE", "TICKET", saved.getId(),
                     "Toplu teknisyen ataması: " + technician.getFullName());
             publishAssignment(saved, technician.getId());
@@ -1193,7 +1201,7 @@ public class ServiceTicketService {
             debtAccount = currentAccountRepository.save(account);
         }
 
-        ServiceTicket saved = repository.save(ticket);
+        ServiceTicket saved = saveNetworkAware(ticket);
         if (debtAccount != null) {
             currentAccountLedgerService.record(debtAccount, CurrentAccountTransaction.TransactionType.CHARGE,
                     outstandingAmount, completionDate,
@@ -1329,7 +1337,7 @@ public class ServiceTicketService {
                 ticket.getId(),
                 "Servis fişi iptal edildi");
 
-        return mapToDTO(repository.save(ticket));
+        return mapToDTO(saveNetworkAware(ticket));
     }
 
     public ServiceTicketDTO createFollowUpTicket(Long originalTicketId) {
@@ -1503,7 +1511,7 @@ public class ServiceTicketService {
                 os.write(imageBytes);
             }
             ticket.setCustomerSignaturePath("signatures/" + companyId + "/" + fileName);
-            repository.save(ticket);
+            saveNetworkAware(ticket);
 
             auditLogService.log(
                     "UPDATE",

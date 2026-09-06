@@ -1,0 +1,59 @@
+name: Service Network Validation
+
+on:
+  push:
+    branches: [codex/subdealer-service-network]
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'frontend-appstore/**'
+      - '.github/workflows/service-network-validation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: service-network-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  postgres-network:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: network_test
+          POSTGRES_DB: network_integration
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U network_test -d network_integration"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: PostgreSQL tenant isolation, concurrency and migration tests
+        working-directory: backend
+        env:
+          NETWORK_TEST_JDBC_URL: jdbc:postgresql://127.0.0.1:5432/network_integration
+          NETWORK_TEST_DB_USER: network_test
+        run: mvn --batch-mode --no-transfer-progress -Dtest=ServiceNetworkIntegrationTest,NetworkMigrationPostgresTest test
+
+  ios-compile:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Xcode version
+        run: xcodebuild -version
+      - name: Build unsigned iOS simulator application (no distribution)
+        run: >-
+          xcodebuild -project frontend-appstore/PusulaService.xcodeproj
+          -scheme PusulaService -configuration Debug -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath /tmp/pusula-network-derived CODE_SIGNING_ALLOWED=NO build

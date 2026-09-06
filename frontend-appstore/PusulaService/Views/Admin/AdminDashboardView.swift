@@ -2,6 +2,7 @@ import SwiftUI
 import UserNotifications
 
 struct AdminDashboardView: View {
+    @ObservedObject private var navigation = AppNavigation.shared
     @State private var kpis: DashboardKPIs?
     @State private var techStats: [TechnicianStat] = []
     @State private var quotaStatus: QuotaStatus?
@@ -42,6 +43,7 @@ struct AdminDashboardView: View {
         }
         .background(PusulaTheme.page)
         .navigationTitle("Genel Bakış")
+        .navigationDestination(isPresented: $navigation.showServiceNetwork) { ServiceNetworkView() }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -251,6 +253,10 @@ struct AdminDashboardView: View {
             PusulaSectionHeader(title: "Hızlı İşlemler")
 
             VStack(spacing: 0) {
+                NavigationLink(destination: ServiceNetworkView()) {
+                    actionRow("Servis Ağı", subtitle: "Alt servisler ve ağ iş emirleri", icon: "point.3.connected.trianglepath.dotted")
+                }
+                Divider().padding(.leading, 42)
                 NavigationLink(destination: FieldRadarView()) {
                     actionRow("Saha Radarı", subtitle: "Ekip konumu ve iş yoğunluğu", icon: "map")
                 }

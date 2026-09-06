@@ -39,6 +39,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/finance/**").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
                         .requestMatchers("/api/settings/**").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
                         .requestMatchers("/api/notifications/**").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
+                        .requestMatchers("/api/service-network/**").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
                         .requestMatchers("/api/push-devices/**").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN", "TECHNICIAN")
                         .requestMatchers("/api/tickets/bulk-assign").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")
                         .requestMatchers("/api/tickets/*/reopen").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")

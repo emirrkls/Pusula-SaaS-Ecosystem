@@ -87,6 +87,10 @@ public class AdminPushNotificationListener {
         root.put("type", "ADMIN_NOTIFICATION");
         root.put("notificationId", notification.getId());
         root.put("category", notification.getCategory().name());
+        if (notification.getReferenceType() != null && notification.getReferenceType().startsWith("NETWORK_")) {
+            root.put("referenceType", notification.getReferenceType());
+            root.put("referenceId", notification.getReferenceId());
+        }
         if ("TICKET".equals(notification.getReferenceType()) && notification.getReferenceId() != null) {
             root.put("ticketId", notification.getReferenceId());
         }

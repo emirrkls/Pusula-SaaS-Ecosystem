@@ -3102,3 +3102,11 @@
 .notification-meta { -fx-text-fill: -pusula-text-muted; -fx-font-size: 10px; }
 .dark-theme .notification-toolbar, .dark-theme .notification-card { -fx-background-color: #1E293B; -fx-border-color: #334155; }
 .dark-theme .notification-unread { -fx-background-color: #172A3A; }
+.network-card {
+    -fx-padding: 14;
+    -fx-spacing: 8;
+    -fx-background-color: #f7f9fc;
+    -fx-background-radius: 12;
+    -fx-border-color: #e2e8f0;
+    -fx-border-radius: 12;
+}

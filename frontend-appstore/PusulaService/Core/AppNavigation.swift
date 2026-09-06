@@ -6,6 +6,12 @@ final class AppNavigation: ObservableObject {
     
     @Published var adminSelectedTab: AdminTab = .overview
     @Published var operationFilter: String?
+    @Published var showServiceNetwork = false
+
+    func openNetwork() {
+        adminSelectedTab = .overview
+        showServiceNetwork = true
+    }
     @Published private(set) var pendingTicketId: Int?
     
     func openOperations(with filter: String) {

@@ -68,6 +68,7 @@ public class MainDashboardController {
     private Button navTickets;
     @FXML
     private Button navServicePhotos;
+    @FXML private Button navServiceNetwork;
     @FXML
     private Button navInventory;
     @FXML
@@ -122,6 +123,7 @@ public class MainDashboardController {
             hideButton(btnSettings);
             hideButton(btnActivityLog);
             hideButton(navServicePhotos);
+            hideButton(navServiceNetwork);
         }
 
         applyPlanFeatures();
@@ -179,6 +181,7 @@ public class MainDashboardController {
         setNavIcon(navDashboard, MaterialDesignV.VIEW_DASHBOARD);
         setNavIcon(navTickets, MaterialDesignC.CLIPBOARD_TEXT);
         setNavIcon(navServicePhotos, MaterialDesignI.IMAGE_MULTIPLE);
+        setNavIcon(navServiceNetwork, MaterialDesignA.ACCOUNT_MULTIPLE);
         setNavIcon(navInventory, MaterialDesignP.PACKAGE_VARIANT);
         setNavIcon(navCustomers, MaterialDesignA.ACCOUNT_MULTIPLE);
         setNavIcon(btnCommercial, MaterialDesignA.AIR_CONDITIONER);
@@ -399,6 +402,12 @@ public class MainDashboardController {
             AlertHelper.showAlert(Alert.AlertType.ERROR, contentArea.getScene().getWindow(),
                     "Hata", "Servis görselleri yüklenemedi: " + e.getMessage());
         }
+    }
+
+    @FXML
+    public void showServiceNetwork() {
+        if (!SessionManager.isAdmin()) return;
+        loadContent(new ServiceNetworkView(this), "Servis Ağı", "Alt servisler, iş gönderimi ve operasyon takibi", navServiceNetwork);
     }
 
     @FXML

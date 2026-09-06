@@ -77,6 +77,10 @@ final class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate 
         didReceive response: UNNotificationResponse
     ) async {
         let userInfo = response.notification.request.content.userInfo
+        if let reference = userInfo["referenceType"] as? String, reference.hasPrefix("NETWORK_") {
+            await MainActor.run { AppNavigation.shared.openNetwork() }
+            return
+        }
         let ticketId = (userInfo["ticketId"] as? Int)
             ?? (userInfo["ticketId"] as? String).flatMap(Int.init)
         guard let ticketId else { return }
