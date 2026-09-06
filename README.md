@@ -1,6 +1,6 @@
 # Pusula Service Ecosystem
 
-**Pusula** is a multi-tenant SaaS platform built for HVAC and field service companies. A single backend powers field operations, inventory and finance management, subscription/plan enforcement, and centralized super-admin tooling.
+**Pusula** is a multi-tenant SaaS platform for HVAC and field-service companies. A shared backend powers dispatch, field operations, inventory, finance, reporting, subscriptions, notifications, and opt-in service networks while keeping every company's operational data isolated.
 
 > **Languages:** English (this file) · [Türkçe](README.tr.md)
 
@@ -18,6 +18,7 @@
 
 - [Features](#features)
 - [Architecture](#architecture)
+- [Service Network Workflow](#service-network-workflow)
 - [Repository Structure](#repository-structure)
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
@@ -34,30 +35,31 @@
 ## Features
 
 ### Operations
-- Service tickets (assignment, status tracking, field photos, signatures)
-- Separate service billing (sale) and collection amounts, including backdated completion
-- Barcode scanning for parts and inventory
-- Vehicle stock and warehouse inventory
-- Proposals and PDF exports
-- Customer and current-account management (sale vs collection classification)
-- Company debt tracking with dated payments and addition history
-- Business asset tracking and valuation reports
-- Finance reports: profitability vs cash-flow, open-debt / current-account exports, monthly PDF reports
-- Admin dashboards (KPI, technician performance, quota, field radar)
+- Service tickets with customer/technician search, assignment windows, private technician instructions, status tracking, controlled rescheduling, reopening, signatures, and backdated completion
+- Separate service sale, labor, collection, current-account, direct-cost, and external-expense semantics
+- Inventory and vehicle stock with barcode lookup, fractional quantities, custom per-job sale prices, critical-stock alerts, and idempotent part usage
+- Searchable service-photo archive with thumbnails, categories, notes, camera/gallery capture, download, and ticket/customer/date context
+- Proposals with inventory-backed line items, customer search, status categories, PDF output, and conversion to service work
+- Customer current accounts with transaction history; company debts with dated additions and partial/full payments
+- Business assets/tools and inventory valuation with PDF exports
+- Monthly profitability reports, current-account/debt snapshots, and operational dashboards
+- In-app admin notification center plus mobile push delivery for relevant service events
 
 ### Platform
 - **Multi-tenant architecture:** Each company is data-isolated; tenant context is resolved from JWT automatically (including vehicle and inventory mutation isolation).
 - **Role-based access:** `SUPER_ADMIN`, `COMPANY_ADMIN`, `TECHNICIAN`, and super-admin sub-roles.
-- **Subscriptions & quotas:** Plan-based feature gates and usage limits.
+- **Subscriptions & quotas:** Centrally defined plan capabilities and usage limits for Free, Usta, and Patron tiers.
+- **Opt-in service networks:** An entitled parent company can create or invite isolated child companies, dispatch orders, and follow acceptance, rejection, cancellation, notes, and lifecycle updates without sharing tenant data.
 - **Google Play subscription verification:** `POST /api/subscription/google-verify`
 - **App Store subscription verification:** `POST /api/subscription/apple-verify`
-- **iOS APNs push:** Ticket assignment notifications via registered push devices (`/api/push-devices`)
+- **APNs push scheduling:** Assignment notifications are delivered for today's/next-24-hour work and deferred until future work enters that window.
+- **Tenant-scoped WhatsApp notifications:** Optional approved-template messages for service creation and completion, restricted to explicitly allowed companies.
 - **Payment webhooks:** Iyzico webhook signature validation (optional / future-compatible).
 - **Super-admin operations:** Company management, quota status, diagnostic packages, operations dashboard.
 
 ### Clients
-- **Desktop:** Full operational management with Retrofit-based API integration, modern UI / dark theme, finance & business-assets tabs, MSI auto-update (version from `frontend-desktop/src/main/resources/app-version.properties`).
-- **Android / iOS:** Field technician and company admin flows, Google / Apple sign-in, in-app purchases (Play Billing / StoreKit).
+- **Desktop:** Full office/dispatch management, modern responsive dialogs, finance and asset tooling, service-photo browser, service-network administration, PDF reports, and verified MSI auto-update.
+- **Android / iOS:** Field technician and company-admin flows, onboarding, customer/inventory search, service media, controlled rescheduling, notifications, Google/Apple sign-in, and Play Billing/StoreKit support.
 - **Web:** Public marketing site with local SEO landing pages, price list, authorized brands, contact form, privacy/terms, and SSG prerender for public routes.
 
 ---
@@ -74,7 +76,7 @@ flowchart TB
     end
 
     subgraph backend [Backend]
-        API[Spring Boot API<br/>JWT + Tenant Context]
+        API[Spring Boot API<br/>JWT + Tenant Context + Flyway]
         DB[(PostgreSQL)]
     end
 
@@ -84,7 +86,7 @@ flowchart TB
         APNS[Apple APNs]
         GAuth[Google OAuth]
         IYZ[Iyzico Webhook]
-        WA[WhatsApp API]
+        WA[Meta WhatsApp Cloud API]
     end
 
     WEB -->|HTTPS REST| API
@@ -104,7 +106,23 @@ flowchart TB
     API --> WA
 ```
 
-**Authentication flow:** Clients obtain a JWT via `POST /api/auth/login`. Subsequent requests send `Authorization: Bearer <token>`. `TenantInterceptor` extracts the company ID from the token and stores it in `TenantContext`.
+**Authentication flow:** Clients authenticate through `/api/auth/authenticate` (or a supported identity-provider flow). Subsequent requests send `Authorization: Bearer <token>`. `TenantInterceptor` resolves the company context. Repositories and services still enforce company ownership; the client is never trusted to choose another tenant.
+
+**Service-network boundary:** Parent and child companies remain separate tenants. Network tables carry explicit parent/child identifiers and immutable name snapshots. Accepting a network order creates a normal ticket inside the child company; it does not grant either company access to the other's customers, inventory, finance, users, or tickets.
+
+---
+
+## Service Network Workflow
+
+Service networks are opt-in and separate from ordinary subscription-plan access. A super administrator enables a policy for a parent company and sets member and monthly dispatch limits.
+
+1. A parent company administrator either creates a new child service (with its own company-admin account and isolated tenant) or invites an existing company by organization code.
+2. An existing company must accept the invitation; a newly created child is linked immediately and begins with the configured trial behavior.
+3. The parent dispatches a dated network order with customer contact/address details and private instructions.
+4. The child accepts the order, optionally selects an existing customer and technician, and receives a normal ticket in its own company. Alternatively, the child may reject a still-pending order; the parent may cancel it.
+5. Notes and ticket lifecycle updates remain visible through the network-order history. A relationship cannot be closed while it has pending or non-terminal work.
+
+Only company administrators and super administrators can use the network API. A child service cannot open a second-level network. Requests that create children or dispatch work use idempotency keys so safe retries do not duplicate companies, accounts, or orders.
 
 ---
 
@@ -114,7 +132,8 @@ flowchart TB
 Pusula-SaaS-Ecosystem/
 ├── backend/                    # Spring Boot REST API
 │   ├── src/main/java/          # Controllers, services, entities, DTOs
-│   ├── src/main/resources/     # application*.properties, schema.sql, V2–V18 migrations
+│   ├── src/main/resources/     # Configuration, legacy bootstrap SQL, fonts
+│   ├── src/main/resources/db/migration/ # Active Flyway migrations (baseline 20, V21–V36)
 │   ├── src/test/               # JUnit regression tests
 │   ├── deploy_vps_staging.sh   # VPS deployment helper
 │   └── .env.example            # Backend env template
@@ -124,13 +143,15 @@ Pusula-SaaS-Ecosystem/
 │   └── PusulaService/
 ├── frontend-appstore/          # iOS (App Store) app
 │   └── PusulaService/
+├── Pusula-Super-Admin-Panel/   # Super-admin web application
+├── docs/                       # Architecture and feature notes
 ├── scripts/                    # Helper scripts (e.g. Play Store assets)
 ├── RUNBOOK.md                  # Production rollout checklist
 ├── README.md                   # English documentation (this file)
 └── README.tr.md                # Turkish documentation
 ```
 
-> **Note:** The super-admin web panel (`Pusula-Super-Admin-Panel`) lives in a separate repository. See `RUNBOOK.md` for deployment details.
+> Some directories may have their own build or deployment lifecycle. The root CI workflow currently verifies the backend and desktop projects; service-network validation adds PostgreSQL integration tests and an unsigned iOS simulator build.
 
 ---
 
@@ -144,7 +165,7 @@ Pusula-SaaS-Ecosystem/
 | **PostgreSQL** | 14+ | Database |
 | **Node.js** | 18+ | Web frontend |
 | **Android Studio** | Latest | Android development |
-| **Xcode** | 15+ | iOS development |
+| **Xcode** | Compatible with the iOS 17 SDK / SwiftUI project | iOS development |
 
 ---
 
@@ -167,7 +188,7 @@ mvn spring-boot:run
 
 - **Local port:** `8081` (`application.properties`)
 - **VPS profile:** activate with `spring.profiles.active=vps` → uses `application-vps.properties` (port `8080`)
-- **Auth endpoints:** `/api/auth/*`
+- **Auth endpoints:** `/api/auth/*` (password login: `/api/auth/authenticate`)
 
 ### 2. Web (`frontend-web`)
 
@@ -231,7 +252,8 @@ cd frontend-playstore/PusulaService
 3. StoreKit integration: `Services/StoreKitManager.swift`
 4. Push notifications: enable the **Push Notifications (APNs)** capability; client registration uses `/api/push-devices`.
 5. Configure signing & capabilities with your Apple Developer account.
-6. For device testing notes, see `frontend-appstore/REAL_DEVICE_TEST_PLAN.md`.
+6. The repository also contains a screenshot-test target used for store assets; never capture production tenant data for store submissions.
+7. For device testing notes, see `frontend-appstore/REAL_DEVICE_TEST_PLAN.md`.
 
 ---
 
@@ -271,6 +293,11 @@ cd frontend-playstore/PusulaService
 |----------|-------------|
 | `WHATSAPP_API_TOKEN` | WhatsApp notification API token |
 | `WHATSAPP_PHONE_ID` | WhatsApp phone number ID |
+| `WHATSAPP_API_ENABLED` | Master switch for WhatsApp delivery |
+| `WHATSAPP_API_PROVIDER` / `WHATSAPP_GRAPH_API_VERSION` | Provider and Graph API version |
+| `WHATSAPP_ALLOWED_COMPANY_IDS` | Explicit tenant allow-list; empty means no tenant can send |
+| `WHATSAPP_TEMPLATE_LANGUAGE` | Approved template language code |
+| `WHATSAPP_TEMPLATE_SERVICE_CREATED` / `WHATSAPP_TEMPLATE_SERVICE_COMPLETED` | Approved Meta template names |
 | `IYZICO_API_KEY` / `IYZICO_API_SECRET` | Iyzico payments (sandbox defaults exist for dev) |
 | `IYZICO_BASE_URL` / `IYZICO_CALLBACK_URL` | Iyzico API base and webhook callback URL |
 | `APP_BUSINESS_TIMEZONE` | Business timezone (default: `Europe/Istanbul`) |
@@ -290,32 +317,19 @@ Template: `frontend-web/.env.example`
 
 ## Database Migrations
 
-SQL migration files live under `backend/src/main/resources/`:
+Production Flyway uses `classpath:db/migration`, baseline version `20`, with Hibernate schema mutation disabled (`ddl-auto=none`). The active sequence currently runs from V21 through V36:
 
-| File | Description |
-|------|-------------|
-| `schema.sql` | Base schema definition |
-| `V2__saas_plans_and_features.sql` | SaaS plans, features, and usage tracking |
-| `V3__inventory_barcode.sql` | Inventory barcode column |
-| `V4__production_readiness.sql` | Read-only expired subscriptions, plan seeds, indexes |
-| `V5__backfill_missing_org_codes.sql` | Backfill missing org codes |
-| `V6__super_admin_global_tenant_support.sql` | Super-admin global tenant support |
-| `V7__app_store_subscription_verification.sql` | App Store subscription verification / ownership hashes |
-| `V8__ios_apns_push_devices.sql` | iOS APNs push device registration table |
-| `V9__service_ticket_completion_and_collection_dates.sql` | Completion and collection business dates |
-| `V10__ticket_pricing_and_cost_snapshots.sql` | Sale vs collection pricing snapshots on tickets |
-| `V11__service_expense_business_dates.sql` | Service expense business dates and finance link |
-| `V12__company_debt_payment_history.sql` | Company debt payment history |
-| `V13__current_account_payment_classification.sql` | Current-account collection classification |
-| `V14__expense_financial_treatment.sql` | Expense financial treatment (e.g. operating vs other) |
-| `V15__company_debt_addition_history.sql` | Company debt addition history |
-| `V16__current_account_optimistic_lock.sql` | Optimistic locking on current accounts |
-| `V17__inventory_critical_level_not_null.sql` | Inventory critical level NOT NULL |
-| `V18__business_assets.sql` | Business assets tracking |
+| Range | Main changes |
+|-------|--------------|
+| `V21` | Financial integrity and sale/collection metadata |
+| `V22–V24` | Ticket reopening, centralized plan limits, warranty completion, technician notes |
+| `V25–V29` | Idempotent/custom-priced used parts, onboarding, scheduled windows/push tracking, fractional inventory, private assignment notes |
+| `V30–V34` | Service-photo catalog/archive, current-account ledger, controlled rescheduling, admin notification center, archive indexes |
+| `V35–V36` | Tenant-isolated service networks and idempotent child-company creation |
 
-Apply these before production deploys. JPA `ddl-auto=update` auto-updates the schema in dev; use controlled migrations in production.
+Legacy bootstrap/evolution scripts remain directly under `backend/src/main/resources/` for historical installations, but they are **not** in the active production Flyway location. Do not rename, reorder, or edit an applied migration. Add a new versioned migration instead.
 
-Manual helper scripts (not part of the numbered sequence) live under `backend/src/main/resources/db/manual/`.
+Manual recovery/maintenance scripts under `backend/src/main/resources/db/manual/` are never applied automatically. Production deployment must take a verified database backup before migrations and verify `flyway_schema_history` afterwards.
 
 ---
 
@@ -323,7 +337,10 @@ Manual helper scripts (not part of the numbered sequence) live under `backend/sr
 
 ```bash
 cd backend
-mvn test
+mvn verify
+
+cd ../frontend-desktop
+mvn verify
 ```
 
 Coverage includes:
@@ -335,6 +352,10 @@ Coverage includes:
 - Feature/quota consistency
 - Tenant isolation (e.g. vehicles) and inventory mutation security
 - Finance / report semantics (pricing snapshots, current-account classification, open balances)
+- Ticket reopening, warranty completion, custom/fractional part usage, photo archive, and controlled rescheduling
+- Service-network tenant isolation, idempotency, concurrency, quotas, and ticket lifecycle (PostgreSQL integration suite)
+
+GitHub Actions runs backend verification on Java 17 and desktop verification on Java 21. The service-network workflow also starts PostgreSQL 17 and compiles the iOS app for an unsigned simulator. App Store/TestFlight distribution remains a separate release action.
 
 ---
 
@@ -373,6 +394,8 @@ For post-deploy smoke tests, see **[`RUNBOOK.md`](RUNBOOK.md)**.
 - `.gitignore` covers: `.env`, `local.properties`, `*.jks`, `keystore/`, `backend/scripts/` (mock data).
 - Do not rely on Iyzico sandbox fallback values in production; supply all secrets via environment variables.
 - Push device tokens are encrypted at rest when `PUSH_TOKEN_ENCRYPTION_KEY` is configured.
+- Service-network child-account creation stores idempotency receipts but never stores or fingerprints the supplied password.
+- WhatsApp delivery fails closed unless the feature is enabled and the tenant is explicitly allow-listed.
 - Android HTTP logging uses `SensitiveHttpLogRedactor` to mask tokens and passwords.
 - Inventory mutations and vehicle access are tenant-scoped on the backend.
 
@@ -383,8 +406,9 @@ For post-deploy smoke tests, see **[`RUNBOOK.md`](RUNBOOK.md)**.
 | Prefix | Description |
 |--------|-------------|
 | `/api/auth` | Login, register, Google auth |
-| `/api/tickets` | Service tickets (including complete / signature) |
+| `/api/tickets` | Service tickets, assignment, lifecycle, completion, signature, reopening, notes, and rescheduling |
 | `/api/inventory` | Inventory management |
+| `/api/service-photos` | Service photo upload, archive, filtering, thumbnail, and download metadata |
 | `/api/finance` | Finance operations |
 | `/api/current-accounts` | Current-account management |
 | `/api/company-debts` | Company debt tracking |
@@ -394,6 +418,8 @@ For post-deploy smoke tests, see **[`RUNBOOK.md`](RUNBOOK.md)**.
 | `/api/subscription` | Plans, Google Play verify, App Store verify |
 | `/api/payment` | Payments & webhooks |
 | `/api/push-devices` | Mobile push device registration (APNs) |
+| `/api/notifications` | Tenant-scoped user notification center |
+| `/api/service-network` | Opt-in child-service membership, dispatch, decision, history, and status flows |
 | `/api/reports` | Reporting (profitability, cash flow, open debt, etc.) |
 | `/api/public` | Unauthenticated public endpoints |
 | `/api/public/desktop-version` | Desktop MSI auto-update version check |

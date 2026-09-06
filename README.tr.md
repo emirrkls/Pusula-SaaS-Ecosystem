@@ -1,6 +1,6 @@
 # Pusula Service Ecosystem
 
-**Pusula**, iklimlendirme ve teknik servis firmaları için geliştirilmiş, çok kiracılı (multi-tenant) bir SaaS platformudur. Tek bir backend üzerinden saha operasyonları, stok ve finans yönetimi, abonelik/plan kontrolü ve merkezi super-admin operasyonlarını bir arada sunar.
+**Pusula**, iklimlendirme ve saha servis firmaları için geliştirilmiş çok kiracılı (multi-tenant) bir SaaS platformudur. Ortak backend; iş emri yönetimi, saha operasyonları, stok, finans, raporlama, abonelik, bildirim ve isteğe bağlı servis ağı özelliklerini sunarken her işletmenin operasyonel verisini birbirinden izole eder.
 
 > **Diller:** [English](README.md) · Türkçe (bu dosya)
 
@@ -18,6 +18,7 @@
 
 - [Özellikler](#özellikler)
 - [Mimari](#mimari)
+- [Servis Ağı İşleyişi](#servis-ağı-işleyişi)
 - [Depo Yapısı](#depo-yapısı)
 - [Gereksinimler](#gereksinimler)
 - [Hızlı Başlangıç](#hızlı-başlangıç)
@@ -34,30 +35,31 @@
 ## Özellikler
 
 ### Operasyonel
-- Servis iş emirleri (atama, durum takibi, saha fotoğrafları, imza)
-- Servis faturalama (satış) ile tahsilat tutarlarının ayrılması; geriye dönük tamamlama desteği
-- Barkod ile stok / parça okuma
-- Araç stoğu ve envanter yönetimi
-- Teklif (proposal) oluşturma ve PDF çıktıları
-- Müşteri ve cari hesap yönetimi (satış / tahsilat sınıflandırması)
-- Şirket borç takibi (tarihli ödemeler ve ekleme geçmişi)
-- İş varlıkları (business assets) takibi ve değerleme raporları
-- Finans raporları: kârlılık ↔ nakit akışı ayrımı, açık borç / cari ihracı, aylık PDF raporlar
-- Admin dashboard (KPI, teknisyen performansı, kota, saha radarı)
+- Müşteri/teknisyen araması, saat aralığı, teknisyene özel not, durum takibi, kontrollü yeniden planlama, yeniden açma, imza ve geçmiş tarihli kapatma destekli servis fişleri
+- Servis satışı, işçilik, tahsilat, cari aktarım, doğrudan maliyet ve dış giderlerin ayrı finansal anlamlarla işlenmesi
+- Barkod, araç stoğu, kesirli ürün miktarı, işe özel satış fiyatı, kritik stok uyarısı ve idempotent parça kullanımı destekli envanter
+- Küçük resim, kategori, not, kamera/galeri, indirme ve fiş/müşteri/tarih bağlamı bulunan aranabilir Servis Görselleri arşivi
+- Stoktan kalem seçimi, müşteri araması, durum kategorileri, PDF ve işe dönüştürme destekli teklifler
+- İşlem geçmişli cari hesaplar; tarihli ilave ve kısmi/tam ödeme geçmişli işletme borçları
+- Takım/demirbaş ve envanter değerleme PDF'leri
+- Aylık kârlılık, açık cari/borç görünümü ve operasyon dashboard'ları
+- Uygulama içi admin bildirim merkezi ve ilgili servis olayları için mobil push bildirimleri
 
 ### Platform
 - **Multi-tenant mimari:** Her şirket (`company`) kendi verisiyle izole çalışır; JWT üzerinden tenant context otomatik set edilir (araç ve stok mutasyon izolasyonu dahil).
 - **Rol tabanlı erişim:** `SUPER_ADMIN`, `COMPANY_ADMIN`, `TECHNICIAN` ve super-admin alt rolleri.
-- **Abonelik & kota:** Plan bazlı özellik kapıları (feature gate) ve kullanım kotaları.
+- **Abonelik & kota:** Ücretsiz, Usta ve Patron paketleri için merkezi tanımlanan yetenekler ve kullanım sınırları.
+- **İsteğe bağlı servis ağı:** Yetkilendirilmiş üst işletme, veri izolasyonunu bozmadan alt işletme oluşturabilir veya davet edebilir; iş emri gönderip kabul, ret, iptal, not ve yaşam döngüsü güncellemelerini izleyebilir.
 - **Google Play abonelik doğrulama:** `POST /api/subscription/google-verify`
 - **App Store abonelik doğrulama:** `POST /api/subscription/apple-verify`
-- **iOS APNs push:** Kayıtlı cihazlara iş emri atama bildirimleri (`/api/push-devices`)
+- **Zaman pencereli APNs push:** Bugün/önümüzdeki 24 saatteki işler bildirilir; daha ileri işler pencereye girdiğinde gönderilir.
+- **İşletme kapsamlı WhatsApp bildirimi:** Yalnızca açıkça izin verilen işletmeler için onaylı şablonlarla servis açılış/tamamlanma mesajları.
 - **Ödeme webhook altyapısı:** Iyzico webhook imza doğrulama (opsiyonel / gelecek uyumlu).
 - **Super-admin operasyon paneli:** Şirket yönetimi, kota durumu, diagnostic paketleri, operations dashboard.
 
 ### İstemciler
-- **Desktop:** Tam operasyon yönetimi, Retrofit tabanlı API entegrasyonu, modern UI / dark theme, finans ve iş varlıkları sekmeleri, MSI otomatik güncelleme (sürüm: `frontend-desktop/src/main/resources/app-version.properties`).
-- **Android / iOS:** Saha teknisyeni ve şirket admin akışları, Google / Apple oturum açma, in-app purchase (Play Billing / StoreKit).
+- **Desktop:** Tam ofis/sevk yönetimi, modern ve uyarlanabilir pencereler, finans/demirbaş araçları, servis görsel tarayıcısı, servis ağı yönetimi, PDF raporları ve doğrulanan MSI güncellemesi.
+- **Android / iOS:** Teknisyen ve şirket admin akışları, onboarding, müşteri/stok arama, servis medyası, kontrollü yeniden planlama, bildirimler, Google/Apple oturumu ve Play Billing/StoreKit desteği.
 - **Web:** Halka açık tanıtım sitesi; yerel SEO landing sayfaları, fiyat listesi, yetkili markalar, iletişim formu, gizlilik/şartlar ve public route’lar için SSG prerender.
 
 ---
@@ -74,7 +76,7 @@ flowchart TB
     end
 
     subgraph backend [Backend]
-        API[Spring Boot API<br/>JWT + Tenant Context]
+        API[Spring Boot API<br/>JWT + Tenant Context + Flyway]
         DB[(PostgreSQL)]
     end
 
@@ -84,7 +86,7 @@ flowchart TB
         APNS[Apple APNs]
         GAuth[Google OAuth]
         IYZ[Iyzico Webhook]
-        WA[WhatsApp API]
+        WA[Meta WhatsApp Cloud API]
     end
 
     WEB -->|HTTPS REST| API
@@ -104,7 +106,23 @@ flowchart TB
     API --> WA
 ```
 
-**Kimlik doğrulama akışı:** İstemci `POST /api/auth/login` ile JWT alır. Sonraki isteklerde `Authorization: Bearer <token>` header'ı kullanılır. `TenantInterceptor`, token'dan company ID'yi çıkarıp `TenantContext`'e yazar.
+**Kimlik doğrulama akışı:** İstemci `/api/auth/authenticate` (veya desteklenen kimlik sağlayıcı akışı) üzerinden JWT alır. Sonraki isteklerde `Authorization: Bearer <token>` header'ı kullanılır. `TenantInterceptor` işletme bağlamını çözer; repository ve servis katmanları şirket sahipliğini ayrıca doğrular. İstemcinin başka bir tenant seçmesine güvenilmez.
+
+**Servis ağı sınırı:** Üst ve alt işletmeler ayrı tenant olarak kalır. Ağ tabloları üst/alt işletme kimliklerini ve değişmez isim anlık görüntülerini taşır. Alt işletmenin ağ işini kabul etmesi kendi tenant'ında normal servis fişi oluşturur; taraflardan hiçbirine diğer işletmenin müşterilerine, stoklarına, finansına, kullanıcılarına veya diğer fişlerine erişim vermez.
+
+---
+
+## Servis Ağı İşleyişi
+
+Servis ağı isteğe bağlıdır ve normal abonelik paketi erişiminden ayrıdır. Super-admin üst işletme için politikayı açar; azami alt servis ve aylık ağ iş emri limitlerini belirler.
+
+1. Üst işletmenin şirket yöneticisi ayrı tenant ve şirket-admin hesabıyla yeni alt servis oluşturur veya mevcut işletmeyi organizasyon koduyla davet eder.
+2. Mevcut işletme daveti kabul etmelidir; yeni oluşturulan alt servis doğrudan bağlanır ve tanımlı deneme davranışıyla başlar.
+3. Üst işletme müşteri iletişim/adres bilgileri ve teknisyene özel talimatla tarihli ağ iş emri gönderir.
+4. Alt servis işi kabul eder; isterse mevcut müşterisini ve teknisyenini seçer ve kendi işletmesinde normal servis fişi oluşur. Bekleyen iş alt servis tarafından reddedilebilir veya üst işletme tarafından geri çekilebilir.
+5. Notlar ve fiş yaşam döngüsü ağ işi geçmişinden izlenir. Bekleyen veya sonuçlanmamış iş varken servis ağı bağlantısı kapatılamaz.
+
+Ağ API'sini yalnızca şirket yöneticileri ve super-admin kullanabilir. Alt servis ikinci kademe ağ açamaz. Alt işletme ve iş oluşturma istekleri idempotency anahtarı kullanır; güvenli tekrar denemeler işletme, hesap veya iş emrini çoğaltmaz.
 
 ---
 
@@ -114,7 +132,8 @@ flowchart TB
 Pusula-SaaS-Ecosystem/
 ├── backend/                    # Spring Boot REST API
 │   ├── src/main/java/          # Controller, service, entity, DTO
-│   ├── src/main/resources/     # application*.properties, schema.sql, V2–V18 migrasyonları
+│   ├── src/main/resources/     # Yapılandırma, eski kurulum SQL'leri, fontlar
+│   ├── src/main/resources/db/migration/ # Aktif Flyway migrasyonları (baseline 20, V21–V36)
 │   ├── src/test/               # JUnit regression testleri
 │   ├── deploy_vps_staging.sh   # VPS deployment helper
 │   └── .env.example            # Backend env şablonu
@@ -124,13 +143,15 @@ Pusula-SaaS-Ecosystem/
 │   └── PusulaService/
 ├── frontend-appstore/          # iOS (App Store) uygulaması
 │   └── PusulaService/
+├── Pusula-Super-Admin-Panel/   # Super-admin web uygulaması
+├── docs/                       # Mimari ve özellik notları
 ├── scripts/                    # Yardımcı scriptler (ör. Play Store asset)
 ├── RUNBOOK.md                  # Production rollout checklist
 ├── README.md                   # İngilizce dokümantasyon
 └── README.tr.md                # Türkçe dokümantasyon (bu dosya)
 ```
 
-> **Not:** Super-admin web paneli (`Pusula-Super-Admin-Panel`) bu depoda değil; ayrı bir proje olarak yönetilir. Detaylar için `RUNBOOK.md` dosyasına bakın.
+> Bazı dizinlerin kendi build veya dağıtım yaşam döngüsü olabilir. Kök CI akışı şu anda backend ve desktop projelerini doğrular; servis ağı doğrulaması bunlara PostgreSQL entegrasyon testleri ve imzasız iOS Simulator derlemesi ekler.
 
 ---
 
@@ -144,7 +165,7 @@ Pusula-SaaS-Ecosystem/
 | **PostgreSQL** | 14+ | Veritabanı |
 | **Node.js** | 18+ | Web frontend |
 | **Android Studio** | Latest | Android geliştirme |
-| **Xcode** | 15+ | iOS geliştirme |
+| **Xcode** | iOS 17 SDK / SwiftUI projesiyle uyumlu sürüm | iOS geliştirme |
 
 ---
 
@@ -167,7 +188,7 @@ mvn spring-boot:run
 
 - **Local port:** `8081` (`application.properties`)
 - **VPS profili:** `spring.profiles.active=vps` ile `application-vps.properties` devreye girer (port `8080`)
-- **Auth endpoint'leri:** `/api/auth/*`
+- **Auth endpoint'leri:** `/api/auth/*` (şifreli giriş: `/api/auth/authenticate`)
 
 ### 2. Web Sitesi (`frontend-web`)
 
@@ -231,7 +252,8 @@ cd frontend-playstore/PusulaService
 3. StoreKit entegrasyonu: `Services/StoreKitManager.swift`
 4. Push bildirimleri: **Push Notifications (APNs)** capability’yi etkinleştirin; cihaz kaydı `/api/push-devices` üzerinden yapılır.
 5. Signing & capabilities’i Apple Developer hesabınızla yapılandırın.
-6. Cihaz testi notları için `frontend-appstore/REAL_DEVICE_TEST_PLAN.md` dosyasına bakın.
+6. Repodaki ekran görüntüsü test hedefini mağaza materyalleri için kullanabilirsiniz; mağaza gönderimlerinde gerçek işletme verisini görüntülemeyin.
+7. Cihaz testi notları için `frontend-appstore/REAL_DEVICE_TEST_PLAN.md` dosyasına bakın.
 
 ---
 
@@ -271,6 +293,11 @@ cd frontend-playstore/PusulaService
 |----------|----------|
 | `WHATSAPP_API_TOKEN` | WhatsApp bildirim API token |
 | `WHATSAPP_PHONE_ID` | WhatsApp phone number ID |
+| `WHATSAPP_API_ENABLED` | WhatsApp gönderimi ana açma/kapama anahtarı |
+| `WHATSAPP_API_PROVIDER` / `WHATSAPP_GRAPH_API_VERSION` | Sağlayıcı ve Graph API sürümü |
+| `WHATSAPP_ALLOWED_COMPANY_IDS` | Açık işletme izin listesi; boşsa hiçbir işletme gönderemez |
+| `WHATSAPP_TEMPLATE_LANGUAGE` | Onaylı şablon dil kodu |
+| `WHATSAPP_TEMPLATE_SERVICE_CREATED` / `WHATSAPP_TEMPLATE_SERVICE_COMPLETED` | Onaylı Meta şablon adları |
 | `IYZICO_API_KEY` / `IYZICO_API_SECRET` | Iyzico ödeme (sandbox varsayılanları dev için) |
 | `IYZICO_BASE_URL` / `IYZICO_CALLBACK_URL` | Iyzico API tabanı ve webhook callback URL |
 | `APP_BUSINESS_TIMEZONE` | İş saatleri timezone (varsayılan: `Europe/Istanbul`) |
@@ -290,32 +317,19 @@ cd frontend-playstore/PusulaService
 
 ## Veritabanı Migrasyonları
 
-SQL migration dosyaları `backend/src/main/resources/` altında:
+Production Flyway konumu `classpath:db/migration`, baseline sürümü `20`'dir; production'da Hibernate şema değişikliği kapalıdır (`ddl-auto=none`). Aktif sıra şu anda V21–V36 arasındadır:
 
-| Dosya | Açıklama |
-|-------|----------|
-| `schema.sql` | Temel şema tanımı |
-| `V2__saas_plans_and_features.sql` | SaaS planları, özellikler ve kullanım takibi |
-| `V3__inventory_barcode.sql` | Envanter barkod kolonu |
-| `V4__production_readiness.sql` | Süresi dolmuş abonelik read-only, plan seed, indexler |
-| `V5__backfill_missing_org_codes.sql` | Eksik org code backfill |
-| `V6__super_admin_global_tenant_support.sql` | Super-admin global tenant desteği |
-| `V7__app_store_subscription_verification.sql` | App Store abonelik doğrulama / ownership hash |
-| `V8__ios_apns_push_devices.sql` | iOS APNs push cihaz kayıt tablosu |
-| `V9__service_ticket_completion_and_collection_dates.sql` | Tamamlanma ve tahsilat iş tarihleri |
-| `V10__ticket_pricing_and_cost_snapshots.sql` | Satış / tahsilat fiyat snapshot’ları |
-| `V11__service_expense_business_dates.sql` | Servis gideri iş tarihleri ve finans bağlantısı |
-| `V12__company_debt_payment_history.sql` | Şirket borç ödeme geçmişi |
-| `V13__current_account_payment_classification.sql` | Cari tahsilat sınıflandırması |
-| `V14__expense_financial_treatment.sql` | Gider finansal sınıflandırması |
-| `V15__company_debt_addition_history.sql` | Şirket borç ekleme geçmişi |
-| `V16__current_account_optimistic_lock.sql` | Cari hesap optimistic locking |
-| `V17__inventory_critical_level_not_null.sql` | Envanter kritik seviye NOT NULL |
-| `V18__business_assets.sql` | İş varlıkları takibi |
+| Aralık | Başlıca değişiklikler |
+|--------|----------------------|
+| `V21` | Finansal bütünlük ve satış/tahsilat metadatası |
+| `V22–V24` | Fiş yeniden açma, merkezi paket limitleri, garanti kapanışı, teknisyen notları |
+| `V25–V29` | İdempotent/özel fiyatlı parça kullanımı, onboarding, tarih-saat aralığı/push takibi, kesirli stok, özel atama notu |
+| `V30–V34` | Servis görsel kataloğu/arşivi, cari hareket defteri, kontrollü yeniden planlama, admin bildirim merkezi, arşiv indeksleri |
+| `V35–V36` | Tenant izolasyonlu servis ağı ve idempotent alt işletme oluşturma |
 
-Production'da deploy öncesi bu dosyaların uygulandığından emin olun. JPA `ddl-auto=update` dev ortamında şemayı otomatik günceller; production'da kontrollü migration tercih edilmelidir.
+Eski kurulum ve şema evrimi dosyaları tarihsel kurulumlar için doğrudan `backend/src/main/resources/` altında tutulur; bunlar aktif production Flyway konumunda **değildir**. Uygulanmış bir migrasyonu değiştirmeyin, yeniden adlandırmayın veya sırasını bozmayın; yeni numaralı migrasyon ekleyin.
 
-Numaralı dizinin dışında kalan manuel yardımcılar: `backend/src/main/resources/db/manual/`.
+`backend/src/main/resources/db/manual/` altındaki kurtarma/bakım scriptleri otomatik çalışmaz. Production dağıtımından önce doğrulanmış veritabanı yedeği alınmalı, sonrasında `flyway_schema_history` kontrol edilmelidir.
 
 ---
 
@@ -323,7 +337,10 @@ Numaralı dizinin dışında kalan manuel yardımcılar: `backend/src/main/resou
 
 ```bash
 cd backend
-mvn test
+mvn verify
+
+cd ../frontend-desktop
+mvn verify
 ```
 
 Kapsanan alanlar:
@@ -335,6 +352,10 @@ Kapsanan alanlar:
 - Feature/quota tutarlılığı
 - Tenant izolasyonu (ör. araçlar) ve stok mutasyon güvenliği
 - Finans / rapor semantiği (fiyat snapshot, cari sınıflandırma, açık bakiyeler)
+- Fiş yeniden açma, garanti kapanışı, özel/kesirli parça kullanımı, görsel arşivi ve kontrollü yeniden planlama
+- Servis ağı tenant izolasyonu, idempotency, eşzamanlılık, kotalar ve fiş yaşam döngüsü (PostgreSQL entegrasyon paketi)
+
+GitHub Actions backend'i Java 17, masaüstünü Java 21 ile doğrular. Servis ağı akışı ayrıca PostgreSQL 17 başlatır ve iOS uygulamasını imzasız Simulator hedefi için derler. App Store/TestFlight dağıtımı ayrı bir release işlemidir.
 
 ---
 
@@ -373,6 +394,8 @@ Deploy sonrası smoke test planı için **[`RUNBOOK.md`](RUNBOOK.md)** dosyasın
 - `.gitignore` kapsamı: `.env`, `local.properties`, `*.jks`, `keystore/`, `backend/scripts/` (mock data).
 - Production'da sandbox Iyzico fallback değerlerine güvenmeyin; tüm secret'ları env üzerinden sağlayın.
 - `PUSH_TOKEN_ENCRYPTION_KEY` yapılandırıldığında push cihaz token’ları at-rest şifrelenir.
+- Alt işletme oluşturma işlemi idempotency kaydı tutar; verilen şifreyi veya şifre parmak izini saklamaz.
+- WhatsApp gönderimi yalnızca özellik açık ve işletme açık izin listesinde ise çalışır; aksi halde kapalı kalır.
 - Android HTTP log'larında `SensitiveHttpLogRedactor` token ve şifre alanlarını maskeler.
 - Stok mutasyonları ve araç erişimi backend’de tenant kapsamındadır.
 
@@ -383,8 +406,9 @@ Deploy sonrası smoke test planı için **[`RUNBOOK.md`](RUNBOOK.md)** dosyasın
 | Prefix | Açıklama |
 |--------|----------|
 | `/api/auth` | Login, register, Google auth |
-| `/api/tickets` | Servis iş emirleri (complete / signature dahil) |
+| `/api/tickets` | Servis fişleri, atama, yaşam döngüsü, kapatma, imza, yeniden açma, not ve yeniden planlama |
 | `/api/inventory` | Stok yönetimi |
+| `/api/service-photos` | Servis görseli yükleme, arşiv, filtre, küçük resim ve indirme metadatası |
 | `/api/finance` | Finans işlemleri |
 | `/api/current-accounts` | Cari hesap yönetimi |
 | `/api/company-debts` | Şirket borç takibi |
@@ -394,6 +418,8 @@ Deploy sonrası smoke test planı için **[`RUNBOOK.md`](RUNBOOK.md)** dosyasın
 | `/api/subscription` | Planlar, Google Play verify, App Store verify |
 | `/api/payment` | Ödeme & webhook |
 | `/api/push-devices` | Mobil push cihaz kaydı (APNs) |
+| `/api/notifications` | Tenant kapsamlı kullanıcı bildirim merkezi |
+| `/api/service-network` | İsteğe bağlı alt servis üyeliği, iş gönderimi, karar, geçmiş ve durum akışları |
 | `/api/reports` | Raporlama (kârlılık, nakit akışı, açık borç vb.) |
 | `/api/public` | Kimlik doğrulama gerektirmeyen endpoint'ler |
 | `/api/public/desktop-version` | Desktop MSI otomatik güncelleme sürüm kontrolü |
