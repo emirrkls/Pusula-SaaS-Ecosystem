@@ -191,23 +191,23 @@ public class FinanceController {
         colTodayAmount.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
                 String.format("%.2f ₺", cellData.getValue().getAmount())));
 
-        // Actions column with Edit and Delete buttons
+        // Compact overflow menu keeps destructive and non-destructive actions clearly separated.
         colTodayActions.setCellFactory(param -> new TableCell<>() {
-            private final Button btnEdit = new Button("✏️");
-            private final Button btnDelete = new Button("🗑️");
-            private final javafx.scene.layout.HBox hbox = new javafx.scene.layout.HBox(5, btnEdit, btnDelete);
+            private final MenuButton actions = new MenuButton("İşlemler");
+            private final MenuItem editItem = new MenuItem("Düzenle");
+            private final MenuItem deleteItem = new MenuItem("Sil");
 
             {
-                btnEdit.getStyleClass().addAll("inline-icon-button", "button-secondary");
-                btnDelete.getStyleClass().addAll("inline-icon-button", "button-danger");
-                hbox.getStyleClass().add("inline-action-group");
+                actions.getItems().addAll(editItem, new SeparatorMenuItem(), deleteItem);
+                actions.getStyleClass().addAll("button-sm", "button-secondary", "action-menu-button");
+                actions.setAccessibleText("Gider işlemleri");
 
-                btnEdit.setOnAction(event -> {
+                editItem.setOnAction(event -> {
                     DailySummaryDTO.ExpenseItemDTO expense = getTableView().getItems().get(getIndex());
                     handleEditExpense(expense);
                 });
 
-                btnDelete.setOnAction(event -> {
+                deleteItem.setOnAction(event -> {
                     DailySummaryDTO.ExpenseItemDTO expense = getTableView().getItems().get(getIndex());
                     handleDeleteExpense(expense);
                 });
@@ -216,7 +216,7 @@ public class FinanceController {
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                setGraphic(empty ? null : hbox);
+                setGraphic(empty ? null : actions);
             }
         });
     }
@@ -304,17 +304,6 @@ public class FinanceController {
                             .filter(e -> e.getDayOfMonth() >= currentDay && e.getDayOfMonth() <= currentDay + 3)
                             .collect(Collectors.toList());
 
-                    // Debug logging
-                    System.out.println("=== Overdue/Upcoming Check ===");
-                    System.out.println("Current day: " + currentDay);
-                    System.out.println("Total expenses: " + allExpenses.size());
-                    System.out.println("Overdue count: " + overdue.size());
-                    System.out.println("Upcoming count: " + upcoming.size());
-                    for (FixedExpenseDefinitionDTO e : allExpenses) {
-                        System.out.println("  - " + e.getName() + " | Day: " + e.getDayOfMonth() + " | Paid: "
-                                + e.isPaidThisMonth());
-                    }
-
                     Platform.runLater(() -> {
                         // Handle OVERDUE (RED alert)
                         if (overdue.isEmpty()) {
@@ -329,7 +318,7 @@ public class FinanceController {
                                 sb.append(exp.getName()).append(" (").append(daysLate).append(" gün gecikti), ");
                             }
                             String overdueNames = sb.length() > 2 ? sb.substring(0, sb.length() - 2) : sb.toString();
-                            overdueMessageLabel.setText("🚨 Geciken ödemeler: " + overdueNames);
+                            overdueMessageLabel.setText("Geciken ödemeler: " + overdueNames);
                         }
 
                         // Handle UPCOMING (YELLOW alert) - also show if there are any overdue items
@@ -346,7 +335,7 @@ public class FinanceController {
                             // If only overdue items, show yellow alert as a reminder too
                             paymentAlertBox.setVisible(true);
                             paymentAlertBox.setManaged(true);
-                            alertMessageLabel.setText("⚠️ Ödenmemiş giderler mevcut - Sabit Gider Öde'ye tıklayın.");
+                            alertMessageLabel.setText("Ödenmemiş giderler mevcut — ödeme ekranından işlem yapabilirsiniz.");
                         }
                     });
                 }
@@ -626,9 +615,10 @@ public class FinanceController {
 
         // Actions column with PDF download button
         colReportActions.setCellFactory(param -> new TableCell<>() {
-            private final Button btnPDF = new Button("📄 PDF");
+            private final Button btnPDF = new Button("PDF");
             {
-                btnPDF.getStyleClass().addAll("button-sm", "button-danger");
+                btnPDF.getStyleClass().addAll("button-sm", "btn-export");
+                btnPDF.setAccessibleText("Aylık raporu PDF olarak aç");
                 btnPDF.setOnAction(event -> {
                     MonthlySummaryDTO summary = getTableView().getItems().get(getIndex());
                     handleDownloadPDF(summary.getPeriod());
@@ -862,7 +852,7 @@ public class FinanceController {
 
             {
                 btnHistory.getStyleClass().addAll("button-sm", "button-secondary");
-                btnEdit.getStyleClass().addAll("button-sm", "button-secondary");
+                btnEdit.getStyleClass().addAll("button-sm", "btn-primary");
                 btnHistory.setOnAction(event -> {
                     CurrentAccountDTO account = getTableView().getItems().get(getIndex());
                     showCurrentAccountHistory(account);
@@ -973,15 +963,11 @@ public class FinanceController {
     }
 
     private void loadCurrentAccounts() {
-        System.out.println("=== loadCurrentAccounts() called ===");
         CurrentAccountApi api = RetrofitClient.getClient().create(CurrentAccountApi.class);
-        System.out.println("Calling API: " + RetrofitClient.BASE_URL + "api/current-accounts");
         api.getAll().enqueue(new Callback<List<CurrentAccountDTO>>() {
             @Override
             public void onResponse(Call<List<CurrentAccountDTO>> call, Response<List<CurrentAccountDTO>> response) {
-                System.out.println("Response received: " + response.code());
                 if (response.isSuccessful() && response.body() != null) {
-                    System.out.println("Success! Found " + response.body().size() + " accounts");
                     Platform.runLater(() -> {
                         currentAccountsTable.setItems(FXCollections.observableArrayList(response.body()));
                     });

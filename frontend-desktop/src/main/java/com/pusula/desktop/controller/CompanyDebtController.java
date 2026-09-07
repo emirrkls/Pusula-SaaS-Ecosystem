@@ -128,17 +128,18 @@ public class CompanyDebtController {
     private void setupActionsColumn() {
         colActions.setCellFactory(col -> new TableCell<>() {
             private final Button payBtn = new Button("Öde");
-            private final Button historyBtn = new Button("Geçmiş");
-            private final Button addBtn = new Button("İlave");
-            private final Button deleteBtn = new Button("Sil");
-            private final HBox box = new HBox(6, payBtn, historyBtn, addBtn, deleteBtn);
+            private final MenuButton moreBtn = new MenuButton("Diğer");
+            private final MenuItem historyItem = new MenuItem("Ödeme Geçmişi");
+            private final MenuItem addItem = new MenuItem("Borca İlave Yap");
+            private final MenuItem deleteItem = new MenuItem("Borcu Sil");
+            private final HBox box = new HBox(6, payBtn, moreBtn);
 
             {
                 box.getStyleClass().add("table-actions");
                 payBtn.getStyleClass().addAll("btn-success", "btn-sm");
-                historyBtn.getStyleClass().addAll("btn-secondary", "btn-sm");
-                addBtn.getStyleClass().addAll("btn-warning", "btn-sm");
-                deleteBtn.getStyleClass().addAll("btn-danger", "btn-sm");
+                moreBtn.getStyleClass().addAll("btn-secondary", "btn-sm", "action-menu-button");
+                moreBtn.getItems().addAll(historyItem, addItem, new SeparatorMenuItem(), deleteItem);
+                moreBtn.setAccessibleText("Diğer borç işlemleri");
 
                 payBtn.setOnAction(e -> {
                     CompanyDebtDTO debt = getTableRow().getItem();
@@ -147,21 +148,21 @@ public class CompanyDebtController {
                     }
                 });
 
-                historyBtn.setOnAction(e -> {
+                historyItem.setOnAction(e -> {
                     CompanyDebtDTO debt = getTableRow().getItem();
                     if (debt != null) {
                         handlePaymentHistory(debt);
                     }
                 });
 
-                addBtn.setOnAction(e -> {
+                addItem.setOnAction(e -> {
                     CompanyDebtDTO debt = getTableRow().getItem();
                     if (debt != null) {
                         handleAddAmountToDebt(debt);
                     }
                 });
 
-                deleteBtn.setOnAction(e -> {
+                deleteItem.setOnAction(e -> {
                     CompanyDebtDTO debt = getTableRow().getItem();
                     if (debt != null) {
                         handleDeleteDebt(debt);

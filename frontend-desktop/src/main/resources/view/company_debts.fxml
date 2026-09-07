@@ -11,19 +11,23 @@
         <Insets top="20" right="20" bottom="20" left="20"/>
     </padding>
 
-    <HBox alignment="CENTER_LEFT" spacing="15" styleClass="page-header">
-        <Label styleClass="page-header-title" text="Borçlarımız" HBox.hgrow="ALWAYS"/>
-        <Label fx:id="totalDebtLabel" styleClass="debt-total-label" text="Toplam Borç: 0 ₺"/>
-        <Button onAction="#handleExportPdf" styleClass="btn-export" text="PDF Kaydet"/>
-        <Button onAction="#handleAddDebt" styleClass="btn-primary" text="+ Borç Ekle"/>
-        <Button onAction="#loadDebts" styleClass="btn-secondary" text="Yenile"/>
-    </HBox>
+    <VBox spacing="10" styleClass="page-header">
+        <HBox alignment="CENTER_LEFT" spacing="12">
+            <Label styleClass="page-header-title" text="Borçlarımız" HBox.hgrow="ALWAYS"/>
+            <Label fx:id="totalDebtLabel" styleClass="debt-total-label" text="Toplam Borç: 0 ₺"/>
+        </HBox>
+        <FlowPane alignment="CENTER_RIGHT" hgap="10" vgap="8" styleClass="page-header-actions">
+            <Button onAction="#handleExportPdf" styleClass="btn-export" text="PDF Kaydet"/>
+            <Button onAction="#handleAddDebt" styleClass="btn-primary" text="+ Borç Ekle"/>
+            <Button onAction="#loadDebts" styleClass="btn-secondary" text="Yenile"/>
+        </FlowPane>
+    </VBox>
 
-    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="filter-bar">
+    <FlowPane alignment="CENTER_LEFT" hgap="10" vgap="8" styleClass="filter-bar">
         <Label text="Filtre:"/>
         <ComboBox fx:id="statusFilter" prefWidth="150" promptText="Tümü"/>
         <Button onAction="#applyFilter" styleClass="btn-primary" text="Uygula"/>
-    </HBox>
+    </FlowPane>
 
     <TableView fx:id="debtTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
         <columns>
@@ -35,7 +39,7 @@
             <TableColumn fx:id="colDebtDate" minWidth="90" prefWidth="100" text="Borç Tarihi"/>
             <TableColumn fx:id="colDueDate" minWidth="90" prefWidth="100" text="Vade Tarihi"/>
             <TableColumn fx:id="colStatus" minWidth="80" prefWidth="100" text="Durum"/>
-            <TableColumn fx:id="colActions" minWidth="245" prefWidth="260" text="İşlemler"/>
+            <TableColumn fx:id="colActions" minWidth="175" prefWidth="185" text="İşlemler"/>
         </columns>
         <placeholder>
             <Label text="Henüz borç kaydı bulunmuyor"/>

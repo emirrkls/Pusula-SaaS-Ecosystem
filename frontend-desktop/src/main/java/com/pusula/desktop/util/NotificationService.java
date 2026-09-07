@@ -3,18 +3,22 @@ package com.pusula.desktop.util;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.DialogPane;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.OverrunStyle;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Popup;
 import javafx.stage.Screen;
@@ -27,20 +31,21 @@ import javafx.geometry.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.WeakHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Central, branded feedback system for every desktop workflow. */
 public final class NotificationService {
-    private static final double MIN_DIALOG_WIDTH = 400;
+    private static final double MIN_DIALOG_WIDTH = 360;
     private static final double PREFERRED_DIALOG_WIDTH = 520;
-    private static final double MAX_DIALOG_WIDTH = 640;
+    private static final double MAX_DIALOG_WIDTH = 620;
     private static final int LONG_MESSAGE_THRESHOLD = 420;
 
     public enum Kind { SUCCESS, INFO, WARNING, ERROR }
 
     private static final Map<Window, List<Popup>> ACTIVE_TOASTS = new WeakHashMap<>();
-    private static final ButtonType CONFIRM = new ButtonType("Onayla", ButtonBar.ButtonData.OK_DONE);
-    private static final ButtonType CANCEL = new ButtonType("Vazgeç", ButtonBar.ButtonData.CANCEL_CLOSE);
 
     private NotificationService() {}
 
@@ -49,36 +54,117 @@ public final class NotificationService {
     }
 
     public static void modal(Window owner, Kind kind, String title, String message) {
-        runOnFxThread(() -> createDialog(resolveOwner(owner), kind, title, message, false).show());
+        runOnFxThread(() -> showModal(resolveOwner(owner), kind, title, message, false));
     }
 
     public static boolean confirm(Window owner, String title, String message) {
         if (!Platform.isFxApplicationThread()) {
             throw new IllegalStateException("Onay penceresi JavaFX uygulama iş parçacığında açılmalıdır.");
         }
-        Dialog<ButtonType> dialog = createDialog(resolveOwner(owner), Kind.WARNING, title, message, true);
-        return dialog.showAndWait().orElse(CANCEL) == CONFIRM;
+        return showModal(resolveOwner(owner), Kind.WARNING, title, message, true);
     }
 
-    private static Dialog<ButtonType> createDialog(Window owner, Kind kind, String title,
-                                                    String message, boolean confirmation) {
-        String displayMessage = kind == Kind.ERROR ? ApiErrorHelper.userFacing(message) : safe(message);
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.initStyle(StageStyle.TRANSPARENT);
-        dialog.initModality(owner == null ? Modality.APPLICATION_MODAL : Modality.WINDOW_MODAL);
-        if (owner != null) dialog.initOwner(owner);
+    public static Optional<String> promptSecret(Window owner, String title, String message) {
+        if (!Platform.isFxApplicationThread()) {
+            throw new IllegalStateException("Şifre penceresi JavaFX uygulama iş parçacığında açılmalıdır.");
+        }
+        Window resolvedOwner = resolveOwner(owner);
+        Stage stage = new Stage(StageStyle.TRANSPARENT);
+        stage.initModality(resolvedOwner == null ? Modality.APPLICATION_MODAL : Modality.WINDOW_MODAL);
+        if (resolvedOwner != null) stage.initOwner(resolvedOwner);
+        StageHelper.setIcon(stage);
+        stage.setTitle(safe(title));
+        stage.setResizable(false);
 
-        DialogPane pane = dialog.getDialogPane();
-        pane.getStylesheets().add(NotificationService.class.getResource("/css/styles.css").toExternalForm());
-        pane.getStyleClass().addAll("modern-dialog", "modern-dialog-" + kind.name().toLowerCase());
-        if (ThemeHelper.isDarkMode()) pane.getStyleClass().add("dark-theme");
-        pane.setHeader(null);
-        pane.setGraphic(null);
+        AtomicReference<String> result = new AtomicReference<>();
+        Label icon = new Label("●");
+        icon.getStyleClass().addAll("feedback-modal-icon", "feedback-icon-info");
+        Label heading = new Label(safe(title));
+        heading.getStyleClass().add("feedback-modal-title");
+        heading.setWrapText(true);
+        Label body = new Label(safe(message));
+        body.getStyleClass().add("feedback-modal-message");
+        body.setWrapText(true);
+        PasswordField password = new PasswordField();
+        password.setPromptText("Şifre");
+        password.setAccessibleText("Şifre");
+        password.getStyleClass().add("feedback-modal-field");
+        VBox copy = new VBox(8, heading, body, password);
+        copy.setMinWidth(0);
+        copy.setMaxWidth(Double.MAX_VALUE);
+
+        Button closeButton = new Button("×");
+        closeButton.getStyleClass().add("feedback-modal-close");
+        closeButton.setAccessibleText("Pencereyi kapat");
+        closeButton.setCancelButton(true);
+        closeButton.setOnAction(event -> stage.close());
+        HBox content = new HBox(16, icon, copy, closeButton);
+        HBox.setHgrow(copy, Priority.ALWAYS);
+        content.setAlignment(Pos.TOP_LEFT);
+        content.getStyleClass().add("feedback-modal-content");
+
+        Button cancel = actionButton("Vazgeç", "button-secondary");
+        cancel.setCancelButton(true);
+        cancel.setOnAction(event -> stage.close());
+        Button submit = actionButton("Devam Et", "button-primary");
+        submit.setDefaultButton(true);
+        submit.disableProperty().bind(password.textProperty().isEmpty());
+        submit.setOnAction(event -> {
+            result.set(password.getText());
+            stage.close();
+        });
+        HBox actions = new HBox(10, cancel, submit);
+        actions.setAlignment(Pos.CENTER_RIGHT);
+        actions.getStyleClass().add("feedback-modal-actions");
+
+        VBox card = new VBox(content, actions);
+        card.getStyleClass().addAll("feedback-modal-card", "feedback-modal-info");
+        card.setMinWidth(MIN_DIALOG_WIDTH);
+        card.setPrefWidth(preferredModalWidth(resolvedOwner));
+        card.setMaxWidth(MAX_DIALOG_WIDTH);
+        StackPane root = new StackPane(card);
+        root.setPadding(new Insets(24));
+        root.getStyleClass().add("feedback-modal-stage");
+        if (ThemeHelper.isDarkMode()) root.getStyleClass().add("dark-theme");
+        Scene scene = new Scene(root);
+        scene.setFill(Color.TRANSPARENT);
+        ThemeHelper.ensureStylesheets(scene);
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                stage.close();
+                event.consume();
+            }
+        });
+        stage.setScene(scene);
+        stage.setOnShown(event -> {
+            fitModalToScreen(stage, resolvedOwner);
+            Platform.runLater(password::requestFocus);
+        });
+        stage.showAndWait();
+        return Optional.ofNullable(result.get());
+    }
+
+    /**
+     * Shows feedback in a Pusula-owned surface instead of JavaFX DialogPane. DialogPane delegates
+     * action placement to the platform ButtonBar, which made actions cling to outer corners and
+     * produced different layouts on different Windows display scales.
+     */
+    private static boolean showModal(Window owner, Kind kind, String title,
+                                     String message, boolean confirmation) {
+        String displayMessage = kind == Kind.ERROR ? ApiErrorHelper.userFacing(message) : safe(message);
+        Stage stage = new Stage(StageStyle.TRANSPARENT);
+        stage.initModality(owner == null ? Modality.APPLICATION_MODAL : Modality.WINDOW_MODAL);
+        if (owner != null) stage.initOwner(owner);
+        StageHelper.setIcon(stage);
+        stage.setTitle(safe(title));
+        stage.setResizable(false);
+
+        AtomicBoolean confirmed = new AtomicBoolean(false);
 
         Label icon = new Label(iconFor(kind));
-        icon.getStyleClass().addAll("modern-dialog-icon", "feedback-icon-" + kind.name().toLowerCase());
+        icon.getStyleClass().addAll("feedback-modal-icon", "feedback-icon-" + kind.name().toLowerCase());
         Label heading = new Label(safe(title));
-        heading.getStyleClass().add("modern-dialog-title");
+        heading.getStyleClass().add("feedback-modal-title");
         heading.setWrapText(true);
         heading.setTextOverrun(OverrunStyle.CLIP);
         heading.setMinHeight(Region.USE_PREF_SIZE);
@@ -87,10 +173,9 @@ public final class NotificationService {
         body.setWrapText(true);
         body.setMinWidth(0);
         body.setMinHeight(Region.USE_PREF_SIZE);
-        body.setPrefWidth(420);
         body.setMaxWidth(Double.MAX_VALUE);
         body.setTextOverrun(OverrunStyle.CLIP);
-        body.getStyleClass().add("modern-dialog-message");
+        body.getStyleClass().add("feedback-modal-message");
 
         VBox copy = new VBox(7);
         copy.getChildren().add(heading);
@@ -100,61 +185,105 @@ public final class NotificationService {
             messageViewport.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
             messageViewport.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
             messageViewport.setMaxHeight(240);
-            messageViewport.getStyleClass().add("modern-dialog-scroll");
+            messageViewport.getStyleClass().add("feedback-modal-scroll");
             copy.getChildren().add(messageViewport);
         } else {
             copy.getChildren().add(body);
         }
         copy.setMinWidth(0);
         copy.setMaxWidth(Double.MAX_VALUE);
-        HBox content = new HBox(16, icon, copy);
+        Button closeButton = new Button("×");
+        closeButton.getStyleClass().add("feedback-modal-close");
+        closeButton.setAccessibleText("Pencereyi kapat");
+        closeButton.setCancelButton(true);
+        closeButton.setOnAction(event -> stage.close());
+
+        HBox content = new HBox(16, icon, copy, closeButton);
         HBox.setHgrow(copy, Priority.ALWAYS);
         content.setAlignment(Pos.TOP_LEFT);
-        content.getStyleClass().add("modern-dialog-content");
-        pane.setContent(content);
-        pane.setMinWidth(MIN_DIALOG_WIDTH);
-        pane.setPrefWidth(PREFERRED_DIALOG_WIDTH);
-        pane.setMaxWidth(Double.MAX_VALUE);
-        pane.getButtonTypes().setAll(confirmation ? List.of(CANCEL, CONFIRM) : List.of(
-                new ButtonType("Tamam", ButtonBar.ButtonData.OK_DONE)));
+        content.getStyleClass().add("feedback-modal-content");
 
-        pane.getButtonTypes().forEach(type -> {
-            if (pane.lookupButton(type) instanceof javafx.scene.control.Button button) {
-                button.setMinWidth(112);
-                button.setPrefWidth(Region.USE_COMPUTED_SIZE);
-                button.setTextOverrun(OverrunStyle.CLIP);
-                button.setWrapText(false);
-            }
-        });
+        HBox actions = new HBox(10);
+        actions.setAlignment(Pos.CENTER_RIGHT);
+        actions.getStyleClass().add("feedback-modal-actions");
 
         if (confirmation) {
             String normalizedTitle = safe(title).toLowerCase(java.util.Locale.ROOT);
             boolean destructive = normalizedTitle.contains("sil") || normalizedTitle.contains("iptal")
                     || normalizedTitle.contains("kaldır") || normalizedTitle.contains("geri al");
-            pane.lookupButton(CONFIRM).getStyleClass().add(destructive ? "button-danger" : "button-success");
-            pane.lookupButton(CANCEL).getStyleClass().add("button-secondary");
+            Button cancelButton = actionButton("Vazgeç", "button-secondary");
+            cancelButton.setCancelButton(true);
+            cancelButton.setOnAction(event -> stage.close());
+            Button confirmButton = actionButton("Onayla", destructive ? "button-danger" : "button-success");
+            confirmButton.setDefaultButton(true);
+            confirmButton.setOnAction(event -> {
+                confirmed.set(true);
+                stage.close();
+            });
+            actions.getChildren().addAll(cancelButton, confirmButton);
+        } else {
+            Button okButton = actionButton("Tamam", "button-primary");
+            okButton.setDefaultButton(true);
+            okButton.setOnAction(event -> stage.close());
+            actions.getChildren().add(okButton);
         }
-        dialog.setOnShown(event -> fitDialogToScreen(dialog, owner));
-        return dialog;
+
+        VBox card = new VBox(content, actions);
+        card.getStyleClass().addAll("feedback-modal-card", "feedback-modal-" + kind.name().toLowerCase());
+        card.setMinWidth(MIN_DIALOG_WIDTH);
+        card.setPrefWidth(preferredModalWidth(owner));
+        card.setMaxWidth(MAX_DIALOG_WIDTH);
+
+        StackPane root = new StackPane(card);
+        root.setPadding(new Insets(24));
+        root.getStyleClass().add("feedback-modal-stage");
+        if (ThemeHelper.isDarkMode()) root.getStyleClass().add("dark-theme");
+
+        Scene scene = new Scene(root);
+        scene.setFill(Color.TRANSPARENT);
+        ThemeHelper.ensureStylesheets(scene);
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                stage.close();
+                event.consume();
+            }
+        });
+        stage.setScene(scene);
+        stage.setOnShown(event -> fitModalToScreen(stage, owner));
+        stage.showAndWait();
+        return confirmed.get();
     }
 
-    private static void fitDialogToScreen(Dialog<?> dialog, Window owner) {
-        DialogPane pane = dialog.getDialogPane();
-        pane.applyCss();
-        pane.layout();
-        if (!(pane.getScene().getWindow() instanceof Stage stage)) return;
+    private static double preferredModalWidth(Window owner) {
+        if (owner == null || owner.getWidth() <= 0) return PREFERRED_DIALOG_WIDTH;
+        return Math.min(MAX_DIALOG_WIDTH, Math.max(MIN_DIALOG_WIDTH, owner.getWidth() * 0.46));
+    }
 
+    private static Button actionButton(String text, String styleClass) {
+        Button button = new Button(text);
+        button.getStyleClass().add(styleClass);
+        button.setMinWidth(112);
+        button.setMinHeight(40);
+        button.setTextOverrun(OverrunStyle.CLIP);
+        button.setWrapText(false);
+        String accessible = switch (text) {
+            case "Onayla" -> "İşlemi onayla";
+            case "Vazgeç" -> "İşlemden vazgeç";
+            default -> text;
+        };
+        button.setAccessibleText(accessible);
+        return button;
+    }
+
+    private static void fitModalToScreen(Stage stage, Window owner) {
+        if (stage.getScene() == null || stage.getScene().getRoot() == null) return;
+        stage.getScene().getRoot().applyCss();
+        stage.getScene().getRoot().layout();
         Rectangle2D bounds = boundsFor(owner == null ? stage : owner);
         double availableWidth = Math.max(360, bounds.getWidth() - 48);
         double availableHeight = Math.max(300, bounds.getHeight() - 48);
-        double preferredWidth = Math.min(MAX_DIALOG_WIDTH,
-                Math.max(MIN_DIALOG_WIDTH, owner == null ? PREFERRED_DIALOG_WIDTH : owner.getWidth() * 0.48));
-
         stage.sizeToScene();
-        stage.setMinWidth(Math.min(MIN_DIALOG_WIDTH, availableWidth));
-        stage.setWidth(Math.min(availableWidth, Math.max(preferredWidth, stage.getWidth())));
-        stage.setMaxWidth(availableWidth);
-        stage.setMaxHeight(availableHeight);
+        stage.setWidth(Math.min(availableWidth, stage.getWidth()));
         if (stage.getHeight() > availableHeight) stage.setHeight(availableHeight);
         double targetX = owner == null
                 ? bounds.getMinX() + (bounds.getWidth() - stage.getWidth()) / 2

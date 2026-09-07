@@ -17,18 +17,18 @@
                      <padding>
                         <Insets bottom="8.0" left="0.0" right="0.0" top="8.0" />
                      </padding>
-                     <HBox alignment="CENTER_LEFT" spacing="16.0" styleClass="page-header">
-                        <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                     <VBox spacing="10.0" styleClass="page-header">
+                        <VBox spacing="4.0">
                            <Label styleClass="page-header-title" text="%inventory.tab.stock" />
                            <Label fx:id="resultCountLabel" styleClass="page-subtitle" text="" />
                         </VBox>
-                        <FlowPane alignment="CENTER_RIGHT" hgap="10.0" vgap="8.0" styleClass="page-header-actions">
+                        <FlowPane alignment="CENTER_LEFT" hgap="10.0" vgap="8.0" styleClass="page-header-actions">
                            <TextField fx:id="searchField" prefWidth="220.0" promptText="%inventory.search" />
                            <Button mnemonicParsing="false" onAction="#handleExportPdf" styleClass="btn-export" text="%btn.export" />
                            <Button mnemonicParsing="false" onAction="#handleAddItem" styleClass="btn-primary" text="%btn.add" />
                            <Button mnemonicParsing="false" onAction="#handleRefresh" styleClass="btn-secondary" text="%btn.refresh" />
                         </FlowPane>
-                     </HBox>
+                     </VBox>
 
                      <ScrollPane fitToHeight="true" hbarPolicy="AS_NEEDED" styleClass="filter-scroll" vbarPolicy="NEVER">
                         <content>
@@ -74,13 +74,12 @@
                      <padding>
                         <Insets bottom="8.0" left="0.0" right="0.0" top="8.0" />
                      </padding>
-                     <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="filter-bar">
+                     <FlowPane alignment="CENTER_LEFT" hgap="12.0" vgap="8.0" styleClass="filter-bar">
                         <Label text="%vehicle_stock.filter_by_vehicle" />
                         <ComboBox fx:id="vehicleFilterComboBox" prefWidth="250.0" promptText="%vehicle_stock.all_vehicles" />
-                        <Region HBox.hgrow="ALWAYS" />
                         <Button mnemonicParsing="false" onAction="#handleTransferStock" styleClass="btn-success" text="%vehicle_stock.transfer" />
                         <Button mnemonicParsing="false" onAction="#handleRefreshVehicleStocks" styleClass="btn-secondary" text="%btn.refresh" />
-                     </HBox>
+                     </FlowPane>
                      <VBox spacing="0" styleClass="card-container" VBox.vgrow="ALWAYS">
                         <TableView fx:id="vehicleStocksTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
                            <placeholder>

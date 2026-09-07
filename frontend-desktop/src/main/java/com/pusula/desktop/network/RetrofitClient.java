@@ -26,21 +26,13 @@ public class RetrofitClient {
                                                                 || "/api/auth/register".equals(path);
                                                 String token = publicAuth ? null
                                                                 : com.pusula.desktop.util.SessionManager.getToken();
-                                                System.out.println("=== RetrofitClient Interceptor ===");
-                                                System.out.println("Request URL: " + original.url());
-                                                System.out.println("Token from SessionManager: " + (token != null
-                                                                ? "EXISTS (length=" + token.length() + ")"
-                                                                : "NULL"));
                                                 if (token != null && !token.isEmpty()) {
                                                         okhttp3.Request request = original.newBuilder()
                                                                         .header("Authorization", "Bearer " + token)
                                                                         .method(original.method(), original.body())
                                                                         .build();
-                                                        System.out.println("Authorization header added");
                                                         return chain.proceed(request);
                                                 }
-                                                System.out.println(
-                                                                "No token - proceeding without Authorization header");
                                                 return chain.proceed(original);
                                         })
                                         .addInterceptor(new ForbiddenInterceptor())

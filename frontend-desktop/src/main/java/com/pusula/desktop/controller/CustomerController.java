@@ -41,6 +41,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 
 import javafx.scene.control.ListView;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 
@@ -78,6 +79,7 @@ public class CustomerController {
     @FXML private Label resultCountLabel;
 
     @FXML private VBox emptyStateBox;
+    @FXML private ProgressIndicator loadingIndicator;
 
 
 
@@ -179,6 +181,7 @@ public class CustomerController {
             whatsAppBtn.setGraphic(whatsAppIcon);
             whatsAppBtn.getStyleClass().addAll("btn-whatsapp", "btn-whatsapp-icon");
             whatsAppBtn.setTooltip(new Tooltip("WhatsApp"));
+            whatsAppBtn.setAccessibleText("Müşteriyle WhatsApp üzerinden iletişim kur");
 
             whatsAppBtn.setOnAction(e -> {
 
@@ -286,6 +289,7 @@ public class CustomerController {
             stage.setTitle(bundle.getString("customer.details.title"));
 
             stage.setScene(ThemeHelper.createDialogScene(root));
+            stage.initOwner(customersListView.getScene().getWindow());
 
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
 
@@ -331,9 +335,10 @@ public class CustomerController {
 
             javafx.stage.Stage stage = new javafx.stage.Stage();
 
-            stage.setTitle("Add New Customer");
+            stage.setTitle("Yeni Müşteri");
 
             stage.setScene(ThemeHelper.createDialogScene(root));
+            stage.initOwner(customersListView.getScene().getWindow());
 
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
 
@@ -354,6 +359,7 @@ public class CustomerController {
 
 
     private void loadCustomers() {
+        setLoading(true);
 
         CustomerApi api = RetrofitClient.getClient().create(CustomerApi.class);
 
@@ -366,6 +372,7 @@ public class CustomerController {
                 if (response.isSuccessful() && response.body() != null) {
 
                     Platform.runLater(() -> {
+                        setLoading(false);
 
                         customerList.clear();
 
@@ -377,11 +384,14 @@ public class CustomerController {
 
                 } else {
 
-                    Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                    Platform.runLater(() -> {
+                        setLoading(false);
+                        AlertHelper.showAlert(Alert.AlertType.ERROR,
 
                             customersListView.getScene().getWindow(), "Hata",
 
-                            "Müşteriler yüklenemedi: " + response.code()));
+                            "Müşteriler yüklenemedi: " + response.code());
+                    });
 
                 }
 
@@ -393,16 +403,25 @@ public class CustomerController {
 
             public void onFailure(Call<List<CustomerDTO>> call, Throwable t) {
 
-                Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                Platform.runLater(() -> {
+                    setLoading(false);
+                    AlertHelper.showAlert(Alert.AlertType.ERROR,
 
                         customersListView.getScene().getWindow(), "Bağlantı Hatası",
 
-                        "Could not connect to server: " + t.getMessage()));
+                        "Sunucuya bağlanılamadı: " + t.getMessage());
+                });
 
             }
 
         });
 
+    }
+
+    private void setLoading(boolean loading) {
+        loadingIndicator.setVisible(loading);
+        loadingIndicator.setManaged(loading);
+        customersListView.setDisable(loading);
     }
 
 }

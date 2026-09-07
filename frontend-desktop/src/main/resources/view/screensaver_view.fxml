@@ -14,10 +14,10 @@
 
 <StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="com.pusula.desktop.controller.ScreensaverController"
-           fx:id="rootPane" style="-fx-background-color: rgba(5, 12, 25, 0.95);">
+           fx:id="rootPane" styleClass="screensaver-root">
     
     <!-- Vignette Effect for depth -->
-    <Region style="-fx-background-color: radial-gradient(center 50% 50%, radius 70%, transparent 0%, rgba(0,0,0,0.6) 100%);" 
+    <Region styleClass="screensaver-vignette"
             mouseTransparent="true"/>
     
     <!-- Particle Layer (behind logo) -->
@@ -49,15 +49,13 @@
     
     <!-- Text Container -->
     <VBox alignment="CENTER" spacing="10" StackPane.alignment="BOTTOM_CENTER" translateY="-80">
-        <Label text="PUSULA SERVICE MANAGER" 
-               style="-fx-text-fill: white; -fx-font-family: 'Segoe UI Light'; -fx-font-size: 28px; -fx-letter-spacing: 6px; -fx-effect: dropshadow(gaussian, black, 10, 0, 0, 0);"/>
+        <Label styleClass="screensaver-title" text="PUSULA SERVİS YÖNETİMİ"/>
                
-        <Label text="Sistem Koruması Devrede" 
-               style="-fx-text-fill: #00bfff; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-opacity: 0.8;"/>
+        <Label styleClass="screensaver-status" text="Güvenli oturum etkin"/>
     </VBox>
     
     <!-- Hint text -->
-    <Label text="Devam etmek için ekrana dokunun veya bir tuşa basın" 
-           style="-fx-text-fill: rgba(255,255,255,0.3); -fx-font-size: 11px;"
+    <Label styleClass="screensaver-hint"
+           text="Devam etmek için ekrana tıklayın veya bir tuşa basın"
            StackPane.alignment="BOTTOM_CENTER" translateY="-20"/>
 </StackPane>

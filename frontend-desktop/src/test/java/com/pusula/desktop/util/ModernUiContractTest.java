@@ -91,6 +91,18 @@ class ModernUiContractTest {
         }
     }
 
+    @Test
+    void fxmlViewsDoNotBypassTheSharedDesignSystemWithInlineCss() throws Exception {
+        Path viewRoot = Path.of("src", "main", "resources", "view");
+        try (var files = Files.walk(viewRoot)) {
+            for (Path path : files.filter(file -> file.toString().endsWith(".fxml")).toList()) {
+                String fxml = Files.readString(path, StandardCharsets.UTF_8);
+                assertFalse(fxml.contains(" style=\""),
+                        () -> "Inline CSS must move to styles.css: " + path);
+            }
+        }
+    }
+
     private String readSafely(Path path) {
         try {
             return Files.readString(path, StandardCharsets.UTF_8);

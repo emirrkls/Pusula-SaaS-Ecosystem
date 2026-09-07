@@ -38,7 +38,7 @@
                         <HBox GridPane.columnIndex="1" GridPane.hgrow="ALWAYS" GridPane.rowIndex="1" spacing="5">
                             <ComboBox fx:id="customerComboBox" editable="true" HBox.hgrow="ALWAYS"
                                       maxWidth="Infinity" promptText="İsim veya telefon ile ara"/>
-                            <Button onAction="#handleAddCustomer" styleClass="btn-secondary" text="+"/>
+                            <Button accessibleText="Yeni müşteri ekle" onAction="#handleAddCustomer" styleClass="btn-secondary" text="+"/>
                         </HBox>
                         <Label GridPane.columnIndex="2" GridPane.rowIndex="1" styleClass="field-label" text="Hazırlayan:"/>
                         <ComboBox fx:id="preparedByComboBox" disable="true" GridPane.columnIndex="3"

@@ -102,6 +102,12 @@ public final class ThemeHelper {
                 button.setMinWidth(Region.USE_PREF_SIZE);
                 button.setTextOverrun(OverrunStyle.CLIP);
                 button.setWrapText(false);
+                button.setAccessibleText(button.getText());
+            }
+        }
+        for (var buttonType : pane.getButtonTypes()) {
+            if (pane.lookupButton(buttonType) instanceof Button button) {
+                styleDialogAction(button, buttonType, dialog.getTitle());
             }
         }
 
@@ -118,6 +124,23 @@ public final class ThemeHelper {
                 Math.min(stage.getX(), bounds.getMaxX() - stage.getWidth())));
         stage.setY(Math.max(bounds.getMinY(),
                 Math.min(stage.getY(), bounds.getMaxY() - stage.getHeight())));
+    }
+
+    private static void styleDialogAction(Button button, javafx.scene.control.ButtonType type, String title) {
+        if (button == null || type == null) return;
+        button.getStyleClass().removeAll("button-primary", "button-secondary", "button-danger",
+                "btn-primary", "btn-secondary", "btn-danger");
+        var data = type.getButtonData();
+        if (data == null || data.isCancelButton()) {
+            button.getStyleClass().add("button-secondary");
+            return;
+        }
+        String normalized = ((title == null ? "" : title) + " "
+                + (button.getText() == null ? "" : button.getText())).toLowerCase(java.util.Locale.ROOT);
+        boolean destructive = normalized.contains("sil") || normalized.contains("iptal")
+                || normalized.contains("kapat") || normalized.contains("reddet")
+                || normalized.contains("geri çek");
+        button.getStyleClass().add(destructive ? "button-danger" : "button-primary");
     }
 
     private static Rectangle2D boundsFor(Window window) {

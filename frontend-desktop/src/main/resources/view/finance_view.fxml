@@ -47,7 +47,7 @@
                            styleClass="finance-alert-overdue"
                            visible="false" managed="false">
                         <children>
-                           <Label text="🚨"/>
+                           <Label text="!" styleClass="finance-alert-glyph"/>
                            <Label fx:id="overdueMessageLabel"
                                   styleClass="label-danger"
                                   wrapText="true" HBox.hgrow="ALWAYS"/>
@@ -60,7 +60,7 @@
                            styleClass="finance-alert-upcoming"
                            visible="false" managed="false">
                         <children>
-                           <Label text="⚠️"/>
+                           <Label text="!" styleClass="finance-alert-glyph"/>
                            <Label fx:id="alertMessageLabel"
                                   styleClass="label-warning"
                                   wrapText="true" HBox.hgrow="ALWAYS"/>

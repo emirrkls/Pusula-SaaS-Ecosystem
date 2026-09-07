@@ -95,7 +95,35 @@ public class ServicePhotosController {
 
     @FXML
     public void loadPhotos() {
+        if (startDatePicker.getValue() != null && endDatePicker.getValue() != null
+                && startDatePicker.getValue().isAfter(endDatePicker.getValue())) {
+            markInvalid(startDatePicker, true);
+            markInvalid(endDatePicker, true);
+            statusLabel.setText("Başlangıç tarihi bitiş tarihinden sonra olamaz.");
+            return;
+        }
+        markInvalid(startDatePicker, false);
+        markInvalid(endDatePicker, false);
         requestPage(0, true);
+    }
+
+    private void markInvalid(Control control, boolean invalid) {
+        if (invalid) {
+            if (!control.getStyleClass().contains("input-invalid")) {
+                control.getStyleClass().add("input-invalid");
+            }
+        } else {
+            control.getStyleClass().remove("input-invalid");
+        }
+    }
+
+    @FXML
+    public void clearFilters() {
+        searchField.clear();
+        categoryFilter.getSelectionModel().selectFirst();
+        startDatePicker.setValue(null);
+        endDatePicker.setValue(null);
+        loadPhotos();
     }
 
     @FXML

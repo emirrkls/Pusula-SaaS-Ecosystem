@@ -14,7 +14,6 @@ import javafx.geometry.Rectangle2D;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.HBox;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -95,20 +94,18 @@ public class ProposalViewController {
                         : "-"));
 
         colActions.setCellFactory(param -> new TableCell<>() {
-            private final Button editBtn = new Button("Düzenle");
-            private final Button pdfBtn = new Button("PDF");
-            private final Button convertBtn = new Button("İşe Dönüştür");
-            private final HBox box = new HBox(5, editBtn, pdfBtn, convertBtn);
+            private final MenuButton actionsBtn = new MenuButton("İşlemler");
+            private final MenuItem editItem = new MenuItem("Düzenle");
+            private final MenuItem pdfItem = new MenuItem("PDF Görüntüle");
+            private final MenuItem convertItem = new MenuItem("İşe Dönüştür");
 
             {
-                editBtn.getStyleClass().addAll("button-sm", "button-secondary");
-                pdfBtn.getStyleClass().addAll("button-sm", "btn-purple");
-                convertBtn.getStyleClass().addAll("button-sm", "button-success");
-                box.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-
-                editBtn.setOnAction(e -> handleEdit(getTableRow().getItem()));
-                pdfBtn.setOnAction(e -> handlePdf(getTableRow().getItem()));
-                convertBtn.setOnAction(e -> handleConvert(getTableRow().getItem(), convertBtn));
+                actionsBtn.getItems().addAll(editItem, pdfItem, new SeparatorMenuItem(), convertItem);
+                actionsBtn.getStyleClass().addAll("button-sm", "button-secondary", "action-menu-button");
+                actionsBtn.setAccessibleText("Teklif işlemleri");
+                editItem.setOnAction(e -> handleEdit(getTableRow().getItem()));
+                pdfItem.setOnAction(e -> handlePdf(getTableRow().getItem()));
+                convertItem.setOnAction(e -> handleConvert(getTableRow().getItem(), actionsBtn));
             }
 
             @Override
@@ -118,9 +115,9 @@ public class ProposalViewController {
                     setGraphic(null);
                 } else {
                     ProposalDTO proposal = getTableRow().getItem();
-                    convertBtn.setDisable("APPROVED".equals(proposal.getStatus()) ||
+                    convertItem.setDisable("APPROVED".equals(proposal.getStatus()) ||
                             "REJECTED".equals(proposal.getStatus()));
-                    setGraphic(box);
+                    setGraphic(actionsBtn);
                 }
             }
         });
@@ -246,11 +243,10 @@ public class ProposalViewController {
         });
     }
 
-    private void handleConvert(ProposalDTO proposal, Button actionButton) {
+    private void handleConvert(ProposalDTO proposal, Control actionButton) {
         if (AlertHelper.showConfirmation(proposalsTable.getScene().getWindow(), "Teklifi İşe Dönüştür",
                 "Bu teklif onaylanıp servis fişine dönüştürülsün mü?")) {
                 actionButton.setDisable(true);
-                actionButton.setText("Dönüştürülüyor…");
                 proposalApi.convertToJob(proposal.getId()).enqueue(new Callback<>() {
                     @Override
                     public void onResponse(Call<ProposalDTO> call, Response<ProposalDTO> response) {
@@ -259,7 +255,6 @@ public class ProposalViewController {
                                 : com.pusula.desktop.util.ApiErrorHelper.message(
                                         response, "Dönüştürme başarısız.");
                         Platform.runLater(() -> {
-                            actionButton.setText("İşe Dönüştür");
                             if (response.isSuccessful()) {
                                 showInfo("Teklif başarıyla işe dönüştürüldü!");
                                 loadProposals();
@@ -274,7 +269,6 @@ public class ProposalViewController {
                     public void onFailure(Call<ProposalDTO> call, Throwable t) {
                         Platform.runLater(() -> {
                             actionButton.setDisable(false);
-                            actionButton.setText("İşe Dönüştür");
                             showError("Hata: " + t.getMessage());
                         });
                     }

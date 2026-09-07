@@ -61,8 +61,6 @@ public class PayFixedExpenseDialogController {
         // Initialize date picker to today
         dtPaymentDate.setValue(LocalDate.now());
 
-        System.out.println("=== PayFixedExpenseDialogController INITIALIZED - ROW FACTORY DISABLED ===");
-
         setupTable();
         loadFixedExpenses();
     }
@@ -195,7 +193,6 @@ public class PayFixedExpenseDialogController {
             String status = isPaid ? bundle.getString("finance.pay_fixed_expense_dialog.paid") : "";
             return new SimpleStringProperty(status);
         });
-        // Row factory DISABLED FOR DEBUGGING - testing if default selection works
     }
 
     private void loadFixedExpenses() {
@@ -204,13 +201,6 @@ public class PayFixedExpenseDialogController {
             public void onResponse(Call<List<FixedExpenseDefinitionDTO>> call,
                     Response<List<FixedExpenseDefinitionDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    // Debug: Print isPaidThisMonth values
-                    System.out.println("=== Fixed Expenses API Response ===");
-                    for (FixedExpenseDefinitionDTO dto : response.body()) {
-                        System.out.println("  " + dto.getName() + " | isPaidThisMonth: " + dto.isPaidThisMonth()
-                                + " | dayOfMonth: " + dto.getDayOfMonth());
-                    }
-
                     Platform.runLater(() -> {
                         List<FixedExpenseRow> rows = response.body().stream()
                                 .map(dto -> new FixedExpenseRow(dto, calculateDaysUntilDue(dto.getDayOfMonth())))

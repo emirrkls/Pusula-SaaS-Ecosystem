@@ -13,6 +13,7 @@ import com.pusula.desktop.api.ServiceTicketExpenseApi;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.CurrencyTextField;
+import com.pusula.desktop.util.NotificationService;
 import com.pusula.desktop.util.WhatsAppHelper;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -23,6 +24,8 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import org.kordamp.ikonli.javafx.FontIcon;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignW;
 import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -93,6 +96,8 @@ public class TicketDetailsController {
     private Label lblCustomerPhone;
     @FXML
     private Label lblCustomerAddress;
+    @FXML
+    private Button btnWhatsApp;
 
     private java.util.ResourceBundle resourceBundle;
 
@@ -128,22 +133,22 @@ public class TicketDetailsController {
         // Load resource bundle for localization
         resourceBundle = java.util.ResourceBundle.getBundle("i18n.messages",
                 Locale.of("tr", "TR"), new UTF8Control());
+        btnWhatsApp.setText("");
+        btnWhatsApp.setGraphic(FontIcon.of(MaterialDesignW.WHATSAPP, 16));
+        btnWhatsApp.setTooltip(new Tooltip("WhatsApp ile iletişim kur"));
+        btnWhatsApp.setAccessibleText("Müşteriyle WhatsApp üzerinden iletişim kur");
         configureAssignmentSchedule();
 
-        // Use explicit cell value factories with debug
         colPartName.setCellValueFactory(cellData -> {
             String name = cellData.getValue().getPartName();
-            System.out.println("CellValue partName: " + name);
             return new javafx.beans.property.SimpleStringProperty(name != null ? name : "-");
         });
         colQuantity.setCellValueFactory(cellData -> {
             BigDecimal qty = cellData.getValue().getQuantityUsed();
-            System.out.println("CellValue quantity: " + qty);
             return new javafx.beans.property.SimpleObjectProperty<>(qty);
         });
         colPrice.setCellValueFactory(cellData -> {
             java.math.BigDecimal price = cellData.getValue().getSellingPriceSnapshot();
-            System.out.println("CellValue price: " + price);
             return new javafx.beans.property.SimpleObjectProperty<>(price);
         });
 
@@ -151,19 +156,26 @@ public class TicketDetailsController {
         colPartActions.setCellFactory(col -> new TableCell<>() {
             private final Button decreaseBtn = new Button("−");
             private final Button increaseBtn = new Button("+");
-            private final Button editBtn = new Button("Düzenle");
-            private final Button deleteBtn = new Button("Sil");
-            private final HBox actions = new HBox(5, decreaseBtn, increaseBtn, editBtn, deleteBtn);
+            private final MenuButton moreBtn = new MenuButton("Diğer");
+            private final MenuItem editItem = new MenuItem("Miktarı Düzenle");
+            private final MenuItem deleteItem = new MenuItem("Parçayı Sil");
+            private final HBox actions = new HBox(5, decreaseBtn, increaseBtn, moreBtn);
 
             {
-                decreaseBtn.getStyleClass().add("btn-secondary");
-                increaseBtn.getStyleClass().add("btn-success");
-                editBtn.getStyleClass().add("btn-primary");
-                deleteBtn.getStyleClass().add("btn-danger");
+                decreaseBtn.getStyleClass().addAll("btn-secondary", "inline-icon-button");
+                increaseBtn.getStyleClass().addAll("btn-success", "inline-icon-button");
+                moreBtn.getStyleClass().addAll("btn-secondary", "button-sm", "compact-action-menu");
+                moreBtn.setAccessibleText("Diğer parça işlemleri");
+                moreBtn.getItems().addAll(editItem, new SeparatorMenuItem(), deleteItem);
+                decreaseBtn.setTooltip(new Tooltip("Miktarı azalt"));
+                increaseBtn.setTooltip(new Tooltip("Miktarı artır"));
+                decreaseBtn.setAccessibleText("Kullanılan parça miktarını azalt");
+                increaseBtn.setAccessibleText("Kullanılan parça miktarını artır");
                 decreaseBtn.setOnAction(event -> changePartQuantity(getCurrentPart(), -1));
                 increaseBtn.setOnAction(event -> changePartQuantity(getCurrentPart(), 1));
-                editBtn.setOnAction(event -> editPartQuantity(getCurrentPart()));
-                deleteBtn.setOnAction(event -> deleteUsedPart(getCurrentPart()));
+                editItem.setOnAction(event -> editPartQuantity(getCurrentPart()));
+                deleteItem.setOnAction(event -> deleteUsedPart(getCurrentPart()));
+                actions.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
             }
 
             private ServiceUsedPartDTO getCurrentPart() {
@@ -178,8 +190,9 @@ public class TicketDetailsController {
                 decreaseBtn.setDisable(disabled || part.getQuantityUsed() == null
                         || part.getQuantityUsed().compareTo(quantityStep(part)) <= 0);
                 increaseBtn.setDisable(disabled);
-                editBtn.setDisable(disabled);
-                deleteBtn.setDisable(disabled);
+                editItem.setDisable(disabled);
+                deleteItem.setDisable(disabled);
+                moreBtn.setDisable(disabled);
                 setGraphic(part == null ? null : actions);
             }
         });
@@ -191,19 +204,19 @@ public class TicketDetailsController {
                 cellData.getValue().getSupplier() != null ? cellData.getValue().getSupplier() : "-"));
         colExpenseAmount.setCellValueFactory(
                 cellData -> new javafx.beans.property.SimpleObjectProperty<>(cellData.getValue().getAmount()));
-        // Action column with edit and delete buttons
+        // Compact overflow menu prevents the table action column from clipping on laptops.
         colExpenseActions.setCellFactory(col -> new TableCell<>() {
-            private final Button editBtn = new Button("Düzenle");
-            private final Button deleteBtn = new Button("Sil");
-            private final HBox actions = new HBox(5, editBtn, deleteBtn);
+            private final MenuButton actions = new MenuButton("İşlemler");
+            private final MenuItem editItem = new MenuItem("Düzenle");
+            private final MenuItem deleteItem = new MenuItem("Sil");
             {
-                editBtn.getStyleClass().add("btn-primary");
-                deleteBtn.getStyleClass().add("btn-danger");
-                editBtn.setOnAction(e -> {
+                actions.getItems().addAll(editItem, new SeparatorMenuItem(), deleteItem);
+                actions.getStyleClass().addAll("btn-secondary", "button-sm", "action-menu-button");
+                editItem.setOnAction(e -> {
                     ServiceTicketExpenseDTO expense = getTableView().getItems().get(getIndex());
                     showExpenseDialog(expense);
                 });
-                deleteBtn.setOnAction(e -> {
+                deleteItem.setOnAction(e -> {
                     ServiceTicketExpenseDTO expense = getTableView().getItems().get(getIndex());
                     deleteExpense(expense);
                 });
@@ -212,8 +225,9 @@ public class TicketDetailsController {
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                editBtn.setDisable(empty || !canModifyExpenses());
-                deleteBtn.setDisable(empty || !canModifyExpenses());
+                editItem.setDisable(empty || !canModifyExpenses());
+                deleteItem.setDisable(empty || !canModifyExpenses());
+                actions.setDisable(empty || !canModifyExpenses());
                 setGraphic(empty ? null : actions);
             }
         });
@@ -658,21 +672,15 @@ public class TicketDetailsController {
     private void loadUsedParts() {
         if (currentTicket == null)
             return;
-        System.out.println("Loading used parts for ticket ID: " + currentTicket.getId());
         ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
         api.getUsedParts(currentTicket.getId()).enqueue(new Callback<List<ServiceUsedPartDTO>>() {
             @Override
             public void onResponse(Call<List<ServiceUsedPartDTO>> call, Response<List<ServiceUsedPartDTO>> response) {
-                System.out.println("getUsedParts response code: " + response.code());
                 if (response.isSuccessful() && response.body() != null) {
-                    System.out.println("Used parts count: " + response.body().size());
                     Platform.runLater(() -> {
                         usedPartsList.clear();
                         usedPartsList.addAll(response.body());
-                        System.out.println("usedPartsList size after add: " + usedPartsList.size());
                     });
-                } else {
-                    System.out.println("getUsedParts unsuccessful or body is null");
                 }
             }
 
@@ -1191,33 +1199,10 @@ public class TicketDetailsController {
     private void handleEditCompleted() {
         if (currentTicket == null || !"COMPLETED".equals(currentTicket.getStatus()))
             return;
-        // Show password dialog
-        // Create custom dialog
-        Dialog<String> dialog = new Dialog<>();
-        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow());
-        dialog.setTitle("Admin Doğrulama");
-        dialog.setHeaderText("Kendi yönetici şifrenizi giriniz");
-        // Create PasswordField
-        PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText("Şifre");
-        // Set dialog content
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.add(new Label("Şifre:"), 0, 0);
-        grid.add(passwordField, 1, 0);
-        dialog.getDialogPane().setContent(grid);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        // Convert result
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == ButtonType.OK) {
-                return passwordField.getText();
-            }
-            return null;
-        });
-        dialog.showAndWait().ifPresent(password -> {
-            reopenCompletedTicket(password);
-        });
+        NotificationService.promptSecret(lblStatus.getScene().getWindow(),
+                        "Admin Doğrulama",
+                        "Tamamlanan fişi yeniden açmak için kendi yönetici şifrenizi girin.")
+                .ifPresent(this::reopenCompletedTicket);
     }
 
     private void reopenCompletedTicket(String password) {

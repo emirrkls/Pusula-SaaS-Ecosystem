@@ -13,6 +13,7 @@
         <DatePicker fx:id="startDatePicker" promptText="Başlangıç" prefWidth="155"/>
         <DatePicker fx:id="endDatePicker" promptText="Bitiş" prefWidth="155"/>
         <Button text="Filtrele" onAction="#loadPhotos" styleClass="btn-primary"/>
+        <Button text="Temizle" onAction="#clearFilters" styleClass="btn-secondary"/>
     </FlowPane>
 
     <StackPane VBox.vgrow="ALWAYS">

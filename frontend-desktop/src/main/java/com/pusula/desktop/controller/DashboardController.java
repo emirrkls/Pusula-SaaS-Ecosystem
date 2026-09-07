@@ -4,7 +4,7 @@ import com.pusula.desktop.util.TableUiHelper;
 import com.pusula.desktop.util.ThemeHelper;
 import com.pusula.desktop.util.UTF8Control;
 import com.pusula.desktop.util.AnimationHelper;
-import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.NotificationService;
 
 import com.pusula.desktop.api.CustomerApi;
 import com.pusula.desktop.api.FinanceApi;
@@ -28,6 +28,12 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.input.KeyCode;
+import org.kordamp.ikonli.javafx.FontIcon;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignA;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignW;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -43,10 +49,16 @@ public class DashboardController {
     private Label welcomeLabel;
 
     @FXML
+    private Label lastUpdatedLabel;
+
+    @FXML
     private Label dateLabel;
 
     @FXML
     private Label activeTicketsLabel;
+
+    @FXML
+    private Label unassignedTicketsLabel;
 
     @FXML
     private Label criticalStockLabel;
@@ -58,10 +70,25 @@ public class DashboardController {
     private HBox activeTicketsCard;
 
     @FXML
+    private HBox unassignedTicketsCard;
+
+    @FXML
     private HBox criticalStockCard;
 
     @FXML
     private HBox pendingProposalsCard;
+
+    @FXML
+    private Label activeTicketsIcon;
+
+    @FXML
+    private Label unassignedTicketsIcon;
+
+    @FXML
+    private Label criticalStockIcon;
+
+    @FXML
+    private Label pendingProposalsIcon;
 
     @FXML
     private LineChart<String, Number> performanceChart;
@@ -97,6 +124,7 @@ public class DashboardController {
         resourceBundle = ResourceBundle.getBundle("i18n.messages",
                 Locale.of("tr", "TR"), new UTF8Control());
 
+        setupDashboardIcons();
         setupAgendaList();
         loadDashboardData();
         loadPerformanceChart();
@@ -104,13 +132,44 @@ public class DashboardController {
         // Apply card hover animations for premium feel
         if (activeTicketsCard != null) {
             AnimationHelper.applyCardHover(activeTicketsCard);
+            configureCardAccess(activeTicketsCard, "Aktif servis fişlerini aç", this::handleActiveTicketsClick);
+        }
+        if (unassignedTicketsCard != null) {
+            AnimationHelper.applyCardHover(unassignedTicketsCard);
+            configureCardAccess(unassignedTicketsCard, "Atama bekleyen servis fişlerini aç", this::handleActiveTicketsClick);
         }
         if (criticalStockCard != null) {
             AnimationHelper.applyCardHover(criticalStockCard);
+            configureCardAccess(criticalStockCard, "Kritik stokları aç", this::handleCriticalStockClick);
         }
         if (pendingProposalsCard != null) {
             AnimationHelper.applyCardHover(pendingProposalsCard);
+            configureCardAccess(pendingProposalsCard, "Taslak teklifleri aç", this::handlePendingProposalsClick);
         }
+    }
+
+    private void configureCardAccess(HBox card, String accessibleText, Runnable action) {
+        card.setFocusTraversable(true);
+        card.setAccessibleText(accessibleText);
+        card.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER || event.getCode() == KeyCode.SPACE) {
+                action.run();
+                event.consume();
+            }
+        });
+    }
+
+    private void setupDashboardIcons() {
+        setDashboardIcon(activeTicketsIcon, MaterialDesignC.CLIPBOARD_TEXT);
+        setDashboardIcon(unassignedTicketsIcon, MaterialDesignA.ACCOUNT_MULTIPLE);
+        setDashboardIcon(criticalStockIcon, MaterialDesignA.ALERT_CIRCLE_OUTLINE);
+        setDashboardIcon(pendingProposalsIcon, MaterialDesignF.FILE_DOCUMENT);
+    }
+
+    private void setDashboardIcon(Label target, org.kordamp.ikonli.Ikon icon) {
+        if (target == null) return;
+        target.setText("");
+        target.setGraphic(FontIcon.of(icon, 22));
     }
 
     @FXML
@@ -162,9 +221,8 @@ public class DashboardController {
         private final Label statusBadge = new Label();
         private final Label techLabel = new Label();
         private final HBox actions = new HBox(4);
-        private final Button startBtn = new Button("▶");
-        private final Button callBtn = new Button("📞");
-        private final Button openBtn = new Button("✓");
+        private final Button callBtn = new Button();
+        private final Button openBtn = new Button();
 
         AgendaCardCell() {
             timeLabel.getStyleClass().add("agenda-card-time");
@@ -173,11 +231,16 @@ public class DashboardController {
             card.getStyleClass().add("agenda-card");
             card.setAlignment(Pos.CENTER_LEFT);
 
-            startBtn.getStyleClass().addAll("btn-icon-sm", "btn-icon-success");
             callBtn.getStyleClass().addAll("btn-icon-sm", "btn-icon-primary");
-            openBtn.getStyleClass().addAll("btn-icon-sm", "btn-icon-danger");
+            openBtn.getStyleClass().addAll("btn-icon-sm", "btn-icon-neutral");
+            callBtn.setGraphic(FontIcon.of(MaterialDesignW.WHATSAPP, 16));
+            callBtn.setTooltip(new Tooltip("Müşteri iletişim bilgisini göster"));
+            callBtn.setAccessibleText("Müşteri iletişim bilgisini göster");
+            openBtn.setGraphic(FontIcon.of(MaterialDesignF.FILE_DOCUMENT, 16));
+            openBtn.setTooltip(new Tooltip("Servis fişini aç"));
+            openBtn.setAccessibleText("Servis fişini aç");
             actions.setAlignment(Pos.CENTER_RIGHT);
-            actions.getChildren().addAll(startBtn, callBtn, openBtn);
+            actions.getChildren().addAll(callBtn, openBtn);
 
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -195,16 +258,12 @@ public class DashboardController {
                 openTicketDetails(getItem());
             });
 
-            startBtn.setOnAction(e -> {
-                if (getItem() != null) handleStartTicket(getItem());
-                e.consume();
-            });
             callBtn.setOnAction(e -> {
                 if (getItem() != null) handleCallCustomer(getItem());
                 e.consume();
             });
             openBtn.setOnAction(e -> {
-                if (getItem() != null) handleCompleteTicket(getItem());
+                if (getItem() != null) openTicketDetails(getItem());
                 e.consume();
             });
 
@@ -236,19 +295,8 @@ public class DashboardController {
                 techLabel.setText(tech != null && !tech.isBlank() ? tech : "Teknisyen #" + ticket.getAssignedTechnicianId());
             }
 
-            String status = ticket.getStatus() != null ? ticket.getStatus() : "";
-            startBtn.setVisible("PENDING".equals(status) || "ASSIGNED".equals(status));
-            startBtn.setManaged(startBtn.isVisible());
-
             setGraphic(card);
         }
-    }
-
-    private void handleStartTicket(ServiceTicketDTO ticket) {
-        // TODO: Update ticket status to IN_PROGRESS
-        System.out.println("Starting ticket: " + ticket.getId());
-        // Reload data after action
-        loadDashboardData();
     }
 
     private void handleCallCustomer(ServiceTicketDTO ticket) {
@@ -259,7 +307,7 @@ public class DashboardController {
                 public void onResponse(retrofit2.Call<CustomerDTO> call, retrofit2.Response<CustomerDTO> response) {
                     if (response.isSuccessful() && response.body() != null) {
                         Platform.runLater(() -> {
-                            AlertHelper.showAlert(Alert.AlertType.INFORMATION, welcomeLabel.getScene().getWindow(),
+                            NotificationService.modal(ownerWindow(), NotificationService.Kind.INFO,
                                     "Müşteri İletişim", response.body().getName() + " · " + response.body().getPhone());
                         });
                     }
@@ -268,18 +316,11 @@ public class DashboardController {
                 @Override
                 public void onFailure(retrofit2.Call<CustomerDTO> call, Throwable t) {
                     Platform.runLater(() -> {
-                        AlertHelper.showAlert(Alert.AlertType.ERROR, welcomeLabel.getScene().getWindow(),
-                                "Hata", "Müşteri bilgisi alınamadı.");
+                        NotificationService.modal(ownerWindow(), NotificationService.Kind.ERROR,
+                                "Müşteri Bilgisi Alınamadı", "Bağlantıyı kontrol edip yeniden deneyin.");
                     });
                 }
             });
-        }
-    }
-
-    private void handleCompleteTicket(ServiceTicketDTO ticket) {
-        if (mainController != null) {
-            // Navigate to ticket details for completion
-            openTicketDetails(ticket);
         }
     }
 
@@ -305,9 +346,15 @@ public class DashboardController {
             loadDashboardData();
         } catch (Exception e) {
             e.printStackTrace();
-            AlertHelper.showAlert(Alert.AlertType.ERROR, welcomeLabel.getScene().getWindow(),
+            NotificationService.modal(ownerWindow(), NotificationService.Kind.ERROR,
                     "Detaylar Açılamadı", e.getMessage());
         }
+    }
+
+    private javafx.stage.Window ownerWindow() {
+        return agendaListView != null && agendaListView.getScene() != null
+                ? agendaListView.getScene().getWindow()
+                : null;
     }
 
     private void loadPerformanceChart() {
@@ -327,6 +374,8 @@ public class DashboardController {
             @Override
             public void onFailure(retrofit2.Call<Map<String, Map<String, Integer>>> call, Throwable t) {
                 System.err.println("Failed to load performance data: " + t.getMessage());
+                Platform.runLater(() -> showDashboardProblem(
+                        "Teknisyen performansı şu anda alınamıyor. Diğer özetler kullanılabilir."));
             }
         });
     }
@@ -386,6 +435,9 @@ public class DashboardController {
                     long activeCount = response.body().stream()
                             .filter(t -> !Arrays.asList("COMPLETED", "CANCELLED").contains(t.getStatus()))
                             .count();
+                    long unassignedCount = response.body().stream()
+                            .filter(ServiceTicketController::isPendingUnassigned)
+                            .count();
                             
                     // SLA Checker
                     long delayedCount = response.body().stream()
@@ -395,19 +447,21 @@ public class DashboardController {
 
                     Platform.runLater(() -> {
                         AnimationHelper.animateCounter(activeTicketsLabel, activeCount, 1500);
+                        AnimationHelper.animateCounter(unassignedTicketsLabel, unassignedCount, 1200);
+                        updateLastRefreshed();
                         
                         if (alertContainer != null) {
+                            alertContainer.getChildren().removeIf(node ->
+                                    node.getStyleClass().contains("dashboard-alert-critical"));
                             if (delayedCount > 0) {
-                                alertContainer.getChildren().clear();
-                                Label alertText = new Label("🔥 " + delayedCount + " adet servis fişi 48 saatten uzun süredir müdahale bekliyor!");
+                                Label alertText = new Label(delayedCount
+                                        + " servis fişi 48 saatten uzun süredir müdahale bekliyor.");
                                 alertText.getStyleClass().add("dashboard-alert-critical");
                                 alertContainer.getChildren().add(alertText);
-                                alertContainer.setVisible(true);
-                                alertContainer.setManaged(true);
-                            } else {
-                                alertContainer.setVisible(false);
-                                alertContainer.setManaged(false);
                             }
+                            boolean hasAlerts = !alertContainer.getChildren().isEmpty();
+                            alertContainer.setVisible(hasAlerts);
+                            alertContainer.setManaged(hasAlerts);
                         }
                     });
 
@@ -421,14 +475,20 @@ public class DashboardController {
                 } else if (response.code() == 403) {
                     Platform.runLater(() -> {
                         activeTicketsLabel.setText("0");
+                        unassignedTicketsLabel.setText("0");
                         setAgendaItems(java.util.List.of());
                     });
+                } else {
+                    Platform.runLater(() -> showDashboardProblem(
+                            "Servis özeti alınamadı (HTTP " + response.code() + ")."));
                 }
             }
 
             @Override
             public void onFailure(retrofit2.Call<java.util.List<ServiceTicketDTO>> call, Throwable t) {
                 System.err.println("Failed to fetch tickets: " + t.getMessage());
+                Platform.runLater(() -> showDashboardProblem(
+                        "Servis verilerine ulaşılamadı. Bağlantıyı kontrol edip yeniden deneyin."));
             }
         });
 
@@ -450,6 +510,7 @@ public class DashboardController {
             public void onFailure(retrofit2.Call<java.util.List<com.pusula.desktop.dto.InventoryDTO>> call,
                     Throwable t) {
                 System.err.println("Failed to fetch inventory: " + t.getMessage());
+                Platform.runLater(() -> criticalStockLabel.setText("—"));
             }
         });
 
@@ -475,7 +536,31 @@ public class DashboardController {
             public void onFailure(retrofit2.Call<java.util.List<com.pusula.desktop.dto.ProposalDTO>> call,
                     Throwable t) {
                 System.err.println("Failed to fetch proposals: " + t.getMessage());
+                Platform.runLater(() -> pendingProposalsLabel.setText("—"));
             }
         });
+    }
+
+    private void updateLastRefreshed() {
+        if (lastUpdatedLabel != null) {
+            lastUpdatedLabel.setText("Son güncelleme "
+                    + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")));
+        }
+    }
+
+    private void showDashboardProblem(String message) {
+        if (alertContainer == null) return;
+        boolean alreadyShown = alertContainer.getChildren().stream()
+                .filter(Label.class::isInstance)
+                .map(Label.class::cast)
+                .anyMatch(label -> message.equals(label.getText()));
+        if (!alreadyShown) {
+            Label alertText = new Label(message);
+            alertText.setWrapText(true);
+            alertText.getStyleClass().add("dashboard-alert-warning");
+            alertContainer.getChildren().add(alertText);
+        }
+        alertContainer.setVisible(true);
+        alertContainer.setManaged(true);
     }
 }

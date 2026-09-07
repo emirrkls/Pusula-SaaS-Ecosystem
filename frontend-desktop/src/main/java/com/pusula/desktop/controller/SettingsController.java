@@ -551,7 +551,6 @@ public class SettingsController {
             @Override
             public void onResponse(Call<okhttp3.ResponseBody> call, Response<okhttp3.ResponseBody> response) {
                 if (response.isSuccessful()) {
-                    System.out.println("Signature uploaded successfully for user " + userId);
                 } else {
                     System.err.println("Signature upload failed: " + response.code());
                 }

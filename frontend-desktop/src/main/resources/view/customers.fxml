@@ -9,9 +9,9 @@
       <Insets bottom="8.0" left="0.0" right="0.0" top="8.0" />
    </padding>
    <children>
-      <HBox alignment="CENTER_LEFT" spacing="16.0" styleClass="page-header">
+      <HBox alignment="CENTER_LEFT" spacing="16.0" styleClass="page-toolbar">
          <VBox spacing="4.0" HBox.hgrow="ALWAYS">
-            <Label styleClass="page-header-title" text="%customers.title" />
+            <Label managed="false" styleClass="page-header-title" text="%customers.title" visible="false" />
             <Label fx:id="resultCountLabel" styleClass="page-subtitle" text="" />
          </VBox>
          <FlowPane alignment="CENTER_RIGHT" hgap="10.0" vgap="8.0" styleClass="page-header-actions">
@@ -27,6 +27,7 @@
             <Label styleClass="empty-state-title" text="Müşteri bulunamadı" />
             <Label styleClass="empty-state-subtitle" text="Yeni müşteri ekleyin veya aramayı değiştirin." />
          </VBox>
-      </StackPane>
+         <ProgressIndicator fx:id="loadingIndicator" managed="false" maxHeight="44.0" maxWidth="44.0" visible="false" />
+      </StackPane>
    </children>
 </VBox>

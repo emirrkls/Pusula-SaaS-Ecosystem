@@ -8,6 +8,7 @@ import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.UTF8Control;
 import com.pusula.desktop.util.KeyboardShortcutHelper;
+import com.pusula.desktop.util.NotificationService;
 import com.pusula.desktop.util.PreferencesHelper;
 import com.pusula.desktop.util.SessionManager;
 import com.pusula.desktop.util.ThemeHelper;
@@ -23,7 +24,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.GridPane;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -35,6 +36,8 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignF;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignH;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignI;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignL;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignP;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignV;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignW;
@@ -46,6 +49,25 @@ import java.io.IOException;
 import java.util.Map;
 
 public class MainDashboardController {
+    private static final String SIDEBAR_COLLAPSED_PREFERENCE = "shell.sidebarCollapsed";
+
+    @FXML private BorderPane appShell;
+    @FXML private VBox sidebar;
+    @FXML private VBox userIdentity;
+    @FXML private VBox operationsNavGroup;
+    @FXML private VBox salesNavGroup;
+    @FXML private VBox assetsNavGroup;
+    @FXML private VBox financeNavGroup;
+    @FXML private VBox managementNavGroup;
+    @FXML private Label operationsNavLabel;
+    @FXML private Label salesNavLabel;
+    @FXML private Label assetsNavLabel;
+    @FXML private Label financeNavLabel;
+    @FXML private Label managementNavLabel;
+    @FXML private Label sidebarBrandTitle;
+    @FXML private Label sidebarBrandSubtitle;
+    @FXML private Button btnSidebarToggle;
+    @FXML private Button logoutButton;
     @FXML
     private StackPane contentArea;
     @FXML
@@ -87,6 +109,7 @@ public class MainDashboardController {
     private boolean isDark = false;
     private Button activeNavButton;
     private Timeline notificationRefreshTimer;
+    private boolean sidebarCollapsed;
 
     // Load saved theme preference
     {
@@ -95,7 +118,9 @@ public class MainDashboardController {
     }
 
     // Screensaver fields
-    private static final int IDLE_TIMEOUT_SECONDS = 10; // 10 seconds for testing
+    private static final int IDLE_TIMEOUT_SECONDS = Math.max(
+            60,
+            Integer.getInteger("pusula.idleTimeoutSeconds", 10 * 60));
     private PauseTransition idleTimer;
     private Parent screensaverView;
     private ScreensaverController screensaverController;
@@ -105,6 +130,7 @@ public class MainDashboardController {
         setupUserProfile();
         setupNavigationIcons();
         setupThemeToggleIcon();
+        setupSidebar();
         if (SessionManager.isAdmin()) {
             btnNotifications.setGraphic(FontIcon.of(MaterialDesignB.BELL_OUTLINE, 18));
             refreshNotificationBadge();
@@ -127,10 +153,14 @@ public class MainDashboardController {
         }
 
         applyPlanFeatures();
+        refreshNavigationGroups();
 
         contentArea.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 ThemeHelper.applyToScene(newScene, isDark);
+                newScene.widthProperty().addListener((observable, oldWidth, newWidth) -> {
+                    if (!sidebarCollapsed) applySidebarState(false);
+                });
             }
         });
 
@@ -189,6 +219,103 @@ public class MainDashboardController {
         setNavIcon(btnFinance, MaterialDesignC.CASH_MULTIPLE);
         setNavIcon(btnSettings, MaterialDesignC.COG);
         setNavIcon(btnActivityLog, MaterialDesignH.HISTORY);
+        setNavIcon(logoutButton, MaterialDesignL.LOGOUT);
+    }
+
+    private void setupSidebar() {
+        btnSidebarToggle.setGraphic(FontIcon.of(MaterialDesignM.MENU, 20));
+        btnSidebarToggle.setTooltip(new Tooltip("Menüyü daralt veya genişlet"));
+        btnSidebarToggle.setAccessibleText("Yan menüyü daralt veya genişlet");
+        sidebarCollapsed = PreferencesHelper.getBoolean(SIDEBAR_COLLAPSED_PREFERENCE, false);
+        applySidebarState(false);
+    }
+
+    @FXML
+    private void toggleSidebar() {
+        sidebarCollapsed = !sidebarCollapsed;
+        PreferencesHelper.setBoolean(SIDEBAR_COLLAPSED_PREFERENCE, sidebarCollapsed);
+        applySidebarState(true);
+    }
+
+    private void applySidebarState(boolean animate) {
+        double sceneWidth = sidebar.getScene() != null ? sidebar.getScene().getWidth() : 0;
+        double expandedWidth = sceneWidth > 0 && sceneWidth < 920 ? 168
+                : sceneWidth > 0 && sceneWidth < 1180 ? 192 : 240;
+        double targetWidth = sidebarCollapsed ? 76 : expandedWidth;
+        sidebar.setMinWidth(targetWidth);
+        sidebar.setPrefWidth(targetWidth);
+        sidebar.setMaxWidth(targetWidth);
+
+        if (sidebarCollapsed) {
+            if (!appShell.getStyleClass().contains("sidebar-collapsed")) {
+                appShell.getStyleClass().add("sidebar-collapsed");
+            }
+        } else {
+            appShell.getStyleClass().remove("sidebar-collapsed");
+        }
+
+        setVisibleAndManaged(sidebarBrandSubtitle, !sidebarCollapsed);
+        setVisibleAndManaged(userIdentity, !sidebarCollapsed);
+        for (Label label : navigationSectionLabels()) {
+            setVisibleAndManaged(label, !sidebarCollapsed);
+        }
+
+        for (Button button : navigationButtons()) {
+            if (button == null) continue;
+            if (button.getAccessibleText() == null || button.getAccessibleText().isBlank()) {
+                button.setAccessibleText(button.getText());
+            }
+            if (button.getTooltip() == null || !button.getText().equals(button.getTooltip().getText())) {
+                button.setTooltip(new Tooltip(button.getText()));
+            }
+            button.setContentDisplay(sidebarCollapsed ? ContentDisplay.GRAPHIC_ONLY : ContentDisplay.LEFT);
+            button.setMinWidth(0);
+            button.setMaxWidth(Double.MAX_VALUE);
+        }
+        sidebarBrandTitle.setText(sidebarCollapsed ? "P" : "Pusula");
+
+        if (animate) {
+            javafx.animation.FadeTransition fade = new javafx.animation.FadeTransition(
+                    javafx.util.Duration.millis(140), sidebar);
+            fade.setFromValue(0.78);
+            fade.setToValue(1);
+            fade.play();
+        }
+    }
+
+    private java.util.List<Button> navigationButtons() {
+        return java.util.List.of(navDashboard, navTickets, navServicePhotos, navServiceNetwork,
+                navCustomers, btnProposals, btnCommercial, navInventory, btnFinance,
+                btnSettings, btnActivityLog, logoutButton);
+    }
+
+    private java.util.List<Label> navigationSectionLabels() {
+        return java.util.List.of(operationsNavLabel, salesNavLabel, assetsNavLabel,
+                financeNavLabel, managementNavLabel);
+    }
+
+    private void refreshNavigationGroups() {
+        refreshNavigationGroup(operationsNavGroup);
+        refreshNavigationGroup(salesNavGroup);
+        refreshNavigationGroup(assetsNavGroup);
+        refreshNavigationGroup(financeNavGroup);
+        refreshNavigationGroup(managementNavGroup);
+    }
+
+    private void refreshNavigationGroup(VBox group) {
+        if (group == null) return;
+        boolean hasVisibleAction = group.getChildren().stream()
+                .filter(Button.class::isInstance)
+                .map(Button.class::cast)
+                .anyMatch(Button::isVisible);
+        group.setVisible(hasVisibleAction);
+        group.setManaged(hasVisibleAction);
+    }
+
+    private void setVisibleAndManaged(javafx.scene.Node node, boolean visible) {
+        if (node == null) return;
+        node.setVisible(visible);
+        node.setManaged(visible);
     }
 
     private void setNavIcon(Button button, org.kordamp.ikonli.Ikon icon) {
@@ -531,33 +658,10 @@ public class MainDashboardController {
     }
 
     private void showPasswordVerificationDialog(Runnable onSuccess) {
-        Dialog<String> dialog = new Dialog<>();
-        ThemeHelper.applyToDialog(dialog, contentArea.getScene().getWindow());
-        dialog.setTitle("Şifre Doğrulama");
-        dialog.setHeaderText("Bu alana erişmek için şifrenizi giriniz");
-
-        PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText("Şifre");
-
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.add(new Label("Şifre:"), 0, 0);
-        grid.add(passwordField, 1, 0);
-
-        dialog.getDialogPane().setContent(grid);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == ButtonType.OK) {
-                return passwordField.getText();
-            }
-            return null;
-        });
-
-        dialog.showAndWait().ifPresent(password -> {
-            verifyPassword(password, onSuccess);
-        });
+        NotificationService.promptSecret(contentArea.getScene().getWindow(),
+                        "Şifre Doğrulama",
+                        "Finansal veya yönetimsel alana erişmek için kendi yönetici şifrenizi girin.")
+                .ifPresent(password -> verifyPassword(password, onSuccess));
     }
 
     private void verifyPassword(String password, Runnable onSuccess) {

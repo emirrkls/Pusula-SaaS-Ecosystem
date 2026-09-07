@@ -10,11 +10,7 @@
         <Insets bottom="8.0" left="0.0" right="0.0" top="8.0" />
     </padding>
 
-    <HBox alignment="CENTER_LEFT" spacing="16.0" styleClass="page-header">
-        <VBox spacing="3">
-            <Label styleClass="page-header-title" text="Teklifler"/>
-            <Label styleClass="page-subtitle" text="Teklifleri hazırlayın, takip edin ve güvenle işe dönüştürün."/>
-        </VBox>
+    <HBox alignment="CENTER_LEFT" spacing="16.0" styleClass="page-toolbar">
         <Region HBox.hgrow="ALWAYS"/>
         <FlowPane hgap="10.0" vgap="8.0" styleClass="page-header-actions">
             <Button fx:id="refreshBtn" onAction="#handleRefresh" styleClass="btn-secondary" text="Yenile"/>
@@ -41,7 +37,7 @@
             <TableColumn fx:id="colTotal" prefWidth="120" text="Tutar"/>
             <TableColumn fx:id="colStatus" prefWidth="100" text="Durum"/>
             <TableColumn fx:id="colValidUntil" prefWidth="120" text="Geçerlilik"/>
-            <TableColumn fx:id="colActions" prefWidth="200" text="İşlemler"/>
+            <TableColumn fx:id="colActions" minWidth="112" prefWidth="125" text="İşlemler"/>
         </columns>
         <columnResizePolicy>
             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>

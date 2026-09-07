@@ -9,6 +9,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableView;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.Region;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -53,7 +54,7 @@ public final class ResponsiveLayoutSupport {
         viewport.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         viewport.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         if (view instanceof Region region) {
-            region.minWidthProperty().bind(Bindings.max(720, viewport.widthProperty().subtract(4)));
+            region.minWidthProperty().bind(Bindings.max(560, viewport.widthProperty().subtract(4)));
         }
         return viewport;
     }
@@ -74,6 +75,14 @@ public final class ResponsiveLayoutSupport {
                     && !button.getStyleClass().contains("btn-whatsapp-icon")) {
                 button.setMinWidth(Region.USE_PREF_SIZE);
                 button.setWrapText(false);
+                if (button.getText() != null && !button.getText().isBlank()) {
+                    if (button.getAccessibleText() == null || button.getAccessibleText().isBlank()) {
+                        button.setAccessibleText(button.getText());
+                    }
+                    if (button.getTooltip() == null) {
+                        button.setTooltip(new Tooltip(button.getText()));
+                    }
+                }
             }
         }
         for (Node node : root.lookupAll(".table-view")) {

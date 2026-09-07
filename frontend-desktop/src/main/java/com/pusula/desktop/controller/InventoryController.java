@@ -291,6 +291,8 @@ public class InventoryController {
             {
 
                 editBtn.getStyleClass().addAll("btn-icon-sm", "btn-icon-primary");
+                editBtn.setTooltip(new Tooltip("Stok kaydını düzenle"));
+                editBtn.setAccessibleText("Stok kaydını düzenle");
 
                 editBtn.setOnAction(e -> {
 

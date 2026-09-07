@@ -210,8 +210,6 @@ public class TransferStockDialogController {
             BigDecimal totalQty = selectedItem.getQuantity();
             BigDecimal displayQty = warehouseQty != null ? warehouseQty : (totalQty != null ? totalQty : BigDecimal.ZERO);
             warehouseStockLabel.setText(formatQuantity(displayQty));
-            System.out.println("Selected item: " + selectedItem.getPartName() + " - Warehouse: " + displayQty
-                    + " (warehouseQty=" + warehouseQty + ", totalQty=" + totalQty + ")");
 
             // Vehicle stock - need to fetch from vehicle stocks
             if (selectedVehicle != null) {

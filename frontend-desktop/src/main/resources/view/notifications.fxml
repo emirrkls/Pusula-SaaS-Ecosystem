@@ -3,18 +3,32 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.ProgressIndicator?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-<VBox spacing="16" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.NotificationsController">
+<VBox spacing="16" styleClass="page-view" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.NotificationsController">
   <padding><Insets top="8" right="8" bottom="8" left="8"/></padding>
-  <HBox alignment="CENTER_LEFT" spacing="12" styleClass="notification-toolbar">
-    <VBox spacing="3"><Label text="Bildirim Merkezi" styleClass="section-title"/><Label fx:id="summaryLabel" text="Yükleniyor..." styleClass="page-subtitle"/></VBox>
+  <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-toolbar">
+    <Label fx:id="summaryLabel" text="Yükleniyor..." styleClass="page-subtitle"/>
     <Region HBox.hgrow="ALWAYS"/>
     <Button fx:id="markAllButton" text="Tümünü Okundu Yap" onAction="#markAllRead" styleClass="button-secondary"/>
   </HBox>
-  <ScrollPane fitToWidth="true" styleClass="service-photo-scroll" VBox.vgrow="ALWAYS">
-    <content><VBox fx:id="notificationList" spacing="10"/></content>
-  </ScrollPane>
-  <Label fx:id="emptyLabel" text="Henüz bildirim yok." visible="false" managed="false" styleClass="service-photo-empty"/>
+  <FlowPane alignment="CENTER_LEFT" hgap="10" vgap="10" styleClass="filter-bar">
+    <TextField fx:id="searchField" prefWidth="300" promptText="Başlık veya açıklama ara"/>
+    <ComboBox fx:id="readFilter" prefWidth="160"/>
+    <ComboBox fx:id="categoryFilter" prefWidth="190"/>
+    <Button text="Yenile" onAction="#load" styleClass="button-secondary"/>
+  </FlowPane>
+  <StackPane VBox.vgrow="ALWAYS">
+    <ScrollPane fitToWidth="true" styleClass="service-photo-scroll">
+      <content><VBox fx:id="notificationList" spacing="10"/></content>
+    </ScrollPane>
+    <Label fx:id="emptyLabel" text="Bu filtrede bildirim yok." visible="false" managed="false" styleClass="service-photo-empty"/>
+    <ProgressIndicator fx:id="loadingIndicator" maxHeight="44" maxWidth="44" visible="false" managed="false"/>
+  </StackPane>
 </VBox>

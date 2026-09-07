@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.chart.LineChart?>
 <?import javafx.scene.chart.CategoryAxis?>
 <?import javafx.scene.chart.NumberAxis?>
@@ -22,24 +23,23 @@
    <VBox fx:id="alertContainer" spacing="10" visible="false" managed="false" styleClass="alert-banner">
    </VBox>
 
-   <!-- 1. Welcome Banner -->
-   <HBox styleClass="welcome-banner" alignment="CENTER_LEFT">
-       <VBox>
-           <Label fx:id="welcomeLabel" styleClass="page-header-title" text="Hoş Geldiniz!"/>
-           <Label text="%menu.dashboard" styleClass="page-subtitle"/>
+   <!-- 1. Context bar: the application shell already owns the page title. -->
+   <HBox styleClass="dashboard-context-bar" alignment="CENTER_LEFT">
+       <VBox spacing="3">
+           <Label text="Bugünün operasyon görünümü" styleClass="section-heading"/>
+           <Label fx:id="lastUpdatedLabel" text="Veriler hazırlanıyor..." styleClass="section-caption"/>
        </VBox>
        <Region HBox.hgrow="ALWAYS" />
-       <!-- Optional right side elements like Date -->
-       <Label fx:id="dateLabel" styleClass="page-subtitle"/>
+       <Label fx:id="dateLabel" styleClass="dashboard-date-pill"/>
    </HBox>
 
    <!-- 2. Summary Cards -->
-   <FlowPane hgap="20.0" prefWrapLength="900.0" vgap="14.0" styleClass="dashboard-summary-grid">
+   <FlowPane hgap="14.0" vgap="14.0" styleClass="dashboard-summary-grid">
       <children>
-         <HBox fx:id="activeTicketsCard" onMouseClicked="#handleActiveTicketsClick" alignment="CENTER_LEFT" prefHeight="112.0" prefWidth="280.0" styleClass="card-modern, card-accent-blue">
+         <HBox fx:id="activeTicketsCard" onMouseClicked="#handleActiveTicketsClick" alignment="CENTER_LEFT" prefHeight="106.0" prefWidth="250.0" styleClass="card-modern, card-accent-blue">
             <padding><Insets left="20" right="20"/></padding>
             <VBox alignment="CENTER" styleClass="dashboard-stat-icon, dashboard-stat-icon-blue">
-                <Label styleClass="dashboard-stat-emoji" text="🔧" />
+                <Label fx:id="activeTicketsIcon" styleClass="dashboard-stat-glyph" />
             </VBox>
             <VBox alignment="CENTER_LEFT" spacing="5" HBox.hgrow="ALWAYS">
                <padding><Insets left="15"/></padding>
@@ -48,10 +48,22 @@
             </VBox>
          </HBox>
 
-         <HBox fx:id="criticalStockCard" onMouseClicked="#handleCriticalStockClick" alignment="CENTER_LEFT" prefHeight="112.0" prefWidth="280.0" styleClass="card-modern, card-accent-red">
+         <HBox fx:id="unassignedTicketsCard" onMouseClicked="#handleActiveTicketsClick" alignment="CENTER_LEFT" prefHeight="106.0" prefWidth="250.0" styleClass="card-modern, card-accent-amber">
+            <padding><Insets left="20" right="20"/></padding>
+            <VBox alignment="CENTER" styleClass="dashboard-stat-icon, dashboard-stat-icon-amber">
+                <Label fx:id="unassignedTicketsIcon" styleClass="dashboard-stat-glyph" />
+            </VBox>
+            <VBox alignment="CENTER_LEFT" spacing="5" HBox.hgrow="ALWAYS">
+               <padding><Insets left="15"/></padding>
+               <Label styleClass="card-title-modern" text="Atama Bekleyen" />
+               <Label fx:id="unassignedTicketsLabel" styleClass="card-value-modern" text="0" />
+            </VBox>
+         </HBox>
+
+         <HBox fx:id="criticalStockCard" onMouseClicked="#handleCriticalStockClick" alignment="CENTER_LEFT" prefHeight="106.0" prefWidth="250.0" styleClass="card-modern, card-accent-red">
             <padding><Insets left="20" right="20"/></padding>
             <VBox alignment="CENTER" styleClass="dashboard-stat-icon, dashboard-stat-icon-red">
-                <Label styleClass="dashboard-stat-emoji" text="⚠️" />
+                <Label fx:id="criticalStockIcon" styleClass="dashboard-stat-glyph" />
             </VBox>
             <VBox alignment="CENTER_LEFT" spacing="5" HBox.hgrow="ALWAYS">
                <padding><Insets left="15"/></padding>
@@ -60,10 +72,10 @@
             </VBox>
          </HBox>
 
-         <HBox fx:id="pendingProposalsCard" onMouseClicked="#handlePendingProposalsClick" alignment="CENTER_LEFT" prefHeight="112.0" prefWidth="280.0" styleClass="card-modern, card-accent-green">
+         <HBox fx:id="pendingProposalsCard" onMouseClicked="#handlePendingProposalsClick" alignment="CENTER_LEFT" prefHeight="106.0" prefWidth="250.0" styleClass="card-modern, card-accent-green">
             <padding><Insets left="20" right="20"/></padding>
             <VBox alignment="CENTER" styleClass="dashboard-stat-icon, dashboard-stat-icon-green">
-                <Label styleClass="dashboard-stat-emoji" text="📄" />
+                <Label fx:id="pendingProposalsIcon" styleClass="dashboard-stat-glyph" />
             </VBox>
             <VBox alignment="CENTER_LEFT" spacing="5" HBox.hgrow="ALWAYS">
                <padding><Insets left="15"/></padding>
@@ -74,10 +86,11 @@
       </children>
    </FlowPane>
 
-   <!-- 3. Main Content Area without SplitPane -->
-   <HBox spacing="20.0" VBox.vgrow="ALWAYS">
+   <!-- 3. Main content uses a resizable split instead of two fixed-width columns. -->
+   <SplitPane dividerPositions="0.62" VBox.vgrow="ALWAYS" styleClass="dashboard-workspace">
+     <items>
        <!-- Left: Performance Chart inside a beautiful Card -->
-       <VBox styleClass="card-container" HBox.hgrow="ALWAYS" prefWidth="600">
+       <VBox styleClass="card-container">
            <Label text="Teknisyen Performansı (Son 7 Gün)" styleClass="section-title" />
            <LineChart fx:id="performanceChart" VBox.vgrow="ALWAYS" styleClass="premium-chart" createSymbols="false">
               <xAxis>
@@ -90,7 +103,7 @@
        </VBox>
 
        <!-- Right: Today's Agenda -->
-       <VBox styleClass="card-container" HBox.hgrow="ALWAYS" prefWidth="400">
+       <VBox styleClass="card-container">
            <HBox alignment="CENTER_LEFT" spacing="8">
                <Label text="Bugünkü Randevular" styleClass="section-title" HBox.hgrow="ALWAYS"/>
                <Label fx:id="agendaCountLabel" styleClass="page-subtitle" text=""/>
@@ -103,5 +116,6 @@
                </VBox>
            </StackPane>
        </VBox>
-   </HBox>
+     </items>
+   </SplitPane>
 </VBox>

@@ -59,11 +59,35 @@ public class ServiceTicketController {
         ALL
     }
 
+    enum TicketSort {
+        SCHEDULE_NEWEST("Randevu: Yeni → Eski"),
+        SCHEDULE_OLDEST("Randevu: Eski → Yeni"),
+        UPDATED_NEWEST("Son Güncellenen"),
+        TICKET_NUMBER_DESC("Fiş No: Büyük → Küçük");
+
+        private final String label;
+
+        TicketSort(String label) {
+            this.label = label;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Europe/Istanbul");
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
 
     @FXML
     private TextField txtSearch;
+    @FXML
+    private DatePicker startDatePicker;
+    @FXML
+    private DatePicker endDatePicker;
+    @FXML
+    private ComboBox<TicketSort> sortComboBox;
     @FXML
     private HBox filterChipContainer;
     @FXML
@@ -109,6 +133,7 @@ public class ServiceTicketController {
 
         setupTicketList();
         setupFilterChips();
+        setupDateAndSortFilters();
         setupSmartSearch();
         btnBulkAssign.setVisible(false);
         btnBulkAssign.setManaged(false);
@@ -154,8 +179,20 @@ public class ServiceTicketController {
         emptyStateBox.setVisible(empty);
         emptyStateBox.setManaged(empty);
         ticketsListView.setVisible(!empty);
-        resultCountLabel.setText(sortedList.size() + " sonuç");
+        if (!hasValidDateRange()) {
+            resultCountLabel.setText("Başlangıç tarihi bitiş tarihinden sonra olamaz");
+        } else {
+            resultCountLabel.setText(sortedList.size() + " sonuç");
+        }
         updateBulkAssignButton();
+    }
+
+    private void setupDateAndSortFilters() {
+        sortComboBox.setItems(FXCollections.observableArrayList(TicketSort.values()));
+        sortComboBox.getSelectionModel().select(TicketSort.SCHEDULE_NEWEST);
+        sortComboBox.valueProperty().addListener((obs, oldValue, newValue) -> applySortOrder());
+        startDatePicker.valueProperty().addListener((obs, oldValue, newValue) -> updateFilters());
+        endDatePicker.valueProperty().addListener((obs, oldValue, newValue) -> updateFilters());
     }
 
     private class TicketCardCell extends ListCell<ServiceTicketDTO> {
@@ -277,6 +314,9 @@ public class ServiceTicketController {
         if (!matchesStatusFilter(ticket, currentFilter)) {
             return false;
         }
+        if (!hasValidDateRange() || !matchesDateRange(ticket, startDatePicker.getValue(), endDatePicker.getValue())) {
+            return false;
+        }
         if (selectedSuggestion != null) {
             Long searchId = selectedSuggestion.getId();
             if (selectedSuggestion.getType() == SearchSuggestion.Type.CUSTOMER) {
@@ -301,6 +341,38 @@ public class ServiceTicketController {
                 ).stream()
                 .map(text -> text.toLowerCase(Locale.forLanguageTag("tr-TR")))
                 .anyMatch(text -> text.contains(term));
+    }
+
+    static boolean matchesDateRange(ServiceTicketDTO ticket, LocalDate start, LocalDate end) {
+        if (ticket == null) return false;
+        LocalDate relevantDate = relevantDate(ticket);
+        if (relevantDate == null) return start == null && end == null;
+        return (start == null || !relevantDate.isBefore(start))
+                && (end == null || !relevantDate.isAfter(end));
+    }
+
+    private static LocalDate relevantDate(ServiceTicketDTO ticket) {
+        if (ticket.getScheduledDate() != null) return ticket.getScheduledDate().toLocalDate();
+        if (ticket.getCompletedAt() != null) return ticket.getCompletedAt().toLocalDate();
+        return ticket.getCreatedAt() != null ? ticket.getCreatedAt().toLocalDate() : null;
+    }
+
+    private boolean hasValidDateRange() {
+        LocalDate start = startDatePicker != null ? startDatePicker.getValue() : null;
+        LocalDate end = endDatePicker != null ? endDatePicker.getValue() : null;
+        boolean valid = start == null || end == null || !start.isAfter(end);
+        updateDateValidationStyle(startDatePicker, valid);
+        updateDateValidationStyle(endDatePicker, valid);
+        return valid;
+    }
+
+    private void updateDateValidationStyle(DatePicker picker, boolean valid) {
+        if (picker == null) return;
+        if (valid) {
+            picker.getStyleClass().remove("input-invalid");
+        } else if (!picker.getStyleClass().contains("input-invalid")) {
+            picker.getStyleClass().add("input-invalid");
+        }
     }
 
     private static String value(String text) {
@@ -350,15 +422,26 @@ public class ServiceTicketController {
     }
 
     private void applySortOrder() {
-        if (currentFilter == TicketFilter.CLOSED) {
-            sortedList.setComparator(
-                    Comparator.comparing(ServiceTicketDTO::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
-                            .thenComparing(ServiceTicketDTO::getId, Comparator.nullsLast(Comparator.reverseOrder())));
-        } else {
-            sortedList.setComparator(
-                    Comparator.comparing(ServiceTicketDTO::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
-                            .thenComparing(ServiceTicketDTO::getId, Comparator.nullsLast(Comparator.reverseOrder())));
-        }
+        if (sortedList == null) return;
+        TicketSort selected = sortComboBox != null ? sortComboBox.getValue() : null;
+        if (selected == null && currentFilter == TicketFilter.CLOSED) selected = TicketSort.UPDATED_NEWEST;
+        if (selected == null) selected = TicketSort.SCHEDULE_NEWEST;
+
+        Comparator<ServiceTicketDTO> idDescending = Comparator.comparing(
+                ServiceTicketDTO::getId, Comparator.nullsLast(Comparator.reverseOrder()));
+        Comparator<ServiceTicketDTO> comparator = switch (selected) {
+            case SCHEDULE_NEWEST -> Comparator.comparing(
+                    ServiceTicketController::relevantDate,
+                    Comparator.nullsLast(Comparator.reverseOrder())).thenComparing(idDescending);
+            case SCHEDULE_OLDEST -> Comparator.comparing(
+                    ServiceTicketController::relevantDate,
+                    Comparator.nullsLast(Comparator.naturalOrder())).thenComparing(idDescending);
+            case UPDATED_NEWEST -> Comparator.comparing(
+                    ServiceTicketDTO::getUpdatedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder())).thenComparing(idDescending);
+            case TICKET_NUMBER_DESC -> idDescending;
+        };
+        sortedList.setComparator(comparator);
     }
 
     private void setupSmartSearch() {
@@ -446,6 +529,17 @@ public class ServiceTicketController {
     private void updateFilters() {
         filteredList.setPredicate(this::matchesCurrentFilter);
         updateEmptyState();
+    }
+
+    @FXML
+    private void handleClearFilters() {
+        selectedSuggestion = null;
+        txtSearch.clear();
+        startDatePicker.setValue(null);
+        endDatePicker.setValue(null);
+        sortComboBox.getSelectionModel().select(TicketSort.SCHEDULE_NEWEST);
+        applySortOrder();
+        updateFilters();
     }
 
     private void setLoading(boolean loading) {
