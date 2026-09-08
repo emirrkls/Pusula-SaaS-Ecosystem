@@ -4,9 +4,12 @@ import com.pusula.desktop.api.CompanyApi;
 import com.pusula.desktop.api.FinanceApi;
 import com.pusula.desktop.api.UserApi;
 import com.pusula.desktop.api.VehicleApi;
+import com.pusula.desktop.api.WhatsAppIntegrationApi;
 import com.pusula.desktop.dto.FixedExpenseDefinitionDTO;
 import com.pusula.desktop.dto.UserDTO;
 import com.pusula.desktop.dto.VehicleDTO;
+import com.pusula.desktop.dto.WhatsAppIntegrationStatusDTO;
+import com.pusula.desktop.dto.WhatsAppOnboardingStartDTO;
 import com.pusula.desktop.entity.Company;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
@@ -30,6 +33,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.awt.Desktop;
+import java.net.URI;
 
 public class SettingsController {
 
@@ -79,10 +84,16 @@ public class SettingsController {
     @FXML
     private TableColumn<VehicleDTO, String> colVehicleStatus;
 
+    @FXML
+    private Label lblWhatsAppStatus;
+    @FXML
+    private Button btnConnectWhatsApp;
+
     private FinanceApi financeApi;
     private UserApi userApi;
     private CompanyApi companyApi;
     private VehicleApi vehicleApi;
+    private WhatsAppIntegrationApi whatsAppIntegrationApi;
     private ResourceBundle bundle;
 
     @FXML
@@ -92,6 +103,7 @@ public class SettingsController {
         userApi = RetrofitClient.getClient().create(UserApi.class);
         companyApi = RetrofitClient.getClient().create(CompanyApi.class);
         vehicleApi = RetrofitClient.getClient().create(VehicleApi.class);
+        whatsAppIntegrationApi = RetrofitClient.getClient().create(WhatsAppIntegrationApi.class);
 
         setupFixedExpensesTable();
         setupUsersTable();
@@ -101,6 +113,83 @@ public class SettingsController {
         loadUsers();
         loadCompanyProfile();
         loadVehicles();
+        loadWhatsAppStatus();
+    }
+
+    @FXML
+    private void handleConnectWhatsApp() {
+        btnConnectWhatsApp.setDisable(true);
+        lblWhatsAppStatus.setText("Güvenli bağlantı hazırlanıyor…");
+        whatsAppIntegrationApi.startOnboarding().enqueue(new Callback<WhatsAppOnboardingStartDTO>() {
+            @Override
+            public void onResponse(Call<WhatsAppOnboardingStartDTO> call,
+                    Response<WhatsAppOnboardingStartDTO> response) {
+                Platform.runLater(() -> {
+                    btnConnectWhatsApp.setDisable(false);
+                    if (!response.isSuccessful() || response.body() == null || response.body().getUrl() == null) {
+                        lblWhatsAppStatus.setText("Bağlantı başlatılamadı. Paket yetkinizi ve sunucu ayarlarını kontrol edin.");
+                        return;
+                    }
+                    try {
+                        if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                            throw new IllegalStateException("Tarayıcı açılamıyor");
+                        }
+                        Desktop.getDesktop().browse(new URI(response.body().getUrl()));
+                        lblWhatsAppStatus.setText("Meta bağlantı ekranı tarayıcıda açıldı. Bağlantı 15 dakika geçerlidir.");
+                    } catch (Exception ex) {
+                        lblWhatsAppStatus.setText("Bağlantı adresi açılamadı: " + ex.getMessage());
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<WhatsAppOnboardingStartDTO> call, Throwable throwable) {
+                Platform.runLater(() -> {
+                    btnConnectWhatsApp.setDisable(false);
+                    lblWhatsAppStatus.setText("Sunucuya ulaşılamadı. Lütfen tekrar deneyin.");
+                });
+            }
+        });
+    }
+
+    @FXML
+    private void handleRefreshWhatsAppStatus() {
+        loadWhatsAppStatus();
+    }
+
+    private void loadWhatsAppStatus() {
+        if (lblWhatsAppStatus == null || whatsAppIntegrationApi == null) return;
+        lblWhatsAppStatus.setText("Kontrol ediliyor…");
+        whatsAppIntegrationApi.status().enqueue(new Callback<WhatsAppIntegrationStatusDTO>() {
+            @Override
+            public void onResponse(Call<WhatsAppIntegrationStatusDTO> call,
+                    Response<WhatsAppIntegrationStatusDTO> response) {
+                Platform.runLater(() -> {
+                    if (!response.isSuccessful() || response.body() == null) {
+                        lblWhatsAppStatus.setText(response.code() == 403
+                                ? "Bu özellik mevcut paketinizde kullanılamıyor."
+                                : "Bağlantı durumu alınamadı.");
+                        return;
+                    }
+                    WhatsAppIntegrationStatusDTO value = response.body();
+                    if (value.isConnected()) {
+                        String name = value.getVerifiedName() == null || value.getVerifiedName().isBlank()
+                                ? "WhatsApp Business" : value.getVerifiedName();
+                        String phone = value.getDisplayPhoneNumber() == null ? "" : " — " + value.getDisplayPhoneNumber();
+                        lblWhatsAppStatus.setText("Bağlı: " + name + phone);
+                        btnConnectWhatsApp.setText("Bağlantıyı Yenile");
+                    } else {
+                        lblWhatsAppStatus.setText("Henüz WhatsApp Business hesabı bağlı değil.");
+                        btnConnectWhatsApp.setText("WhatsApp Business'ı Bağla");
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<WhatsAppIntegrationStatusDTO> call, Throwable throwable) {
+                Platform.runLater(() -> lblWhatsAppStatus.setText("Bağlantı durumu alınamadı."));
+            }
+        });
     }
 
     // ============ FIXED EXPENSES TAB (existing) ============

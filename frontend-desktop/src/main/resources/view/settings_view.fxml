@@ -109,6 +109,38 @@
                         </VBox>
                     </content>
                 </Tab>
+
+                <Tab text="WhatsApp">
+                    <content>
+                        <VBox spacing="16.0">
+                            <padding>
+                                <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
+                            </padding>
+                            <children>
+                                <Label text="WhatsApp Business Entegrasyonu" styleClass="section-heading" />
+                                <Label text="Servis iş emri oluşturulduğunda ve tamamlandığında müşterilerinize otomatik bilgi mesajı gönderin. Mevcut WhatsApp Business uygulamanız coexistence bağlantısıyla kullanılmaya devam eder."
+                                       wrapText="true" maxWidth="720.0" />
+                                <VBox spacing="6.0" styleClass="settings-card">
+                                    <padding><Insets bottom="16.0" left="16.0" right="16.0" top="16.0" /></padding>
+                                    <children>
+                                        <Label text="Bağlantı durumu" styleClass="form-label" />
+                                        <Label fx:id="lblWhatsAppStatus" text="Kontrol ediliyor…" wrapText="true" />
+                                    </children>
+                                </VBox>
+                                <FlowPane hgap="10.0" vgap="8.0" alignment="CENTER_LEFT">
+                                    <children>
+                                        <Button fx:id="btnConnectWhatsApp" text="WhatsApp Business'ı Bağla"
+                                                onAction="#handleConnectWhatsApp" styleClass="btn-success" />
+                                        <Button text="Durumu Yenile" onAction="#handleRefreshWhatsAppStatus"
+                                                styleClass="btn-secondary" />
+                                    </children>
+                                </FlowPane>
+                                <Label text="Bağlantı bağlantısı 15 dakika geçerlidir. Erişim anahtarı tarayıcıda gösterilmez ve sunucuda şifreli saklanır."
+                                       wrapText="true" styleClass="muted-label" />
+                            </children>
+                        </VBox>
+                    </content>
+                </Tab>
                 
                 <!-- Vehicles Tab -->
                 <Tab text="%settings.vehicles">

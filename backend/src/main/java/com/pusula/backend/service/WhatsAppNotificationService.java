@@ -6,10 +6,12 @@ import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
+import com.pusula.backend.repository.WhatsAppBusinessIntegrationRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -43,6 +45,8 @@ public class WhatsAppNotificationService {
 
     private final CustomerRepository customerRepository;
     private final ServiceTicketRepository ticketRepository;
+    private final WhatsAppBusinessIntegrationRepository integrationRepository;
+    private final WhatsAppCredentialCrypto credentialCrypto;
 
     @Value("${whatsapp.api.enabled:false}")
     private boolean apiEnabled;
@@ -78,10 +82,20 @@ public class WhatsAppNotificationService {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
+    @Autowired
     public WhatsAppNotificationService(CustomerRepository customerRepository,
-                                       ServiceTicketRepository ticketRepository) {
+                                       ServiceTicketRepository ticketRepository,
+                                       WhatsAppBusinessIntegrationRepository integrationRepository,
+                                       WhatsAppCredentialCrypto credentialCrypto) {
         this.customerRepository = customerRepository;
         this.ticketRepository = ticketRepository;
+        this.integrationRepository = integrationRepository;
+        this.credentialCrypto = credentialCrypto;
+    }
+
+    WhatsAppNotificationService(CustomerRepository customerRepository,
+                                ServiceTicketRepository ticketRepository) {
+        this(customerRepository, ticketRepository, null, null);
     }
 
     /** Notify the customer when a new service work order is created. */
@@ -98,7 +112,7 @@ public class WhatsAppNotificationService {
                 : ticket.getScheduledDate().format(SERVICE_DATE_FORMAT);
         String description = summarize(ticket.getDescription(), "Servis talebi", 120);
         String fallback = buildCreationMessage(customer.getName(), ticketId, scheduledAt, description);
-        sendNotification(customer.getPhone(), serviceCreatedTemplate,
+        sendNotification(customer.getCompanyId(), customer.getPhone(), serviceCreatedTemplate,
                 List.of(customer.getName(), String.valueOf(ticketId), scheduledAt, description), fallback);
     }
 
@@ -116,7 +130,7 @@ public class WhatsAppNotificationService {
 
         String paymentStatus = buildPaymentStatus(ticket.getPaymentMethod(), collectedAmount, remainingDebt);
         String message = buildCompletionMessage(customer.getName(), ticketId, paymentStatus);
-        sendNotification(customer.getPhone(), serviceCompletedTemplate,
+        sendNotification(customer.getCompanyId(), customer.getPhone(), serviceCompletedTemplate,
                 List.of(customer.getName(), String.valueOf(ticketId), paymentStatus),
                 message);
     }
@@ -131,7 +145,7 @@ public class WhatsAppNotificationService {
         if (customer == null || !isCompanyAllowed(customer.getCompanyId()) || customer.getPhone() == null) return;
 
         String message = buildCariMessage(customer.getName(), newBalance);
-        sendNotification(customer.getPhone(), "", List.of(), message);
+        sendNotification(customer.getCompanyId(), customer.getPhone(), "", List.of(), message);
     }
 
     // ── Message Templates ──────────────────────────────────────
@@ -193,7 +207,8 @@ public class WhatsAppNotificationService {
 
     // ── Message Delivery ──────────────────────────────────────
 
-    private void sendNotification(String phone, String templateName, List<String> parameters, String fallbackMessage) {
+    private void sendNotification(Long companyId, String phone, String templateName,
+                                  List<String> parameters, String fallbackMessage) {
         String normalizedPhone = normalizePhone(phone);
 
         if (normalizedPhone.isBlank()) {
@@ -208,20 +223,25 @@ public class WhatsAppNotificationService {
             return;
         }
 
-        if (apiToken == null || apiToken.isBlank() || phoneNumberId == null || phoneNumberId.isBlank()) {
-            log.error("WhatsApp notification skipped: API credentials are not configured");
-            return;
-        }
-
         try {
             if ("NETGSM".equalsIgnoreCase(provider)) {
+                if (apiToken == null || apiToken.isBlank()) {
+                    log.error("WhatsApp notification skipped: Netgsm credentials are not configured");
+                    return;
+                }
                 sendViaNetgsm(normalizedPhone, fallbackMessage);
             } else {
                 if (templateName == null || templateName.isBlank()) {
                     log.warn("WhatsApp notification skipped: Meta template is not configured for this event");
                     return;
                 }
-                sendViaMeta(normalizedPhone, templateName, parameters);
+                MetaCredentials credentials = resolveMetaCredentials(companyId);
+                if (credentials == null) {
+                    log.error("WhatsApp notification skipped: Meta credentials are not configured for company {}",
+                            companyId);
+                    return;
+                }
+                sendViaMeta(normalizedPhone, templateName, parameters, credentials);
             }
         } catch (Exception e) {
             log.error("WhatsApp notification failed for {}: {}", maskPhone(normalizedPhone), e.getMessage());
@@ -231,14 +251,15 @@ public class WhatsAppNotificationService {
     /**
      * Send via Meta WhatsApp Business Cloud API.
      */
-    private void sendViaMeta(String phone, String templateName, List<String> parameters) throws Exception {
-        String url = "https://graph.facebook.com/" + graphApiVersion + "/" + phoneNumberId + "/messages";
+    private void sendViaMeta(String phone, String templateName, List<String> parameters,
+                             MetaCredentials credentials) throws Exception {
+        String url = "https://graph.facebook.com/" + graphApiVersion + "/" + credentials.phoneNumberId() + "/messages";
         String jsonBody = buildMetaTemplatePayload(phone, templateName, parameters);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .timeout(Duration.ofSeconds(15))
-                .header("Authorization", "Bearer " + apiToken)
+                .header("Authorization", "Bearer " + credentials.accessToken())
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
@@ -252,6 +273,24 @@ public class WhatsAppNotificationService {
                     templateName, response.statusCode(), summarize(response.body(), "empty response", 500));
         }
     }
+
+    private MetaCredentials resolveMetaCredentials(Long companyId) {
+        if (integrationRepository != null && credentialCrypto != null && companyId != null) {
+            var integration = integrationRepository.findByCompanyIdAndDeletedFalse(companyId).orElse(null);
+            if (integration != null && "CONNECTED".equals(integration.getStatus())
+                    && (integration.getTokenExpiresAt() == null
+                        || integration.getTokenExpiresAt().isAfter(java.time.LocalDateTime.now()))) {
+                return new MetaCredentials(integration.getPhoneNumberId(),
+                        credentialCrypto.decrypt(integration.getAccessTokenCiphertext()));
+            }
+        }
+        if (apiToken == null || apiToken.isBlank() || phoneNumberId == null || phoneNumberId.isBlank()) {
+            return null;
+        }
+        return new MetaCredentials(phoneNumberId, apiToken);
+    }
+
+    private record MetaCredentials(String phoneNumberId, String accessToken) {}
 
     /**
      * Send via Netgsm WhatsApp API (Turkish provider).

@@ -12,6 +12,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfUse from './pages/TermsOfUse';
 import PriceList from './pages/PriceList';
 import ServiceLandingPage from './pages/landings/ServiceLandingPage';
+import WhatsAppConnect from './pages/WhatsAppConnect';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -22,6 +23,10 @@ const ScrollToTop = () => {
 };
 
 function App() {
+  const location = useLocation();
+  if (location.pathname === '/whatsapp-connect') {
+    return <Routes><Route path="/whatsapp-connect" element={<WhatsAppConnect />} /></Routes>;
+  }
   return (
     <>
       <ScrollToTop />
