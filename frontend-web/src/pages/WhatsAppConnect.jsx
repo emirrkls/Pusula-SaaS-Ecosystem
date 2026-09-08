@@ -68,7 +68,7 @@ function WhatsAppConnect() {
         window.addEventListener('message', messageListener);
 
         window.fbAsyncInit = () => {
-            window.FB.init({ appId: APP_ID, cookie: true, xfbml: false, version: 'v26.0' });
+            window.FB.init({ appId: APP_ID, cookie: true, xfbml: true, version: 'v26.0' });
             setSdkReady(true);
             setPhase('idle');
             setMessage('Mevcut WhatsApp Business uygulamanızı koruyarak bağlantıyı başlatabilirsiniz.');
@@ -105,12 +105,12 @@ function WhatsAppConnect() {
             }
         }, {
             config_id: CONFIGURATION_ID,
+            auth_type: 'rerequest',
             response_type: 'code',
             override_default_response_type: true,
             extras: {
                 setup: {},
                 featureType: 'whatsapp_business_app_onboarding',
-                sessionInfoVersion: '3',
             },
         });
     };
