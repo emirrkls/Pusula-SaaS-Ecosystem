@@ -33,6 +33,7 @@ public class SubscriptionService {
     private static final Logger log = LoggerFactory.getLogger(SubscriptionService.class);
     private static final String APP_STORE_PROVIDER = "APP_STORE";
     private static final String GOOGLE_PLAY_PROVIDER = "GOOGLE_PLAY";
+    private static final long SUBSCRIPTION_GRACE_PERIOD_DAYS = 7;
     private static final Map<String, PlanType> GOOGLE_PRODUCT_PLANS = Map.of(
             "usta", PlanType.USTA,
             "patron", PlanType.PATRON
@@ -345,9 +346,10 @@ public class SubscriptionService {
         Company company = opt.get();
         company.setSubscriptionStatus("PAYMENT_FAILED");
 
-        // Grace period: 7 days after expiry before read-only
+        // A missing expiry means the payment failed immediately. Record that
+        // moment as the expiry; the scheduled enforcement adds the grace period.
         if (company.getSubscriptionExpiresAt() == null) {
-            company.setSubscriptionExpiresAt(LocalDateTime.now().plusDays(7));
+            company.setSubscriptionExpiresAt(LocalDateTime.now());
         }
 
         companyRepository.save(company);
@@ -399,9 +401,12 @@ public class SubscriptionService {
             // Skip already read-only
             if (Boolean.TRUE.equals(company.getIsReadOnly())) continue;
 
-            // Check if subscription has expired
+            // Paid subscriptions remain writable for seven full days after
+            // their billing expiry. Only then is read-only mode enforced.
             if (company.getSubscriptionExpiresAt() != null
-                    && company.getSubscriptionExpiresAt().isBefore(LocalDateTime.now())) {
+                    && company.getSubscriptionExpiresAt()
+                            .plusDays(SUBSCRIPTION_GRACE_PERIOD_DAYS)
+                            .isBefore(LocalDateTime.now())) {
 
                 company.setIsReadOnly(true);
                 company.setSubscriptionStatus("EXPIRED");
