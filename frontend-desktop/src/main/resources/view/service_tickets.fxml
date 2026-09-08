@@ -42,13 +42,26 @@
 
       <FlowPane alignment="CENTER_LEFT" hgap="10.0" vgap="10.0" styleClass="filter-bar">
          <children>
-            <TextField fx:id="txtSearch" prefWidth="340.0" promptText="Fiş no, müşteri, iş başlığı, not veya teknisyen ara" />
-            <Label styleClass="field-label" text="Randevu tarihi" />
-            <DatePicker fx:id="startDatePicker" prefWidth="150.0" promptText="Başlangıç" />
-            <Label styleClass="field-label" text="—" />
-            <DatePicker fx:id="endDatePicker" prefWidth="150.0" promptText="Bitiş" />
-            <ComboBox fx:id="sortComboBox" prefWidth="210.0" promptText="Sıralama" />
-            <Button mnemonicParsing="false" onAction="#handleClearFilters" styleClass="btn-secondary" text="Filtreleri Temizle" />
+            <VBox spacing="5.0" styleClass="filter-control-group">
+               <Label styleClass="field-label" text="Arama" />
+               <TextField fx:id="txtSearch" prefWidth="340.0" promptText="Fiş no, müşteri, iş başlığı, not veya teknisyen ara" />
+            </VBox>
+            <VBox spacing="5.0" styleClass="filter-control-group">
+               <Label styleClass="field-label" text="Randevu tarihi" />
+               <HBox alignment="CENTER_LEFT" spacing="7.0" styleClass="date-range-group">
+                  <DatePicker fx:id="startDatePicker" prefWidth="150.0" promptText="Başlangıç" />
+                  <Label styleClass="date-range-separator" text="—" />
+                  <DatePicker fx:id="endDatePicker" prefWidth="150.0" promptText="Bitiş" />
+               </HBox>
+            </VBox>
+            <VBox spacing="5.0" styleClass="filter-control-group">
+               <Label styleClass="field-label" text="Sıralama" />
+               <ComboBox fx:id="sortComboBox" prefWidth="210.0" promptText="Sıralama" />
+            </VBox>
+            <VBox spacing="5.0" styleClass="filter-control-action">
+               <Region prefHeight="14.0" />
+               <Button mnemonicParsing="false" onAction="#handleClearFilters" styleClass="btn-secondary" text="Filtreleri Temizle" />
+            </VBox>
          </children>
       </FlowPane>
 

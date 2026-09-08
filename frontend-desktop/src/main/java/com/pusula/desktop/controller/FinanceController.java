@@ -105,6 +105,22 @@ public class FinanceController {
     private LineChart<String, Number> trendChart;
     @FXML
     private PieChart expensePieChart;
+    @FXML
+    private Label analyticsIncomeLabel;
+    @FXML
+    private Label analyticsExpenseLabel;
+    @FXML
+    private Label analyticsNetLabel;
+    @FXML
+    private Label analyticsTopCategoryLabel;
+    @FXML
+    private VBox expenseCategoryStateBox;
+    @FXML
+    private Label expenseCategoryStateTitle;
+    @FXML
+    private Label expenseCategoryStateAmount;
+    @FXML
+    private Label expenseCategoryStateCaption;
 
     // Current Accounts Tab
     @FXML
@@ -189,7 +205,7 @@ public class FinanceController {
                 cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getDescription()));
 
         colTodayAmount.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
-                String.format("%.2f ₺", cellData.getValue().getAmount())));
+                formatCurrency(cellData.getValue().getAmount())));
 
         // Compact overflow menu keeps destructive and non-destructive actions clearly separated.
         colTodayActions.setCellFactory(param -> new TableCell<>() {
@@ -318,24 +334,20 @@ public class FinanceController {
                                 sb.append(exp.getName()).append(" (").append(daysLate).append(" gün gecikti), ");
                             }
                             String overdueNames = sb.length() > 2 ? sb.substring(0, sb.length() - 2) : sb.toString();
-                            overdueMessageLabel.setText("Geciken ödemeler: " + overdueNames);
+                            overdueMessageLabel.setText(overdueNames);
                         }
 
-                        // Handle UPCOMING (YELLOW alert) - also show if there are any overdue items
-                        if (upcoming.isEmpty() && overdue.isEmpty()) {
+                        // Upcoming and overdue are separate signals; do not repeat overdue items
+                        // in a second warning banner.
+                        if (upcoming.isEmpty()) {
                             paymentAlertBox.setVisible(false);
                             paymentAlertBox.setManaged(false);
-                        } else if (!upcoming.isEmpty()) {
+                        } else {
                             paymentAlertBox.setVisible(true);
                             paymentAlertBox.setManaged(true);
-                            String message = String.format("Dikkat: %d adet sabit giderin ödeme günü yaklaşıyor!",
+                            String message = String.format("%d sabit giderin ödeme günü yaklaşıyor.",
                                     upcoming.size());
                             alertMessageLabel.setText(message);
-                        } else {
-                            // If only overdue items, show yellow alert as a reminder too
-                            paymentAlertBox.setVisible(true);
-                            paymentAlertBox.setManaged(true);
-                            alertMessageLabel.setText("Ödenmemiş giderler mevcut — ödeme ekranından işlem yapabilirsiniz.");
                         }
                     });
                 }
@@ -378,14 +390,25 @@ public class FinanceController {
         expenseSeries.setName(bundle.getString("chart.expense_series"));
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM");
+        BigDecimal totalIncome = BigDecimal.ZERO;
+        BigDecimal totalExpense = BigDecimal.ZERO;
 
         for (DailyTotalDTO total : dailyTotals) {
             String dateStr = total.getDate().format(formatter);
-            incomeSeries.getData().add(new XYChart.Data<>(dateStr, total.getIncome()));
-            expenseSeries.getData().add(new XYChart.Data<>(dateStr, total.getExpense()));
+            BigDecimal income = total.getIncome() != null ? total.getIncome() : BigDecimal.ZERO;
+            BigDecimal expense = total.getExpense() != null ? total.getExpense() : BigDecimal.ZERO;
+            incomeSeries.getData().add(new XYChart.Data<>(dateStr, income));
+            expenseSeries.getData().add(new XYChart.Data<>(dateStr, expense));
+            totalIncome = totalIncome.add(income);
+            totalExpense = totalExpense.add(expense);
         }
 
         trendChart.getData().addAll(incomeSeries, expenseSeries);
+        analyticsIncomeLabel.setText(formatCurrency(totalIncome));
+        analyticsExpenseLabel.setText(formatCurrency(totalExpense));
+        BigDecimal net = totalIncome.subtract(totalExpense);
+        analyticsNetLabel.setText(formatCurrency(net));
+        applyAmountClass(analyticsNetLabel, net, null);
     }
 
     private void loadCategoryPieChart() {
@@ -412,8 +435,38 @@ public class FinanceController {
 
     private void updateExpensePieChart(Map<String, BigDecimal> breakdown) {
         expensePieChart.getData().clear();
+        if (breakdown == null) {
+            showExpenseCategoryState("Bu ay gider kaydı yok", BigDecimal.ZERO,
+                    "Kategori dağılımı kayıt oluştukça burada görünür.");
+            analyticsTopCategoryLabel.setText("—");
+            return;
+        }
+        List<Map.Entry<String, BigDecimal>> visibleEntries = breakdown.entrySet().stream()
+                .filter(entry -> entry.getValue() != null && entry.getValue().signum() > 0)
+                .sorted(Map.Entry.<String, BigDecimal>comparingByValue().reversed())
+                .toList();
 
-        for (Map.Entry<String, BigDecimal> entry : breakdown.entrySet()) {
+        if (visibleEntries.isEmpty()) {
+            showExpenseCategoryState("Bu ay gider kaydı yok", BigDecimal.ZERO,
+                    "Kategori dağılımı kayıt oluştukça burada görünür.");
+            analyticsTopCategoryLabel.setText("—");
+            return;
+        }
+
+        Map.Entry<String, BigDecimal> top = visibleEntries.get(0);
+        analyticsTopCategoryLabel.setText(localizeCategory(top.getKey()) + " · " + formatCurrency(top.getValue()));
+
+        if (visibleEntries.size() == 1) {
+            showExpenseCategoryState(localizeCategory(top.getKey()), top.getValue(),
+                    "Bu ayki giderlerin tamamı bu kategoride.");
+            return;
+        }
+
+        expenseCategoryStateBox.setVisible(false);
+        expenseCategoryStateBox.setManaged(false);
+        expensePieChart.setVisible(true);
+        expensePieChart.setManaged(true);
+        for (Map.Entry<String, BigDecimal> entry : visibleEntries) {
             String categoryKey = "category." + entry.getKey();
             String categoryName = bundle.containsKey(categoryKey) ? bundle.getString(categoryKey) : entry.getKey();
 
@@ -422,6 +475,21 @@ public class FinanceController {
                     entry.getValue().doubleValue());
             expensePieChart.getData().add(slice);
         }
+    }
+
+    private String localizeCategory(String category) {
+        String key = "category." + category;
+        return bundle.containsKey(key) ? bundle.getString(key) : category;
+    }
+
+    private void showExpenseCategoryState(String title, BigDecimal amount, String caption) {
+        expensePieChart.setVisible(false);
+        expensePieChart.setManaged(false);
+        expenseCategoryStateTitle.setText(title);
+        expenseCategoryStateAmount.setText(formatCurrency(amount));
+        expenseCategoryStateCaption.setText(caption);
+        expenseCategoryStateBox.setVisible(true);
+        expenseCategoryStateBox.setManaged(true);
     }
 
     @FXML
@@ -569,8 +637,8 @@ public class FinanceController {
 
     private String formatCurrency(BigDecimal amount) {
         if (amount == null)
-            return "0.00 ₺";
-        return String.format("%.2f ₺", amount);
+            return "0,00 ₺";
+        return String.format(Locale.forLanguageTag("tr-TR"), "%,.2f ₺", amount);
     }
 
     private void setupReportsTable() {
@@ -580,7 +648,7 @@ public class FinanceController {
         // CarryOver column with color coding
         colReportCarryOver.setCellValueFactory(cellData -> {
             java.math.BigDecimal carryOver = cellData.getValue().getCarryOver();
-            String text = carryOver != null ? formatCurrency(carryOver) : "0.00 ₺";
+            String text = carryOver != null ? formatCurrency(carryOver) : "0,00 ₺";
             return new javafx.beans.property.SimpleStringProperty(text);
         });
         colReportCarryOver.setCellFactory(col -> new TableCell<>() {

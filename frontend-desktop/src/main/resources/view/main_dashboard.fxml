@@ -96,11 +96,28 @@
                      </children>
                   </VBox>
                   <Region HBox.hgrow="ALWAYS" />
-                  <StackPane>
-                     <Button fx:id="btnNotifications" mnemonicParsing="false" onAction="#showNotifications" styleClass="icon-button" />
-                     <Label fx:id="notificationBadge" text="0" visible="false" managed="false" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT" />
-                  </StackPane>
-                  <Button fx:id="btnThemeToggle" mnemonicParsing="false" onAction="#toggleTheme" styleClass="icon-button" />
+                  <HBox alignment="CENTER_RIGHT" spacing="8.0" styleClass="topbar-actions">
+                     <children>
+                        <HBox fx:id="topbarIdentity" alignment="CENTER_LEFT" spacing="10.0" styleClass="topbar-identity">
+                           <children>
+                              <Label fx:id="topbarUserAvatar" alignment="CENTER" styleClass="topbar-avatar" text="K" />
+                              <VBox fx:id="topbarUserCopy" spacing="1.0" styleClass="topbar-user-copy">
+                                 <children>
+                                    <Label fx:id="topbarUserName" styleClass="topbar-user-name" text="Kullanıcı" />
+                                    <Label fx:id="topbarUserRole" styleClass="topbar-user-role" text="Yönetici" />
+                                 </children>
+                              </VBox>
+                              <Label fx:id="topbarPlanLabel" styleClass="topbar-plan-badge" text="PATRON" />
+                           </children>
+                        </HBox>
+                        <Region styleClass="topbar-divider" />
+                        <StackPane>
+                           <Button fx:id="btnNotifications" mnemonicParsing="false" onAction="#showNotifications" styleClass="icon-button" />
+                           <Label fx:id="notificationBadge" text="0" visible="false" managed="false" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT" />
+                        </StackPane>
+                        <Button fx:id="btnThemeToggle" mnemonicParsing="false" onAction="#toggleTheme" styleClass="icon-button" />
+                     </children>
+                  </HBox>
                </children>
             </HBox>
             <StackPane fx:id="contentArea" styleClass="content-area" VBox.vgrow="ALWAYS" />

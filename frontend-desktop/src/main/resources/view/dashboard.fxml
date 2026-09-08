@@ -87,19 +87,30 @@
    </FlowPane>
 
    <!-- 3. Main content uses a resizable split instead of two fixed-width columns. -->
-   <SplitPane dividerPositions="0.62" VBox.vgrow="ALWAYS" styleClass="dashboard-workspace">
+   <SplitPane dividerPositions="0.62" minHeight="380.0" prefHeight="455.0" maxHeight="560.0" VBox.vgrow="ALWAYS" styleClass="dashboard-workspace">
      <items>
        <!-- Left: Performance Chart inside a beautiful Card -->
-       <VBox styleClass="card-container">
-           <Label text="Teknisyen Performansı (Son 7 Gün)" styleClass="section-title" />
-           <LineChart fx:id="performanceChart" VBox.vgrow="ALWAYS" styleClass="premium-chart" createSymbols="false">
-              <xAxis>
-                 <CategoryAxis fx:id="xAxis" side="BOTTOM" tickLabelRotation="0" gapStartAndEnd="true" styleClass="chart-axis-modern"/>
-              </xAxis>
-              <yAxis>
-                 <NumberAxis side="LEFT" styleClass="chart-axis-modern"/>
-              </yAxis>
-           </LineChart>
+       <VBox spacing="8" styleClass="card-container">
+           <HBox alignment="CENTER_LEFT" spacing="8">
+               <VBox spacing="3" HBox.hgrow="ALWAYS">
+                   <Label text="Teknisyen Performansı" styleClass="section-heading" />
+                   <Label fx:id="performanceSummaryLabel" text="Son 7 günlük tamamlanan iş dağılımı" styleClass="section-caption" />
+               </VBox>
+           </HBox>
+           <StackPane VBox.vgrow="ALWAYS">
+              <LineChart fx:id="performanceChart" animated="false" styleClass="premium-chart" createSymbols="true">
+                 <xAxis>
+                    <CategoryAxis fx:id="xAxis" side="BOTTOM" tickLabelRotation="0" gapStartAndEnd="true" styleClass="chart-axis-modern"/>
+                 </xAxis>
+                 <yAxis>
+                    <NumberAxis fx:id="performanceYAxis" side="LEFT" minorTickVisible="false" styleClass="chart-axis-modern"/>
+                 </yAxis>
+              </LineChart>
+              <VBox fx:id="performanceEmptyBox" alignment="CENTER" managed="false" spacing="8" styleClass="empty-state" visible="false">
+                  <Label styleClass="empty-state-title" text="Henüz performans verisi yok"/>
+                  <Label styleClass="empty-state-subtitle" text="Tamamlanan işler burada teknisyenlere göre karşılaştırılır."/>
+              </VBox>
+           </StackPane>
        </VBox>
 
        <!-- Right: Today's Agenda -->

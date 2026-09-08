@@ -3422,3 +3422,454 @@
     -fx-border-color: #e2e8f0;
     -fx-border-radius: 12;
 }
+
+/* =========================================================================
+   PUSULA v4.1 — STRUCTURED WORKSPACES
+   ========================================================================= */
+
+/* The shell now carries useful identity without competing with the page title. */
+.topbar-actions {
+    -fx-min-height: 40;
+}
+
+.topbar-identity {
+    -fx-padding: 4 9 4 5;
+    -fx-background-color: #F8FAFC;
+    -fx-background-radius: 11;
+    -fx-border-color: #E7EDF4;
+    -fx-border-radius: 11;
+}
+
+.topbar-avatar {
+    -fx-min-width: 30;
+    -fx-min-height: 30;
+    -fx-max-width: 30;
+    -fx-max-height: 30;
+    -fx-alignment: center;
+    -fx-background-color: #E0F2FE;
+    -fx-background-radius: 9;
+    -fx-text-fill: #0369A1;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+
+.topbar-user-name {
+    -fx-text-fill: #1E293B;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.topbar-user-role {
+    -fx-text-fill: #64748B;
+    -fx-font-size: 10px;
+}
+
+.topbar-plan-badge {
+    -fx-padding: 4 8;
+    -fx-background-color: #E8F7FC;
+    -fx-background-radius: 999;
+    -fx-text-fill: #087DA2;
+    -fx-font-size: 9px;
+    -fx-font-weight: 800;
+}
+
+.topbar-divider {
+    -fx-min-width: 1;
+    -fx-max-width: 1;
+    -fx-min-height: 24;
+    -fx-max-height: 24;
+    -fx-background-color: #E2E8F0;
+}
+
+.top-bar .icon-button {
+    -fx-min-width: 38;
+    -fx-pref-width: 38;
+    -fx-max-width: 38;
+    -fx-min-height: 38;
+    -fx-pref-height: 38;
+    -fx-max-height: 38;
+    -fx-background-radius: 10;
+}
+
+/* One field rhythm for all dense filter toolbars. */
+.filter-control-group,
+.filter-control-action {
+    -fx-min-width: -1;
+}
+
+.filter-control-group > .field-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #64748B;
+}
+
+.date-range-group {
+    -fx-padding: 0;
+}
+
+.date-range-separator {
+    -fx-text-fill: #94A3B8;
+    -fx-font-weight: 700;
+}
+
+.filter-bar,
+.service-photo-toolbar,
+.network-filter-card {
+    -fx-padding: 13 14;
+    -fx-background-radius: 13;
+    -fx-border-radius: 13;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.035), 10, 0.10, 0, 2);
+}
+
+/* Dashboard charts use data-safe bounds and visibly distinct series. */
+.premium-chart {
+    -fx-padding: 8 0 0 0;
+}
+
+.premium-chart .chart-horizontal-grid-lines {
+    -fx-stroke: #E8EEF5;
+    -fx-stroke-dash-array: 3 5;
+}
+
+.premium-chart .chart-series-line {
+    -fx-stroke-width: 2.4px;
+    -fx-effect: none;
+}
+
+.premium-chart .chart-line-symbol {
+    -fx-background-radius: 999;
+    -fx-padding: 4;
+    -fx-background-color: white, #0EA5E9;
+}
+
+.premium-chart .default-color0.chart-series-line,
+.premium-chart .default-color0.chart-line-symbol { -fx-stroke: #0EA5E9; -fx-background-color: white, #0EA5E9; }
+.premium-chart .default-color1.chart-series-line,
+.premium-chart .default-color1.chart-line-symbol { -fx-stroke: #14B8A6; -fx-background-color: white, #14B8A6; }
+.premium-chart .default-color2.chart-series-line,
+.premium-chart .default-color2.chart-line-symbol { -fx-stroke: #F59E0B; -fx-background-color: white, #F59E0B; }
+.premium-chart .default-color3.chart-series-line,
+.premium-chart .default-color3.chart-line-symbol { -fx-stroke: #8B5CF6; -fx-background-color: white, #8B5CF6; }
+.premium-chart .default-color4.chart-series-line,
+.premium-chart .default-color4.chart-line-symbol { -fx-stroke: #F43F5E; -fx-background-color: white, #F43F5E; }
+.premium-chart .default-color0.chart-legend-item-symbol { -fx-background-color: #0EA5E9; }
+.premium-chart .default-color1.chart-legend-item-symbol { -fx-background-color: #14B8A6; }
+.premium-chart .default-color2.chart-legend-item-symbol { -fx-background-color: #F59E0B; }
+.premium-chart .default-color3.chart-legend-item-symbol { -fx-background-color: #8B5CF6; }
+.premium-chart .default-color4.chart-legend-item-symbol { -fx-background-color: #F43F5E; }
+
+/* Finance: command, summary, ledger and close-day actions have separate levels. */
+.finance-page-scroll,
+.finance-page-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.finance-command-bar,
+.finance-close-day-bar {
+    -fx-padding: 14 16;
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 13;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 13;
+}
+
+.finance-date-pill {
+    -fx-padding: 7 11;
+    -fx-background-color: #F1F5F9;
+    -fx-background-radius: 999;
+    -fx-text-fill: #475569;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.finance-alert-stack {
+    -fx-padding: 0;
+}
+
+.finance-alert-overdue,
+.finance-alert-upcoming {
+    -fx-padding: 10 12;
+}
+
+.finance-alert-title-danger,
+.finance-alert-title-warning {
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+
+.finance-alert-title-danger { -fx-text-fill: #B91C1C; }
+.finance-alert-title-warning { -fx-text-fill: #92400E; }
+
+.label-danger,
+.label-warning {
+    -fx-font-weight: 500;
+    -fx-font-size: 11px;
+}
+
+.finance-summary-grid > .finance-summary-card {
+    -fx-min-width: 220;
+    -fx-pref-width: 255;
+}
+
+.finance-summary-card,
+.analytics-kpi-card,
+.analytics-card,
+.finance-ledger-card {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 13;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 13;
+}
+
+.finance-summary-card {
+    -fx-padding: 15 17;
+    -fx-border-width: 1 1 1 4;
+}
+
+.finance-summary-income { -fx-border-color: #E2E8F0 #E2E8F0 #E2E8F0 #10B981; }
+.finance-summary-expense { -fx-border-color: #E2E8F0 #E2E8F0 #E2E8F0 #EF4444; }
+.finance-summary-net { -fx-border-color: #E2E8F0 #E2E8F0 #E2E8F0 #1C3461; }
+
+.finance-summary-label {
+    -fx-text-fill: #64748B;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.finance-summary-value {
+    -fx-font-size: 23px;
+    -fx-font-weight: 800;
+}
+
+.finance-summary-value.amount-positive,
+.analytics-kpi-value.amount-positive { -fx-text-fill: #16A34A; }
+.finance-summary-value.amount-negative,
+.analytics-kpi-value.amount-negative { -fx-text-fill: #DC2626; }
+
+.finance-summary-caption {
+    -fx-text-fill: #94A3B8;
+    -fx-font-size: 10px;
+}
+
+.finance-ledger-split,
+.finance-ledger-split > .split-pane-divider {
+    -fx-background-color: transparent;
+    -fx-padding: 0 5 0 5;
+}
+
+.finance-ledger-card {
+    -fx-padding: 14;
+}
+
+.finance-ledger-title,
+.finance-close-day-title {
+    -fx-text-fill: #1E293B;
+    -fx-font-size: 13px;
+    -fx-font-weight: 800;
+}
+
+.finance-ledger-table {
+    -fx-border-color: #EDF2F7;
+    -fx-border-radius: 9;
+    -fx-background-radius: 9;
+}
+
+.btn-close-day {
+    -fx-min-width: 142;
+}
+
+.analytics-kpi-card {
+    -fx-padding: 14 16;
+}
+
+.analytics-kpi-value {
+    -fx-font-size: 20px;
+    -fx-font-weight: 800;
+}
+
+.analytics-kpi-value-small {
+    -fx-text-fill: #1C3461;
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+}
+
+.analytics-card {
+    -fx-padding: 16;
+}
+
+.finance-trend-chart,
+.finance-expense-pie {
+    -fx-background-color: transparent;
+    -fx-padding: 5 0 0 0;
+}
+
+.finance-trend-chart .chart-plot-background { -fx-background-color: transparent; }
+.finance-trend-chart .chart-vertical-grid-lines { -fx-stroke: transparent; }
+.finance-trend-chart .chart-horizontal-grid-lines { -fx-stroke: #E8EEF5; -fx-stroke-dash-array: 3 5; }
+.finance-trend-chart .chart-series-line { -fx-stroke-width: 2.4px; -fx-effect: none; }
+.finance-trend-chart .default-color0.chart-series-line { -fx-stroke: #10B981; }
+.finance-trend-chart .default-color1.chart-series-line { -fx-stroke: #EF4444; }
+.finance-trend-chart .default-color0.chart-legend-item-symbol { -fx-background-color: #10B981; }
+.finance-trend-chart .default-color1.chart-legend-item-symbol { -fx-background-color: #EF4444; }
+.finance-expense-pie .default-color0.chart-pie { -fx-pie-color: #0EA5E9; }
+.finance-expense-pie .default-color1.chart-pie { -fx-pie-color: #14B8A6; }
+.finance-expense-pie .default-color2.chart-pie { -fx-pie-color: #F59E0B; }
+.finance-expense-pie .default-color3.chart-pie { -fx-pie-color: #8B5CF6; }
+.finance-expense-pie .default-color4.chart-pie { -fx-pie-color: #F43F5E; }
+.finance-expense-pie .default-color5.chart-pie { -fx-pie-color: #64748B; }
+
+.analytics-single-state {
+    -fx-padding: 24;
+    -fx-background-color: #F8FAFC;
+    -fx-background-radius: 12;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 12;
+}
+
+.analytics-single-title {
+    -fx-text-fill: #1E293B;
+    -fx-font-size: 15px;
+    -fx-font-weight: 800;
+}
+
+.analytics-single-value {
+    -fx-text-fill: #E85D2A;
+    -fx-font-size: 28px;
+    -fx-font-weight: 800;
+}
+
+/* Service Network becomes a workspace instead of an unframed raw ListView. */
+.network-toolbar {
+    -fx-padding: 2 0 2 0;
+}
+
+.network-eyebrow {
+    -fx-text-fill: #0EA5E9;
+    -fx-font-size: 9px;
+    -fx-font-weight: 900;
+}
+
+.network-title {
+    -fx-text-fill: #1C3461;
+    -fx-font-size: 18px;
+    -fx-font-weight: 800;
+}
+
+.network-page-actions {
+    -fx-alignment: center-right;
+}
+
+.network-browser {
+    -fx-spacing: 12;
+}
+
+.network-metric-card {
+    -fx-padding: 12 14;
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 12;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 12;
+}
+
+.network-metric-label {
+    -fx-text-fill: #64748B;
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+}
+
+.network-metric-value {
+    -fx-text-fill: #1C3461;
+    -fx-font-size: 17px;
+    -fx-font-weight: 800;
+}
+
+.network-list {
+    -fx-padding: 6;
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 13;
+    -fx-border-color: #DCE5EF;
+    -fx-border-radius: 13;
+}
+
+.network-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 6;
+}
+
+.network-list .list-cell:empty {
+    -fx-background-color: transparent;
+}
+
+.network-empty-state {
+    -fx-padding: 42;
+}
+
+.network-empty-icon {
+    -fx-min-width: 52;
+    -fx-min-height: 52;
+    -fx-alignment: center;
+    -fx-background-color: #E0F2FE;
+    -fx-background-radius: 999;
+    -fx-text-fill: #0284C7;
+}
+
+.pagination-count {
+    -fx-min-width: 130;
+    -fx-alignment: center;
+    -fx-text-fill: #64748B;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.network-card {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #E2E8F0;
+}
+
+/* Dark counterparts for the new surfaces. */
+.dark-theme .topbar-identity,
+.dark-theme .finance-command-bar,
+.dark-theme .finance-close-day-bar,
+.dark-theme .finance-summary-card,
+.dark-theme .analytics-kpi-card,
+.dark-theme .analytics-card,
+.dark-theme .finance-ledger-card,
+.dark-theme .network-metric-card,
+.dark-theme .network-list,
+.dark-theme .network-card {
+    -fx-background-color: #1E293B;
+    -fx-border-color: #334155;
+}
+
+.dark-theme .topbar-user-name,
+.dark-theme .finance-ledger-title,
+.dark-theme .finance-close-day-title,
+.dark-theme .analytics-single-title,
+.dark-theme .network-title,
+.dark-theme .network-metric-value {
+    -fx-text-fill: #F1F5F9;
+}
+
+.dark-theme .topbar-user-role,
+.dark-theme .finance-summary-label,
+.dark-theme .finance-summary-caption,
+.dark-theme .pagination-count {
+    -fx-text-fill: #94A3B8;
+}
+
+.dark-theme .finance-summary-value.amount-positive,
+.dark-theme .analytics-kpi-value.amount-positive { -fx-text-fill: #34D399; }
+.dark-theme .finance-summary-value.amount-negative,
+.dark-theme .analytics-kpi-value.amount-negative { -fx-text-fill: #FB7185; }
+
+.dark-theme .topbar-divider { -fx-background-color: #334155; }
+.dark-theme .finance-date-pill,
+.dark-theme .analytics-single-state { -fx-background-color: #0F172A; -fx-border-color: #334155; }
+.dark-theme .finance-trend-chart .chart-horizontal-grid-lines,
+.dark-theme .premium-chart .chart-horizontal-grid-lines { -fx-stroke: #334155; }
+.dark-theme .premium-chart .default-color0.chart-line-symbol { -fx-background-color: #1E293B, #0EA5E9; }
+.dark-theme .premium-chart .default-color1.chart-line-symbol { -fx-background-color: #1E293B, #14B8A6; }
+.dark-theme .premium-chart .default-color2.chart-line-symbol { -fx-background-color: #1E293B, #F59E0B; }
+.dark-theme .premium-chart .default-color3.chart-line-symbol { -fx-background-color: #1E293B, #8B5CF6; }
+.dark-theme .premium-chart .default-color4.chart-line-symbol { -fx-background-color: #1E293B, #F43F5E; }

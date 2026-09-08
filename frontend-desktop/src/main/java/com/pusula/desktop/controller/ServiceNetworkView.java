@@ -8,10 +8,13 @@ import com.pusula.desktop.util.SessionManager;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.util.StringConverter;
+import org.kordamp.ikonli.javafx.FontIcon;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignA;
 import retrofit2.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -43,7 +46,7 @@ public class ServiceNetworkView extends VBox {
         this(shell,RetrofitClient.getClient().create(ServiceNetworkApi.class),reference,id);
     }
     ServiceNetworkView(MainDashboardController shell,ServiceNetworkApi api,String reference,Long id) {
-        this.api=api;this.shell=shell;setSpacing(12);setPadding(new Insets(8));feedback.setWrapText(true);
+        this.api=api;this.shell=shell;setSpacing(14);setPadding(new Insets(16));feedback.setWrapText(true);
         getStyleClass().add("network-view");feedback.getStyleClass().add("network-feedback");
         if(!SessionManager.isAdmin()) { getChildren().setAll(text("Servis ağı yalnızca yöneticilere açıktır."));return; }
         frame("Servis Ağı",text("Yükleniyor…"));
@@ -57,8 +60,11 @@ public class ServiceNetworkView extends VBox {
     private void reloadContext() { call(api.context(),c->{context=c;browse();}); }
     private void frame(String title,Node body,Node... actions) {
         generation++;
-        Label heading=text(title);heading.setMaxWidth(520);heading.setMinWidth(0);heading.getStyleClass().add("section-heading");
-        FlowPane toolbar=new FlowPane(10,8);toolbar.getStyleClass().add("network-toolbar");toolbar.getChildren().add(heading);toolbar.getChildren().addAll(actions);
+        Label eyebrow=text("SERVİS AĞI");eyebrow.setMinWidth(Region.USE_PREF_SIZE);eyebrow.getStyleClass().add("network-eyebrow");
+        Label heading=text(title);heading.setMaxWidth(520);heading.setMinWidth(0);heading.getStyleClass().add("network-title");
+        VBox headingBlock=new VBox(3,eyebrow,heading);headingBlock.getStyleClass().add("network-heading-block");
+        FlowPane actionPane=new FlowPane(8,8);actionPane.setAlignment(Pos.CENTER_RIGHT);actionPane.getStyleClass().add("network-page-actions");actionPane.getChildren().addAll(actions);
+        HBox toolbar=new HBox(12,headingBlock);toolbar.setAlignment(Pos.CENTER_LEFT);HBox.setHgrow(headingBlock,Priority.ALWAYS);toolbar.getChildren().add(actionPane);toolbar.getStyleClass().add("network-toolbar");
         feedback.setText("");feedback.setVisible(false);feedback.setManaged(false);
         getChildren().setAll(toolbar,feedback,body);VBox.setVgrow(body,Priority.ALWAYS);
     }
@@ -73,26 +79,36 @@ public class ServiceNetworkView extends VBox {
         DatePicker start=new DatePicker(from),end=new DatePicker(to);
         start.setPromptText("Başlangıç");end.setPromptText("Bitiş");
         Runnable apply=()->{search=q.getText();state=status.getValue();from=start.getValue();to=end.getValue();pageIndex=0;browse();};q.setOnAction(e->apply.run());
-        FlowPane filters=new FlowPane(10,8,section,q);filters.getStyleClass().add("filter-bar");
+        section.setPrefWidth(205);status.setPrefWidth(150);start.setPrefWidth(155);end.setPrefWidth(155);
+        FlowPane filters=new FlowPane(10,8,section,q);filters.getStyleClass().addAll("filter-bar","network-filter-card");
         if(!memberMode) filters.getChildren().addAll(status,start,end);
         filters.getChildren().addAll(button("Ara",apply),button("Temizle",()->{search="";state="";from=null;to=null;pageIndex=0;browse();}));
-        ListView<Object> list=new ListView<>();list.setPlaceholder(text("Bu filtreye uygun kayıt yok."));
+        ListView<Object> list=new ListView<>();list.getStyleClass().add("network-list");list.setMinHeight(360);list.setPrefHeight(520);
+        list.setPlaceholder(emptyState(
+                memberMode ? "Henüz alt servis bağlantısı yok" : "Bu görünümde iş bulunamadı",
+                memberMode ? "Yeni bir alt servis oluşturarak veya işletme davet ederek ağınızı kurabilirsiniz."
+                        : "Filtreleri temizleyin veya diğer iş görünümünü kontrol edin.",
+                memberMode && context.canManage() && context.writable() ? ()->memberForm(true) : null));
         list.setCellFactory(v->new ListCell<>() { @Override protected void updateItem(Object value,boolean empty) {
             super.updateItem(value,empty);setText(null);
             Node graphic=empty||value==null?null:value instanceof Member m?memberCard(m):orderCard((Order)value);
             if(graphic instanceof Region region){region.setMinWidth(0);region.prefWidthProperty().bind(list.widthProperty().subtract(36));region.maxWidthProperty().bind(list.widthProperty().subtract(36));}
             setGraphic(graphic);
         } });
-        Label count=text("Yükleniyor…");Button prev=button("Önceki",()->{pageIndex--;browse();}),next=button("Sonraki",()->{pageIndex++;browse();});prev.setDisable(pageIndex==0);next.setDisable(true);
-        Label contextSummary=text(context.canManage()?"Alt servisler: "+context.usedMembers()+" / "+context.maxMembers()+" · Bu ay gönderilen işler: "+context.usedMonthlyOrders()+" / "+context.maxMonthlyOrders():"Ağ yönetimi işletmenize tanımlı değil. Gelen davet ve işleri yönetebilirsiniz.");
-        contextSummary.getStyleClass().add("network-context-banner");
-        FlowPane pagination=new FlowPane(10,8,prev,count,next);pagination.getStyleClass().add("pagination-bar");
-        content.getChildren().addAll(contextSummary,filters,list,pagination);VBox.setVgrow(list,Priority.ALWAYS);
+        Label count=text("Yükleniyor…");count.getStyleClass().add("pagination-count");Button prev=button("Önceki",()->{pageIndex--;browse();}),next=button("Sonraki",()->{pageIndex++;browse();});prev.setDisable(pageIndex==0);next.setDisable(true);
+        FlowPane metrics=new FlowPane(10,10);metrics.getStyleClass().add("network-metrics");
+        metrics.getChildren().addAll(
+                metric("Aktif alt servis",context.usedMembers()+" / "+context.maxMembers()),
+                metric("Bu ay gönderilen",context.usedMonthlyOrders()+" / "+context.maxMonthlyOrders()),
+                metric("Ağ yönetimi",context.canManage()?"Açık":"Sınırlı"));
+        HBox pagination=new HBox(10,prev,count,next);pagination.setAlignment(Pos.CENTER);pagination.getStyleClass().add("pagination-bar");
+        content.getChildren().addAll(metrics,filters,list,pagination);content.getStyleClass().add("network-browser");VBox.setVgrow(list,Priority.ALWAYS);
         Button invite=button("İşletme Davet Et",()->memberForm(false)),create=button("Yeni Alt Servis",()->memberForm(true));
         create.getStyleClass().remove("button-secondary");create.getStyleClass().add("btn-primary");
         invite.setDisable(!context.canManage()||!context.writable());create.setDisable(invite.isDisabled());
-        frame("Servis Ağı",content,invite,create,button("Yenile",this::reloadContext));
-        if("SUPER_ADMIN".equals(SessionManager.getUserRole())) ((FlowPane)getChildren().get(0)).getChildren().add(button("Ağ Yetkisi",this::policyForm));
+        List<Node> toolbarActions=new ArrayList<>(List.of(invite,create,button("Yenile",this::reloadContext)));
+        if("SUPER_ADMIN".equals(SessionManager.getUserRole())) toolbarActions.add(button("Ağ Yetkisi",this::policyForm));
+        frame("Ağ Operasyonları",content,toolbarActions.toArray(Node[]::new));
         int version=generation;
         if(memberMode) call(api.members(pageIndex,search),p->{if(version!=generation)return;list.getItems().setAll(p.items());count.setText(p.totalElements()+" kayıt · Sayfa "+(p.page()+1));next.setDisable(!p.hasNext());});
         else call(api.orders(direction,search,state==null||state.isEmpty()?null:state,from==null?null:from.toString(),to==null?null:to.toString(),pageIndex),p->{if(version!=generation)return;list.getItems().setAll(p.items());count.setText(p.totalElements()+" iş · Sayfa "+(p.page()+1));next.setDisable(!p.hasNext());});
@@ -209,6 +225,19 @@ public class ServiceNetworkView extends VBox {
         });
     }
     private void error(String message){feedback.setText(message);feedback.setVisible(true);feedback.setManaged(true);}
+    private static VBox metric(String label,String value){
+        Label caption=text(label);caption.getStyleClass().add("network-metric-label");
+        Label amount=text(value);amount.getStyleClass().add("network-metric-value");
+        VBox card=new VBox(5,caption,amount);card.setPrefWidth(190);card.getStyleClass().add("network-metric-card");return card;
+    }
+    private static VBox emptyState(String title,String message,Runnable action){
+        Label glyph=new Label();glyph.setGraphic(FontIcon.of(MaterialDesignA.ACCOUNT_MULTIPLE,28));glyph.getStyleClass().add("network-empty-icon");
+        Label heading=text(title);heading.getStyleClass().add("empty-state-title");
+        Label detail=text(message);detail.getStyleClass().add("empty-state-subtitle");detail.setMaxWidth(420);detail.setAlignment(Pos.CENTER);
+        VBox box=new VBox(8,glyph,heading,detail);box.setAlignment(Pos.CENTER);box.setMaxWidth(500);box.getStyleClass().add("network-empty-state");
+        if(action!=null)box.getChildren().add(styledButton("Yeni Alt Servis",action,"btn-primary"));
+        return box;
+    }
     private static Label text(String s){Label l=new Label(s);l.setWrapText(true);l.setMaxWidth(Double.MAX_VALUE);return l;}
     private static TextField field(String hint){TextField f=new TextField();f.setPromptText(hint);return f;}
     private static Button button(String title,Runnable action){return styledButton(title,action,"button-secondary");}

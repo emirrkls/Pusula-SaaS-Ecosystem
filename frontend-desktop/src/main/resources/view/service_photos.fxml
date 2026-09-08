@@ -8,12 +8,29 @@
     <padding><Insets top="18" right="18" bottom="18" left="18"/></padding>
 
     <FlowPane hgap="10" vgap="10" alignment="CENTER_LEFT" styleClass="service-photo-toolbar">
-        <TextField fx:id="searchField" promptText="Müşteri, iş başlığı, fiş no veya not ara" prefWidth="340"/>
-        <ComboBox fx:id="categoryFilter" prefWidth="190"/>
-        <DatePicker fx:id="startDatePicker" promptText="Başlangıç" prefWidth="155"/>
-        <DatePicker fx:id="endDatePicker" promptText="Bitiş" prefWidth="155"/>
-        <Button text="Filtrele" onAction="#loadPhotos" styleClass="btn-primary"/>
-        <Button text="Temizle" onAction="#clearFilters" styleClass="btn-secondary"/>
+        <VBox spacing="5" styleClass="filter-control-group">
+            <Label text="Arama" styleClass="field-label"/>
+            <TextField fx:id="searchField" promptText="Müşteri, iş başlığı, fiş no veya not ara" prefWidth="340"/>
+        </VBox>
+        <VBox spacing="5" styleClass="filter-control-group">
+            <Label text="Görsel kategorisi" styleClass="field-label"/>
+            <ComboBox fx:id="categoryFilter" prefWidth="190"/>
+        </VBox>
+        <VBox spacing="5" styleClass="filter-control-group">
+            <Label text="Servis tarihi" styleClass="field-label"/>
+            <HBox alignment="CENTER_LEFT" spacing="7" styleClass="date-range-group">
+                <DatePicker fx:id="startDatePicker" promptText="Başlangıç" prefWidth="155"/>
+                <Label text="—" styleClass="date-range-separator"/>
+                <DatePicker fx:id="endDatePicker" promptText="Bitiş" prefWidth="155"/>
+            </HBox>
+        </VBox>
+        <VBox spacing="5" styleClass="filter-control-action">
+            <Region prefHeight="14"/>
+            <HBox spacing="8">
+                <Button text="Filtrele" onAction="#loadPhotos" styleClass="btn-primary"/>
+                <Button text="Temizle" onAction="#clearFilters" styleClass="btn-secondary"/>
+            </HBox>
+        </VBox>
     </FlowPane>
 
     <StackPane VBox.vgrow="ALWAYS">

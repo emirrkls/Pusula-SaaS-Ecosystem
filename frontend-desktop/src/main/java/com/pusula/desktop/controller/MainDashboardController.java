@@ -25,6 +25,7 @@ import javafx.scene.control.*;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -46,6 +47,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Map;
 
 public class MainDashboardController {
@@ -76,6 +78,12 @@ public class MainDashboardController {
     private Label userRoleLabel;
     @FXML
     private Label userAvatarLabel;
+    @FXML private HBox topbarIdentity;
+    @FXML private VBox topbarUserCopy;
+    @FXML private Label topbarUserAvatar;
+    @FXML private Label topbarUserName;
+    @FXML private Label topbarUserRole;
+    @FXML private Label topbarPlanLabel;
     @FXML
     private Label pageTitleLabel;
     @FXML
@@ -160,7 +168,9 @@ public class MainDashboardController {
                 ThemeHelper.applyToScene(newScene, isDark);
                 newScene.widthProperty().addListener((observable, oldWidth, newWidth) -> {
                     if (!sidebarCollapsed) applySidebarState(false);
+                    applyTopbarState(newWidth.doubleValue());
                 });
+                applyTopbarState(newScene.getWidth());
             }
         });
 
@@ -193,17 +203,36 @@ public class MainDashboardController {
 
     private void setupUserProfile() {
         String username = SessionManager.getUsername();
-        if (username != null) {
+        if (username != null && !username.isBlank()) {
             userLabel.setText(username);
             userAvatarLabel.setText(username.substring(0, 1).toUpperCase());
+            topbarUserName.setText(username);
+            topbarUserAvatar.setText(username.substring(0, 1).toUpperCase());
         }
         String role = SessionManager.getUserRole();
         if (role != null) {
-            userRoleLabel.setText(switch (role) {
-                case "ADMIN" -> "Yönetici";
+            String roleLabel = switch (role) {
+                case "ADMIN", "COMPANY_ADMIN" -> "Yönetici";
+                case "SUPER_ADMIN" -> "Sistem Yöneticisi";
                 case "TECHNICIAN" -> "Teknisyen";
                 default -> role;
-            });
+            };
+            userRoleLabel.setText(roleLabel);
+            topbarUserRole.setText(roleLabel);
+        }
+        String plan = SessionManager.getPlanType();
+        topbarPlanLabel.setText(plan == null || plan.isBlank()
+                ? "PUSULA"
+                : plan.replace('_', ' ').toUpperCase(Locale.ROOT));
+    }
+
+    private void applyTopbarState(double width) {
+        boolean showIdentityCopy = width <= 0 || width >= 900;
+        boolean showPlan = width <= 0 || width >= 1080;
+        setVisibleAndManaged(topbarUserCopy, showIdentityCopy);
+        setVisibleAndManaged(topbarPlanLabel, showPlan);
+        if (topbarIdentity != null) {
+            topbarIdentity.setAccessibleText(topbarUserName.getText() + ", " + topbarUserRole.getText());
         }
     }
 

@@ -22,6 +22,7 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.chart.LineChart;
+import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
@@ -92,6 +93,12 @@ public class DashboardController {
 
     @FXML
     private LineChart<String, Number> performanceChart;
+    @FXML
+    private NumberAxis performanceYAxis;
+    @FXML
+    private Label performanceSummaryLabel;
+    @FXML
+    private VBox performanceEmptyBox;
 
     private MainDashboardController mainController;
 
@@ -403,6 +410,9 @@ public class DashboardController {
         // Set explicit categories for the X-axis
         xAxis.setCategories(FXCollections.observableArrayList(displayDates));
 
+        int maximum = 0;
+        int completedTotal = 0;
+
         // Create a series for each technician
         for (Map.Entry<String, Map<String, Integer>> entry : data.entrySet()) {
             String techName = entry.getKey();
@@ -417,11 +427,29 @@ public class DashboardController {
                 String apiDate = date.format(apiFormatter);
                 String displayDate = displayDates.get(i);
                 int count = dailyCounts.getOrDefault(apiDate, 0);
+                maximum = Math.max(maximum, count);
+                completedTotal += count;
                 series.getData().add(new XYChart.Data<>(displayDate, count));
             }
 
             performanceChart.getData().add(series);
         }
+
+        double upperBound = maximum == 0 ? 5 : maximum + Math.max(1, Math.ceil(maximum * 0.20));
+        double tickUnit = upperBound <= 10 ? 1 : upperBound <= 30 ? 5 : Math.ceil(upperBound / 30) * 5;
+        performanceYAxis.setAutoRanging(false);
+        performanceYAxis.setLowerBound(0);
+        performanceYAxis.setUpperBound(upperBound);
+        performanceYAxis.setTickUnit(tickUnit);
+
+        boolean hasData = completedTotal > 0;
+        performanceChart.setVisible(hasData);
+        performanceChart.setManaged(hasData);
+        performanceEmptyBox.setVisible(!hasData);
+        performanceEmptyBox.setManaged(!hasData);
+        performanceSummaryLabel.setText(hasData
+                ? "Son 7 günde " + completedTotal + " tamamlanan iş · " + data.size() + " teknisyen"
+                : "Son 7 günlük tamamlanan iş dağılımı");
     }
 
     private void loadDashboardData() {
