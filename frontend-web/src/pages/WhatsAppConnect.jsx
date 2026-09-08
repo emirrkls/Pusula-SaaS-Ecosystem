@@ -68,7 +68,10 @@ function WhatsAppConnect() {
         window.addEventListener('message', messageListener);
 
         window.fbAsyncInit = () => {
-            window.FB.init({ appId: APP_ID, cookie: true, xfbml: true, version: 'v26.0' });
+            // Meta's FedCM flow only forwards the requested scope and drops the
+            // Login for Business configuration id. Embedded Signup must use the
+            // classic OAuth popup so Meta can resolve CONFIGURATION_ID.
+            window.FB.init({ appId: APP_ID, cookie: true, xfbml: true, version: 'v26.0', fedCM: false });
             setSdkReady(true);
             setPhase('idle');
             setMessage('Mevcut WhatsApp Business uygulamanızı koruyarak bağlantıyı başlatabilirsiniz.');
