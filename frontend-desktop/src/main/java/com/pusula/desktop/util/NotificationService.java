@@ -93,10 +93,10 @@ public final class NotificationService {
         copy.setMinWidth(0);
         copy.setMaxWidth(Double.MAX_VALUE);
 
-        Button closeButton = new Button("×");
+        Button closeButton = new Button("✕");
         closeButton.getStyleClass().add("feedback-modal-close");
         closeButton.setAccessibleText("Pencereyi kapat");
-        closeButton.setCancelButton(true);
+        closeButton.setFocusTraversable(false);
         closeButton.setOnAction(event -> stage.close());
         HBox content = new HBox(16, icon, copy, closeButton);
         HBox.setHgrow(copy, Priority.ALWAYS);
@@ -192,10 +192,10 @@ public final class NotificationService {
         }
         copy.setMinWidth(0);
         copy.setMaxWidth(Double.MAX_VALUE);
-        Button closeButton = new Button("×");
+        Button closeButton = new Button("✕");
         closeButton.getStyleClass().add("feedback-modal-close");
         closeButton.setAccessibleText("Pencereyi kapat");
-        closeButton.setCancelButton(true);
+        closeButton.setFocusTraversable(false);
         closeButton.setOnAction(event -> stage.close());
 
         HBox content = new HBox(16, icon, copy, closeButton);

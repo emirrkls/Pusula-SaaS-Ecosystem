@@ -62,8 +62,11 @@ public class CompanyDebtController {
     private TableColumn<CompanyDebtDTO, Void> colActions;
     @FXML
     private ComboBox<String> statusFilter;
+    @FXML private TextField partySearchField;
     @FXML
     private Label totalDebtLabel;
+    @FXML private Label activeSupplierCountLabel;
+    @FXML private Label openDebtCountLabel;
     @FXML private TableView<PayablePartySummaryDTO> partyTable;
     @FXML private TableColumn<PayablePartySummaryDTO, String> colPartyName;
     @FXML private TableColumn<PayablePartySummaryDTO, String> colPartyPurchases;
@@ -73,9 +76,11 @@ public class CompanyDebtController {
     @FXML private TableColumn<PayablePartySummaryDTO, String> colPartyLastDate;
     @FXML private TableColumn<PayablePartySummaryDTO, Void> colPartyActions;
     @FXML private Label debtDetailLabel;
+    @FXML private TitledPane debtDetailPane;
 
     private CompanyDebtApi api;
     private ObservableList<CompanyDebtDTO> debts = FXCollections.observableArrayList();
+    private final ObservableList<PayablePartySummaryDTO> allParties = FXCollections.observableArrayList();
     private PayablePartySummaryDTO selectedPayableParty;
     private DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("tr", "TR"));
@@ -203,20 +208,26 @@ public class CompanyDebtController {
 
     private void setupFilters() {
         statusFilter.setItems(FXCollections.observableArrayList(
-                "Tümü", "Ödenmedi", "Kısmi Ödeme", "Ödendi"));
-        statusFilter.setValue("Tümü");
+                "Borcu Olanlar", "Tüm Kartlar", "Borcu Kapananlar"));
+        statusFilter.setValue("Borcu Olanlar");
+        statusFilter.valueProperty().addListener((observable, oldValue, newValue) -> applyPartyFilters());
+        partySearchField.textProperty().addListener((observable, oldValue, newValue) -> applyPartyFilters());
     }
 
     @FXML
     public void loadDebts() {
         selectedPayableParty = null;
-        if (debtDetailLabel != null) debtDetailLabel.setText("Tüm Borç Hareketleri");
+        if (debtDetailLabel != null) debtDetailLabel.setText("Bir tedarikçi kartı seçin");
         api.getAllDebts().enqueue(new Callback<>() {
             @Override
             public void onResponse(Call<List<CompanyDebtDTO>> call, Response<List<CompanyDebtDTO>> response) {
                 Platform.runLater(() -> {
                     if (response.isSuccessful() && response.body() != null) {
                         debts.setAll(response.body());
+                        long openCount = response.body().stream()
+                                .filter(row -> row.getRemainingAmount() != null && row.getRemainingAmount().signum() > 0)
+                                .count();
+                        openDebtCountLabel.setText(String.valueOf(openCount));
                     }
                 });
             }
@@ -235,7 +246,7 @@ public class CompanyDebtController {
                 Platform.runLater(() -> {
                     if (response.isSuccessful() && response.body() != null) {
                         BigDecimal total = response.body().get("totalUnpaid");
-                        totalDebtLabel.setText("Toplam Borç: " + formatCurrency(total));
+                        totalDebtLabel.setText(formatCurrency(total));
                     }
                 });
             }
@@ -248,38 +259,25 @@ public class CompanyDebtController {
 
     @FXML
     public void applyFilter() {
-        String selected = statusFilter.getValue();
-        if (selected == null || "Tümü".equals(selected)) {
-            loadDebts();
-        } else {
-            // Filter locally
-            api.getAllDebts().enqueue(new Callback<>() {
-                @Override
-                public void onResponse(Call<List<CompanyDebtDTO>> call, Response<List<CompanyDebtDTO>> response) {
-                    Platform.runLater(() -> {
-                        if (response.isSuccessful() && response.body() != null) {
-                            String statusToFilter = switch (selected) {
-                                case "Ödenmedi" -> "UNPAID";
-                                case "Kısmi Ödeme" -> "PARTIAL";
-                                case "Ödendi" -> "PAID";
-                                default -> null;
-                            };
-                            if (statusToFilter != null) {
-                                debts.setAll(response.body().stream()
-                                        .filter(d -> statusToFilter.equals(d.getStatus()))
-                                        .toList());
-                            } else {
-                                debts.setAll(response.body());
-                            }
-                        }
-                    });
-                }
+        applyPartyFilters();
+    }
 
-                @Override
-                public void onFailure(Call<List<CompanyDebtDTO>> call, Throwable t) {
-                }
-            });
-        }
+    @FXML
+    private void clearFilters() {
+        partySearchField.clear();
+        statusFilter.setValue("Borcu Olanlar");
+        applyPartyFilters();
+    }
+
+    @FXML
+    private void handleRefresh() {
+        selectedPayableParty = null;
+        debtDetailPane.setExpanded(false);
+        debtDetailPane.setText("Hareket geçmişi");
+        debtDetailLabel.setText("Bir tedarikçi kartı seçin");
+        loadDebts();
+        loadParties();
+        loadTotalDebt();
     }
 
     @FXML
@@ -435,7 +433,12 @@ public class CompanyDebtController {
                     Response<List<PayablePartySummaryDTO>> response) {
                 Platform.runLater(() -> {
                     if (response.isSuccessful() && response.body() != null) {
-                        partyTable.setItems(FXCollections.observableArrayList(response.body()));
+                        allParties.setAll(response.body());
+                        long activeCount = response.body().stream()
+                                .filter(row -> row.getBalance() != null && row.getBalance().signum() > 0)
+                                .count();
+                        activeSupplierCountLabel.setText(String.valueOf(activeCount));
+                        applyPartyFilters();
                     }
                 });
             }
@@ -454,6 +457,8 @@ public class CompanyDebtController {
                     if (response.isSuccessful() && response.body() != null) {
                         debts.setAll(response.body());
                         debtDetailLabel.setText(party.getName() + " · Alım ve Hareketler");
+                        debtDetailPane.setText(party.getName() + " · Hareket geçmişi");
+                        debtDetailPane.setExpanded(true);
                     }
                 });
             }
@@ -461,6 +466,25 @@ public class CompanyDebtController {
                 Platform.runLater(() -> showError("Kart hareketleri yüklenemedi: " + throwable.getMessage()));
             }
         });
+    }
+
+    private void applyPartyFilters() {
+        if (partyTable == null) return;
+        Locale tr = new Locale("tr", "TR");
+        String query = partySearchField == null || partySearchField.getText() == null
+                ? "" : partySearchField.getText().trim().toLowerCase(tr);
+        String status = statusFilter == null ? "Borcu Olanlar" : statusFilter.getValue();
+        List<PayablePartySummaryDTO> filtered = allParties.stream()
+                .filter(row -> query.isBlank() || (row.getName() != null
+                        && row.getName().toLowerCase(tr).contains(query)))
+                .filter(row -> {
+                    boolean hasBalance = row.getBalance() != null && row.getBalance().signum() > 0;
+                    if ("Borcu Olanlar".equals(status)) return hasBalance;
+                    if ("Borcu Kapananlar".equals(status)) return !hasBalance;
+                    return true;
+                })
+                .toList();
+        partyTable.setItems(FXCollections.observableArrayList(filtered));
     }
 
     private void refreshDebtRows() {

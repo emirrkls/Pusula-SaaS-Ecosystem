@@ -121,11 +121,11 @@
 
                            <HBox alignment="CENTER_RIGHT" spacing="12.0" styleClass="finance-close-day-bar">
                               <VBox spacing="2.0" HBox.hgrow="ALWAYS">
-                                 <Label text="Günü kapatmaya hazır mısınız?" styleClass="finance-close-day-title" />
-                                 <Label text="Kapatmadan önce günün gelir ve gider kayıtlarını kontrol edin." styleClass="section-caption" />
+                                 <Label text="Günlük mutabakat" styleClass="finance-close-day-title" />
+                                 <Label text="Gelir ve giderlerin anık özetini kaydeder. Açık günler 23:59'da otomatik kapatılır." styleClass="section-caption" />
                               </VBox>
                               <Button fx:id="closeDayButton" mnemonicParsing="false" onAction="#handleCloseDay"
-                                      styleClass="btn-danger, btn-close-day" text="%finance.close_day" />
+                                      styleClass="btn-danger, btn-close-day" text="Mutabakatı Kaydet" />
                            </HBox>
                         </children>
                      </VBox>
@@ -197,41 +197,45 @@
 
             <!-- TAB 3: RAPORLAR (REPORTS - PLACEHOLDER) -->
             <Tab text="%finance.tab.reports">
-               <VBox spacing="15.0" styleClass="finance-panel" alignment="CENTER">
+               <VBox spacing="16.0" styleClass="finance-panel, finance-reports-root">
                   <padding>
-                     <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
+                     <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
                   </padding>
                   <children>
-                     <Label text="%finance.reports" styleClass="section-title">
-                        <font>
-                           <Font name="System Bold" size="18.0" />
-                        </font>
-                     </Label>
+                     <VBox spacing="3.0">
+                        <Label text="Aylık Finansal Raporlar" styleClass="page-header-title" />
+                        <Label text="Seçili ayın faaliyet sonucunu özet kartlardan, geçmiş dönemleri arşiv tablosundan inceleyin." styleClass="section-caption" />
+                     </VBox>
 
-                     <Separator />
+                     <ScrollPane fitToWidth="true" hbarPolicy="NEVER" prefHeight="290.0" styleClass="report-summary-scroll">
+                        <content>
+                           <VBox fx:id="reportDetailContainer" spacing="12.0" styleClass="report-detail-panel" />
+                        </content>
+                     </ScrollPane>
 
-                                           <!-- Monthly Reports Table -->
-                        <TableView fx:id="reportsTable" prefHeight="245.0" styleClass="premium-table">
+                     <HBox alignment="CENTER_LEFT" spacing="10.0">
+                        <VBox spacing="2.0" HBox.hgrow="ALWAYS">
+                           <Label text="Dönem Arşivi" styleClass="section-title" />
+                           <Label text="Bir dönem seçtiğinizde üstteki özet yenilenir." styleClass="section-caption" />
+                        </VBox>
+                     </HBox>
+
+                        <TableView fx:id="reportsTable" VBox.vgrow="ALWAYS" styleClass="premium-table, report-archive-table">
                          <placeholder><Label styleClass="empty-state" text="Henüz aylık rapor oluşmadı." /></placeholder>
                          <columns>
                             <TableColumn fx:id="colReportPeriod" text="%reports.period" prefWidth="150.0" />
-                            <TableColumn fx:id="colReportCarryOver" text="Geçmiş Birikimli K/Z" prefWidth="145.0" />
                             <TableColumn fx:id="colReportIncome" text="Satış / Ciro" prefWidth="115.0" />
                             <TableColumn fx:id="colReportCurrentAccount" text="Cariye Aktarılan" prefWidth="130.0" />
                             <TableColumn fx:id="colReportExpense" text="Toplam Kârlılık Gideri" prefWidth="145.0" />
                             <TableColumn fx:id="colReportProfit" text="Aylık Kâr / Zarar" prefWidth="125.0" />
                             <TableColumn fx:id="colReportClosingProfit" text="Dönem Sonu Birikimli K/Z" prefWidth="155.0" />
+                            <TableColumn fx:id="colReportCarryOver" text="Geçmiş Birikimli K/Z" prefWidth="145.0" visible="false" />
                             <TableColumn fx:id="colReportActions" text="%table.actions" prefWidth="100.0" />
                          </columns>
                          <columnResizePolicy>
                             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
                          </columnResizePolicy>
                         </TableView>
-                        <ScrollPane fitToWidth="true" prefHeight="390.0" VBox.vgrow="ALWAYS">
-                           <content>
-                              <VBox fx:id="reportDetailContainer" spacing="5.0" styleClass="report-detail-panel" />
-                           </content>
-                        </ScrollPane>
                   </children>
                </VBox>
             </Tab>

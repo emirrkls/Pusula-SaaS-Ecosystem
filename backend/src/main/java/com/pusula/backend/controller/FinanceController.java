@@ -112,7 +112,7 @@ public class FinanceController {
         DailyClosing closing = financeService.closeDay(
                 getCompanyId(),
                 request.getDate(),
-                request.getUserId());
+                getCurrentUser().getId());
         return ResponseEntity.ok(closing);
     }
 

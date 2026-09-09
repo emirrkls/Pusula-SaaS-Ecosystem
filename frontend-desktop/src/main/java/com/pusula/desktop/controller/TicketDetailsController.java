@@ -1362,14 +1362,24 @@ public class TicketDetailsController {
         dialog.setTitle(resourceBundle.getString("dialog.complete.title"));
         dialog.setHeaderText(resourceBundle.getString("dialog.complete.header"));
 
-        // Set buttons
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        ButtonType completeButtonType = new ButtonType("Servisi Tamamla", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButtonType = new ButtonType("Vazgeç", ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().addAll(completeButtonType, cancelButtonType);
+        dialog.getDialogPane().setPrefWidth(620);
 
         // Create form
         GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new javafx.geometry.Insets(20, 150, 10, 10));
+        grid.setHgap(18);
+        grid.setVgap(12);
+        grid.setPadding(new javafx.geometry.Insets(4));
+        grid.getStyleClass().add("service-completion-grid");
+        javafx.scene.layout.ColumnConstraints labelColumn = new javafx.scene.layout.ColumnConstraints();
+        labelColumn.setMinWidth(150);
+        labelColumn.setPrefWidth(165);
+        javafx.scene.layout.ColumnConstraints fieldColumn = new javafx.scene.layout.ColumnConstraints();
+        fieldColumn.setMinWidth(300);
+        fieldColumn.setHgrow(javafx.scene.layout.Priority.ALWAYS);
+        grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
 
         BigDecimal partsTotal = usedPartsList.stream()
                 .map(part -> {
@@ -1432,9 +1442,9 @@ public class TicketDetailsController {
         grid.add(outstandingLabel, 1, 4);
         grid.add(new Label(resourceBundle.getString("payment.method") + ":"), 0, 5);
         grid.add(paymentCombo, 1, 5);
-        CheckBox institutionalWarranty = new CheckBox("Ücreti anlaşmalı kurum karşılayacak");
+        CheckBox institutionalWarranty = new CheckBox("Anlaşmalı kurum ödeyecek");
         ComboBox<AccountPartyOptionDTO> billingPartyCombo = new ComboBox<>();
-        billingPartyCombo.setPromptText("Kurum/firma seçin");
+        billingPartyCombo.setPromptText("Kurumlar yükleniyor…");
         billingPartyCombo.setMaxWidth(Double.MAX_VALUE);
         billingPartyCombo.setDisable(true);
         Button addBillingPartyButton = new Button("Yeni kurum");
@@ -1443,18 +1453,23 @@ public class TicketDetailsController {
         addBillingPartyButton.setManaged(addBillingPartyButton.isVisible());
         HBox billingPartyBox = new HBox(8, billingPartyCombo, addBillingPartyButton);
         HBox.setHgrow(billingPartyCombo, javafx.scene.layout.Priority.ALWAYS);
+        grid.add(new Label("Ödeme sorumlusu:"), 0, 6);
         grid.add(institutionalWarranty, 1, 6);
         grid.add(new Label("Ödemeyi üstlenen kurum:"), 0, 7);
         grid.add(billingPartyBox, 1, 7);
+        Label billingPartyHint = new Label("Kurum ödemeli işlerde tutar, seçilen kurumun cari hesabına aktarılır.");
+        billingPartyHint.setWrapText(true);
+        billingPartyHint.getStyleClass().add("section-caption");
+        grid.add(billingPartyHint, 1, 8);
         TextArea technicianNoteField = new TextArea();
         technicianNoteField.setPromptText("Yapılan işlem / kapanış notu");
         technicianNoteField.setWrapText(true);
         technicianNoteField.setPrefRowCount(3);
-        grid.add(new Label("Teknisyen notu:"), 0, 8);
-        grid.add(technicianNoteField, 1, 8);
+        grid.add(new Label("Kapanış notu:"), 0, 9);
+        grid.add(technicianNoteField, 1, 9);
         if (com.pusula.desktop.util.SessionManager.isAdmin()) {
-            grid.add(new Label(resourceBundle.getString("dialog.complete.date") + ":"), 0, 9);
-            grid.add(completionDatePicker, 1, 9);
+            grid.add(new Label(resourceBundle.getString("dialog.complete.date") + ":"), 0, 10);
+            grid.add(completionDatePicker, 1, 10);
         }
 
         RetrofitClient.getClient().create(AccountPartyApi.class).getBillingOptions().enqueue(
@@ -1462,7 +1477,20 @@ public class TicketDetailsController {
                     @Override public void onResponse(Call<List<AccountPartyOptionDTO>> call,
                             Response<List<AccountPartyOptionDTO>> response) {
                         if (response.isSuccessful() && response.body() != null) {
-                            Platform.runLater(() -> billingPartyCombo.setItems(FXCollections.observableArrayList(response.body())));
+                            Platform.runLater(() -> {
+                                billingPartyCombo.setItems(FXCollections.observableArrayList(response.body()));
+                                if (response.body().isEmpty()) {
+                                    billingPartyCombo.setPromptText("Kayıtlı anlaşmalı kurum yok");
+                                    billingPartyHint.setText("Henüz kurum kartı yok. Yeni kurum düğmesiyle oluşturabilirsiniz.");
+                                } else {
+                                    billingPartyCombo.setPromptText("Anlaşmalı kurum seçin");
+                                    if (currentTicket.getBillingPartyId() != null) {
+                                        response.body().stream()
+                                                .filter(option -> currentTicket.getBillingPartyId().equals(option.getId()))
+                                                .findFirst().ifPresent(billingPartyCombo::setValue);
+                                    }
+                                }
+                            });
                         }
                     }
                     @Override public void onFailure(Call<List<AccountPartyOptionDTO>> call, Throwable throwable) {
@@ -1547,7 +1575,7 @@ public class TicketDetailsController {
         paymentCombo.valueProperty().addListener((observable, oldValue, newValue) -> {
             boolean currentAccount = newValue.equals(resourceBundle.getString("payment.current_account"));
             boolean warranty = newValue.equals(resourceBundle.getString("payment.warranty"));
-            institutionalWarranty.setDisable(!warranty);
+            institutionalWarranty.setDisable(false);
             if (!warranty) institutionalWarranty.setSelected(false);
             laborFeeField.setDisable(warranty && !institutionalWarranty.isSelected());
             if (warranty && !institutionalWarranty.isSelected()) laborFeeField.setRawValue(BigDecimal.ZERO);
@@ -1558,6 +1586,9 @@ public class TicketDetailsController {
             updateTotals.run();
         });
         institutionalWarranty.selectedProperty().addListener((observable, oldValue, selected) -> {
+            if (selected && !paymentCombo.getValue().equals(resourceBundle.getString("payment.warranty"))) {
+                paymentCombo.setValue(resourceBundle.getString("payment.warranty"));
+            }
             boolean warranty = paymentCombo.getValue().equals(resourceBundle.getString("payment.warranty"));
             billingPartyCombo.setDisable(!warranty || !selected);
             laborFeeField.setDisable(warranty && !selected);
@@ -1566,11 +1597,23 @@ public class TicketDetailsController {
         });
         updateTotals.run();
 
-        dialog.getDialogPane().setContent(grid);
+        Label formTitle = new Label("Ücret ve Tahsilat");
+        formTitle.getStyleClass().add("dialog-section-title");
+        Label formCaption = new Label("Fiş bedelini, tahsilatı ve ödeme sorumlusunu tek adımda kesinleştirin.");
+        formCaption.getStyleClass().add("section-caption");
+        VBox dialogContent = new VBox(5, formTitle, formCaption, grid);
+        dialogContent.getStyleClass().add("service-completion-content");
+        VBox.setMargin(grid, new javafx.geometry.Insets(10, 0, 0, 0));
+        ScrollPane formScroll = new ScrollPane(dialogContent);
+        formScroll.setFitToWidth(true);
+        formScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        formScroll.setPrefViewportHeight(570);
+        formScroll.getStyleClass().add("dialog-form-scroll");
+        dialog.getDialogPane().setContent(formScroll);
 
         // Convert result
         dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == ButtonType.OK) {
+            if (dialogButton == completeButtonType) {
                 java.util.Map<String, Object> result = new java.util.HashMap<>();
                 result.put("laborFee", laborFeeField.getRawValue());
                 result.put("collectedAmount", collectedField.getRawValue());

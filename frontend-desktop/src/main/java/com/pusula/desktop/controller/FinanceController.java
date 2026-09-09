@@ -22,6 +22,7 @@ import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -285,12 +286,12 @@ public class FinanceController {
         isDayClosed = summary.isClosed();
         closeDayButton.setDisable(isDayClosed);
         if (isDayClosed) {
-            closeDayButton.setText(bundle.getString("finance.already_closed"));
+            closeDayButton.setText("Mutabakat Kaydedildi");
             if (!closeDayButton.getStyleClass().contains("day-closed")) {
                 closeDayButton.getStyleClass().add("day-closed");
             }
         } else {
-            closeDayButton.setText(bundle.getString("finance.close_day"));
+            closeDayButton.setText("Mutabakatı Kaydet");
             closeDayButton.getStyleClass().remove("day-closed");
         }
     }
@@ -600,8 +601,9 @@ public class FinanceController {
         }
 
         if (AlertHelper.showConfirmation(todayExpensesTable.getScene().getWindow(),
-                bundle.getString("finance.close_day"), String.format("%s\nGider: %s\nNet Kasa: %s",
-                        bundle.getString("dialog.close_day.confirm"), todayExpenseLabel.getText(), netCashLabel.getText()))) {
+                "Günlük Mutabakat", String.format(
+                        "Bugünün finansal özetini kapatmak istiyor musunuz?\n\nGelir: %s\nGider: %s\nNet: %s\n\nYeni bir kayıt eklenirse özet otomatik olarak yeniden hesaplanır.",
+                        todayIncomeLabel.getText(), todayExpenseLabel.getText(), netCashLabel.getText()))) {
             performDayClosing();
         }
     }
@@ -610,7 +612,7 @@ public class FinanceController {
         CloseDayRequest request = CloseDayRequest.builder()
                 .companyId(com.pusula.desktop.util.SessionManager.getCompanyId())
                 .date(currentDate)
-                .userId(1L)
+                .userId(null)
                 .build();
 
         financeApi.closeDay(request).enqueue(new Callback<DailyClosingDTO>() {
@@ -623,6 +625,11 @@ public class FinanceController {
                                 bundle.getString("dialog.close_day.success"));
                         loadDailySummary(currentDate);
                     });
+                } else {
+                    Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                            todayExpensesTable.getScene().getWindow(), "Gün kapatılamadı",
+                            "Günlük mutabakat kaydedilemedi (" + response.code()
+                                    + "). Gün başka bir oturumda kapatılmışsa ekranı yenileyin."));
                 }
             }
 
@@ -726,27 +733,72 @@ public class FinanceController {
     private void renderReportDetails(MonthlySummaryDTO summary) {
         reportDetailContainer.getChildren().clear();
         if (summary == null) {
-            Label empty = new Label("Detayları görmek için bir ay seçin.");
+            Label empty = new Label("Aylık özeti görmek için arşivden bir dönem seçin.");
             empty.getStyleClass().add("empty-state");
             reportDetailContainer.getChildren().add(empty);
             return;
         }
 
-        Label title = new Label(summary.getDisplayPeriod() + " Finansal Özeti");
+        Label title = new Label(summary.getDisplayPeriod() + " Özeti");
         title.getStyleClass().add("report-detail-title");
         reportDetailContainer.getChildren().add(title);
 
-        addReportSection("ÖZET");
-        addReportDetailRow("Geçmiş dönem birikimli kâr / zarar", summary.getCarryOver(),
-                signedColor(summary.getCarryOver()));
-        addReportDetailRow("Satış / ciro", summary.getTotalIncome(), "amount-positive");
-        addReportDetailRow("Cariye aktarılan (satışın alt kalemi)", summary.getCurrentAccountTransferred(), "amount-warning");
-        addReportDetailRow("Servis doğrudan maliyeti", summary.getServiceDirectCost(), "amount-negative");
-        addReportDetailRow("Diğer faaliyet giderleri", summary.getOtherOperatingExpenses(), "amount-negative");
-        addReportDetailRow("Toplam kârlılık gideri", summary.getTotalProfitExpenses(), "amount-negative");
-        addReportDetailRow("Aylık faaliyet kâr / zarar", summary.getNetProfit(), signedColor(summary.getNetProfit()));
-        addReportDetailRow("Dönem sonu birikimli kâr / zarar", summary.getClosingCumulativeProfit(),
-                signedColor(summary.getClosingCumulativeProfit()));
+        FlowPane metrics = new FlowPane(12, 12);
+        metrics.getStyleClass().add("report-metric-grid");
+        metrics.getChildren().addAll(
+                reportMetricCard("Satış / Ciro", summary.getTotalIncome(), "amount-positive", "Bu ay oluşan toplam satış"),
+                reportMetricCard("Cariye Aktarılan", summary.getCurrentAccountTransferred(), "amount-warning", "Cironun henüz tahsil edilmemiş kısmı"),
+                reportMetricCard("Toplam Gider", summary.getTotalProfitExpenses(), "amount-negative", "Servis maliyeti ve diğer giderler"),
+                reportMetricCard("Aylık Kâr / Zarar", summary.getNetProfit(), signedColor(summary.getNetProfit()),
+                        "Satış eksi toplam kârlılık gideri"));
+        reportDetailContainer.getChildren().add(metrics);
+
+        HBox details = new HBox(12,
+                reportBreakdownCard("Gider Dağılımı",
+                        "Servis doğrudan maliyeti", summary.getServiceDirectCost(),
+                        "Diğer faaliyet giderleri", summary.getOtherOperatingExpenses()),
+                reportBreakdownCard("Birikimli Sonuç",
+                        "Geçmiş dönem", summary.getCarryOver(),
+                        "Dönem sonu", summary.getClosingCumulativeProfit()));
+        for (var child : details.getChildren()) HBox.setHgrow(child, Priority.ALWAYS);
+        details.getStyleClass().add("report-breakdown-row");
+        reportDetailContainer.getChildren().add(details);
+    }
+
+    private VBox reportMetricCard(String labelText, BigDecimal amount, String color, String captionText) {
+        Label label = new Label(labelText);
+        label.getStyleClass().add("finance-summary-label");
+        Label value = new Label(formatCurrency(amount));
+        value.getStyleClass().addAll("report-metric-value", color == null ? "amount-neutral" : color);
+        Label caption = new Label(captionText);
+        caption.setWrapText(true);
+        caption.getStyleClass().add("finance-summary-caption");
+        VBox card = new VBox(5, label, value, caption);
+        card.setPrefWidth(245);
+        card.getStyleClass().add("report-metric-card");
+        return card;
+    }
+
+    private VBox reportBreakdownCard(String titleText,
+            String firstLabel, BigDecimal firstAmount, String secondLabel, BigDecimal secondAmount) {
+        Label title = new Label(titleText);
+        title.getStyleClass().add("finance-ledger-title");
+        VBox card = new VBox(7, title);
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.getStyleClass().add("report-breakdown-card");
+        addCompactReportRow(card, firstLabel, firstAmount);
+        addCompactReportRow(card, secondLabel, secondAmount);
+        return card;
+    }
+
+    private void addCompactReportRow(VBox card, String labelText, BigDecimal amount) {
+        Label label = new Label(labelText);
+        label.getStyleClass().add("section-caption");
+        Label value = new Label(formatCurrency(amount));
+        value.getStyleClass().addAll("report-detail-value", signedColor(amount) == null ? "amount-neutral" : signedColor(amount));
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        card.getChildren().add(new HBox(8, label, spacer, value));
     }
 
     private void addReportSection(String title) {

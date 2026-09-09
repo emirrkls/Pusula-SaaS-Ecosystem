@@ -6,32 +6,57 @@
 
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.pusula.desktop.controller.CompanyDebtController"
-      spacing="15" styleClass="subsection-panel">
+      spacing="16" styleClass="subsection-panel, debt-workspace">
     <padding>
         <Insets top="20" right="20" bottom="20" left="20"/>
     </padding>
 
     <VBox spacing="10" styleClass="page-header">
         <HBox alignment="CENTER_LEFT" spacing="12">
-        <Label styleClass="page-header-title" text="Tedarikçi ve Borç Kartları" HBox.hgrow="ALWAYS"/>
-            <Label fx:id="totalDebtLabel" styleClass="debt-total-label" text="Toplam Borç: 0 ₺"/>
+            <VBox spacing="3" HBox.hgrow="ALWAYS">
+                <Label styleClass="page-header-title" text="Borç Yönetimi"/>
+                <Label styleClass="section-caption" text="Tedarikçi bakiyelerini tek karttan izleyin; alım ve ödemeleri hareket geçmişinde yönetin."/>
+            </VBox>
         </HBox>
         <FlowPane alignment="CENTER_RIGHT" hgap="10" vgap="8" styleClass="page-header-actions">
             <Button onAction="#handleExportPdf" styleClass="btn-export" text="PDF Kaydet"/>
             <Button onAction="#handleAddDebt" styleClass="btn-primary" text="+ Borç Ekle"/>
-            <Button onAction="#loadDebts" styleClass="btn-secondary" text="Yenile"/>
+            <Button onAction="#handleRefresh" styleClass="btn-secondary" text="Yenile"/>
         </FlowPane>
     </VBox>
 
-    <FlowPane alignment="CENTER_LEFT" hgap="10" vgap="8" styleClass="filter-bar">
-        <Label text="Filtre:"/>
-        <ComboBox fx:id="statusFilter" prefWidth="150" promptText="Tümü"/>
-        <Button onAction="#applyFilter" styleClass="btn-primary" text="Uygula"/>
+    <FlowPane hgap="12" vgap="12" styleClass="debt-summary-strip">
+        <VBox prefWidth="240" spacing="5" styleClass="debt-summary-card, debt-summary-total">
+            <Label styleClass="finance-summary-label" text="Açık Toplam Borç"/>
+            <Label fx:id="totalDebtLabel" styleClass="debt-summary-value, amount-negative" text="0 ₺"/>
+            <Label styleClass="finance-summary-caption" text="Henüz ödenmemiş toplam bakiye"/>
+        </VBox>
+        <VBox prefWidth="210" spacing="5" styleClass="debt-summary-card">
+            <Label styleClass="finance-summary-label" text="Aktif Tedarikçi"/>
+            <Label fx:id="activeSupplierCountLabel" styleClass="debt-summary-value" text="0"/>
+            <Label styleClass="finance-summary-caption" text="Bakiyesi bulunan kart sayısı"/>
+        </VBox>
+        <VBox prefWidth="210" spacing="5" styleClass="debt-summary-card">
+            <Label styleClass="finance-summary-label" text="Açık Alım"/>
+            <Label fx:id="openDebtCountLabel" styleClass="debt-summary-value" text="0"/>
+            <Label styleClass="finance-summary-caption" text="Açık veya kısmi ödenmiş hareket"/>
+        </VBox>
     </FlowPane>
 
-    <SplitPane orientation="VERTICAL" VBox.vgrow="ALWAYS" dividerPositions="0.43">
-        <VBox spacing="6">
-            <Label styleClass="section-title" text="Tedarikçi Kartları"/>
+    <FlowPane alignment="CENTER_LEFT" hgap="10" vgap="8" styleClass="filter-bar">
+        <TextField fx:id="partySearchField" prefWidth="280" promptText="Tedarikçi veya alacaklı ara"/>
+        <ComboBox fx:id="statusFilter" prefWidth="180" promptText="Borcu Olanlar"/>
+        <Button onAction="#applyFilter" styleClass="btn-primary" text="Filtrele"/>
+        <Button onAction="#clearFilters" styleClass="btn-secondary" text="Temizle"/>
+    </FlowPane>
+
+    <VBox spacing="8" VBox.vgrow="ALWAYS" styleClass="debt-table-card">
+            <HBox alignment="CENTER_LEFT">
+                <VBox spacing="2" HBox.hgrow="ALWAYS">
+                    <Label styleClass="section-title" text="Tedarikçi Kartları"/>
+                    <Label styleClass="section-caption" text="Bir karta çift tıklayarak ayrıntılı hareketleri açabilirsiniz."/>
+                </VBox>
+            </HBox>
             <TableView fx:id="partyTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
                 <columns>
                     <TableColumn fx:id="colPartyName" minWidth="180" text="Tedarikçi / Alacaklı"/>
@@ -40,15 +65,18 @@
                     <TableColumn fx:id="colPartyBalance" minWidth="120" text="Kalan Borç"/>
                     <TableColumn fx:id="colPartyFirstDate" minWidth="105" text="Başlangıç"/>
                     <TableColumn fx:id="colPartyLastDate" minWidth="105" text="Son Hareket"/>
-                    <TableColumn fx:id="colPartyActions" minWidth="235" text="İşlemler"/>
+                    <TableColumn fx:id="colPartyActions" minWidth="220" text="İşlemler"/>
                 </columns>
                 <placeholder><Label text="Henüz tedarikçi kartı bulunmuyor"/></placeholder>
                 <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/></columnResizePolicy>
             </TableView>
-        </VBox>
-        <VBox spacing="6">
-            <Label fx:id="debtDetailLabel" styleClass="section-title" text="Tüm Borç Hareketleri"/>
-            <TableView fx:id="debtTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
+    </VBox>
+
+    <TitledPane fx:id="debtDetailPane" animated="false" expanded="false" text="Hareket geçmişi">
+        <content>
+        <VBox spacing="8" styleClass="debt-detail-content">
+            <Label fx:id="debtDetailLabel" styleClass="section-title" text="Bir tedarikçi kartı seçin"/>
+            <TableView fx:id="debtTable" prefHeight="270" styleClass="premium-table">
                 <columns>
                     <TableColumn fx:id="colCreditor" minWidth="130" text="Alacaklı"/>
                     <TableColumn fx:id="colCategory" minWidth="90" text="Kategori"/>
@@ -64,5 +92,6 @@
                 <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/></columnResizePolicy>
             </TableView>
         </VBox>
-    </SplitPane>
+        </content>
+    </TitledPane>
 </VBox>

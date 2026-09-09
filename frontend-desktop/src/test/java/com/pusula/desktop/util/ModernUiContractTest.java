@@ -111,11 +111,14 @@ class ModernUiContractTest {
         String shell = Files.readString(viewRoot.resolve("main_dashboard.fxml"), StandardCharsets.UTF_8);
         String tickets = Files.readString(viewRoot.resolve("service_tickets.fxml"), StandardCharsets.UTF_8);
         String photos = Files.readString(viewRoot.resolve("service_photos.fxml"), StandardCharsets.UTF_8);
+        String debts = Files.readString(viewRoot.resolve("company_debts.fxml"), StandardCharsets.UTF_8);
 
         assertTrue(finance.contains("finance-summary-grid"));
         assertTrue(finance.contains("finance-ledger-card"));
         assertTrue(finance.contains("finance-close-day-bar"));
         assertTrue(finance.contains("finance-analytics-kpis"));
+        assertTrue(finance.contains("report-summary-scroll"));
+        assertTrue(finance.contains("report-archive-table"));
         assertFalse(finance.contains("btn-danger btn-block"),
                 "Closing the day must remain a deliberate compact action, not a full-width banner");
         assertTrue(dashboard.contains("fx:id=\"performanceYAxis\""));
@@ -123,6 +126,10 @@ class ModernUiContractTest {
         assertTrue(shell.contains("fx:id=\"topbarIdentity\""));
         assertTrue(tickets.contains("date-range-group"));
         assertTrue(photos.contains("filter-control-group"));
+        assertTrue(debts.contains("debt-summary-strip"));
+        assertTrue(debts.contains("fx:id=\"debtDetailPane\""));
+        assertFalse(debts.contains("<SplitPane"),
+                "Debt cards and movement history should not compete in a fixed split view");
     }
 
     private String readSafely(Path path) {

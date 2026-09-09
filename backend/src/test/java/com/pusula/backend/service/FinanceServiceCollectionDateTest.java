@@ -2,6 +2,8 @@ package com.pusula.backend.service;
 
 import com.pusula.backend.dto.DailySummaryDTO;
 import com.pusula.backend.entity.DailyClosing;
+import com.pusula.backend.entity.Expense;
+import com.pusula.backend.entity.ExpenseCategory;
 import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.repository.*;
@@ -107,6 +109,21 @@ class FinanceServiceCollectionDateTest {
         assertThrows(IllegalStateException.class, () -> service.deleteExpense(88L, 1L));
 
         verify(expenseRepository, never()).deleteById(88L);
+    }
+
+    @Test
+    void genericExpenseReconcilesAnExistingDailySnapshot() {
+        LocalDate expenseDate = LocalDate.of(2026, 9, 8);
+        Expense expense = Expense.builder()
+                .id(88L).companyId(10L).date(expenseDate)
+                .category(ExpenseCategory.OTHER).description("Ofis gideri")
+                .amount(new BigDecimal("1250.00")).build();
+        when(expenseRepository.save(expense)).thenReturn(expense);
+        when(dailyClosingRepository.findByCompanyIdAndDate(10L, expenseDate)).thenReturn(Optional.empty());
+
+        service.addExpense(expense);
+
+        verify(dailyClosingRepository).findByCompanyIdAndDate(10L, expenseDate);
     }
 
     private ServiceTicket completedCashTicket(BigDecimal amount, LocalDate collectionDate) {

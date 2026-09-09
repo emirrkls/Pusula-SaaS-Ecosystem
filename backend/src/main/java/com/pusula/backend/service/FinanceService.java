@@ -172,6 +172,8 @@ public class FinanceService {
                 auditLogService.log("CREATE", "EXPENSE", saved.getId(),
                                 "Gider eklendi: " + saved.getDescription() + " (" + saved.getAmount() + " ₺)");
 
+                reconcileClosedDay(saved.getCompanyId(), saved.getDate());
+
                 return saved;
         }
 
@@ -189,6 +191,8 @@ public class FinanceService {
                 Expense existing = expenseRepository.findByIdAndCompanyId(id, companyId)
                                 .orElseThrow(() -> new IllegalArgumentException("Expense not found: " + id));
 
+                LocalDate previousDate = existing.getDate();
+
                 existing.setDate(updatedExpense.getDate());
                 existing.setAmount(updatedExpense.getAmount());
                 existing.setCategory(updatedExpense.getCategory());
@@ -197,7 +201,10 @@ public class FinanceService {
                         existing.setFinancialTreatment(updatedExpense.getFinancialTreatment());
                 }
 
-                return expenseRepository.save(existing);
+                Expense saved = expenseRepository.save(existing);
+                reconcileClosedDay(companyId, previousDate);
+                if (!previousDate.equals(saved.getDate())) reconcileClosedDay(companyId, saved.getDate());
+                return saved;
         }
 
         public void deleteExpense(Long id, Long companyId) {
@@ -213,6 +220,7 @@ public class FinanceService {
                         throw new IllegalArgumentException("Expense not found: " + id);
                 }
                 expenseRepository.delete(expense);
+                reconcileClosedDay(companyId, expense.getDate());
         }
 
         private void rejectManagedExpenseMutation(Long expenseId) {
