@@ -70,6 +70,16 @@
             </FlowPane>
          </children>
       </VBox>
+
+      <FlowPane fx:id="financialSummary" managed="false" hgap="12.0" vgap="10.0" styleClass="ticket-financial-summary" visible="false">
+         <children>
+            <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="Fiş Toplamı"/><Label fx:id="lblInvoiceTotal" styleClass="ticket-summary-value"/></VBox>
+            <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="Tahsil Edilen"/><Label fx:id="lblCollectedAmount" styleClass="ticket-summary-value-success"/></VBox>
+            <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="Cariye Aktarılan"/><Label fx:id="lblOutstandingAmount" styleClass="ticket-summary-value-warning"/></VBox>
+            <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="Ödeme Yöntemi"/><Label fx:id="lblPaymentMethod" styleClass="ticket-summary-value"/></VBox>
+            <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="Kapanış Tarihi"/><Label fx:id="lblCompletionDate" styleClass="ticket-summary-value"/></VBox>
+         </children>
+      </FlowPane>
       
       <TabPane tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
          <tabs>

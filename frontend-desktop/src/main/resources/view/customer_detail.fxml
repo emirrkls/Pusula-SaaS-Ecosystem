@@ -34,17 +34,22 @@
          <Button mnemonicParsing="false" onAction="#handleSave" styleClass="btn-success" text="%btn.save" />
          <Button mnemonicParsing="false" onAction="#handleCancel" styleClass="btn-secondary" text="%btn.cancel" />
       </HBox>
-      <Label styleClass="section-title" text="%customer.history.title">
+      <HBox alignment="CENTER_LEFT" spacing="10.0">
          <VBox.margin>
             <Insets top="10.0" />
          </VBox.margin>
-      </Label>
+         <children>
+            <Label styleClass="section-title" text="%customer.history.title" />
+            <Label styleClass="section-caption" text="Bir iş emrinin detayını açmak için çift tıklayın." />
+         </children>
+      </HBox>
       <TableView fx:id="historyTable" prefHeight="200.0" styleClass="premium-table" VBox.vgrow="ALWAYS">
         <columns>
           <TableColumn fx:id="colDate" prefWidth="100.0" text="%table.date" />
           <TableColumn fx:id="colIssue" prefWidth="200.0" text="%table.issue" />
           <TableColumn fx:id="colStatus" prefWidth="100.0" text="%table.status" />
           <TableColumn fx:id="colTechnician" prefWidth="150.0" text="%table.technician" />
+          <TableColumn fx:id="colHistoryActions" minWidth="82.0" prefWidth="90.0" text="Detay" />
         </columns>
          <columnResizePolicy>
             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />

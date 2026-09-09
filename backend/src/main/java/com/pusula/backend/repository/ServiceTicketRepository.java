@@ -16,6 +16,9 @@ import java.util.Optional;
 public interface ServiceTicketRepository extends JpaRepository<ServiceTicket, Long> {
     List<ServiceTicket> findByCompanyId(Long companyId);
 
+    List<ServiceTicket> findByCompanyIdAndCustomerIdOrderByScheduledDateDescCreatedAtDesc(
+            Long companyId, Long customerId);
+
     List<ServiceTicket> findByAssignedTechnicianId(Long technicianId);
 
     @Query("SELECT t FROM ServiceTicket t WHERE t.assignedTechnicianId IS NOT NULL "

@@ -220,6 +220,14 @@ public class ReportController {
         return pdfResponse(pdf, "acik_cari_hesaplar.pdf");
     }
 
+    @GetMapping("/current-accounts/{accountId}/pdf")
+    @RequiresFeature("ADVANCED_REPORT_EXPORT")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<byte[]> downloadCurrentAccountStatementPdf(@PathVariable Long accountId) {
+        byte[] pdf = openBalanceReportService.generateCurrentAccountStatementPdf(accountId, getCompanyId());
+        return pdfResponse(pdf, "cari_hesap_ekstresi_" + accountId + ".pdf");
+    }
+
     private ResponseEntity<byte[]> pdfResponse(byte[] pdf, String filename) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);

@@ -70,6 +70,12 @@ public class ServiceTicketController {
         return ResponseEntity.ok(service.getAllTickets());
     }
 
+    @GetMapping("/customer/{customerId}")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<List<ServiceTicketDTO>> getCustomerTickets(@PathVariable Long customerId) {
+        return ResponseEntity.ok(service.getCustomerTickets(customerId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ServiceTicketDTO> getTicketById(@PathVariable Long id) {
         return ResponseEntity.ok(service.getTicketById(id));

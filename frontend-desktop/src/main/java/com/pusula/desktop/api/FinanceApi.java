@@ -92,6 +92,9 @@ public interface FinanceApi {
         @GET("/api/reports/open-current-accounts/pdf")
         Call<okhttp3.ResponseBody> downloadOpenCurrentAccountsPdf();
 
+        @GET("/api/reports/current-accounts/{accountId}/pdf")
+        Call<okhttp3.ResponseBody> downloadCurrentAccountStatementPdf(@Path("accountId") Long accountId);
+
         @GET("/api/finance/inventory-value")
         Call<Map<String, BigDecimal>> getInventoryValue();
 }

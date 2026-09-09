@@ -121,18 +121,21 @@ public class ServiceTicketExpenseService {
         expense.setSupplier(blankToNull(dto.getSupplier()));
         expense.setNotes(blankToNull(dto.getNotes()));
 
-        if (expense.getFinanceExpenseId() == null) {
-            throw new IllegalStateException("Giderin finans kaydı bulunamadı; düzenleme güvenli biçimde yapılamıyor.");
-        }
-        Expense financeExpense = expenseRepository
+        LocalDate expenseDate = expense.getExpenseDate() != null ? expense.getExpenseDate() : resolveExpenseDate(ticket);
+        expense.setExpenseDate(expenseDate);
+        Expense financeExpense = expense.getFinanceExpenseId() == null ? null : expenseRepository
                 .findByIdAndCompanyId(expense.getFinanceExpenseId(), ticket.getCompanyId())
-                .orElseThrow(() -> new IllegalStateException("Giderin bağlı finans kaydı bulunamadı."));
+                .orElse(null);
+        if (financeExpense == null) {
+            financeExpense = Expense.builder().companyId(ticket.getCompanyId()).build();
+        }
         financeExpense.setAmount(expense.getAmount());
         financeExpense.setDescription("Servis Gideri #" + ticket.getId() + ": " + expense.getDescription());
-        financeExpense.setDate(expense.getExpenseDate());
+        financeExpense.setDate(expenseDate);
         financeExpense.setCategory(ExpenseCategory.MATERIAL);
         financeExpense.setFinancialTreatment(ExpenseTreatment.SERVICE_DIRECT_EXPENSE);
-        expenseRepository.save(financeExpense);
+        Expense savedFinanceExpense = expenseRepository.save(financeExpense);
+        expense.setFinanceExpenseId(savedFinanceExpense.getId());
 
         ServiceTicketExpense saved = repository.save(expense);
         financeService.reconcileClosedDay(saved.getCompanyId(), saved.getExpenseDate());

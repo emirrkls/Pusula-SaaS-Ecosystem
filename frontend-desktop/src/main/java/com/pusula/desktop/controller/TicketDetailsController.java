@@ -27,6 +27,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.FlowPane;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignW;
 import okhttp3.ResponseBody;
@@ -101,6 +102,12 @@ public class TicketDetailsController {
     private Label lblCustomerAddress;
     @FXML
     private Button btnWhatsApp;
+    @FXML private FlowPane financialSummary;
+    @FXML private Label lblInvoiceTotal;
+    @FXML private Label lblCollectedAmount;
+    @FXML private Label lblOutstandingAmount;
+    @FXML private Label lblPaymentMethod;
+    @FXML private Label lblCompletionDate;
 
     private java.util.ResourceBundle resourceBundle;
 
@@ -483,6 +490,17 @@ public class TicketDetailsController {
         boolean isCompleted = "COMPLETED".equals(currentTicket.getStatus());
         boolean isCancelled = "CANCELLED".equals(currentTicket.getStatus());
         boolean isClosed = isCompleted || isCancelled;
+        financialSummary.setVisible(isCompleted);
+        financialSummary.setManaged(isCompleted);
+        if (isCompleted) {
+            lblInvoiceTotal.setText(formatMoney(currentTicket.getInvoiceTotal()));
+            lblCollectedAmount.setText(formatMoney(currentTicket.getCollectedAmount()));
+            lblOutstandingAmount.setText(formatMoney(currentTicket.getOutstandingAmount()));
+            lblPaymentMethod.setText(paymentMethodLabel(currentTicket.getPaymentMethod()));
+            LocalDateTime completedAt = currentTicket.getCompletedAt();
+            lblCompletionDate.setText(completedAt != null
+                    ? completedAt.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")) : "-");
+        }
         // Show recall button only for COMPLETED tickets
         btnCreateRecall.setVisible(isCompleted);
         btnCreateRecall.setManaged(isCompleted);
@@ -539,6 +557,17 @@ public class TicketDetailsController {
             lblParentLink.setVisible(false);
             lblParentLink.setManaged(false);
         }
+    }
+
+    private String paymentMethodLabel(String method) {
+        if (method == null) return "-";
+        return switch (method) {
+            case "CASH" -> "Nakit";
+            case "CREDIT_CARD" -> "Kart";
+            case "CURRENT_ACCOUNT" -> "Cari";
+            case "WARRANTY" -> "Garantili ürün";
+            default -> method;
+        };
     }
 
     @FXML
@@ -918,6 +947,25 @@ public class TicketDetailsController {
         grid.add(notesField, 1, 3);
 
         dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().getStyleClass().add("expense-form-dialog");
+        dialog.getDialogPane().setMinWidth(620);
+        dialog.getDialogPane().setPrefWidth(620);
+        javafx.scene.layout.ColumnConstraints labelColumn = new javafx.scene.layout.ColumnConstraints(112);
+        javafx.scene.layout.ColumnConstraints fieldColumn = new javafx.scene.layout.ColumnConstraints();
+        fieldColumn.setMinWidth(380);
+        fieldColumn.setHgrow(javafx.scene.layout.Priority.ALWAYS);
+        grid.getColumnConstraints().setAll(labelColumn, fieldColumn);
+        for (javafx.scene.Node node : grid.getChildren()) {
+            if (node instanceof Label label) {
+                label.setWrapText(false);
+                label.setMinWidth(112);
+            }
+            Integer column = GridPane.getColumnIndex(node);
+            if (column != null && column == 1) {
+                GridPane.setHgrow(node, javafx.scene.layout.Priority.ALWAYS);
+                if (node instanceof javafx.scene.control.Control control) control.setMaxWidth(Double.MAX_VALUE);
+            }
+        }
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
         dialog.setResultConverter(button -> {

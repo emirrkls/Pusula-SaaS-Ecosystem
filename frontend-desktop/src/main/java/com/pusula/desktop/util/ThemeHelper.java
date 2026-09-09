@@ -11,6 +11,7 @@ import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.GridPane;
 import javafx.geometry.Rectangle2D;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -103,6 +104,14 @@ public final class ThemeHelper {
                 button.setTextOverrun(OverrunStyle.CLIP);
                 button.setWrapText(false);
                 button.setAccessibleText(button.getText());
+            }
+        }
+        for (var node : pane.lookupAll(".label")) {
+            if (node instanceof Label label && label.getParent() instanceof GridPane
+                    && (GridPane.getColumnIndex(label) == null || GridPane.getColumnIndex(label) == 0)) {
+                label.setWrapText(false);
+                label.setMinWidth(Region.USE_PREF_SIZE);
+                label.setTextOverrun(OverrunStyle.CLIP);
             }
         }
         for (var buttonType : pane.getButtonTypes()) {

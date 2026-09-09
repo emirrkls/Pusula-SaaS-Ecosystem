@@ -1110,8 +1110,11 @@ public class FinanceController {
 
         VBox content = new VBox(12);
         content.setPadding(new javafx.geometry.Insets(12));
+        Button exportButton = new Button("PDF Ekstre");
+        exportButton.getStyleClass().addAll("btn-export", "button-sm");
+        exportButton.setOnAction(event -> downloadCurrentAccountStatement(account));
         ProgressIndicator progress = new ProgressIndicator();
-        content.getChildren().add(progress);
+        content.getChildren().addAll(exportButton, progress);
         dialog.getDialogPane().setContent(content);
         dialog.show();
 
@@ -1127,7 +1130,7 @@ public class FinanceController {
                     CurrentAccountHistoryDTO history = response.body();
                     dialog.setHeaderText(history.getAccountName() + " - Güncel bakiye: "
                             + formatCurrency(history.getCurrentBalance()));
-                    content.getChildren().setAll(buildCurrentAccountHistoryTable(history));
+                    content.getChildren().setAll(exportButton, buildCurrentAccountHistoryTable(history));
                 });
             }
 
@@ -1137,6 +1140,53 @@ public class FinanceController {
                         new Label("Cari geçmişi yüklenemedi: " + throwable.getMessage())));
             }
         });
+    }
+
+    private void downloadCurrentAccountStatement(CurrentAccountDTO account) {
+        financeApi.downloadCurrentAccountStatementPdf(account.getId()).enqueue(new Callback<okhttp3.ResponseBody>() {
+            @Override
+            public void onResponse(Call<okhttp3.ResponseBody> call, Response<okhttp3.ResponseBody> response) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                            currentAccountsTable.getScene().getWindow(), "Ekstre oluşturulamadı",
+                            "Sunucu yanıtı: " + response.code()));
+                    return;
+                }
+                try {
+                    byte[] pdf = response.body().bytes();
+                    Platform.runLater(() -> saveCurrentAccountStatementPdf(account, pdf));
+                } catch (Exception exception) {
+                    Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                            currentAccountsTable.getScene().getWindow(), "Ekstre okunamadı", exception.getMessage()));
+                }
+            }
+
+            @Override
+            public void onFailure(Call<okhttp3.ResponseBody> call, Throwable throwable) {
+                Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                        currentAccountsTable.getScene().getWindow(), "Ekstre indirilemedi", throwable.getMessage()));
+            }
+        });
+    }
+
+    private void saveCurrentAccountStatementPdf(CurrentAccountDTO account, byte[] pdf) {
+        try {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle("Cari Hesap Ekstresini Kaydet");
+            String safeName = account.getAccountName() == null ? "Cari_Hesap"
+                    : account.getAccountName().replaceAll("[^\\p{L}\\p{N}._-]+", "_");
+            chooser.setInitialFileName("Cari_Ekstre_" + safeName + ".pdf");
+            chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF Dosyaları", "*.pdf"));
+            File file = chooser.showSaveDialog((Stage) currentAccountsTable.getScene().getWindow());
+            if (file != null) {
+                Files.write(file.toPath(), pdf);
+                AlertHelper.showSuccess(currentAccountsTable.getScene().getWindow(),
+                        "Ekstre kaydedildi", "Seçilen cari hesabın tüm hareketleri PDF olarak kaydedildi.");
+            }
+        } catch (Exception exception) {
+            AlertHelper.showAlert(Alert.AlertType.ERROR, currentAccountsTable.getScene().getWindow(),
+                    "Ekstre kaydedilemedi", exception.getMessage());
+        }
     }
 
     private TableView<CurrentAccountHistoryDTO.Transaction> buildCurrentAccountHistoryTable(

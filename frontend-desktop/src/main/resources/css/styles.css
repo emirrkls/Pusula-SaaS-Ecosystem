@@ -3493,6 +3493,38 @@
     -fx-min-height: 40;
 }
 
+.expense-form-dialog .label {
+    -fx-wrap-text: false;
+}
+
+.ticket-financial-summary {
+    -fx-padding: 12;
+    -fx-background-color: -pusula-surface-muted;
+    -fx-background-radius: 12;
+    -fx-border-color: -pusula-border;
+    -fx-border-radius: 12;
+}
+
+.ticket-summary-card {
+    -fx-min-width: 132;
+    -fx-pref-width: 144;
+    -fx-spacing: 4;
+    -fx-padding: 8 10;
+    -fx-background-color: -pusula-surface;
+    -fx-background-radius: 9;
+}
+
+.ticket-summary-value,
+.ticket-summary-value-success,
+.ticket-summary-value-warning {
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -pusula-text;
+}
+
+.ticket-summary-value-success { -fx-text-fill: #16A34A; }
+.ticket-summary-value-warning { -fx-text-fill: #EA580C; }
+
 .debt-summary-strip {
     -fx-padding: 2 0 2 0;
 }

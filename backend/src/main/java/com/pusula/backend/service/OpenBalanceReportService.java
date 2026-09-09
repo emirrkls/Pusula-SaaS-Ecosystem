@@ -40,6 +40,7 @@ public class OpenBalanceReportService {
     private final CompanyDebtPaymentRepository paymentRepository;
     private final CompanyDebtAdditionRepository additionRepository;
     private final CurrentAccountRepository currentAccountRepository;
+    private final CurrentAccountTransactionRepository currentAccountTransactionRepository;
     private final CompanyRepository companyRepository;
     private final ZoneId businessZone;
 
@@ -56,12 +57,14 @@ public class OpenBalanceReportService {
             CompanyDebtPaymentRepository paymentRepository,
             CompanyDebtAdditionRepository additionRepository,
             CurrentAccountRepository currentAccountRepository,
+            CurrentAccountTransactionRepository currentAccountTransactionRepository,
             CompanyRepository companyRepository,
             @Value("${app.business.timezone:Europe/Istanbul}") String businessTimezone) {
         this.debtRepository = debtRepository;
         this.paymentRepository = paymentRepository;
         this.additionRepository = additionRepository;
         this.currentAccountRepository = currentAccountRepository;
+        this.currentAccountTransactionRepository = currentAccountTransactionRepository;
         this.companyRepository = companyRepository;
         this.businessZone = ZoneId.of(businessTimezone);
         try {
@@ -212,6 +215,72 @@ public class OpenBalanceReportService {
             }
             addFooter(document);
         });
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] generateCurrentAccountStatementPdf(Long accountId, Long companyId) {
+        Company company = getCompany(companyId);
+        CurrentAccount account = currentAccountRepository.findByIdAndCompanyId(accountId, companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Cari hesap bulunamadı."));
+        List<CurrentAccountTransaction> movements = currentAccountTransactionRepository
+                .findByCurrentAccountIdAndCompanyIdOrderByEffectiveDateAscCreatedAtAscIdAsc(accountId, companyId);
+        String accountName = account.getParty() != null ? account.getParty().getDisplayName()
+                : account.getCustomer() != null ? account.getCustomer().getName() : "Bilinmeyen cari";
+        BigDecimal totalCharges = movements.stream().map(CurrentAccountTransaction::getAmount)
+                .filter(Objects::nonNull).filter(value -> value.signum() > 0)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalCollections = movements.stream().map(CurrentAccountTransaction::getAmount)
+                .filter(Objects::nonNull).filter(value -> value.signum() < 0)
+                .map(BigDecimal::abs).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return createDocument(PageSize.A4, document -> {
+            addReportHeader(document, company, "CARİ HESAP EKSTRESİ");
+            Paragraph accountTitle = new Paragraph(accountName, sectionFont);
+            accountTitle.setSpacingAfter(10);
+            document.add(accountTitle);
+            addSummary(document, List.of(
+                    new SummaryItem("Toplam Borçlandırma", money(totalCharges), ORANGE),
+                    new SummaryItem("Toplam Tahsilat / İndirim", money(totalCollections), GREEN),
+                    new SummaryItem("Güncel Bakiye", money(account.getBalance()), BRAND),
+                    new SummaryItem("Hareket Sayısı", String.valueOf(movements.size()), BRAND)));
+
+            PdfPTable table = new PdfPTable(6);
+            table.setWidthPercentage(100);
+            table.setWidths(new float[] { 1.1f, 1.2f, 3.4f, 1.25f, 1.25f, 1.1f });
+            table.setHeaderRows(1);
+            for (String header : List.of("Tarih", "Hareket", "Açıklama", "Tutar", "Bakiye", "Ödeme")) {
+                addHeaderCell(table, header);
+            }
+            BigDecimal runningBalance = BigDecimal.ZERO;
+            for (CurrentAccountTransaction movement : movements) {
+                BigDecimal amount = movement.getAmount() != null ? movement.getAmount() : BigDecimal.ZERO;
+                runningBalance = runningBalance.add(amount);
+                addCell(table, formatDate(movement.getEffectiveDate()), Element.ALIGN_CENTER, normalFont);
+                addCell(table, currentAccountMovementLabel(movement.getTransactionType()), Element.ALIGN_LEFT, normalFont);
+                addCell(table, safe(movement.getDescription()), Element.ALIGN_LEFT, normalFont);
+                addCell(table, (amount.signum() > 0 ? "+" : "") + money(amount), Element.ALIGN_RIGHT,
+                        new Font(baseFont, 9, Font.BOLD, amount.signum() > 0 ? ORANGE : GREEN));
+                addCell(table, money(runningBalance), Element.ALIGN_RIGHT, boldFont);
+                addCell(table, movement.getPaymentMethod() != null ? movement.getPaymentMethod().name() : "-",
+                        Element.ALIGN_CENTER, smallFont);
+            }
+            document.add(table);
+            if (movements.isEmpty()) {
+                document.add(new Paragraph("Bu cari hesap için kayıtlı hareket bulunmuyor.", normalFont));
+            }
+            addFooter(document);
+        });
+    }
+
+    private String currentAccountMovementLabel(CurrentAccountTransaction.TransactionType type) {
+        if (type == null) return "Bakiye düzeltmesi";
+        return switch (type) {
+            case CHARGE -> "Borçlandırma";
+            case PAYMENT -> "Tahsilat";
+            case DISCOUNT -> "İndirim";
+            case REVERSAL -> "Geri alma";
+            case ADJUSTMENT -> "Bakiye düzeltmesi";
+        };
     }
 
     private void addDebtHistory(Document document, CompanyDebt debt, List<CompanyDebtAddition> additions,

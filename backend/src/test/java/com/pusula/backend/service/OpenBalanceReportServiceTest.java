@@ -29,6 +29,7 @@ class OpenBalanceReportServiceTest {
     @Mock CompanyDebtPaymentRepository paymentRepository;
     @Mock CompanyDebtAdditionRepository additionRepository;
     @Mock CurrentAccountRepository currentAccountRepository;
+    @Mock CurrentAccountTransactionRepository currentAccountTransactionRepository;
     @Mock CompanyRepository companyRepository;
 
     private OpenBalanceReportService service;
@@ -36,7 +37,7 @@ class OpenBalanceReportServiceTest {
     @BeforeEach
     void setUp() {
         service = new OpenBalanceReportService(debtRepository, paymentRepository, additionRepository,
-                currentAccountRepository, companyRepository, "Europe/Istanbul");
+                currentAccountRepository, currentAccountTransactionRepository, companyRepository, "Europe/Istanbul");
         when(companyRepository.findById(7L)).thenReturn(Optional.of(Company.builder()
                 .id(7L).name("Pusula İklimlendirme").subscriptionStatus("ACTIVE").build()));
     }
@@ -89,6 +90,42 @@ class OpenBalanceReportServiceTest {
         assertTrue(text.contains("Murat Budak"));
         assertTrue(text.contains("05000000000"));
         assertFalse(text.contains("Kapalı Cari"));
+    }
+
+    @Test
+    void currentAccountStatementContainsDatedChargesCollectionsAndRunningBalance() throws Exception {
+        Customer customer = Customer.builder().id(30L).companyId(7L).name("Murat Budak").build();
+        CurrentAccount account = CurrentAccount.builder().id(1L).companyId(7L).customer(customer)
+                .balance(new BigDecimal("600.00")).build();
+        CurrentAccountTransaction charge = currentAccountMovement(1L, "1000.00",
+                CurrentAccountTransaction.TransactionType.CHARGE, LocalDate.of(2026, 8, 1), "Servis #81");
+        CurrentAccountTransaction payment = currentAccountMovement(2L, "-400.00",
+                CurrentAccountTransaction.TransactionType.PAYMENT, LocalDate.of(2026, 8, 4), "Kısmi tahsilat");
+        when(currentAccountRepository.findByIdAndCompanyId(1L, 7L)).thenReturn(Optional.of(account));
+        when(currentAccountTransactionRepository
+                .findByCurrentAccountIdAndCompanyIdOrderByEffectiveDateAscCreatedAtAscIdAsc(1L, 7L))
+                .thenReturn(List.of(charge, payment));
+
+        String text = pdfText(service.generateCurrentAccountStatementPdf(1L, 7L));
+
+        assertTrue(text.contains("CARİ HESAP EKSTRESİ"));
+        assertTrue(text.contains("Murat Budak"));
+        assertTrue(text.contains("Servis #81"));
+        assertTrue(text.contains("Kısmi tahsilat"));
+        assertTrue(text.contains("01.08.2026"));
+        assertTrue(text.contains("04.08.2026"));
+    }
+
+    private CurrentAccountTransaction currentAccountMovement(Long id, String amount,
+            CurrentAccountTransaction.TransactionType type, LocalDate date, String description) {
+        CurrentAccountTransaction movement = new CurrentAccountTransaction();
+        movement.setCurrentAccountId(1L);
+        movement.setCompanyId(7L);
+        movement.setAmount(new BigDecimal(amount));
+        movement.setTransactionType(type);
+        movement.setEffectiveDate(date);
+        movement.setDescription(description);
+        return movement;
     }
 
     private CompanyDebt debt(Long id, String creditor, String remaining, CompanyDebt.DebtStatus status) {

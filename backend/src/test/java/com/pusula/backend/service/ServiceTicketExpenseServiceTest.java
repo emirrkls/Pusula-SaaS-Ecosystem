@@ -146,6 +146,7 @@ class ServiceTicketExpenseServiceTest {
         when(ticketRepository.findById(101L)).thenReturn(Optional.of(ticket));
         when(repository.findByIdAndServiceTicketId(501L, 101L)).thenReturn(Optional.of(expense));
         when(expenseRepository.findByIdAndCompanyId(901L, 7L)).thenReturn(Optional.of(financeExpense));
+        when(expenseRepository.save(financeExpense)).thenReturn(financeExpense);
         when(repository.save(expense)).thenReturn(expense);
 
         ServiceTicketExpenseDTO result = service.updateExpense(101L, 501L,
@@ -157,6 +158,35 @@ class ServiceTicketExpenseServiceTest {
         assertEquals(new BigDecimal("3200.00"), financeExpense.getAmount());
         assertEquals("Servis Gideri #101: Yeni gider", financeExpense.getDescription());
         verify(expenseRepository).save(financeExpense);
+        verify(financeService).reconcileClosedDay(7L, expenseDate);
+    }
+
+    @Test
+    void updatingLegacyExpenseCreatesMissingFinanceRow() {
+        LocalDate expenseDate = LocalDate.of(2025, 4, 22);
+        ServiceTicket ticket = new ServiceTicket();
+        ticket.setId(101L);
+        ticket.setCompanyId(7L);
+        ServiceTicketExpense expense = ServiceTicketExpense.builder()
+                .id(501L).serviceTicketId(101L).companyId(7L)
+                .description("Eski kayıt").amount(new BigDecimal("1000.00"))
+                .expenseDate(expenseDate).build();
+        when(ticketRepository.findById(101L)).thenReturn(Optional.of(ticket));
+        when(repository.findByIdAndServiceTicketId(501L, 101L)).thenReturn(Optional.of(expense));
+        when(expenseRepository.save(org.mockito.ArgumentMatchers.any(Expense.class)))
+                .thenAnswer(invocation -> {
+                    Expense row = invocation.getArgument(0);
+                    row.setId(902L);
+                    return row;
+                });
+        when(repository.save(expense)).thenReturn(expense);
+
+        ServiceTicketExpenseDTO result = service.updateExpense(101L, 501L,
+                ServiceTicketExpenseDTO.builder()
+                        .description("Düzeltilmiş kayıt").amount(new BigDecimal("1250.00")).build());
+
+        assertEquals(902L, expense.getFinanceExpenseId());
+        assertEquals(new BigDecimal("1250.00"), result.getAmount());
         verify(financeService).reconcileClosedDay(7L, expenseDate);
     }
 }

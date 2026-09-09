@@ -1066,6 +1066,16 @@ public class ServiceTicketService {
         return completeService(ticketId, collectedAmount, null, paymentMethod, requestedCompletionDate, null, null);
     }
 
+    public List<ServiceTicketDTO> getCustomerTickets(Long customerId) {
+        User user = getCurrentUser();
+        customerRepository.findByIdAndCompanyId(customerId, user.getCompanyId())
+                .orElseThrow(() -> new IllegalArgumentException("Müşteri bulunamadı veya erişim reddedildi."));
+        return repository.findByCompanyIdAndCustomerIdOrderByScheduledDateDescCreatedAtDesc(
+                        user.getCompanyId(), customerId).stream()
+                .map(this::mapToDTO)
+                .toList();
+    }
+
     @Transactional
     public ServiceTicketDTO completeService(Long ticketId, BigDecimal collectedAmount, BigDecimal laborFee,
             PaymentMethod paymentMethod, LocalDate requestedCompletionDate) {

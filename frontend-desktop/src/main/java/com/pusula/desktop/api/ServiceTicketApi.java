@@ -15,6 +15,9 @@ public interface ServiceTicketApi {
     @GET("api/tickets")
     Call<List<ServiceTicketDTO>> getAllTickets();
 
+    @GET("api/tickets/customer/{customerId}")
+    Call<List<ServiceTicketDTO>> getCustomerTickets(@Path("customerId") Long customerId);
+
     @Headers("X-Pusula-Suppress-Forbidden-Alert: true")
     @GET("api/tickets")
     Call<List<ServiceTicketDTO>> getAllTicketsForDashboard();
