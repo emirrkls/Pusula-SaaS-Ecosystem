@@ -8,6 +8,7 @@ import com.pusula.backend.entity.Inventory;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.ServiceUsedPart;
 import com.pusula.backend.entity.User;
+import com.pusula.backend.entity.AccountParty;
 import com.pusula.backend.repository.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -50,6 +52,7 @@ class ServiceTicketCompletionTest {
     @Mock UploadUrlSigner uploadUrlSigner;
     @Mock CurrentAccountLedgerService currentAccountLedgerService;
     @Mock AdminNotificationService adminNotificationService;
+    @Mock AccountPartyService accountPartyService;
 
     private ServiceTicketService service;
 
@@ -60,6 +63,7 @@ class ServiceTicketCompletionTest {
                 vehicleStockRepository, whatsAppNotificationService, featureService, photoRepository,
                 fileUploadService, publisher, financeService, uploadUrlSigner,
                 currentAccountLedgerService, adminNotificationService, "Europe/Istanbul");
+        ReflectionTestUtils.setField(service, "accountPartyService", accountPartyService);
     }
 
     @AfterEach
@@ -177,6 +181,39 @@ class ServiceTicketCompletionTest {
         assertNull(ticket.getCollectionDate());
         assertEquals(new BigDecimal("600.00"), account.getBalance());
         verify(currentAccountRepository).save(account);
+    }
+
+    @Test
+    void institutionalWarrantyPostsPricedWorkToSelectedOrganizationAccount() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = openTicket(100L, 10L, null);
+        ticket.setCustomerId(20L);
+        AccountParty organization = AccountParty.builder().id(90L).companyId(10L)
+                .partyType(AccountParty.PartyType.ORGANIZATION).displayName("Termodinamik")
+                .normalizedName("termodinamik").active(true).build();
+        CurrentAccount account = CurrentAccount.builder().id(91L).companyId(10L).party(organization)
+                .balance(new BigDecimal("100.00")).build();
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
+        when(accountPartyService.getEntity(10L, 90L)).thenReturn(organization);
+        when(currentAccountRepository.findByPartyIdAndCompanyId(90L, 10L)).thenReturn(Optional.of(account));
+        when(currentAccountRepository.save(any(CurrentAccount.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.completeService(100L, BigDecimal.ZERO, new BigDecimal("1200.00"),
+                PaymentMethod.WARRANTY, null, 90L, "ORGANIZATION");
+
+        assertEquals(new BigDecimal("500.00"), ticket.getPartsTotal());
+        assertEquals(new BigDecimal("1200.00"), ticket.getLaborFee());
+        assertEquals(new BigDecimal("1700.00"), ticket.getInvoiceTotal());
+        assertEquals(new BigDecimal("1700.00"), ticket.getOutstandingAmount());
+        assertEquals(new BigDecimal("1800.00"), account.getBalance());
+        assertEquals(organization, ticket.getBillingParty());
+        assertEquals(ServiceTicket.BillingResponsibility.ORGANIZATION, ticket.getBillingResponsibility());
+        verify(currentAccountLedgerService).record(eq(account),
+                eq(com.pusula.backend.entity.CurrentAccountTransaction.TransactionType.CHARGE),
+                eq(new BigDecimal("1700.00")), any(LocalDate.class), contains("Hizmet alan müşteri"),
+                eq(PaymentMethod.WARRANTY), eq("SERVICE_TICKET"), eq(100L));
     }
 
     @Test

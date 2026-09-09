@@ -250,6 +250,7 @@
                            </font>
                         </Label>
                         <Region HBox.hgrow="ALWAYS" />
+                        <Button onAction="#handleManageAccountParties" styleClass="btn-secondary" text="Kurum/Firma Kartları" />
                         <Button onAction="#handleExportCurrentAccountsPdf" styleClass="btn-export" text="PDF Kaydet" />
                      </HBox>
                      

@@ -101,14 +101,20 @@ struct CurrentAccountDTO: Codable, Identifiable {
     let customerName: String?
     let balance: Double?
     let lastUpdated: String?
+    var partyId: Int? = nil
+    var partyType: String? = nil
+    var accountName: String? = nil
 }
 
 struct CurrentAccountHistoryDTO: Codable {
     let accountId: Int
-    let customerId: Int
-    let customerName: String
+    let customerId: Int?
+    let customerName: String?
     let currentBalance: Double
     let transactions: [CurrentAccountTransactionDTO]
+    var partyId: Int? = nil
+    var partyType: String? = nil
+    var accountName: String? = nil
 }
 
 struct CurrentAccountTransactionDTO: Codable, Identifiable {
@@ -150,6 +156,8 @@ struct CompanyDebtDTO: Codable, Identifiable {
     var id: Int? = nil
     var companyId: Int? = nil
     var creditorName: String? = nil
+    var partyId: Int? = nil
+    var partyType: String? = nil
     var description: String? = nil
     var originalAmount: Double? = nil
     var remainingAmount: Double? = nil
@@ -161,6 +169,36 @@ struct CompanyDebtDTO: Codable, Identifiable {
     var notes: String? = nil
     var createdAt: String? = nil
     var updatedAt: String? = nil
+}
+
+struct PayablePartySummaryDTO: Codable, Identifiable {
+    let partyId: Int
+    let name: String
+    let phone: String?
+    let totalPurchases: Double
+    let totalPaid: Double
+    let balance: Double
+    let firstDebtDate: String?
+    let lastMovementDate: String?
+    let openItemCount: Int
+    var id: Int { partyId }
+}
+
+struct AccountPartyDTO: Codable, Identifiable {
+    var id: Int? = nil
+    var partyType: String
+    var displayName: String
+    var legalName: String? = nil
+    var taxNumber: String? = nil
+    var taxOffice: String? = nil
+    var phone: String? = nil
+    var email: String? = nil
+    var address: String? = nil
+    var contactPerson: String? = nil
+    var paymentTermDays: Int? = 0
+    var customerId: Int? = nil
+    var active: Bool? = true
+    var notes: String? = nil
 }
 
 struct CompanyDebtPaymentDTO: Codable, Identifiable {

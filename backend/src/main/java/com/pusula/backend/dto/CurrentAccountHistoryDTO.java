@@ -7,6 +7,9 @@ public record CurrentAccountHistoryDTO(
         Long accountId,
         Long customerId,
         String customerName,
+        Long partyId,
+        String partyType,
+        String accountName,
         BigDecimal currentBalance,
         List<CurrentAccountTransactionDTO> transactions) {
 }

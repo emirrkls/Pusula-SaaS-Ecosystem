@@ -20,6 +20,8 @@ public interface CurrentAccountRepository extends JpaRepository<CurrentAccount, 
 
     Optional<CurrentAccount> findByCustomerIdAndCompanyId(Long customerId, Long companyId);
 
+    Optional<CurrentAccount> findByPartyIdAndCompanyId(Long partyId, Long companyId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM CurrentAccount a WHERE a.customer.id = :customerId AND a.companyId = :companyId")
     Optional<CurrentAccount> findByCustomerIdAndCompanyIdForUpdate(

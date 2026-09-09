@@ -97,6 +97,9 @@ public class OpenBalanceReportService {
                 ? Map.of()
                 : additionRepository.findByCompanyIdAndDebtIdInOrderByAdditionDateAscIdAsc(companyId, debtIds)
                         .stream().collect(Collectors.groupingBy(CompanyDebtAddition::getDebtId));
+        Map<String, List<CompanyDebt>> debtCards = debts.stream().collect(Collectors.groupingBy(
+                debt -> debt.getParty() != null ? "P-" + debt.getParty().getId() : "D-" + debt.getId(),
+                LinkedHashMap::new, Collectors.toList()));
 
         return createDocument(PageSize.A4.rotate(), document -> {
             addReportHeader(document, company, "AÇIK İŞLETME BORÇLARI");
@@ -108,32 +111,48 @@ public class OpenBalanceReportService {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             long overdueCount = debts.stream().filter(debt -> isOverdue(debt, LocalDate.now(businessZone))).count();
             addSummary(document, List.of(
-                    new SummaryItem("Açık Borç", String.valueOf(debts.size()), BRAND),
+                    new SummaryItem("Tedarikçi Kartı", String.valueOf(debtCards.size()), BRAND),
                     new SummaryItem("Toplam Borç", money(totalDebt), RED),
                     new SummaryItem("Toplam Ödenen", money(totalPaid), GREEN),
                     new SummaryItem("Kalan Borç", money(totalRemaining), RED),
                     new SummaryItem("Vadesi Geçen", String.valueOf(overdueCount), overdueCount > 0 ? ORANGE : GREEN)));
 
-            PdfPTable table = new PdfPTable(9);
+            PdfPTable table = new PdfPTable(7);
             table.setWidthPercentage(100);
-            table.setWidths(new float[] { 2.1f, 1.15f, 2.3f, 1.05f, 1.05f, 1.25f, 1.25f, 1.05f, 1.05f });
+            table.setWidths(new float[] { 2.4f, 1.2f, 1.2f, 1.3f, 1.3f, 1.3f, 1.0f });
             table.setHeaderRows(1);
-            for (String header : List.of("Alacaklı", "Kategori", "Açıklama", "Başlangıç", "Vade",
-                    "Toplam Borç", "Ödenen", "Kalan", "Durum")) {
+            for (String header : List.of("Tedarikçi / Alacaklı", "Başlangıç", "Son Hareket",
+                    "Toplam Alım", "Toplam Ödeme", "Kalan Borç", "Açık Kayıt")) {
                 addHeaderCell(table, header);
             }
-            for (CompanyDebt debt : debts) {
-                BigDecimal paid = paidAmount(debt);
-                addCell(table, debt.getCreditorName(), Element.ALIGN_LEFT, normalFont);
-                addCell(table, categoryText(debt.getExpenseCategory()), Element.ALIGN_LEFT, normalFont);
-                addCell(table, safe(debt.getDescription()), Element.ALIGN_LEFT, normalFont);
-                addCell(table, formatDate(debt.getDebtDate()), Element.ALIGN_CENTER, normalFont);
-                addCell(table, formatDate(debt.getDueDate()), Element.ALIGN_CENTER, normalFont);
-                addCell(table, money(debt.getOriginalAmount()), Element.ALIGN_RIGHT, normalFont);
-                addCell(table, money(paid), Element.ALIGN_RIGHT, new Font(baseFont, 9, Font.BOLD, GREEN));
-                addCell(table, money(debt.getRemainingAmount()), Element.ALIGN_RIGHT,
+            for (List<CompanyDebt> cardRows : debtCards.values()) {
+                CompanyDebt first = cardRows.get(0);
+                BigDecimal purchases = cardRows.stream().map(CompanyDebt::getOriginalAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal balance = cardRows.stream().map(CompanyDebt::getRemainingAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                LocalDate firstDate = cardRows.stream().map(CompanyDebt::getDebtDate)
+                        .min(LocalDate::compareTo).orElse(null);
+                LocalDate lastDate = cardRows.stream().map(CompanyDebt::getDebtDate)
+                        .max(LocalDate::compareTo).orElse(null);
+                for (CompanyDebt row : cardRows) {
+                    for (CompanyDebtAddition addition : additionsByDebt.getOrDefault(row.getId(), List.of())) {
+                        if (lastDate == null || addition.getAdditionDate().isAfter(lastDate)) lastDate = addition.getAdditionDate();
+                    }
+                    for (CompanyDebtPayment payment : paymentsByDebt.getOrDefault(row.getId(), List.of())) {
+                        if (lastDate == null || payment.getPaymentDate().isAfter(lastDate)) lastDate = payment.getPaymentDate();
+                    }
+                }
+                addCell(table, first.getParty() != null ? first.getParty().getDisplayName() : first.getCreditorName(),
+                        Element.ALIGN_LEFT, normalFont);
+                addCell(table, formatDate(firstDate), Element.ALIGN_CENTER, normalFont);
+                addCell(table, formatDate(lastDate), Element.ALIGN_CENTER, normalFont);
+                addCell(table, money(purchases), Element.ALIGN_RIGHT, normalFont);
+                addCell(table, money(purchases.subtract(balance)), Element.ALIGN_RIGHT,
+                        new Font(baseFont, 9, Font.BOLD, GREEN));
+                addCell(table, money(balance), Element.ALIGN_RIGHT,
                         new Font(baseFont, 9, Font.BOLD, RED));
-                addCell(table, debtStatus(debt, LocalDate.now(businessZone)), Element.ALIGN_CENTER, normalFont);
+                addCell(table, String.valueOf(cardRows.size()), Element.ALIGN_CENTER, normalFont);
             }
             document.add(table);
 
@@ -166,20 +185,22 @@ public class OpenBalanceReportService {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             addSummary(document, List.of(
                     new SummaryItem("Açık Cari", String.valueOf(accounts.size()), BRAND),
-                    new SummaryItem("Toplam Müşteri Alacağı", money(total), ORANGE)));
+                    new SummaryItem("Toplam Alacak", money(total), ORANGE)));
 
             PdfPTable table = new PdfPTable(4);
             table.setWidthPercentage(100);
             table.setWidths(new float[] { 2.6f, 1.6f, 1.5f, 1.5f });
             table.setHeaderRows(1);
-            for (String header : List.of("Müşteri", "Telefon", "Güncel Bakiye", "Son Güncelleme")) {
+            for (String header : List.of("Cari Taraf", "Telefon", "Güncel Bakiye", "Son Güncelleme")) {
                 addHeaderCell(table, header);
             }
             for (CurrentAccount account : accounts) {
                 Customer customer = account.getCustomer();
-                addCell(table, customer != null ? safe(customer.getName()) : "Bilinmeyen Müşteri",
+                addCell(table, account.getParty() != null ? safe(account.getParty().getDisplayName())
+                                : customer != null ? safe(customer.getName()) : "Bilinmeyen cari",
                         Element.ALIGN_LEFT, normalFont);
-                addCell(table, customer != null ? safe(customer.getPhone()) : "", Element.ALIGN_LEFT, normalFont);
+                addCell(table, account.getParty() != null ? safe(account.getParty().getPhone())
+                                : customer != null ? safe(customer.getPhone()) : "", Element.ALIGN_LEFT, normalFont);
                 addCell(table, money(account.getBalance()), Element.ALIGN_RIGHT,
                         new Font(baseFont, 9, Font.BOLD, ORANGE));
                 addCell(table, account.getLastUpdated() != null ? account.getLastUpdated().format(DATE_TIME) : "-",

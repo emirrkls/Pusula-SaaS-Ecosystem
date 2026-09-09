@@ -5,6 +5,7 @@ import com.pusula.desktop.dto.CompanyDebtAdditionDTO;
 import com.pusula.desktop.dto.CompanyDebtPaymentDTO;
 import com.pusula.desktop.dto.DebtAdditionRequestDTO;
 import com.pusula.desktop.dto.DebtPaymentRequestDTO;
+import com.pusula.desktop.dto.PayablePartySummaryDTO;
 import retrofit2.Call;
 import retrofit2.http.*;
 
@@ -25,6 +26,16 @@ public interface CompanyDebtApi {
 
     @GET("/api/company-debts/total-unpaid")
     Call<Map<String, BigDecimal>> getTotalUnpaidDebt();
+
+    @GET("/api/company-debts/parties")
+    Call<List<PayablePartySummaryDTO>> getPayableParties();
+
+    @GET("/api/company-debts/parties/{partyId}/debts")
+    Call<List<CompanyDebtDTO>> getPartyDebts(@Path("partyId") Long partyId);
+
+    @POST("/api/company-debts/parties/{partyId}/pay")
+    Call<PayablePartySummaryDTO> payParty(@Path("partyId") Long partyId,
+                                          @Body DebtPaymentRequestDTO request);
 
     @POST("/api/company-debts")
     Call<CompanyDebtDTO> createDebt(@Body CompanyDebtDTO dto);

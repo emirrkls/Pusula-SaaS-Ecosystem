@@ -11,6 +11,9 @@ struct FinanceView: View {
                 financeDestination("Cari Alacaklar", "Müşteri bakiyeleri ve tahsilatlar", "person.2.fill", .orange) {
                     FinanceAccountsTab().navigationTitle("Cari Alacaklar")
                 }
+                financeDestination("Kurum Cari Kartları", "Garanti ve anlaşmalı işlerin ödeme sorumluları", "building.2.fill", .teal) {
+                    AccountPartiesView()
+                }
                 financeDestination("İşletme Borçları", "Borç, ödeme ve ilave hareketleri", "creditcard.fill", .red) {
                     CompanyDebtsView().navigationTitle("İşletme Borçları")
                 }
@@ -289,7 +292,7 @@ struct FinanceAccountsTab: View {
             }) {
                 HStack {
                     VStack(alignment: .leading) {
-                        Text(account.customerName ?? "Müşteri")
+                        Text(account.accountName ?? account.customerName ?? "Cari taraf")
                             .font(.headline)
                         Text("Son güncelleme: \(account.lastUpdated ?? "-")")
                             .font(.caption)
@@ -361,7 +364,7 @@ struct CurrentAccountHistorySheet: View {
         NavigationStack {
             List {
                 Section {
-                    LabeledContent("Müşteri", value: history?.customerName ?? account.customerName ?? "-")
+                    LabeledContent("Cari taraf", value: history?.accountName ?? account.accountName ?? account.customerName ?? "-")
                     LabeledContent("Güncel cari bakiye", value: formatCurrency(history?.currentBalance ?? account.balance))
                 }
                 Section("Cari hareketleri") {
@@ -408,7 +411,10 @@ struct CurrentAccountHistorySheet: View {
             customerId: account.customerId,
             customerName: history?.customerName ?? account.customerName,
             balance: history?.currentBalance ?? account.balance,
-            lastUpdated: account.lastUpdated
+            lastUpdated: account.lastUpdated,
+            partyId: history?.partyId ?? account.partyId,
+            partyType: history?.partyType ?? account.partyType,
+            accountName: history?.accountName ?? account.accountName
         )
     }
 
@@ -666,7 +672,7 @@ struct PayDebtSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    LabeledContent("Müşteri", value: account.customerName ?? "-")
+                    LabeledContent("Cari taraf", value: account.accountName ?? account.customerName ?? "-")
                     LabeledContent("Bakiye", value: formatCurrency(account.balance))
                 }
                 TextField("Tahsilat", text: $payment).keyboardType(.decimalPad)

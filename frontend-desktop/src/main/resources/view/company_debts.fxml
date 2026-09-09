@@ -13,7 +13,7 @@
 
     <VBox spacing="10" styleClass="page-header">
         <HBox alignment="CENTER_LEFT" spacing="12">
-            <Label styleClass="page-header-title" text="Borçlarımız" HBox.hgrow="ALWAYS"/>
+        <Label styleClass="page-header-title" text="Tedarikçi ve Borç Kartları" HBox.hgrow="ALWAYS"/>
             <Label fx:id="totalDebtLabel" styleClass="debt-total-label" text="Toplam Borç: 0 ₺"/>
         </HBox>
         <FlowPane alignment="CENTER_RIGHT" hgap="10" vgap="8" styleClass="page-header-actions">
@@ -29,23 +29,40 @@
         <Button onAction="#applyFilter" styleClass="btn-primary" text="Uygula"/>
     </FlowPane>
 
-    <TableView fx:id="debtTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
-        <columns>
-            <TableColumn fx:id="colCreditor" minWidth="150" prefWidth="180" text="Alacaklı"/>
-            <TableColumn fx:id="colCategory" minWidth="90" prefWidth="100" text="Kategori"/>
-            <TableColumn fx:id="colDescription" minWidth="150" prefWidth="200" text="Açıklama"/>
-            <TableColumn fx:id="colOriginal" minWidth="100" prefWidth="120" text="Toplam Borç"/>
-            <TableColumn fx:id="colRemaining" minWidth="100" prefWidth="120" text="Kalan Borç"/>
-            <TableColumn fx:id="colDebtDate" minWidth="90" prefWidth="100" text="Borç Tarihi"/>
-            <TableColumn fx:id="colDueDate" minWidth="90" prefWidth="100" text="Vade Tarihi"/>
-            <TableColumn fx:id="colStatus" minWidth="80" prefWidth="100" text="Durum"/>
-            <TableColumn fx:id="colActions" minWidth="175" prefWidth="185" text="İşlemler"/>
-        </columns>
-        <placeholder>
-            <Label text="Henüz borç kaydı bulunmuyor"/>
-        </placeholder>
-        <columnResizePolicy>
-            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
-        </columnResizePolicy>
-    </TableView>
+    <SplitPane orientation="VERTICAL" VBox.vgrow="ALWAYS" dividerPositions="0.43">
+        <VBox spacing="6">
+            <Label styleClass="section-title" text="Tedarikçi Kartları"/>
+            <TableView fx:id="partyTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="colPartyName" minWidth="180" text="Tedarikçi / Alacaklı"/>
+                    <TableColumn fx:id="colPartyPurchases" minWidth="120" text="Toplam Alım"/>
+                    <TableColumn fx:id="colPartyPaid" minWidth="120" text="Toplam Ödeme"/>
+                    <TableColumn fx:id="colPartyBalance" minWidth="120" text="Kalan Borç"/>
+                    <TableColumn fx:id="colPartyFirstDate" minWidth="105" text="Başlangıç"/>
+                    <TableColumn fx:id="colPartyLastDate" minWidth="105" text="Son Hareket"/>
+                    <TableColumn fx:id="colPartyActions" minWidth="235" text="İşlemler"/>
+                </columns>
+                <placeholder><Label text="Henüz tedarikçi kartı bulunmuyor"/></placeholder>
+                <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/></columnResizePolicy>
+            </TableView>
+        </VBox>
+        <VBox spacing="6">
+            <Label fx:id="debtDetailLabel" styleClass="section-title" text="Tüm Borç Hareketleri"/>
+            <TableView fx:id="debtTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="colCreditor" minWidth="130" text="Alacaklı"/>
+                    <TableColumn fx:id="colCategory" minWidth="90" text="Kategori"/>
+                    <TableColumn fx:id="colDescription" minWidth="150" text="Açıklama"/>
+                    <TableColumn fx:id="colOriginal" minWidth="105" text="Toplam Borç"/>
+                    <TableColumn fx:id="colRemaining" minWidth="105" text="Kalan Borç"/>
+                    <TableColumn fx:id="colDebtDate" minWidth="90" text="Borç Tarihi"/>
+                    <TableColumn fx:id="colDueDate" minWidth="90" text="Vade Tarihi"/>
+                    <TableColumn fx:id="colStatus" minWidth="80" text="Durum"/>
+                    <TableColumn fx:id="colActions" minWidth="175" text="İşlemler"/>
+                </columns>
+                <placeholder><Label text="Kartı seçerek alım ve ödeme hareketlerini görüntüleyin"/></placeholder>
+                <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/></columnResizePolicy>
+            </TableView>
+        </VBox>
+    </SplitPane>
 </VBox>

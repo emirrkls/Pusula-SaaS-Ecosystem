@@ -7,6 +7,7 @@ import com.pusula.backend.entity.*;
 import com.pusula.backend.repository.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -27,6 +28,9 @@ public class CommercialDeviceService {
     private final ExpenseRepository expenseRepository;
     private final AuditLogService auditLogService;
     private final CurrentAccountLedgerService currentAccountLedgerService;
+
+    @Autowired(required = false)
+    private AccountPartyService accountPartyService;
 
     public CommercialDeviceService(CommercialDeviceRepository commercialDeviceRepository,
             DeviceTypeRepository deviceTypeRepository,
@@ -252,6 +256,7 @@ public class CommercialDeviceService {
                         CurrentAccount newAccount = CurrentAccount.builder()
                                 .companyId(currentUser.getCompanyId())
                                 .customer(customer)
+                                .party(accountPartyService != null ? accountPartyService.ensureCustomerParty(customer) : null)
                                 .balance(BigDecimal.ZERO)
                                 .build();
                         return currentAccountRepository.save(newAccount);

@@ -35,6 +35,9 @@ public class ServiceTicketDTO {
     private boolean isWarrantyCall;
     private String customerName; // Customer full name for frontend display
     private PaymentMethod paymentMethod;
+    private Long billingPartyId;
+    private String billingPartyName;
+    private String billingResponsibility;
     // Enriched fields for mobile technician view
     private String customerPhone;
     private String customerAddress;
@@ -228,6 +231,13 @@ public class ServiceTicketDTO {
     public void setPaymentMethod(PaymentMethod paymentMethod) {
         this.paymentMethod = paymentMethod;
     }
+
+    public Long getBillingPartyId() { return billingPartyId; }
+    public void setBillingPartyId(Long billingPartyId) { this.billingPartyId = billingPartyId; }
+    public String getBillingPartyName() { return billingPartyName; }
+    public void setBillingPartyName(String billingPartyName) { this.billingPartyName = billingPartyName; }
+    public String getBillingResponsibility() { return billingResponsibility; }
+    public void setBillingResponsibility(String billingResponsibility) { this.billingResponsibility = billingResponsibility; }
 
     public String getCustomerPhone() { return customerPhone; }
     public void setCustomerPhone(String customerPhone) { this.customerPhone = customerPhone; }

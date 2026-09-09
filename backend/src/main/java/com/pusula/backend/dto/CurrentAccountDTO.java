@@ -17,6 +17,9 @@ public class CurrentAccountDTO {
     private Long companyId;
     private Long customerId;
     private String customerName;
+    private Long partyId;
+    private String partyType;
+    private String accountName;
     private BigDecimal balance;
     private LocalDateTime lastUpdated;
 }

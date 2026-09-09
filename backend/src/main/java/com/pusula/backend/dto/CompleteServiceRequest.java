@@ -13,6 +13,8 @@ public class CompleteServiceRequest {
     private PaymentMethod paymentMethod;
     private LocalDate completionDate;
     private String technicianNote;
+    private Long billingPartyId;
+    private String billingResponsibility;
 
     public CompleteServiceRequest() {
     }
@@ -69,4 +71,9 @@ public class CompleteServiceRequest {
     public void setTechnicianNote(String technicianNote) {
         this.technicianNote = technicianNote;
     }
+
+    public Long getBillingPartyId() { return billingPartyId; }
+    public void setBillingPartyId(Long billingPartyId) { this.billingPartyId = billingPartyId; }
+    public String getBillingResponsibility() { return billingResponsibility; }
+    public void setBillingResponsibility(String billingResponsibility) { this.billingResponsibility = billingResponsibility; }
 }

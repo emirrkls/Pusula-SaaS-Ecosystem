@@ -8,6 +8,7 @@ import com.pusula.backend.entity.CompanyDebtPayment;
 import com.pusula.backend.entity.Expense;
 import com.pusula.backend.entity.ExpenseCategory;
 import com.pusula.backend.entity.ExpenseTreatment;
+import com.pusula.backend.entity.AccountParty;
 import com.pusula.backend.repository.CompanyDebtPaymentRepository;
 import com.pusula.backend.repository.CompanyDebtAdditionRepository;
 import com.pusula.backend.repository.CompanyDebtRepository;
@@ -22,6 +23,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -155,6 +158,37 @@ class CompanyDebtServicePaymentDateTest {
         assertEquals(new BigDecimal("105000.00"), debt.getOriginalAmount());
         assertEquals(new BigDecimal("75000.00"), debt.getRemainingAmount());
         assertEquals(CompanyDebt.DebtStatus.PARTIAL, debt.getStatus());
+    }
+
+    @Test
+    void supplierCardPaymentAllocatesOldestOpenDebtsFirst() {
+        AccountParty supplier = AccountParty.builder().id(90L).companyId(7L)
+                .partyType(AccountParty.PartyType.SUPPLIER).displayName("ZT Soğutma").active(true).build();
+        CompanyDebt first = debt(new BigDecimal("100.00"));
+        first.setId(20L); first.setOriginalAmount(new BigDecimal("100.00")); first.setParty(supplier);
+        CompanyDebt second = debt(new BigDecimal("80.00"));
+        second.setId(21L); second.setOriginalAmount(new BigDecimal("80.00")); second.setParty(supplier);
+        second.setDebtDate(LocalDate.of(2026, 5, 2));
+
+        when(debtRepository.findByCompanyIdAndPartyIdAndDeletedFalseOrderByDebtDateAscIdAsc(7L, 90L))
+                .thenReturn(List.of(first, second));
+        when(debtRepository.findByIdAndCompanyIdAndDeletedFalse(20L, 7L)).thenReturn(Optional.of(first));
+        when(debtRepository.findByIdAndCompanyIdAndDeletedFalse(21L, 7L)).thenReturn(Optional.of(second));
+        when(debtRepository.findByCompanyIdAndDeletedFalse(7L)).thenReturn(List.of(first, second));
+        AtomicLong expenseIds = new AtomicLong(1000);
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> {
+            Expense expense = invocation.getArgument(0); expense.setId(expenseIds.incrementAndGet()); return expense;
+        });
+        when(debtRepository.save(any(CompanyDebt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        var summary = service.payParty(7L, 90L, DebtPaymentRequestDTO.builder()
+                .amount(new BigDecimal("120.00")).paymentDate(LocalDate.of(2026, 5, 10))
+                .notes("Kısmi havale").build());
+
+        assertEquals(new BigDecimal("0.00"), first.getRemainingAmount());
+        assertEquals(new BigDecimal("60.00"), second.getRemainingAmount());
+        assertEquals(new BigDecimal("60.00"), summary.balance());
+        verify(paymentRepository, times(2)).save(any(CompanyDebtPayment.class));
+        verify(expenseRepository, times(2)).save(any(Expense.class));
     }
 
     private CompanyDebt debt(BigDecimal remainingAmount) {

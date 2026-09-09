@@ -6,6 +6,7 @@ import java.nio.file.Files;
 
 import com.pusula.desktop.api.FinanceApi;
 import com.pusula.desktop.api.CurrentAccountApi;
+import com.pusula.desktop.api.AccountPartyApi;
 import com.pusula.desktop.dto.*;
 import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.CurrencyTextField;
@@ -892,7 +893,7 @@ public class FinanceController {
 
     private void setupCurrentAccountsTable() {
         colAccountCustomer.setCellValueFactory(
-                cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getCustomerName()));
+                cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getAccountName()));
 
         colAccountBalance.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(
                 formatCurrency(cellData.getValue().getBalance())));
@@ -939,11 +940,119 @@ public class FinanceController {
         });
     }
 
+    @FXML
+    private void handleManageAccountParties() {
+        Dialog<Void> dialog = new Dialog<>();
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, currentAccountsTable.getScene().getWindow());
+        dialog.setTitle("Kurum/Firma Cari Kartları");
+        dialog.setHeaderText("Garanti ve anlaşmalı işlerde ödeme sorumlusu olarak seçilebilen kurumlar");
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        dialog.getDialogPane().setPrefSize(700, 480);
+
+        TableView<AccountPartyDTO> table = new TableView<>();
+        TableColumn<AccountPartyDTO, String> name = new TableColumn<>("Kurum/Firma");
+        name.setCellValueFactory(row -> new javafx.beans.property.SimpleStringProperty(row.getValue().getDisplayName()));
+        TableColumn<AccountPartyDTO, String> contact = new TableColumn<>("Yetkili / Telefon");
+        contact.setCellValueFactory(row -> new javafx.beans.property.SimpleStringProperty(
+                java.util.stream.Stream.of(row.getValue().getContactPerson(), row.getValue().getPhone())
+                        .filter(value -> value != null && !value.isBlank()).collect(Collectors.joining(" · "))));
+        TableColumn<AccountPartyDTO, String> term = new TableColumn<>("Vade");
+        term.setCellValueFactory(row -> new javafx.beans.property.SimpleStringProperty(
+                (row.getValue().getPaymentTermDays() != null ? row.getValue().getPaymentTermDays() : 0) + " gün"));
+        table.getColumns().addAll(name, contact, term);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        table.setPlaceholder(new Label("Henüz kurum/firma cari kartı yok."));
+        Button add = new Button("+ Yeni Kurum/Firma");
+        add.getStyleClass().add("btn-primary");
+        VBox content = new VBox(10, add, table);
+        VBox.setVgrow(table, Priority.ALWAYS);
+        dialog.getDialogPane().setContent(content);
+
+        AccountPartyApi api = RetrofitClient.getClient().create(AccountPartyApi.class);
+        Runnable reload = () -> api.getParties("ORGANIZATION").enqueue(new Callback<>() {
+            @Override public void onResponse(Call<List<AccountPartyDTO>> call, Response<List<AccountPartyDTO>> response) {
+                Platform.runLater(() -> { if (response.isSuccessful() && response.body() != null)
+                    table.setItems(FXCollections.observableArrayList(response.body())); });
+            }
+            @Override public void onFailure(Call<List<AccountPartyDTO>> call, Throwable throwable) {
+                Platform.runLater(() -> table.setPlaceholder(new Label("Kurumlar yüklenemedi: " + throwable.getMessage())));
+            }
+        });
+        add.setOnAction(event -> {
+            showAccountPartyCreateDialog(dialog.getDialogPane().getScene().getWindow()).ifPresent(request ->
+                    api.create(request).enqueue(new Callback<>() {
+                        @Override public void onResponse(Call<AccountPartyDTO> call, Response<AccountPartyDTO> response) {
+                            Platform.runLater(() -> { if (response.isSuccessful()) reload.run();
+                                else AlertHelper.showAlert(Alert.AlertType.ERROR, dialog.getDialogPane().getScene().getWindow(),
+                                        "Kurum oluşturulamadı", "Sunucu yanıtı: " + response.code()); });
+                        }
+                        @Override public void onFailure(Call<AccountPartyDTO> call, Throwable throwable) {
+                            Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                    dialog.getDialogPane().getScene().getWindow(), "Kurum oluşturulamadı", throwable.getMessage()));
+                        }
+                    }));
+        });
+        reload.run();
+        dialog.showAndWait();
+    }
+
+    private java.util.Optional<AccountPartyDTO> showAccountPartyCreateDialog(javafx.stage.Window owner) {
+        Dialog<AccountPartyDTO> dialog = new Dialog<>();
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, owner);
+        dialog.setTitle("Yeni Kurum/Firma Cari Kartı");
+        dialog.setHeaderText("Garanti ve anlaşmalı işlerde ödeme sorumlusu olacak kurumu tanımlayın");
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
+
+        TextField displayName = new TextField();
+        displayName.setPromptText("Örn. Termodinamik Isıtma Sistemleri");
+        TextField legalName = new TextField();
+        TextField contactPerson = new TextField();
+        TextField phone = new TextField();
+        TextField taxNumber = new TextField();
+        TextField paymentTermDays = new TextField("0");
+        paymentTermDays.setTextFormatter(new TextFormatter<String>(change ->
+                change.getControlNewText().matches("\\d{0,4}") ? change : null));
+
+        GridPane form = new GridPane();
+        form.setHgap(12); form.setVgap(10);
+        form.addRow(0, new Label("Kurum/firma adı:*"), displayName);
+        form.addRow(1, new Label("Resmî unvan:"), legalName);
+        form.addRow(2, new Label("Yetkili kişi:"), contactPerson);
+        form.addRow(3, new Label("Telefon:"), phone);
+        form.addRow(4, new Label("Vergi numarası:"), taxNumber);
+        form.addRow(5, new Label("Ödeme vadesi (gün):"), paymentTermDays);
+        form.getColumnConstraints().addAll(new javafx.scene.layout.ColumnConstraints(),
+                new javafx.scene.layout.ColumnConstraints(320));
+        dialog.getDialogPane().setContent(form);
+
+        javafx.scene.Node saveButton = dialog.getDialogPane().lookupButton(ButtonType.OK);
+        saveButton.disableProperty().bind(displayName.textProperty().isEmpty());
+        dialog.setResultConverter(button -> {
+            if (button != ButtonType.OK) return null;
+            return AccountPartyDTO.builder()
+                    .partyType("ORGANIZATION")
+                    .displayName(displayName.getText().trim())
+                    .legalName(blankToNull(legalName.getText()))
+                    .contactPerson(blankToNull(contactPerson.getText()))
+                    .phone(blankToNull(phone.getText()))
+                    .taxNumber(blankToNull(taxNumber.getText()))
+                    .paymentTermDays(paymentTermDays.getText().isBlank() ? 0 : Integer.parseInt(paymentTermDays.getText()))
+                    .active(true)
+                    .build();
+        });
+        Platform.runLater(displayName::requestFocus);
+        return dialog.showAndWait();
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
     private void showCurrentAccountHistory(CurrentAccountDTO account) {
         Dialog<Void> dialog = new Dialog<>();
         com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, currentAccountsTable.getScene().getWindow());
         dialog.setTitle("Cari Geçmişi");
-        dialog.setHeaderText(account.getCustomerName() + " - " + formatCurrency(account.getBalance()));
+        dialog.setHeaderText(account.getAccountName() + " - " + formatCurrency(account.getBalance()));
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         dialog.getDialogPane().setPrefSize(900, 620);
 
@@ -964,7 +1073,7 @@ public class FinanceController {
                         return;
                     }
                     CurrentAccountHistoryDTO history = response.body();
-                    dialog.setHeaderText(history.getCustomerName() + " - Güncel bakiye: "
+                    dialog.setHeaderText(history.getAccountName() + " - Güncel bakiye: "
                             + formatCurrency(history.getCurrentBalance()));
                     content.getChildren().setAll(buildCurrentAccountHistoryTable(history));
                 });

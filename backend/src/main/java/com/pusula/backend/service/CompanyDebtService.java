@@ -16,6 +16,7 @@ import com.pusula.backend.repository.CompanyDebtAdditionRepository;
 import com.pusula.backend.repository.CompanyDebtRepository;
 import com.pusula.backend.repository.ExpenseRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Comparator;
+import com.pusula.backend.dto.PayablePartySummaryDTO;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 public class CompanyDebtService {
@@ -34,6 +39,9 @@ public class CompanyDebtService {
     private final AuditLogService auditLogService;
     private final FinanceService financeService;
     private final ZoneId businessZone;
+
+    @Autowired(required = false)
+    private AccountPartyService accountPartyService;
 
     public CompanyDebtService(CompanyDebtRepository debtRepository,
             CompanyDebtPaymentRepository paymentRepository,
@@ -66,12 +74,134 @@ public class CompanyDebtService {
                 .toList();
     }
 
+    public List<PayablePartySummaryDTO> getPayablePartySummaries(Long companyId) {
+        List<CompanyDebt> allDebts = debtRepository.findByCompanyIdAndDeletedFalse(companyId).stream()
+                .filter(debt -> debt.getParty() != null)
+                .toList();
+        List<Long> debtIds = allDebts.stream().map(CompanyDebt::getId).toList();
+        Map<Long, List<CompanyDebtPayment>> paymentsByDebt = debtIds.isEmpty() ? Map.of()
+                : paymentRepository.findByCompanyIdAndDebtIdInOrderByPaymentDateAscIdAsc(companyId, debtIds).stream()
+                        .collect(java.util.stream.Collectors.groupingBy(CompanyDebtPayment::getDebtId));
+        Map<Long, List<CompanyDebtAddition>> additionsByDebt = debtIds.isEmpty() ? Map.of()
+                : additionRepository.findByCompanyIdAndDebtIdInOrderByAdditionDateAscIdAsc(companyId, debtIds).stream()
+                        .collect(java.util.stream.Collectors.groupingBy(CompanyDebtAddition::getDebtId));
+        Map<Long, List<CompanyDebt>> grouped = allDebts.stream()
+                .collect(java.util.stream.Collectors.groupingBy(debt -> debt.getParty().getId(),
+                        LinkedHashMap::new, java.util.stream.Collectors.toList()));
+        return grouped.values().stream().map(rows -> {
+            CompanyDebt first = rows.get(0);
+            BigDecimal purchases = rows.stream().map(CompanyDebt::getOriginalAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal balance = rows.stream().map(CompanyDebt::getRemainingAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            LocalDate firstDate = rows.stream().map(CompanyDebt::getDebtDate).min(LocalDate::compareTo).orElse(null);
+            LocalDate lastDate = rows.stream().map(CompanyDebt::getDebtDate).max(LocalDate::compareTo).orElse(null);
+            for (CompanyDebt row : rows) {
+                LocalDate paymentDate = paymentsByDebt.getOrDefault(row.getId(), List.of()).stream()
+                        .map(CompanyDebtPayment::getPaymentDate).max(LocalDate::compareTo).orElse(null);
+                LocalDate additionDate = additionsByDebt.getOrDefault(row.getId(), List.of()).stream()
+                        .map(CompanyDebtAddition::getAdditionDate).max(LocalDate::compareTo).orElse(null);
+                if (paymentDate != null && (lastDate == null || paymentDate.isAfter(lastDate))) lastDate = paymentDate;
+                if (additionDate != null && (lastDate == null || additionDate.isAfter(lastDate))) lastDate = additionDate;
+            }
+            long open = rows.stream().filter(row -> row.getRemainingAmount().signum() > 0).count();
+            return new PayablePartySummaryDTO(first.getParty().getId(), first.getParty().getDisplayName(),
+                    first.getParty().getPhone(), purchases, purchases.subtract(balance), balance,
+                    firstDate, lastDate, open);
+        }).sorted(Comparator.comparing(PayablePartySummaryDTO::name, String.CASE_INSENSITIVE_ORDER)).toList();
+    }
+
+    public List<CompanyDebtDTO> getPartyDebts(Long companyId, Long partyId) {
+        if (accountPartyService != null) accountPartyService.getEntity(companyId, partyId);
+        return debtRepository.findByCompanyIdAndPartyIdAndDeletedFalseOrderByDebtDateAscIdAsc(companyId, partyId)
+                .stream().map(this::mapToDTO).toList();
+    }
+
+    @Transactional
+    public PayablePartySummaryDTO payParty(Long companyId, Long partyId, DebtPaymentRequestDTO request) {
+        BigDecimal requestedAmount = request != null ? request.getAmount() : null;
+        LocalDate paymentDate = request != null && request.getPaymentDate() != null
+                ? request.getPaymentDate() : LocalDate.now(businessZone);
+        validatePositive(requestedAmount, "Ödeme tutarı");
+        if (paymentDate.isAfter(LocalDate.now(businessZone))) {
+            throw new IllegalArgumentException("Ödeme tarihi gelecekte olamaz!");
+        }
+        List<CompanyDebt> partyDebts = debtRepository
+                .findByCompanyIdAndPartyIdAndDeletedFalseOrderByDebtDateAscIdAsc(companyId, partyId);
+        List<Long> partyDebtIds = partyDebts.stream().map(CompanyDebt::getId).toList();
+        Map<Long, List<CompanyDebtPayment>> paymentsByDebt = partyDebtIds.isEmpty() ? Map.of()
+                : paymentRepository.findByCompanyIdAndDebtIdInOrderByPaymentDateAscIdAsc(companyId, partyDebtIds).stream()
+                        .collect(java.util.stream.Collectors.groupingBy(CompanyDebtPayment::getDebtId));
+        Map<Long, List<CompanyDebtAddition>> additionsByDebt = partyDebtIds.isEmpty() ? Map.of()
+                : additionRepository.findByCompanyIdAndDebtIdInOrderByAdditionDateAscIdAsc(companyId, partyDebtIds).stream()
+                        .collect(java.util.stream.Collectors.groupingBy(CompanyDebtAddition::getDebtId));
+        Map<Long, BigDecimal> availableByDebt = partyDebts.stream().collect(java.util.stream.Collectors.toMap(
+                CompanyDebt::getId, debt -> historicalAvailable(debt, paymentDate,
+                        additionsByDebt.getOrDefault(debt.getId(), List.of()),
+                        paymentsByDebt.getOrDefault(debt.getId(), List.of()))));
+        List<CompanyDebt> eligible = partyDebts.stream()
+                .filter(debt -> debt.getRemainingAmount().signum() > 0 && availableByDebt.get(debt.getId()).signum() > 0)
+                .toList();
+        BigDecimal eligibleBalance = eligible.stream().map(debt -> availableByDebt.get(debt.getId()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (requestedAmount.compareTo(eligibleBalance) > 0) {
+            throw new IllegalArgumentException("Ödeme tutarı, ödeme tarihindeki tedarikçi borcunu aşamaz.");
+        }
+        BigDecimal remaining = requestedAmount;
+        for (CompanyDebt debt : eligible) {
+            if (remaining.signum() == 0) break;
+            BigDecimal allocated = remaining.min(availableByDebt.get(debt.getId()));
+            payDebt(debt.getId(), companyId, DebtPaymentRequestDTO.builder().amount(allocated)
+                    .paymentDate(paymentDate).notes(request.getNotes()).build());
+            remaining = remaining.subtract(allocated);
+        }
+        auditLogService.log("UPDATE", "PAYABLE_PARTY", partyId,
+                "Tedarikçi kartına toplu ödeme: " + requestedAmount + " ₺ (" + paymentDate + ")");
+        return getPayablePartySummaries(companyId).stream().filter(row -> row.partyId().equals(partyId))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("Tedarikçi kartı bulunamadı."));
+    }
+
+    private BigDecimal historicalAvailable(CompanyDebt debt, LocalDate date,
+            List<CompanyDebtAddition> additions, List<CompanyDebtPayment> payments) {
+        if (debt.getDebtDate().isAfter(date)) return BigDecimal.ZERO;
+        BigDecimal allAdditions = additions.stream().map(CompanyDebtAddition::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal initialAmount = debt.getOriginalAmount().subtract(allAdditions).max(BigDecimal.ZERO);
+        BigDecimal datedAdditions = additions.stream().filter(row -> !row.getAdditionDate().isAfter(date))
+                .map(CompanyDebtAddition::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal datedPayments = payments.stream().filter(row -> !row.getPaymentDate().isAfter(date))
+                .map(CompanyDebtPayment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal historicalBalance = initialAmount.add(datedAdditions).subtract(datedPayments).max(BigDecimal.ZERO);
+        return historicalBalance.min(debt.getRemainingAmount()).max(BigDecimal.ZERO);
+    }
+
     @Transactional
     public CompanyDebtDTO createDebt(CompanyDebtDTO dto) {
         validatePositive(dto.getOriginalAmount(), "Borç tutarı");
+        if (dto.getCreditorName() == null || dto.getCreditorName().isBlank()) {
+            throw new IllegalArgumentException("Alacaklı kişi/firma zorunludur.");
+        }
+        com.pusula.backend.entity.AccountParty party = null;
+        if (accountPartyService != null) {
+            party = dto.getPartyId() != null
+                    ? accountPartyService.getEntity(dto.getCompanyId(), dto.getPartyId())
+                    : accountPartyService.ensureSupplierParty(dto.getCompanyId(), dto.getCreditorName(), dto.getCreditorPhone());
+            if (!party.isActive()) {
+                throw new IllegalArgumentException("Pasif tedarikçi kartına yeni borç eklenemez.");
+            }
+            if (party.getPartyType() != com.pusula.backend.entity.AccountParty.PartyType.SUPPLIER
+                    && party.getPartyType() != com.pusula.backend.entity.AccountParty.PartyType.OTHER) {
+                throw new IllegalArgumentException("Borç kartı tedarikçi veya diğer türünde olmalıdır.");
+            }
+            dto.setCreditorName(party.getDisplayName());
+            if ((dto.getCreditorPhone() == null || dto.getCreditorPhone().isBlank()) && party.getPhone() != null) {
+                dto.setCreditorPhone(party.getPhone());
+            }
+        }
         CompanyDebt debt = CompanyDebt.builder()
                 .companyId(dto.getCompanyId())
                 .creditorName(dto.getCreditorName())
+                .party(party)
                 .description(dto.getDescription())
                 .originalAmount(dto.getOriginalAmount())
                 .remainingAmount(dto.getOriginalAmount())
@@ -83,9 +213,6 @@ public class CompanyDebtService {
                 .notes(dto.getNotes())
                 .build();
 
-        if (debt.getCreditorName() == null || debt.getCreditorName().isBlank()) {
-            throw new IllegalArgumentException("Alacaklı kişi/firma zorunludur.");
-        }
         if (debt.getDebtDate().isAfter(LocalDate.now(businessZone))) {
             throw new IllegalArgumentException("Borç tarihi gelecekte olamaz.");
         }
@@ -99,7 +226,7 @@ public class CompanyDebtService {
     @Transactional
     public CompanyDebtDTO updateDebt(Long id, Long companyId, CompanyDebtDTO dto) {
         CompanyDebt debt = findDebt(id, companyId);
-        debt.setCreditorName(dto.getCreditorName());
+        debt.setCreditorName(debt.getParty() != null ? debt.getParty().getDisplayName() : dto.getCreditorName());
         debt.setDescription(dto.getDescription());
         debt.setDueDate(dto.getDueDate());
         debt.setCreditorPhone(dto.getCreditorPhone());
@@ -298,6 +425,8 @@ public class CompanyDebtService {
                 .id(debt.getId())
                 .companyId(debt.getCompanyId())
                 .creditorName(debt.getCreditorName())
+                .partyId(debt.getParty() != null ? debt.getParty().getId() : null)
+                .partyType(debt.getParty() != null ? debt.getParty().getPartyType().name() : "SUPPLIER")
                 .description(debt.getDescription())
                 .originalAmount(debt.getOriginalAmount())
                 .remainingAmount(debt.getRemainingAmount())

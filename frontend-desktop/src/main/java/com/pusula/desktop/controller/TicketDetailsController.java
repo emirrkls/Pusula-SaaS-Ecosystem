@@ -4,11 +4,14 @@ import com.pusula.desktop.api.ServiceTicketApi;
 import com.pusula.desktop.api.ReportApi;
 import com.pusula.desktop.api.UserApi;
 import com.pusula.desktop.api.CustomerApi;
+import com.pusula.desktop.api.AccountPartyApi;
 import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.dto.CustomerDTO;
 import com.pusula.desktop.dto.ServiceUsedPartDTO;
 import com.pusula.desktop.dto.ServiceTicketExpenseDTO;
 import com.pusula.desktop.dto.UserDTO;
+import com.pusula.desktop.dto.AccountPartyOptionDTO;
+import com.pusula.desktop.dto.AccountPartyDTO;
 import com.pusula.desktop.api.ServiceTicketExpenseApi;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
@@ -1429,29 +1432,99 @@ public class TicketDetailsController {
         grid.add(outstandingLabel, 1, 4);
         grid.add(new Label(resourceBundle.getString("payment.method") + ":"), 0, 5);
         grid.add(paymentCombo, 1, 5);
+        CheckBox institutionalWarranty = new CheckBox("Ücreti anlaşmalı kurum karşılayacak");
+        ComboBox<AccountPartyOptionDTO> billingPartyCombo = new ComboBox<>();
+        billingPartyCombo.setPromptText("Kurum/firma seçin");
+        billingPartyCombo.setMaxWidth(Double.MAX_VALUE);
+        billingPartyCombo.setDisable(true);
+        Button addBillingPartyButton = new Button("Yeni kurum");
+        addBillingPartyButton.getStyleClass().addAll("btn-secondary", "btn-sm");
+        addBillingPartyButton.setVisible(com.pusula.desktop.util.SessionManager.isAdmin());
+        addBillingPartyButton.setManaged(addBillingPartyButton.isVisible());
+        HBox billingPartyBox = new HBox(8, billingPartyCombo, addBillingPartyButton);
+        HBox.setHgrow(billingPartyCombo, javafx.scene.layout.Priority.ALWAYS);
+        grid.add(institutionalWarranty, 1, 6);
+        grid.add(new Label("Ödemeyi üstlenen kurum:"), 0, 7);
+        grid.add(billingPartyBox, 1, 7);
         TextArea technicianNoteField = new TextArea();
         technicianNoteField.setPromptText("Yapılan işlem / kapanış notu");
         technicianNoteField.setWrapText(true);
         technicianNoteField.setPrefRowCount(3);
-        grid.add(new Label("Teknisyen notu:"), 0, 6);
-        grid.add(technicianNoteField, 1, 6);
+        grid.add(new Label("Teknisyen notu:"), 0, 8);
+        grid.add(technicianNoteField, 1, 8);
         if (com.pusula.desktop.util.SessionManager.isAdmin()) {
-            grid.add(new Label(resourceBundle.getString("dialog.complete.date") + ":"), 0, 7);
-            grid.add(completionDatePicker, 1, 7);
+            grid.add(new Label(resourceBundle.getString("dialog.complete.date") + ":"), 0, 9);
+            grid.add(completionDatePicker, 1, 9);
         }
+
+        RetrofitClient.getClient().create(AccountPartyApi.class).getBillingOptions().enqueue(
+                new Callback<List<AccountPartyOptionDTO>>() {
+                    @Override public void onResponse(Call<List<AccountPartyOptionDTO>> call,
+                            Response<List<AccountPartyOptionDTO>> response) {
+                        if (response.isSuccessful() && response.body() != null) {
+                            Platform.runLater(() -> billingPartyCombo.setItems(FXCollections.observableArrayList(response.body())));
+                        }
+                    }
+                    @Override public void onFailure(Call<List<AccountPartyOptionDTO>> call, Throwable throwable) {
+                        Platform.runLater(() -> billingPartyCombo.setPromptText("Kurumlar alınamadı"));
+                    }
+                });
+
+        addBillingPartyButton.setOnAction(event -> {
+            TextInputDialog createDialog = new TextInputDialog();
+            com.pusula.desktop.util.ThemeHelper.applyToDialog(createDialog, lblStatus.getScene().getWindow());
+            createDialog.setTitle("Yeni Kurum/Firma Cari Kartı");
+            createDialog.setHeaderText("Servis bedelinin aktarılacağı kurum veya firma");
+            createDialog.setContentText("Kurum/firma adı:");
+            createDialog.showAndWait().map(String::trim).filter(name -> !name.isBlank()).ifPresent(name -> {
+                addBillingPartyButton.setDisable(true);
+                AccountPartyDTO request = AccountPartyDTO.builder()
+                        .partyType("ORGANIZATION").displayName(name).paymentTermDays(0).active(true).build();
+                RetrofitClient.getClient().create(AccountPartyApi.class).create(request).enqueue(
+                        new Callback<AccountPartyDTO>() {
+                            @Override public void onResponse(Call<AccountPartyDTO> call,
+                                    Response<AccountPartyDTO> response) {
+                                Platform.runLater(() -> {
+                                    addBillingPartyButton.setDisable(false);
+                                    if (response.isSuccessful() && response.body() != null) {
+                                        AccountPartyDTO saved = response.body();
+                                        AccountPartyOptionDTO option = new AccountPartyOptionDTO(
+                                                saved.getId(), saved.getDisplayName(), saved.getPartyType());
+                                        billingPartyCombo.getItems().add(option);
+                                        billingPartyCombo.setValue(option);
+                                    } else {
+                                        AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                                lblStatus.getScene().getWindow(), "Kurum oluşturulamadı",
+                                                "Kurum/firma cari kartı kaydedilemedi (" + response.code() + ").");
+                                    }
+                                });
+                            }
+                            @Override public void onFailure(Call<AccountPartyDTO> call, Throwable throwable) {
+                                Platform.runLater(() -> {
+                                    addBillingPartyButton.setDisable(false);
+                                    AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                            lblStatus.getScene().getWindow(), "Kurum oluşturulamadı",
+                                            throwable.getMessage());
+                                });
+                            }
+                        });
+            });
+        });
 
         boolean initiallyCurrentAccount = paymentCombo.getValue()
                 .equals(resourceBundle.getString("payment.current_account"));
         boolean initiallyWarranty = paymentCombo.getValue()
                 .equals(resourceBundle.getString("payment.warranty"));
         collectedField.setDisable(initiallyCurrentAccount || initiallyWarranty);
-        laborFeeField.setDisable(initiallyWarranty);
+        laborFeeField.setDisable(initiallyWarranty && !institutionalWarranty.isSelected());
         if (initiallyWarranty) laborFeeField.setRawValue(BigDecimal.ZERO);
         if (initiallyCurrentAccount || initiallyWarranty) collectedField.setRawValue(BigDecimal.ZERO);
 
         Runnable updateTotals = () -> {
             boolean warranty = paymentCombo.getValue().equals(resourceBundle.getString("payment.warranty"));
-            BigDecimal invoiceTotal = warranty ? BigDecimal.ZERO : partsTotal.add(laborFeeField.getRawValue());
+            boolean billedToInstitution = warranty && institutionalWarranty.isSelected();
+            BigDecimal invoiceTotal = warranty && !billedToInstitution
+                    ? BigDecimal.ZERO : partsTotal.add(laborFeeField.getRawValue());
             boolean currentAccount = paymentCombo.getValue()
                     .equals(resourceBundle.getString("payment.current_account"));
             if (currentAccount || warranty) {
@@ -1474,12 +1547,21 @@ public class TicketDetailsController {
         paymentCombo.valueProperty().addListener((observable, oldValue, newValue) -> {
             boolean currentAccount = newValue.equals(resourceBundle.getString("payment.current_account"));
             boolean warranty = newValue.equals(resourceBundle.getString("payment.warranty"));
-            laborFeeField.setDisable(warranty);
-            if (warranty) laborFeeField.setRawValue(BigDecimal.ZERO);
+            institutionalWarranty.setDisable(!warranty);
+            if (!warranty) institutionalWarranty.setSelected(false);
+            laborFeeField.setDisable(warranty && !institutionalWarranty.isSelected());
+            if (warranty && !institutionalWarranty.isSelected()) laborFeeField.setRawValue(BigDecimal.ZERO);
             collectedField.setDisable(currentAccount || warranty);
             collectedField.setRawValue(currentAccount || warranty
                     ? BigDecimal.ZERO
                     : partsTotal.add(laborFeeField.getRawValue()));
+            updateTotals.run();
+        });
+        institutionalWarranty.selectedProperty().addListener((observable, oldValue, selected) -> {
+            boolean warranty = paymentCombo.getValue().equals(resourceBundle.getString("payment.warranty"));
+            billingPartyCombo.setDisable(!warranty || !selected);
+            laborFeeField.setDisable(warranty && !selected);
+            if (warranty && !selected) laborFeeField.setRawValue(BigDecimal.ZERO);
             updateTotals.run();
         });
         updateTotals.run();
@@ -1494,6 +1576,8 @@ public class TicketDetailsController {
                 result.put("collectedAmount", collectedField.getRawValue());
                 result.put("paymentMethod", paymentCombo.getValue());
                 result.put("technicianNote", technicianNoteField.getText());
+                result.put("institutionalWarranty", institutionalWarranty.isSelected());
+                result.put("billingParty", billingPartyCombo.getValue());
                 if (com.pusula.desktop.util.SessionManager.isAdmin()) {
                     result.put("completionDate", completionDatePicker.getValue());
                 }
@@ -1507,6 +1591,13 @@ public class TicketDetailsController {
                 BigDecimal laborFee = (BigDecimal) result.get("laborFee");
                 BigDecimal collectedAmount = (BigDecimal) result.get("collectedAmount");
                 String paymentMethodDisplay = result.get("paymentMethod").toString();
+                boolean billedToInstitution = Boolean.TRUE.equals(result.get("institutionalWarranty"));
+                AccountPartyOptionDTO billingParty = (AccountPartyOptionDTO) result.get("billingParty");
+                if (billedToInstitution && billingParty == null) {
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                            "Kurum seçilmedi", "Garanti bedelinin aktarılacağı kurum/firma cari kartını seçin.");
+                    return;
+                }
                 BigDecimal invoiceTotal = partsTotal.add(laborFee);
                 if (collectedAmount.compareTo(invoiceTotal) > 0) {
                     AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
@@ -1522,7 +1613,7 @@ public class TicketDetailsController {
                     paymentMethod = "CURRENT_ACCOUNT";
                 } else if (paymentMethodDisplay.equals(resourceBundle.getString("payment.warranty"))) {
                     paymentMethod = "WARRANTY";
-                    laborFee = BigDecimal.ZERO;
+                    if (!billedToInstitution) laborFee = BigDecimal.ZERO;
                     collectedAmount = BigDecimal.ZERO;
                 }
 
@@ -1532,6 +1623,9 @@ public class TicketDetailsController {
                 requestBody.put("collectedAmount", collectedAmount);
                 requestBody.put("paymentMethod", paymentMethod);
                 requestBody.put("technicianNote", result.get("technicianNote"));
+                requestBody.put("billingResponsibility", billedToInstitution ? "ORGANIZATION"
+                        : "WARRANTY".equals(paymentMethod) ? "INTERNAL" : "CUSTOMER");
+                if (billingParty != null) requestBody.put("billingPartyId", billingParty.getId());
                 if (result.get("completionDate") != null) {
                     requestBody.put("completionDate", result.get("completionDate").toString());
                 }

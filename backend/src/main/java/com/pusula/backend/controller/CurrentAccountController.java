@@ -8,10 +8,12 @@ import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.CurrentAccountTransaction;
+import com.pusula.backend.entity.AccountParty;
 import com.pusula.backend.repository.CurrentAccountRepository;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
 import com.pusula.backend.service.CurrentAccountLedgerService;
+import com.pusula.backend.service.AccountPartyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -42,6 +44,9 @@ public class CurrentAccountController {
     @Autowired
     private CurrentAccountLedgerService ledgerService;
 
+    @Autowired
+    private AccountPartyService accountPartyService;
+
     @GetMapping
     public List<CurrentAccountDTO> getAll() {
         Long companyId = ((com.pusula.backend.entity.User) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getCompanyId();
@@ -57,6 +62,12 @@ public class CurrentAccountController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/by-party/{partyId}")
+    public ResponseEntity<CurrentAccountDTO> getByParty(@PathVariable Long partyId) {
+        return currentAccountRepository.findByPartyIdAndCompanyId(partyId, getCompanyId())
+                .map(this::mapToDTO).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/{id}/history")
     public ResponseEntity<CurrentAccountHistoryDTO> getHistory(@PathVariable Long id) {
         return ResponseEntity.ok(ledgerService.getHistory(id, getCompanyId()));
@@ -66,27 +77,32 @@ public class CurrentAccountController {
     @Transactional
     public ResponseEntity<?> createOrUpdate(@RequestBody Map<String, Object> request) {
         Long companyId = getCompanyId();
-        Long customerId = ((Number) request.get("customerId")).longValue();
+        Long customerId = request.get("customerId") instanceof Number value ? value.longValue() : null;
+        Long partyId = request.get("partyId") instanceof Number value ? value.longValue() : null;
         BigDecimal amount = new BigDecimal(request.get("amount").toString());
 
         validateNonNegative(amount, "Cari tutar");
-        Customer customer = customerRepository.findByIdAndCompanyId(customerId, companyId).orElse(null);
-        if (customer == null) {
-            return ResponseEntity.badRequest().body("Customer not found");
+        Customer customer = customerId == null ? null
+                : customerRepository.findByIdAndCompanyId(customerId, companyId).orElse(null);
+        AccountParty party;
+        if (partyId != null) {
+            party = accountPartyService.getEntity(companyId, partyId);
+        } else if (customer != null) {
+            party = accountPartyService.ensureCustomerParty(customer);
+        } else {
+            return ResponseEntity.badRequest().body("Müşteri veya cari taraf zorunludur.");
         }
+        if (!party.isActive()) return ResponseEntity.badRequest().body("Pasif cari karta işlem yapılamaz.");
 
-        CurrentAccount account = currentAccountRepository.findByCustomerIdAndCompanyId(customerId, companyId)
-                .orElse(CurrentAccount.builder()
-                        .companyId(companyId)
-                        .customer(customer)
-                        .balance(BigDecimal.ZERO)
-                        .build());
+        CurrentAccount account = currentAccountRepository.findByPartyIdAndCompanyId(party.getId(), companyId)
+                .orElse(CurrentAccount.builder().companyId(companyId).customer(customer).party(party)
+                        .balance(BigDecimal.ZERO).build());
 
         account.setBalance(account.getBalance().add(amount));
         CurrentAccount saved = currentAccountRepository.save(account);
         ledgerService.record(saved, CurrentAccountTransaction.TransactionType.ADJUSTMENT, amount,
                 LocalDate.now(), "Manuel cari borç ilavesi", null, null, null);
-        return ResponseEntity.ok(saved);
+        return ResponseEntity.ok(mapToDTO(saved));
     }
 
     @PutMapping("/{id}/adjust")
@@ -175,9 +191,9 @@ public class CurrentAccountController {
                     // Only if paymentAmount > 0 (actual money received)
                     ServiceTicket incomeTicket = null;
                     if (paymentAmount.compareTo(BigDecimal.ZERO) > 0) {
-                        String customerName = account.getCustomer() != null
-                                ? account.getCustomer().getName()
-                                : "Bilinmeyen Müşteri";
+                        String customerName = account.getParty() != null
+                                ? account.getParty().getDisplayName()
+                                : account.getCustomer() != null ? account.getCustomer().getName() : "Bilinmeyen cari";
 
                         incomeTicket = ServiceTicket.builder()
                                 .companyId(account.getCompanyId())
@@ -217,13 +233,18 @@ public class CurrentAccountController {
     private CurrentAccountDTO mapToDTO(CurrentAccount account) {
         String customerName = account.getCustomer() != null
                 ? account.getCustomer().getName()
-                : "Unknown";
+                : null;
+        String accountName = account.getParty() != null ? account.getParty().getDisplayName()
+                : customerName != null ? customerName : "Bilinmeyen cari";
 
         return CurrentAccountDTO.builder()
                 .id(account.getId())
                 .companyId(account.getCompanyId())
                 .customerId(account.getCustomer() != null ? account.getCustomer().getId() : null)
                 .customerName(customerName)
+                .partyId(account.getParty() != null ? account.getParty().getId() : null)
+                .partyType(account.getParty() != null ? account.getParty().getPartyType().name() : "CUSTOMER")
+                .accountName(accountName)
                 .balance(account.getBalance())
                 .lastUpdated(account.getLastUpdated())
                 .build();

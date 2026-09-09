@@ -18,4 +18,6 @@ public interface CompanyDebtRepository extends JpaRepository<CompanyDebt, Long> 
             String creditorName);
 
     Optional<CompanyDebt> findByIdAndCompanyIdAndDeletedFalse(Long id, Long companyId);
+
+    List<CompanyDebt> findByCompanyIdAndPartyIdAndDeletedFalseOrderByDebtDateAscIdAsc(Long companyId, Long partyId);
 }

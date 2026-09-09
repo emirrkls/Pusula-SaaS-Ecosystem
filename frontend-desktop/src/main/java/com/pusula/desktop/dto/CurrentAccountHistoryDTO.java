@@ -9,12 +9,18 @@ public class CurrentAccountHistoryDTO {
     private Long accountId;
     private Long customerId;
     private String customerName;
+    private Long partyId;
+    private String partyType;
+    private String accountName;
     private BigDecimal currentBalance;
     private List<Transaction> transactions;
 
     public Long getAccountId() { return accountId; }
     public Long getCustomerId() { return customerId; }
     public String getCustomerName() { return customerName; }
+    public Long getPartyId() { return partyId; }
+    public String getPartyType() { return partyType; }
+    public String getAccountName() { return accountName != null ? accountName : customerName; }
     public BigDecimal getCurrentBalance() { return currentBalance; }
     public List<Transaction> getTransactions() { return transactions; }
 

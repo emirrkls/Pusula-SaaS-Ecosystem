@@ -15,15 +15,19 @@ struct CollectionView: View {
     @State private var isProcessing = false
     @State private var errorMessage: String?
     @State private var technicianNote = ""
+    @State private var institutionalWarranty = false
+    @State private var billingOrganizations: [AccountPartyOptionDTO] = []
+    @State private var selectedBillingPartyId: Int?
     
     var isWarranty: Bool { selectedMethod == .warranty }
+    var isInstitutionalWarranty: Bool { isWarranty && institutionalWarranty }
     var isCurrentAccount: Bool { selectedMethod == .currentAccount }
-    var laborValue: Double { isWarranty ? 0 : (Double(laborFee.replacingOccurrences(of: ",", with: ".")) ?? 0) }
-    var serviceTotal: Double { isWarranty ? 0 : partsTotal + laborValue }
+    var laborValue: Double { isWarranty && !isInstitutionalWarranty ? 0 : (Double(laborFee.replacingOccurrences(of: ",", with: ".")) ?? 0) }
+    var serviceTotal: Double { isWarranty && !isInstitutionalWarranty ? 0 : partsTotal + laborValue }
     var collectedValue: Double {
         (isWarranty || isCurrentAccount) ? 0 : (Double(collectedAmount.replacingOccurrences(of: ",", with: ".")) ?? 0)
     }
-    var remainingDebt: Double { isWarranty ? 0 : max(0, serviceTotal - collectedValue) }
+    var remainingDebt: Double { isWarranty && !isInstitutionalWarranty ? 0 : max(0, serviceTotal - collectedValue) }
     var isOverpayment: Bool { !isWarranty && !isCurrentAccount && collectedValue > serviceTotal + 0.005 }
     var existingDebt: Double { ticket.customerBalance ?? 0 }
     var isFullPayment: Bool { collectedValue >= serviceTotal }
@@ -38,6 +42,8 @@ struct CollectionView: View {
                     
                     // Payment method selector
                     paymentMethodPicker
+
+                    if isWarranty { institutionalBillingCard }
                     
                     // Amount input
                     amountInput
@@ -81,7 +87,31 @@ struct CollectionView: View {
             } message: {
                 Text("Dikkat: Kalan ₺\(String(format: "%.2f", remainingDebt)) tutar müşterinin cari hesabına borç olarak işlenecektir.\n\nToplam cari borç: ₺\(String(format: "%.2f", finalDebt))\n\nOnaylıyor musunuz?")
             }
+            .task {
+                do { billingOrganizations = try await TicketService.getBillingOrganizations() }
+                catch { /* Normal completion remains available. */ }
+            }
         }
+    }
+
+    private var institutionalBillingCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Toggle("Ücreti anlaşmalı kurum karşılayacak", isOn: $institutionalWarranty)
+                .font(.subheadline.weight(.semibold))
+            if institutionalWarranty {
+                Picker("Ödemeyi üstlenen kurum", selection: $selectedBillingPartyId) {
+                    Text("Kurum seçin").tag(nil as Int?)
+                    ForEach(billingOrganizations) { party in
+                        Text(party.displayName).tag(Optional(party.id))
+                    }
+                }
+                Text("Tutar müşteriden alınmaz; seçilen kurumun cari hesabına hakediş olarak aktarılır.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Text("İşletme garantisi: satış ve tahsilat oluşmaz, yalnızca gerçek servis maliyeti izlenir.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }.pusulaCard()
     }
     
     // MARK: - Summary Card
@@ -180,7 +210,7 @@ struct CollectionView: View {
             TextField("Örn. 1.500,00 ₺", text: $laborFee)
                 .keyboardType(.decimalPad)
                 .textFieldStyle(.roundedBorder)
-                .disabled(isWarranty)
+                .disabled(isWarranty && !isInstitutionalWarranty)
                 .onChange(of: laborFee) { _, _ in
                     if !isWarranty && !isCurrentAccount {
                         collectedAmount = String(format: "%.2f", serviceTotal)
@@ -227,7 +257,9 @@ struct CollectionView: View {
             }
 
             if isWarranty {
-                Text("Garanti kapsamında satış, tahsilat ve cari borç oluşmaz. Kullanılan parçaların maliyeti rapora yansır.")
+                Text(isInstitutionalWarranty
+                     ? "Servis bedeli seçilen kurumun carisine aktarılır; müşteriden tahsilat alınmaz."
+                     : "İşletme garantisinde satış, tahsilat ve cari borç oluşmaz. Kullanılan parçaların maliyeti rapora yansır.")
                     .font(.caption)
                     .foregroundColor(.orange)
             }
@@ -261,9 +293,13 @@ struct CollectionView: View {
                 .font(.subheadline.weight(.semibold))
             
             if isWarranty {
-                Text("Garanti kapsamında tahsilat veya cari işlem oluşturulmayacak.")
-                    .font(.caption)
-                    .foregroundColor(.orange)
+                if isInstitutionalWarranty {
+                    waterfallRow("Kurum carisine aktarılacak", amount: serviceTotal,
+                                 icon: "building.2", color: .orange)
+                } else {
+                    Text("İşletme garantisinde tahsilat veya cari işlem oluşturulmayacak.")
+                        .font(.caption).foregroundColor(.orange)
+                }
             } else if isCurrentAccount {
                 waterfallRow("Cariye aktarılacak",
                              amount: serviceTotal,
@@ -340,7 +376,9 @@ struct CollectionView: View {
         .background(isFullPayment ? PusulaTheme.accent : Color.orange)
         .foregroundColor(.white)
         .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
-        .disabled(isProcessing || isOverpayment || (!isWarranty && !isCurrentAccount && collectedAmount.isEmpty))
+        .disabled(isProcessing || isOverpayment
+                  || (isInstitutionalWarranty && selectedBillingPartyId == nil)
+                  || (!isWarranty && !isCurrentAccount && collectedAmount.isEmpty))
     }
     
     // MARK: - Logic
@@ -372,7 +410,9 @@ struct CollectionView: View {
                 amount: collectedValue,
                 paymentMethod: selectedMethod.apiValue,
                 laborFee: laborValue,
-                technicianNote: technicianNote
+                technicianNote: technicianNote,
+                billingPartyId: isInstitutionalWarranty ? selectedBillingPartyId : nil,
+                billingResponsibility: isInstitutionalWarranty ? "ORGANIZATION" : (isWarranty ? "INTERNAL" : "CUSTOMER")
             )
             await onComplete()
         } catch {

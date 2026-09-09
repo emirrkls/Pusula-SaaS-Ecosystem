@@ -5,6 +5,7 @@ import com.pusula.desktop.dto.CompanyDebtDTO;
 import com.pusula.desktop.dto.CompanyDebtPaymentDTO;
 import com.pusula.desktop.dto.DebtAdditionRequestDTO;
 import com.pusula.desktop.dto.DebtPaymentRequestDTO;
+import com.pusula.desktop.dto.PayablePartySummaryDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.CurrencyTextField;
@@ -63,9 +64,19 @@ public class CompanyDebtController {
     private ComboBox<String> statusFilter;
     @FXML
     private Label totalDebtLabel;
+    @FXML private TableView<PayablePartySummaryDTO> partyTable;
+    @FXML private TableColumn<PayablePartySummaryDTO, String> colPartyName;
+    @FXML private TableColumn<PayablePartySummaryDTO, String> colPartyPurchases;
+    @FXML private TableColumn<PayablePartySummaryDTO, String> colPartyPaid;
+    @FXML private TableColumn<PayablePartySummaryDTO, String> colPartyBalance;
+    @FXML private TableColumn<PayablePartySummaryDTO, String> colPartyFirstDate;
+    @FXML private TableColumn<PayablePartySummaryDTO, String> colPartyLastDate;
+    @FXML private TableColumn<PayablePartySummaryDTO, Void> colPartyActions;
+    @FXML private Label debtDetailLabel;
 
     private CompanyDebtApi api;
     private ObservableList<CompanyDebtDTO> debts = FXCollections.observableArrayList();
+    private PayablePartySummaryDTO selectedPayableParty;
     private DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("tr", "TR"));
 
@@ -74,8 +85,10 @@ public class CompanyDebtController {
         api = RetrofitClient.getClient().create(CompanyDebtApi.class);
 
         setupTable();
+        setupPartyTable();
         setupFilters();
         loadDebts();
+        loadParties();
         loadTotalDebt();
     }
 
@@ -196,6 +209,8 @@ public class CompanyDebtController {
 
     @FXML
     public void loadDebts() {
+        selectedPayableParty = null;
+        if (debtDetailLabel != null) debtDetailLabel.setText("Tüm Borç Hareketleri");
         api.getAllDebts().enqueue(new Callback<>() {
             @Override
             public void onResponse(Call<List<CompanyDebtDTO>> call, Response<List<CompanyDebtDTO>> response) {
@@ -269,14 +284,22 @@ public class CompanyDebtController {
 
     @FXML
     public void handleAddDebt() {
+        openDebtDialog(null);
+    }
+
+    private void openDebtDialog(PayablePartySummaryDTO supplier) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/company_debt_dialog.fxml"));
             Parent root = loader.load();
 
             CompanyDebtDialogController controller = loader.getController();
+            if (supplier != null) {
+                controller.setSupplierCard(supplier.getPartyId(), supplier.getName(), supplier.getPhone());
+            }
             controller.setOnSave(() -> {
-                loadDebts();
+                refreshDebtRows();
                 loadTotalDebt();
+                loadParties();
             });
 
             Stage dialog = new Stage();
@@ -353,8 +376,9 @@ public class CompanyDebtController {
                     Platform.runLater(() -> {
                         if (response.isSuccessful()) {
                             showInfo("Ödeme seçilen tarihe kaydedildi!");
-                            loadDebts();
+                            refreshDebtRows();
                             loadTotalDebt();
+                            loadParties();
                         } else {
                             showError("Ödeme kaydedilemedi: " + response.code());
                         }
@@ -367,6 +391,115 @@ public class CompanyDebtController {
                 }
             });
         });
+    }
+
+    private void setupPartyTable() {
+        colPartyName.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getName()));
+        colPartyPurchases.setCellValueFactory(data -> new SimpleStringProperty(formatCurrency(data.getValue().getTotalPurchases())));
+        colPartyPaid.setCellValueFactory(data -> new SimpleStringProperty(formatCurrency(data.getValue().getTotalPaid())));
+        colPartyBalance.setCellValueFactory(data -> new SimpleStringProperty(formatCurrency(data.getValue().getBalance())));
+        colPartyFirstDate.setCellValueFactory(data -> new SimpleStringProperty(formatDate(data.getValue().getFirstDebtDate())));
+        colPartyLastDate.setCellValueFactory(data -> new SimpleStringProperty(formatDate(data.getValue().getLastMovementDate())));
+        colPartyActions.setCellFactory(column -> new TableCell<>() {
+            private final Button details = new Button("Hareketler");
+            private final Button add = new Button("Alım Ekle");
+            private final Button pay = new Button("Öde");
+            private final HBox box = new HBox(6, details, add, pay);
+            {
+                details.getStyleClass().addAll("btn-secondary", "btn-sm");
+                add.getStyleClass().addAll("btn-primary", "btn-sm");
+                pay.getStyleClass().addAll("btn-success", "btn-sm");
+                details.setOnAction(event -> showPartyDebts(getTableRow().getItem()));
+                add.setOnAction(event -> openDebtDialog(getTableRow().getItem()));
+                pay.setOnAction(event -> handlePayParty(getTableRow().getItem()));
+            }
+            @Override protected void updateItem(Void value, boolean empty) {
+                super.updateItem(value, empty);
+                PayablePartySummaryDTO party = empty ? null : getTableRow().getItem();
+                pay.setDisable(party == null || party.getBalance() == null || party.getBalance().signum() <= 0);
+                setGraphic(party == null ? null : box);
+            }
+        });
+        partyTable.setRowFactory(table -> {
+            TableRow<PayablePartySummaryDTO> row = new TableRow<>();
+            row.setOnMouseClicked(event -> { if (!row.isEmpty() && event.getClickCount() == 2) showPartyDebts(row.getItem()); });
+            return row;
+        });
+    }
+
+    private String formatDate(LocalDate value) { return value == null ? "-" : value.format(dateFormatter); }
+
+    private void loadParties() {
+        api.getPayableParties().enqueue(new Callback<>() {
+            @Override public void onResponse(Call<List<PayablePartySummaryDTO>> call,
+                    Response<List<PayablePartySummaryDTO>> response) {
+                Platform.runLater(() -> {
+                    if (response.isSuccessful() && response.body() != null) {
+                        partyTable.setItems(FXCollections.observableArrayList(response.body()));
+                    }
+                });
+            }
+            @Override public void onFailure(Call<List<PayablePartySummaryDTO>> call, Throwable throwable) {
+                Platform.runLater(() -> showError("Tedarikçi kartları yüklenemedi: " + throwable.getMessage()));
+            }
+        });
+    }
+
+    private void showPartyDebts(PayablePartySummaryDTO party) {
+        if (party == null) return;
+        selectedPayableParty = party;
+        api.getPartyDebts(party.getPartyId()).enqueue(new Callback<>() {
+            @Override public void onResponse(Call<List<CompanyDebtDTO>> call, Response<List<CompanyDebtDTO>> response) {
+                Platform.runLater(() -> {
+                    if (response.isSuccessful() && response.body() != null) {
+                        debts.setAll(response.body());
+                        debtDetailLabel.setText(party.getName() + " · Alım ve Hareketler");
+                    }
+                });
+            }
+            @Override public void onFailure(Call<List<CompanyDebtDTO>> call, Throwable throwable) {
+                Platform.runLater(() -> showError("Kart hareketleri yüklenemedi: " + throwable.getMessage()));
+            }
+        });
+    }
+
+    private void refreshDebtRows() {
+        if (selectedPayableParty != null) showPartyDebts(selectedPayableParty);
+        else loadDebts();
+    }
+
+    private void handlePayParty(PayablePartySummaryDTO party) {
+        if (party == null || party.getBalance() == null || party.getBalance().signum() <= 0) return;
+        Dialog<DebtPaymentRequestDTO> dialog = new Dialog<>();
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, partyTable.getScene().getWindow());
+        dialog.setTitle("Tedarikçi Kartına Ödeme");
+        dialog.setHeaderText(party.getName() + " · Kalan " + formatCurrency(party.getBalance()));
+        ButtonType save = new ButtonType("Ödemeyi Kaydet", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
+        CurrencyTextField amount = new CurrencyTextField(); amount.setRawValue(party.getBalance());
+        DatePicker date = new DatePicker(LocalDate.now());
+        TextArea notes = new TextArea(); notes.setPromptText("Ödeme notu (isteğe bağlı)"); notes.setPrefRowCount(2);
+        GridPane grid = new GridPane(); grid.setHgap(10); grid.setVgap(10); grid.setPadding(new Insets(15));
+        grid.addRow(0, new Label("Tutar (₺):"), amount);
+        grid.addRow(1, new Label("Ödeme tarihi:"), date);
+        grid.addRow(2, new Label("Not:"), notes);
+        dialog.getDialogPane().setContent(grid);
+        dialog.setResultConverter(button -> button == save ? DebtPaymentRequestDTO.builder()
+                .amount(amount.getRawValue()).paymentDate(date.getValue()).notes(notes.getText()).build() : null);
+        dialog.showAndWait().ifPresent(request -> api.payParty(party.getPartyId(), request).enqueue(new Callback<>() {
+            @Override public void onResponse(Call<PayablePartySummaryDTO> call,
+                    Response<PayablePartySummaryDTO> response) {
+                Platform.runLater(() -> {
+                    if (response.isSuccessful()) {
+                        showInfo("Ödeme en eski açık alımdan başlayarak tedarikçi kartına işlendi.");
+                        loadParties(); refreshDebtRows(); loadTotalDebt();
+                    } else showError("Ödeme kaydedilemedi: " + response.code());
+                });
+            }
+            @Override public void onFailure(Call<PayablePartySummaryDTO> call, Throwable throwable) {
+                Platform.runLater(() -> showError("Ödeme kaydedilemedi: " + throwable.getMessage()));
+            }
+        }));
     }
 
     private void handlePaymentHistory(CompanyDebtDTO debt) {
@@ -450,8 +583,9 @@ public class CompanyDebtController {
                 Platform.runLater(() -> {
                     if (response.isSuccessful()) {
                         historyDialog.close();
-                        loadDebts();
+                        refreshDebtRows();
                         loadTotalDebt();
+                        loadParties();
                         showInfo("Ödeme ve bağlı finans gideri geri alındı.");
                     } else {
                         showError("Ödeme geri alınamadı: " + response.code());
@@ -531,8 +665,9 @@ public class CompanyDebtController {
                         Platform.runLater(() -> {
                             if (response.isSuccessful()) {
                                 showInfo("Borca ilave başarıyla eklendi!");
-                                loadDebts();
+                                refreshDebtRows();
                                 loadTotalDebt();
+                                loadParties();
                             } else {
                                 showError("İşlem başarısız oldu!");
                             }
@@ -598,8 +733,9 @@ public class CompanyDebtController {
                     public void onResponse(Call<Void> call, Response<Void> response) {
                         Platform.runLater(() -> {
                             if (response.isSuccessful()) {
-                                loadDebts();
+                                refreshDebtRows();
                                 loadTotalDebt();
+                                loadParties();
                             } else {
                                 showError("Ödeme geçmişi bulunan borç silinemez. Önce ödemeleri geri alın.");
                             }

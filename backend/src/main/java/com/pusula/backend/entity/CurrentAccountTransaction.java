@@ -18,8 +18,11 @@ public class CurrentAccountTransaction {
     @Column(name = "current_account_id", nullable = false)
     private Long currentAccountId;
 
-    @Column(name = "customer_id", nullable = false)
+    @Column(name = "customer_id")
     private Long customerId;
+
+    @Column(name = "party_id", nullable = false)
+    private Long partyId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "transaction_type", nullable = false, length = 32)
@@ -61,6 +64,8 @@ public class CurrentAccountTransaction {
     public void setCurrentAccountId(Long currentAccountId) { this.currentAccountId = currentAccountId; }
     public Long getCustomerId() { return customerId; }
     public void setCustomerId(Long customerId) { this.customerId = customerId; }
+    public Long getPartyId() { return partyId; }
+    public void setPartyId(Long partyId) { this.partyId = partyId; }
     public TransactionType getTransactionType() { return transactionType; }
     public void setTransactionType(TransactionType transactionType) { this.transactionType = transactionType; }
     public BigDecimal getAmount() { return amount; }

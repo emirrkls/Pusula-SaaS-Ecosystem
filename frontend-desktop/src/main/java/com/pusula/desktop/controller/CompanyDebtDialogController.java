@@ -38,6 +38,7 @@ public class CompanyDebtDialogController {
 
     private CompanyDebtApi api;
     private Runnable onSaveCallback;
+    private Long partyId;
 
     @FXML
     public void initialize() {
@@ -66,6 +67,13 @@ public class CompanyDebtDialogController {
         this.onSaveCallback = callback;
     }
 
+    public void setSupplierCard(Long partyId, String name, String phone) {
+        this.partyId = partyId;
+        creditorField.setText(name);
+        creditorField.setDisable(true);
+        if (phone != null) phoneField.setText(phone);
+    }
+
     @FXML
     private void handleSave() {
         // Validate
@@ -86,6 +94,7 @@ public class CompanyDebtDialogController {
 
         CompanyDebtDTO dto = CompanyDebtDTO.builder()
                 .companyId(com.pusula.desktop.util.SessionManager.getCompanyId())
+                .partyId(partyId)
                 .creditorName(creditorField.getText().trim())
                 .originalAmount(amount)
                 .expenseCategory(categoryComboBox.getValue().code())

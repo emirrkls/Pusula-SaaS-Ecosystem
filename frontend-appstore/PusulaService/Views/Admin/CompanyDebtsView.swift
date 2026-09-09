@@ -2,29 +2,27 @@ import SwiftUI
 
 struct CompanyDebtsView: View {
     private enum Filter: String, CaseIterable { case open = "Açık", partial = "Kısmi", paid = "Ödenmiş", all = "Tümü" }
-    @State private var debts: [CompanyDebtDTO] = []
+    @State private var parties: [PayablePartySummaryDTO] = []
     @State private var filter: Filter = .open
-    @State private var selectedDebt: CompanyDebtDTO?
+    @State private var selectedParty: PayablePartySummaryDTO?
     @State private var editingDebt: CompanyDebtDTO?
     @State private var showEditor = false
     @State private var pdfPreview: PDFPreviewItem?
     @State private var isLoading = true
     @State private var errorMessage: String?
 
-    private var filtered: [CompanyDebtDTO] {
-        debts.filter { debt in
-            let remaining = debt.remainingAmount ?? 0
-            let original = debt.originalAmount ?? 0
+    private var filtered: [PayablePartySummaryDTO] {
+        parties.filter { party in
             switch filter {
-            case .open: return remaining > 0
-            case .partial: return remaining > 0 && remaining < original
-            case .paid: return remaining <= 0
+            case .open: return party.balance > 0
+            case .partial: return party.balance > 0 && party.totalPaid > 0
+            case .paid: return party.balance <= 0
             case .all: return true
             }
         }
     }
 
-    private var totalRemaining: Double { debts.reduce(0) { $0 + max(0, $1.remainingAmount ?? 0) } }
+    private var totalRemaining: Double { parties.reduce(0) { $0 + max(0, $1.balance) } }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -44,25 +42,26 @@ struct CompanyDebtsView: View {
             }
             .padding()
 
-            List(filtered) { debt in
-                Button { selectedDebt = debt } label: {
+            List(filtered) { party in
+                Button { selectedParty = party } label: {
                     VStack(alignment: .leading, spacing: 7) {
                         HStack {
-                            Text(debt.creditorName ?? "Alacaklı").font(.headline)
+                            Text(party.name).font(.headline)
                             Spacer()
-                            Text(formatCurrency(debt.remainingAmount)).font(.headline).foregroundStyle(.red)
+                            Text(formatCurrency(party.balance)).font(.headline).foregroundStyle(party.balance > 0 ? .red : .green)
                         }
-                        Text(debt.description ?? "Açıklama yok").font(.subheadline).foregroundStyle(.secondary)
                         HStack {
-                            Label(debt.debtDate ?? "-", systemImage: "calendar")
+                            Label("Toplam alım: \(formatCurrency(party.totalPurchases))", systemImage: "cart")
                             Spacer()
-                            if let due = debt.dueDate { Text("Vade: \(due)") }
+                            Text("Ödenen: \(formatCurrency(party.totalPaid))")
                         }.font(.caption).foregroundStyle(.secondary)
+                        HStack {
+                            Text("Başlangıç: \(party.firstDebtDate ?? "-")")
+                            Spacer()
+                            Text("Son hareket: \(party.lastMovementDate ?? "-")")
+                        }.font(.caption2).foregroundStyle(.secondary)
                     }.padding(.vertical, 4)
                 }.buttonStyle(.plain)
-                .swipeActions(edge: .leading) {
-                    Button("Düzenle") { editingDebt = debt; showEditor = true }.tint(.blue)
-                }
             }
             .listStyle(.plain)
             .overlay {
@@ -78,7 +77,7 @@ struct CompanyDebtsView: View {
         .task { await load() }
         .refreshable { await load() }
         .sheet(isPresented: $showEditor) { DebtEditorSheet(debt: editingDebt) { await load() } }
-        .sheet(item: $selectedDebt) { debt in DebtDetailSheet(debt: debt) { await load() } }
+        .sheet(item: $selectedParty) { party in PayablePartyDetailSheet(party: party) { await load() } }
         .sheet(item: $pdfPreview) { PDFPreviewSheet(item: $0) }
         .alert("İşlem Başarısız", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Tamam", role: .cancel) { errorMessage = nil }
@@ -87,7 +86,7 @@ struct CompanyDebtsView: View {
 
     private func load() async {
         isLoading = true; defer { isLoading = false }
-        do { debts = try await FinanceService.getCompanyDebts() } catch { errorMessage = error.localizedDescription }
+        do { parties = try await FinanceService.getPayableParties() } catch { errorMessage = error.localizedDescription }
     }
 
     private func downloadPDF() async {
@@ -99,6 +98,7 @@ struct CompanyDebtsView: View {
 
 private struct DebtEditorSheet: View {
     let debt: CompanyDebtDTO?
+    var presetParty: PayablePartySummaryDTO? = nil
     let onSaved: () async -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var creditorName = ""
@@ -138,7 +138,13 @@ private struct DebtEditorSheet: View {
 
     private var parsedAmount: Double { Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0 }
     private func populate() {
-        guard let debt else { return }
+        guard let debt else {
+            if let presetParty {
+                creditorName = presetParty.name
+                phone = presetParty.phone ?? ""
+            }
+            return
+        }
         creditorName = debt.creditorName ?? ""; description = debt.description ?? ""; amount = String(debt.originalAmount ?? 0)
         category = ExpenseCategory(rawValue: debt.expenseCategory ?? "") ?? .other
         debtDate = parseFinanceDate(debt.debtDate) ?? Date(); phone = debt.creditorPhone ?? ""; notes = debt.notes ?? ""
@@ -147,12 +153,129 @@ private struct DebtEditorSheet: View {
     private func save() async {
         isSaving = true; defer { isSaving = false }
         var value = debt ?? CompanyDebtDTO()
+        value.partyId = debt?.partyId ?? presetParty?.partyId
         value.creditorName = creditorName.trimmingCharacters(in: .whitespacesAndNewlines)
         value.description = description; value.originalAmount = parsedAmount; value.remainingAmount = debt?.remainingAmount ?? parsedAmount
         value.expenseCategory = category.rawValue; value.debtDate = financeDate(debtDate); value.dueDate = hasDueDate ? financeDate(dueDate) : nil
         value.creditorPhone = phone.isEmpty ? nil : phone; value.notes = notes.isEmpty ? nil : notes
         do {
             if debt == nil { _ = try await FinanceService.createCompanyDebt(value) } else { _ = try await FinanceService.updateCompanyDebt(value) }
+            await onSaved(); dismiss()
+        } catch { errorMessage = error.localizedDescription }
+    }
+}
+
+private struct PayablePartyDetailSheet: View {
+    let party: PayablePartySummaryDTO
+    let onChanged: () async -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var debts: [CompanyDebtDTO] = []
+    @State private var selectedDebt: CompanyDebtDTO?
+    @State private var showPurchase = false
+    @State private var showPayment = false
+    @State private var errorMessage: String?
+
+    private var totalPurchases: Double { debts.reduce(0) { $0 + ($1.originalAmount ?? 0) } }
+    private var currentBalance: Double { debts.reduce(0) { $0 + ($1.remainingAmount ?? 0) } }
+    private var totalPaid: Double { max(0, totalPurchases - currentBalance) }
+    private var currentParty: PayablePartySummaryDTO {
+        .init(partyId: party.partyId, name: party.name, phone: party.phone,
+              totalPurchases: totalPurchases, totalPaid: totalPaid, balance: currentBalance,
+              firstDebtDate: party.firstDebtDate, lastMovementDate: party.lastMovementDate,
+              openItemCount: debts.filter { ($0.remainingAmount ?? 0) > 0 }.count)
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Kart Özeti") {
+                    LabeledContent("Tedarikçi", value: party.name)
+                    LabeledContent("Toplam alım", value: formatCurrency(totalPurchases))
+                    LabeledContent("Toplam ödeme", value: formatCurrency(totalPaid))
+                    LabeledContent("Kalan borç", value: formatCurrency(currentBalance))
+                }
+                Section {
+                    Button { showPurchase = true } label: { Label("Yeni Alım / Borç Ekle", systemImage: "plus.circle") }
+                    Button { showPayment = true } label: { Label("Karta Ödeme Yap", systemImage: "banknote") }
+                        .disabled(currentBalance <= 0)
+                }.readOnlyProtected()
+                Section("Alım ve Borç Kayıtları") {
+                    ForEach(debts) { debt in
+                        Button { selectedDebt = debt } label: {
+                            VStack(alignment: .leading, spacing: 5) {
+                                HStack {
+                                    Text(debt.description?.isEmpty == false ? debt.description! : "Alım / borç")
+                                    Spacer()
+                                    Text(formatCurrency(debt.remainingAmount)).foregroundStyle(.red)
+                                }
+                                Text("\(debt.debtDate ?? "-") · Toplam \(formatCurrency(debt.originalAmount))")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        }.buttonStyle(.plain)
+                    }
+                }
+            }
+            .navigationTitle(party.name)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Kapat") { dismiss() } } }
+            .task { await load() }
+            .sheet(item: $selectedDebt) { debt in DebtDetailSheet(debt: debt) { await refreshAll() } }
+            .sheet(isPresented: $showPurchase) { DebtEditorSheet(debt: nil, presetParty: party) { await refreshAll() } }
+            .sheet(isPresented: $showPayment) { PayablePartyPaymentSheet(party: currentParty) { await refreshAll() } }
+            .alert("İşlem Başarısız", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button("Tamam", role: .cancel) { errorMessage = nil }
+            } message: { Text(errorMessage ?? "") }
+        }
+    }
+
+    private func load() async {
+        do { debts = try await FinanceService.getPartyDebts(partyId: party.partyId) }
+        catch { errorMessage = error.localizedDescription }
+    }
+    private func refreshAll() async { await load(); await onChanged() }
+}
+
+private struct PayablePartyPaymentSheet: View {
+    let party: PayablePartySummaryDTO
+    let onSaved: () async -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var amount = ""
+    @State private var date = Date()
+    @State private var notes = ""
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                LabeledContent("Tedarikçi", value: party.name)
+                LabeledContent("Kalan borç", value: formatCurrency(party.balance))
+                TextField("Ödeme tutarı", text: $amount).keyboardType(.decimalPad)
+                DatePicker("Ödeme tarihi", selection: $date, in: ...Date(), displayedComponents: .date)
+                TextField("Ödeme notu", text: $notes, axis: .vertical)
+                Text("Ödeme, seçilen tarihte mevcut olan en eski açık alımdan başlayarak otomatik dağıtılır.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .navigationTitle("Tedarikçi Ödemesi")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Kaydet") { Task { await save() } }
+                        .disabled(isSaving || parsedAmount <= 0 || parsedAmount > party.balance)
+                }
+            }
+            .onAppear { amount = String(format: "%.2f", party.balance) }
+            .alert("Ödeme Kaydedilemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+                Button("Tamam", role: .cancel) { errorMessage = nil }
+            } message: { Text(errorMessage ?? "") }
+        }
+    }
+
+    private var parsedAmount: Double { Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0 }
+    private func save() async {
+        isSaving = true; defer { isSaving = false }
+        do {
+            _ = try await FinanceService.payPayableParty(partyId: party.partyId,
+                request: .init(amount: parsedAmount, paymentDate: financeDate(date), notes: notes.isEmpty ? nil : notes))
             await onSaved(); dismiss()
         } catch { errorMessage = error.localizedDescription }
     }

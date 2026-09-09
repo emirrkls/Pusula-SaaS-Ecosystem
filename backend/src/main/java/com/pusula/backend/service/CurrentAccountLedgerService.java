@@ -33,7 +33,8 @@ public class CurrentAccountLedgerService {
         CurrentAccountTransaction transaction = new CurrentAccountTransaction();
         transaction.setCompanyId(account.getCompanyId());
         transaction.setCurrentAccountId(account.getId());
-        transaction.setCustomerId(account.getCustomer().getId());
+        transaction.setCustomerId(account.getCustomer() != null ? account.getCustomer().getId() : null);
+        transaction.setPartyId(account.getParty() != null ? account.getParty().getId() : null);
         transaction.setTransactionType(type);
         transaction.setAmount(signedAmount);
         transaction.setEffectiveDate(effectiveDate != null ? effectiveDate : LocalDate.now());
@@ -60,8 +61,13 @@ public class CurrentAccountLedgerService {
                     row.getSourceType(), row.getSourceId(), row.getCreatedAt()));
         }
         Collections.reverse(mapped);
+        String accountName = account.getParty() != null ? account.getParty().getDisplayName()
+                : account.getCustomer() != null ? account.getCustomer().getName() : "Bilinmeyen cari";
         return new CurrentAccountHistoryDTO(
-                account.getId(), account.getCustomer().getId(), account.getCustomer().getName(),
-                account.getBalance(), mapped);
+                account.getId(), account.getCustomer() != null ? account.getCustomer().getId() : null,
+                account.getCustomer() != null ? account.getCustomer().getName() : null,
+                account.getParty() != null ? account.getParty().getId() : null,
+                account.getParty() != null ? account.getParty().getPartyType().name() : "CUSTOMER",
+                accountName, account.getBalance(), mapped);
     }
 }

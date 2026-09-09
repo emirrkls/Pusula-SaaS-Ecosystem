@@ -176,7 +176,8 @@ public class ServiceTicketController {
     public ResponseEntity<ServiceTicketDTO> completeService(@PathVariable Long id,
             @RequestBody CompleteServiceRequest request) {
         ServiceTicketDTO completed = service.completeService(id, request.getCollectedAmount(),
-                request.getLaborFee(), request.getPaymentMethod(), request.getCompletionDate());
+                request.getLaborFee(), request.getPaymentMethod(), request.getCompletionDate(),
+                request.getBillingPartyId(), request.getBillingResponsibility());
         if (request.getTechnicianNote() != null && !request.getTechnicianNote().isBlank()) {
             noteService.addClosureNote(id, request.getTechnicianNote());
         }

@@ -106,6 +106,14 @@ public class ServiceTicket extends BaseEntity {
     @Column(name = "current_account_payment", nullable = false, columnDefinition = "boolean default false")
     private boolean currentAccountPayment = false;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "billing_party_id")
+    private AccountParty billingParty;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "billing_responsibility", length = 32)
+    private BillingResponsibility billingResponsibility;
+
     public ServiceTicket() {
     }
 
@@ -344,6 +352,15 @@ public class ServiceTicket extends BaseEntity {
     public void setCurrentAccountPayment(boolean currentAccountPayment) {
         this.currentAccountPayment = currentAccountPayment;
     }
+
+    public AccountParty getBillingParty() { return billingParty; }
+    public void setBillingParty(AccountParty billingParty) { this.billingParty = billingParty; }
+    public BillingResponsibility getBillingResponsibility() { return billingResponsibility; }
+    public void setBillingResponsibility(BillingResponsibility billingResponsibility) {
+        this.billingResponsibility = billingResponsibility;
+    }
+
+    public enum BillingResponsibility { CUSTOMER, ORGANIZATION, INTERNAL }
 
     public enum TicketStatus {
         PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED

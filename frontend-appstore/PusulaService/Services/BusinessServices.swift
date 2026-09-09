@@ -80,6 +80,26 @@ enum FinanceService {
         try await NetworkManager.shared.get("/api/company-debts")
     }
 
+    static func getPayableParties() async throws -> [PayablePartySummaryDTO] {
+        try await NetworkManager.shared.get("/api/company-debts/parties")
+    }
+
+    static func getPartyDebts(partyId: Int) async throws -> [CompanyDebtDTO] {
+        try await NetworkManager.shared.get("/api/company-debts/parties/\(partyId)/debts")
+    }
+
+    static func payPayableParty(partyId: Int, request: DebtPaymentRequest) async throws -> PayablePartySummaryDTO {
+        try await NetworkManager.shared.post("/api/company-debts/parties/\(partyId)/pay", body: request)
+    }
+
+    static func getAccountParties(type: String) async throws -> [AccountPartyDTO] {
+        try await NetworkManager.shared.get("/api/account-parties?type=\(type)")
+    }
+
+    static func createAccountParty(_ party: AccountPartyDTO) async throws -> AccountPartyDTO {
+        try await NetworkManager.shared.post("/api/account-parties", body: party)
+    }
+
     static func createCompanyDebt(_ debt: CompanyDebtDTO) async throws -> CompanyDebtDTO {
         try await NetworkManager.shared.post("/api/company-debts", body: debt)
     }

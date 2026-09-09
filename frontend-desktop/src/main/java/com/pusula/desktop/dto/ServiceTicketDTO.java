@@ -33,6 +33,9 @@ public class ServiceTicketDTO {
     private boolean isWarrantyCall;
     private String customerName; // Display field for table
     private String assignedTechnicianName;
+    private Long billingPartyId;
+    private String billingPartyName;
+    private String billingResponsibility;
 
     // Getters and Setters
     public Long getId() {
@@ -153,6 +156,12 @@ public class ServiceTicketDTO {
 
     public String getPaymentMethod() { return paymentMethod; }
     public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+    public Long getBillingPartyId() { return billingPartyId; }
+    public void setBillingPartyId(Long billingPartyId) { this.billingPartyId = billingPartyId; }
+    public String getBillingPartyName() { return billingPartyName; }
+    public void setBillingPartyName(String billingPartyName) { this.billingPartyName = billingPartyName; }
+    public String getBillingResponsibility() { return billingResponsibility; }
+    public void setBillingResponsibility(String billingResponsibility) { this.billingResponsibility = billingResponsibility; }
 
     public BigDecimal getCollectedAmount() {
         return collectedAmount;

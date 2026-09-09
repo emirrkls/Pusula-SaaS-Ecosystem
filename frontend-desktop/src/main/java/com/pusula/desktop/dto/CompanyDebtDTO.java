@@ -16,6 +16,8 @@ public class CompanyDebtDTO {
     private Long id;
     private Long companyId;
     private String creditorName;
+    private Long partyId;
+    private String partyType;
     private String description;
     private BigDecimal originalAmount;
     private BigDecimal remainingAmount;

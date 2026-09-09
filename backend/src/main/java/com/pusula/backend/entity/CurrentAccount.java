@@ -25,8 +25,12 @@ public class CurrentAccount {
     private Long companyId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false, unique = true)
+    @JoinColumn(name = "customer_id", unique = true)
     private Customer customer;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "party_id", nullable = false)
+    private AccountParty party;
 
     @Column(nullable = false, precision = 10, scale = 2)
     @Builder.Default

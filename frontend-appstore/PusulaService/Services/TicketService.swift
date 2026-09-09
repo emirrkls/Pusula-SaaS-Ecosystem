@@ -64,12 +64,18 @@ enum TicketService {
     }
     
     static func completeService(ticketId: Int, amount: Double, paymentMethod: String, laborFee: Double,
-                                technicianNote: String? = nil) async throws -> FieldTicketDTO {
+                                technicianNote: String? = nil, billingPartyId: Int? = nil,
+                                billingResponsibility: String? = nil) async throws -> FieldTicketDTO {
         let body = CollectionRequest(collectedAmount: amount, paymentMethod: paymentMethod, laborFee: laborFee,
-                                     technicianNote: technicianNote?.trimmingCharacters(in: .whitespacesAndNewlines))
+                                     technicianNote: technicianNote?.trimmingCharacters(in: .whitespacesAndNewlines),
+                                     billingPartyId: billingPartyId, billingResponsibility: billingResponsibility)
         return try await NetworkManager.shared.request(
             .PATCH, path: "/api/tickets/\(ticketId)/complete", body: body
         )
+    }
+
+    static func getBillingOrganizations() async throws -> [AccountPartyOptionDTO] {
+        try await NetworkManager.shared.get("/api/account-parties/billing-options")
     }
 
     static func getTechnicianNotes(ticketId: Int) async throws -> [TechnicianNoteDTO] {

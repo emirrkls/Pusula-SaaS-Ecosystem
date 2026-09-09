@@ -28,6 +28,9 @@ struct FieldTicketDTO: Codable, Identifiable {
     let createdAt: String?
     let updatedAt: String?
     let completedAt: String?
+    let billingPartyId: Int?
+    let billingPartyName: String?
+    let billingResponsibility: String?
     
     var statusEnum: TicketStatus {
         TicketStatus(rawValue: status ?? "") ?? .pending
@@ -64,6 +67,14 @@ struct CollectionRequest: Codable {
     let paymentMethod: String
     let laborFee: Double?
     let technicianNote: String?
+    let billingPartyId: Int?
+    let billingResponsibility: String?
+}
+
+struct AccountPartyOptionDTO: Codable, Identifiable, Hashable {
+    let id: Int
+    let displayName: String
+    let partyType: String
 }
 
 struct TechnicianNoteDTO: Codable, Identifiable {

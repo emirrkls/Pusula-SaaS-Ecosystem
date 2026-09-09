@@ -8,6 +8,9 @@ public class CurrentAccountDTO {
     private Long companyId;
     private Long customerId;
     private String customerName;
+    private Long partyId;
+    private String partyType;
+    private String accountName;
     private BigDecimal balance;
     private LocalDateTime lastUpdated;
 
@@ -39,12 +42,21 @@ public class CurrentAccountDTO {
     }
 
     public String getCustomerName() {
-        return customerName;
+        return accountName != null && !accountName.isBlank() ? accountName : customerName;
     }
 
     public void setCustomerName(String customerName) {
         this.customerName = customerName;
     }
+
+    public Long getPartyId() { return partyId; }
+    public void setPartyId(Long partyId) { this.partyId = partyId; }
+    public String getPartyType() { return partyType; }
+    public void setPartyType(String partyType) { this.partyType = partyType; }
+    public String getAccountName() {
+        return accountName != null && !accountName.isBlank() ? accountName : customerName;
+    }
+    public void setAccountName(String accountName) { this.accountName = accountName; }
 
     public BigDecimal getBalance() {
         return balance;

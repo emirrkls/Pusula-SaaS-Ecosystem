@@ -34,6 +34,10 @@ public class CompanyDebt {
     @Column(nullable = false)
     private String creditorName;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "party_id")
+    private AccountParty party;
+
     /**
      * Description of what the debt is for
      */

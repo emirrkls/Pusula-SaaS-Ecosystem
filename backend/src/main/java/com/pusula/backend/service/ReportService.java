@@ -319,7 +319,8 @@ public class ReportService {
                 addCellToTable(table, "YAPILAN İŞLEM / KULLANILAN PARÇA", true, Element.ALIGN_LEFT);
                 addCellToTable(table, "TUTAR", true, Element.ALIGN_RIGHT);
 
-                boolean warranty = ticket.getPaymentMethod() == PaymentMethod.WARRANTY;
+                boolean warranty = ticket.getPaymentMethod() == PaymentMethod.WARRANTY
+                                && ticket.getBillingParty() == null;
                 BigDecimal subTotal = BigDecimal.ZERO;
 
                 // 1. List Used Parts
@@ -387,6 +388,9 @@ public class ReportService {
                 addTotalRow(totalsTable, "KALAN / CARİ:", String.format("%.2f ₺", outstanding));
                 if (warranty) {
                         addTotalRow(totalsTable, "KAPANIŞ ŞEKLİ:", "GARANTİ KAPSAMINDA");
+                } else if (ticket.getBillingParty() != null) {
+                        addTotalRow(totalsTable, "ÖDEME SORUMLUSU:",
+                                        ticket.getBillingParty().getDisplayName() + " (CARİYE AKTARILDI)");
                 }
 
                 document.add(totalsTable);
@@ -921,7 +925,7 @@ public class ReportService {
         }
 
         private BigDecimal calculateCurrentAccountTransfer(ServiceTicket ticket) {
-                if (ticket.getPaymentMethod() == PaymentMethod.WARRANTY) {
+                if (ticket.getPaymentMethod() == PaymentMethod.WARRANTY && ticket.getBillingParty() == null) {
                         return BigDecimal.ZERO;
                 }
                 if (ticket.getOutstandingAmount() != null) {
@@ -1211,7 +1215,8 @@ public class ReportService {
                                 BigDecimal amount = ticket.getEffectiveInvoiceTotal();
                                 dailyIncome = dailyIncome.add(amount);
 
-                                boolean warranty = ticket.getPaymentMethod() == PaymentMethod.WARRANTY;
+                                boolean warranty = ticket.getPaymentMethod() == PaymentMethod.WARRANTY
+                                                && ticket.getBillingParty() == null;
                                 String saleLine = warranty
                                                 ? String.format("   Garanti Kapsamında: #%d - %s - %s → 0,00 ₺",
                                                                 ticket.getId(), customerName, serviceDesc)
@@ -1226,8 +1231,10 @@ public class ReportService {
 
                                 BigDecimal currentAccountTransfer = calculateCurrentAccountTransfer(ticket);
                                 if (currentAccountTransfer.signum() > 0) {
+                                        String payerName = ticket.getBillingParty() != null
+                                                        ? ticket.getBillingParty().getDisplayName() : customerName;
                                         String line = String.format("   Cariye Aktarıldı: %s - %s → %s ₺",
-                                                        customerName, serviceDesc,
+                                                        payerName, serviceDesc,
                                                         currencyFormat.format(currentAccountTransfer));
                                         Paragraph accountLine = new Paragraph(line,
                                                         new Font(interBaseFont, 10, Font.BOLD, ACCENT_ORANGE));

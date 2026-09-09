@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import com.pusula.backend.dto.PayablePartySummaryDTO;
 
 @RestController
 @RequestMapping("/api/company-debts")
@@ -91,6 +92,22 @@ public class CompanyDebtController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/parties")
+    public List<PayablePartySummaryDTO> getPayableParties() {
+        return debtService.getPayablePartySummaries(getCompanyId());
+    }
+
+    @GetMapping("/parties/{partyId}/debts")
+    public List<CompanyDebtDTO> getPartyDebts(@PathVariable Long partyId) {
+        return debtService.getPartyDebts(getCompanyId(), partyId);
+    }
+
+    @PostMapping("/parties/{partyId}/pay")
+    public PayablePartySummaryDTO payParty(@PathVariable Long partyId,
+            @RequestBody DebtPaymentRequestDTO request) {
+        return debtService.payParty(getCompanyId(), partyId, request);
     }
 
     @GetMapping("/{id}/payments")
