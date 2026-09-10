@@ -40,7 +40,7 @@
          </VBox.margin>
          <children>
             <Label styleClass="section-title" text="%customer.history.title" />
-            <Label styleClass="section-caption" text="Bir iş emrinin detayını açmak için çift tıklayın." />
+            <Label styleClass="section-caption" text="%customer.history.hint" />
          </children>
       </HBox>
       <TableView fx:id="historyTable" prefHeight="200.0" styleClass="premium-table" VBox.vgrow="ALWAYS">
@@ -49,10 +49,10 @@
           <TableColumn fx:id="colIssue" prefWidth="200.0" text="%table.issue" />
           <TableColumn fx:id="colStatus" prefWidth="100.0" text="%table.status" />
           <TableColumn fx:id="colTechnician" prefWidth="150.0" text="%table.technician" />
-          <TableColumn fx:id="colHistoryActions" minWidth="82.0" prefWidth="90.0" text="Detay" />
+          <TableColumn fx:id="colHistoryActions" minWidth="82.0" prefWidth="90.0" text="%common.detail" />
         </columns>
          <columnResizePolicy>
-            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+            <TableView fx:constant="UNCONSTRAINED_RESIZE_POLICY" />
          </columnResizePolicy>
       </TableView>
    </children>

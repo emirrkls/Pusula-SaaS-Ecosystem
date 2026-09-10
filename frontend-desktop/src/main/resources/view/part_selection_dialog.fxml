@@ -19,7 +19,7 @@
          <TableColumn fx:id="colPrice" prefWidth="120.0" text="%table.sellprice" />
       </columns>
       <columnResizePolicy>
-         <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+         <TableView fx:constant="UNCONSTRAINED_RESIZE_POLICY" />
       </columnResizePolicy>
    </TableView>
    <HBox alignment="CENTER_LEFT" spacing="10.0">

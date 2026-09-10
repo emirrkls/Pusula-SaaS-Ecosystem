@@ -7,6 +7,8 @@ import com.pusula.desktop.api.UserApi;
 import com.pusula.desktop.dto.UserDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.ThemeHelper;
+import com.pusula.desktop.util.UTF8Control;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -25,6 +27,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
+import java.util.ResourceBundle;
 
 public class ActivityLogController {
 
@@ -64,6 +68,8 @@ public class ActivityLogController {
     private final ObservableList<AuditLog> auditLogs = FXCollections.observableArrayList();
     private final AuditLogApi api = RetrofitClient.getClient().create(AuditLogApi.class);
     private final UserApi userApi = RetrofitClient.getClient().create(UserApi.class);
+    private final ResourceBundle bundle = ResourceBundle.getBundle("i18n.messages",
+            Locale.forLanguageTag("tr-TR"), new UTF8Control());
 
     private int currentPage = 0;
     private int pageSize = 50;
@@ -158,8 +164,8 @@ public class ActivityLogController {
 
     private void showDetailDialog(AuditLog log) {
         Dialog<Void> dialog = new Dialog<>();
-        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, auditLogTable.getScene().getWindow());
-        dialog.setTitle("Aktivite Detayı");
+        ThemeHelper.applyToDialog(dialog, auditLogTable.getScene().getWindow(), ThemeHelper.DialogProfile.DETAIL);
+        dialog.setTitle(bundle.getString("activity.detail.title"));
         dialog.setHeaderText(translateAction(log.getActionType()) + " - " + translateEntity(log.getEntityType()));
 
         // Create content
@@ -171,25 +177,25 @@ public class ActivityLogController {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
 
         int row = 0;
-        grid.add(new Label("Tarih:"), 0, row);
+        grid.add(new Label(bundle.getString("activity.detail.date")), 0, row);
         grid.add(new Label(log.getTimestamp() != null ? formatter.format(log.getTimestamp()) : "-"), 1, row++);
 
-        grid.add(new Label("Kullanıcı:"), 0, row);
+        grid.add(new Label(bundle.getString("activity.detail.user")), 0, row);
         grid.add(new Label(log.getUserName()), 1, row++);
 
-        grid.add(new Label("İşlem:"), 0, row);
+        grid.add(new Label(bundle.getString("activity.detail.action")), 0, row);
         grid.add(new Label(translateAction(log.getActionType())), 1, row++);
 
-        grid.add(new Label("Varlık:"), 0, row);
+        grid.add(new Label(bundle.getString("activity.detail.entity")), 0, row);
         grid.add(new Label(translateEntity(log.getEntityType()) + " (ID: " + log.getEntityId() + ")"), 1, row++);
 
-        grid.add(new Label("Açıklama:"), 0, row);
+        grid.add(new Label(bundle.getString("activity.detail.description")), 0, row);
         Label descLabel = new Label(log.getDescription());
         descLabel.setWrapText(true);
         descLabel.setMaxWidth(400);
         grid.add(descLabel, 1, row++);
 
-        grid.add(new Label("IP Adresi:"), 0, row);
+        grid.add(new Label(bundle.getString("activity.detail.ip")), 0, row);
         grid.add(new Label(log.getIpAddress() != null ? log.getIpAddress() : "-"), 1, row++);
 
         // Old/New value comparison
@@ -197,11 +203,11 @@ public class ActivityLogController {
                 (log.getNewValue() != null && !log.getNewValue().isEmpty())) {
 
             grid.add(new Separator(), 0, row++, 2, 1);
-            grid.add(new Label("Değişiklik Karşılaştırması:"), 0, row++, 2, 1);
+            grid.add(new Label(bundle.getString("activity.detail.comparison")), 0, row++, 2, 1);
 
             // Side by side TextAreas
             VBox oldBox = new VBox(5);
-            Label oldLabel = new Label("Eski Değer:");
+            Label oldLabel = new Label(bundle.getString("activity.detail.old_value"));
             oldLabel.getStyleClass().add("section-heading");
             TextArea oldArea = new TextArea(formatJson(log.getOldValue()));
             oldArea.setEditable(false);
@@ -212,7 +218,7 @@ public class ActivityLogController {
             VBox.setVgrow(oldArea, Priority.ALWAYS);
 
             VBox newBox = new VBox(5);
-            Label newLabel = new Label("Yeni Değer:");
+            Label newLabel = new Label(bundle.getString("activity.detail.new_value"));
             newLabel.getStyleClass().add("section-heading");
             TextArea newArea = new TextArea(formatJson(log.getNewValue()));
             newArea.setEditable(false);
@@ -226,9 +232,13 @@ public class ActivityLogController {
             grid.add(newBox, 1, row++);
         }
 
-        dialog.getDialogPane().setContent(grid);
-        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        dialog.getDialogPane().setPrefWidth(700);
+        ScrollPane scrollPane = new ScrollPane(grid);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setMinHeight(0);
+        scrollPane.getStyleClass().add("dialog-form-scroll");
+        dialog.getDialogPane().setContent(scrollPane);
+        dialog.getDialogPane().getButtonTypes().add(new ButtonType(
+                bundle.getString("common.close"), ButtonBar.ButtonData.CANCEL_CLOSE));
 
         dialog.showAndWait();
     }

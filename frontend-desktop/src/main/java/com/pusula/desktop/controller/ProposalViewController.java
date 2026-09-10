@@ -292,17 +292,8 @@ public class ProposalViewController {
             stage.initOwner(owner);
             stage.setTitle(proposal == null ? "Yeni Teklif" : "Teklif Düzenle");
             stage.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root));
-            Rectangle2D visualBounds = Screen.getScreensForRectangle(
-                            owner.getX(), owner.getY(), owner.getWidth(), owner.getHeight())
-                    .stream()
-                    .findFirst()
-                    .orElse(Screen.getPrimary())
-                    .getVisualBounds();
-            stage.setMinWidth(Math.min(560, visualBounds.getWidth() - 32));
-            stage.setMinHeight(Math.min(460, visualBounds.getHeight() - 32));
-            stage.setWidth(Math.min(980, visualBounds.getWidth() - 32));
-            stage.setHeight(Math.min(820, visualBounds.getHeight() - 32));
-            stage.centerOnScreen();
+            com.pusula.desktop.util.ThemeHelper.configureDialogStage(stage, owner,
+                    com.pusula.desktop.util.ThemeHelper.DialogProfile.DETAIL);
             stage.showAndWait();
         } catch (IOException e) {
             showError("Teklif formu açılamadı: " + e.getMessage());

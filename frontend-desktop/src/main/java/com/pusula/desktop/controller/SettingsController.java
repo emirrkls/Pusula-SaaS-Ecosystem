@@ -299,6 +299,7 @@ public class SettingsController {
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("settings.add_fixed_expense"));
             stage.setScene(ThemeHelper.createDialogScene(root));
+            ThemeHelper.configureDialogStage(stage, fixedExpensesTable.getScene().getWindow(), ThemeHelper.DialogProfile.FORM);
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
@@ -337,6 +338,7 @@ public class SettingsController {
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("settings.edit_fixed_expense"));
             stage.setScene(ThemeHelper.createDialogScene(root));
+            ThemeHelper.configureDialogStage(stage, fixedExpensesTable.getScene().getWindow(), ThemeHelper.DialogProfile.FORM);
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
@@ -474,6 +476,7 @@ public class SettingsController {
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("settings.add_user"));
             stage.setScene(ThemeHelper.createDialogScene(root));
+            ThemeHelper.configureDialogStage(stage, usersTable.getScene().getWindow(), ThemeHelper.DialogProfile.FORM);
             stage.showAndWait();
 
             UserDTO result = dialogController.getResult();
@@ -508,6 +511,7 @@ public class SettingsController {
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("settings.edit_user"));
             stage.setScene(ThemeHelper.createDialogScene(root));
+            ThemeHelper.configureDialogStage(stage, usersTable.getScene().getWindow(), ThemeHelper.DialogProfile.FORM);
             stage.showAndWait();
 
             UserDTO result = dialogController.getResult();
@@ -532,9 +536,9 @@ public class SettingsController {
         }
 
         Dialog<String> dialog = new Dialog<>();
-        ThemeHelper.applyToDialog(dialog, usersTable.getScene().getWindow());
-        dialog.setTitle("Şifre Sıfırla");
-        dialog.setHeaderText(selected.getUsername() + " için yeni şifre belirleyin");
+        ThemeHelper.applyToDialog(dialog, usersTable.getScene().getWindow(), ThemeHelper.DialogProfile.COMPACT);
+        dialog.setTitle(bundle.getString("settings.password_reset.title"));
+        dialog.setHeaderText(String.format(bundle.getString("settings.password_reset.header"), selected.getUsername()));
 
         PasswordField passwordField = new PasswordField();
         passwordField.setPromptText("Yeni şifre");
@@ -550,14 +554,17 @@ public class SettingsController {
         content.setPrefWidth(380);
         dialog.getDialogPane().setContent(content);
 
-        ButtonType saveButtonType = new ButtonType("Şifreyi Güncelle", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+        ButtonType saveButtonType = new ButtonType(bundle.getString("settings.password_reset.action"),
+                ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButtonType = new ButtonType(bundle.getString("btn.cancel"),
+                ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, cancelButtonType);
         Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
         saveButton.disableProperty().bind(
                 passwordField.textProperty().length().lessThan(6)
                         .or(passwordField.textProperty().isNotEqualTo(confirmationField.textProperty())));
         saveButton.getStyleClass().add("button-success");
-        dialog.getDialogPane().lookupButton(ButtonType.CANCEL).getStyleClass().add("button-secondary");
+        dialog.getDialogPane().lookupButton(cancelButtonType).getStyleClass().add("button-secondary");
         dialog.setResultConverter(button -> button == saveButtonType ? passwordField.getText() : null);
 
         dialog.showAndWait().ifPresent(password -> {
@@ -719,6 +726,7 @@ public class SettingsController {
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("reassign.title"));
             stage.setScene(ThemeHelper.createDialogScene(root));
+            ThemeHelper.configureDialogStage(stage, usersTable.getScene().getWindow(), ThemeHelper.DialogProfile.FORM);
             stage.showAndWait();
 
             Long newTechId = dialogController.getSelectedTechnicianId();
@@ -811,6 +819,7 @@ public class SettingsController {
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("vehicle.add"));
             stage.setScene(ThemeHelper.createDialogScene(root));
+            ThemeHelper.configureDialogStage(stage, vehiclesTable.getScene().getWindow(), ThemeHelper.DialogProfile.FORM);
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();
@@ -842,6 +851,7 @@ public class SettingsController {
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.setTitle(bundle.getString("vehicle.edit"));
             stage.setScene(ThemeHelper.createDialogScene(root));
+            ThemeHelper.configureDialogStage(stage, vehiclesTable.getScene().getWindow(), ThemeHelper.DialogProfile.FORM);
             stage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();

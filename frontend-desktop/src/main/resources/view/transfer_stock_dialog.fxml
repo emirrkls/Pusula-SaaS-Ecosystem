@@ -5,63 +5,63 @@
 <?import javafx.scene.layout.*?>
 
 <VBox fx:controller="com.pusula.desktop.controller.TransferStockDialogController"
-      prefHeight="680.0" prefWidth="550.0" spacing="15.0" styleClass="dialog-root"
+      prefHeight="650.0" prefWidth="620.0" spacing="15.0" styleClass="dialog-root"
       xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
    <padding>
       <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
    </padding>
-   <Label styleClass="dialog-title" text="Stok Transfer" />
+   <Label styleClass="dialog-title" text="%stock_transfer.title" />
    <Separator />
 
    <VBox spacing="6.0">
-      <Label styleClass="field-label" text="Transfer Yönü:" />
+      <Label styleClass="field-label" text="%stock_transfer.direction" />
       <HBox spacing="15.0">
-         <RadioButton fx:id="radioToVehicle" selected="true" text="Depo → Araca">
+         <RadioButton fx:id="radioToVehicle" selected="true" text="%stock_transfer.to_vehicle">
             <toggleGroup>
                <ToggleGroup fx:id="transferDirection" />
             </toggleGroup>
          </RadioButton>
-         <RadioButton fx:id="radioToWarehouse" text="Araçtan → Depoya" toggleGroup="$transferDirection" />
+         <RadioButton fx:id="radioToWarehouse" text="%stock_transfer.to_warehouse" toggleGroup="$transferDirection" />
       </HBox>
    </VBox>
 
    <VBox spacing="6.0">
-      <Label styleClass="field-label" text="Araç Seçin:" />
-      <ComboBox fx:id="vehicleComboBox" prefWidth="500.0" promptText="Araç seçiniz..." />
+      <Label styleClass="field-label" text="%stock_transfer.vehicle" />
+      <ComboBox fx:id="vehicleComboBox" maxWidth="1.7976931348623157E308" promptText="%stock_transfer.vehicle_prompt" />
    </VBox>
 
    <VBox spacing="8.0" styleClass="info-panel-light">
-      <Label fx:id="vehicleStockPreviewLabel" styleClass="field-label" text="Araç Mevcut Stoku:" />
-      <ListView fx:id="vehicleStockListView" minHeight="180.0" prefHeight="180.0" prefWidth="500.0" styleClass="compact-list" />
+      <Label fx:id="vehicleStockPreviewLabel" styleClass="field-label" text="%stock_transfer.vehicle_stock" />
+      <ListView fx:id="vehicleStockListView" minHeight="100.0" prefHeight="150.0" maxWidth="1.7976931348623157E308" styleClass="compact-list" VBox.vgrow="ALWAYS" />
    </VBox>
 
    <Separator />
 
    <VBox spacing="6.0">
-      <Label styleClass="field-label" text="Parça Seçin (arama yapabilirsiniz):" />
-      <ComboBox fx:id="inventoryComboBox" prefWidth="500.0" promptText="Parça adı yazın veya seçin..." />
+      <Label styleClass="field-label" text="%stock_transfer.part" />
+      <ComboBox fx:id="inventoryComboBox" maxWidth="1.7976931348623157E308" promptText="%stock_transfer.part_prompt" />
    </VBox>
 
    <HBox alignment="CENTER_LEFT" spacing="30.0" styleClass="stats-bar">
       <VBox spacing="3.0">
-         <Label styleClass="muted-label" text="Mevcut Depo Stoku:" />
+         <Label styleClass="muted-label" text="%stock_transfer.warehouse_stock" />
          <Label fx:id="warehouseStockLabel" styleClass="stat-value-blue" text="0" />
       </VBox>
       <VBox spacing="3.0">
-         <Label styleClass="muted-label" text="Mevcut Araç Stoku:" />
+         <Label styleClass="muted-label" text="%stock_transfer.current_vehicle_stock" />
          <Label fx:id="vehicleStockLabel" styleClass="stat-value-green" text="0" />
       </VBox>
    </HBox>
 
    <HBox alignment="CENTER_LEFT" spacing="15.0">
-      <Label styleClass="field-label" text="Transfer Miktarı:" />
+      <Label styleClass="field-label" text="%stock_transfer.quantity" />
       <Spinner fx:id="quantitySpinner" editable="true" prefWidth="120.0" />
    </HBox>
 
    <Separator />
 
    <HBox alignment="CENTER_RIGHT" spacing="10.0" styleClass="dialog-action-bar">
-      <Button onAction="#handleCancel" prefWidth="100.0" styleClass="btn-secondary" text="İptal" />
-      <Button fx:id="transferButton" onAction="#handleTransfer" prefWidth="120.0" styleClass="btn-success" text="Transfer Et" />
+      <Button onAction="#handleCancel" minWidth="100.0" styleClass="btn-secondary" text="%btn.cancel" />
+      <Button fx:id="transferButton" onAction="#handleTransfer" minWidth="120.0" styleClass="btn-success" text="%vehicle_stock.transfer" />
    </HBox>
 </VBox>

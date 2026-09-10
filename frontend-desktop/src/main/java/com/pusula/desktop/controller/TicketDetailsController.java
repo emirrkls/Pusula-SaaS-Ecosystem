@@ -589,7 +589,8 @@ public class TicketDetailsController {
         String currentStatusDisplay = getStatusTranslation(currentTicket.getStatus());
 
         ChoiceDialog<String> dialog = new ChoiceDialog<>(currentStatusDisplay, choices);
-        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow());
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow(),
+                com.pusula.desktop.util.ThemeHelper.DialogProfile.COMPACT);
         dialog.setTitle(resourceBundle.getString("ticket.status.dialog.title"));
         dialog.setHeaderText(resourceBundle.getString("ticket.status.dialog.header"));
         dialog.setContentText(resourceBundle.getString("ticket.status.dialog.content"));
@@ -761,7 +762,8 @@ public class TicketDetailsController {
             return;
         }
         TextInputDialog dialog = new TextInputDialog(formatQuantity(part.getQuantityUsed()));
-        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow());
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow(),
+                com.pusula.desktop.util.ThemeHelper.DialogProfile.FORM);
         dialog.setTitle("Kullanılan Miktarı Düzenle");
         dialog.setHeaderText(part.getPartName());
         dialog.setContentText("Miktar (" + unitShort(part.getUnitOfMeasure()) + "):");
@@ -910,22 +912,23 @@ public class TicketDetailsController {
             return;
 
         Dialog<ServiceTicketExpenseDTO> dialog = new Dialog<>();
-        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow());
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow(),
+                com.pusula.desktop.util.ThemeHelper.DialogProfile.FORM);
         boolean editing = existingExpense != null;
-        dialog.setTitle(editing ? "Dış Gideri Düzenle" : "Dış Gider Ekle");
-        dialog.setHeaderText(editing
-                ? "Dış gider ve bağlı finans kaydı birlikte güncellenecek"
-                : "Servis için dış gider bilgilerini girin");
+        dialog.setTitle(resourceBundle.getString(editing
+                ? "ticket.expense.edit.title" : "ticket.expense.add.title"));
+        dialog.setHeaderText(resourceBundle.getString(editing
+                ? "ticket.expense.edit.header" : "ticket.expense.add.header"));
 
         // Form fields
         TextField descField = new TextField();
-        descField.setPromptText("Açıklama (örn: Kompresör, Motor)");
+        descField.setPromptText(resourceBundle.getString("ticket.expense.description_prompt"));
         TextField supplierField = new TextField();
-        supplierField.setPromptText("Tedarikçi (İsteğe bağlı)");
+        supplierField.setPromptText(resourceBundle.getString("ticket.expense.supplier_prompt"));
         com.pusula.desktop.util.CurrencyTextField amountField = new com.pusula.desktop.util.CurrencyTextField();
-        amountField.setPromptText("Tutar (₺)");
+        amountField.setPromptText(resourceBundle.getString("ticket.expense.amount_prompt"));
         TextArea notesField = new TextArea();
-        notesField.setPromptText("Notlar (İsteğe bağlı)");
+        notesField.setPromptText(resourceBundle.getString("ticket.expense.notes_prompt"));
         notesField.setPrefRowCount(2);
         if (editing) {
             descField.setText(existingExpense.getDescription());
@@ -937,13 +940,13 @@ public class TicketDetailsController {
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
-        grid.add(new Label("Açıklama:"), 0, 0);
+        grid.add(new Label(resourceBundle.getString("ticket.expense.description")), 0, 0);
         grid.add(descField, 1, 0);
-        grid.add(new Label("Tedarikçi:"), 0, 1);
+        grid.add(new Label(resourceBundle.getString("ticket.expense.supplier")), 0, 1);
         grid.add(supplierField, 1, 1);
-        grid.add(new Label("Tutar (₺):"), 0, 2);
+        grid.add(new Label(resourceBundle.getString("ticket.expense.amount")), 0, 2);
         grid.add(amountField, 1, 2);
-        grid.add(new Label("Notlar:"), 0, 3);
+        grid.add(new Label(resourceBundle.getString("ticket.expense.notes")), 0, 3);
         grid.add(notesField, 1, 3);
 
         dialog.getDialogPane().setContent(grid);
@@ -1189,6 +1192,8 @@ public class TicketDetailsController {
             javafx.stage.Stage dialogStage = new javafx.stage.Stage();
             dialogStage.setTitle(resourceBundle.getString("part.selection.title"));
             dialogStage.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root));
+            com.pusula.desktop.util.ThemeHelper.configureDialogStage(dialogStage, lblStatus.getScene().getWindow(),
+                    com.pusula.desktop.util.ThemeHelper.DialogProfile.WORKFLOW);
             dialogStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             dialogStage.initOwner(lblStatus.getScene().getWindow());
 
@@ -1406,14 +1411,16 @@ public class TicketDetailsController {
 
         // Create custom dialog with GridPane
         Dialog<java.util.Map<String, Object>> dialog = new Dialog<>();
-        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow());
+        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow(),
+                com.pusula.desktop.util.ThemeHelper.DialogProfile.WORKFLOW);
         dialog.setTitle(resourceBundle.getString("dialog.complete.title"));
         dialog.setHeaderText(resourceBundle.getString("dialog.complete.header"));
 
-        ButtonType completeButtonType = new ButtonType("Servisi Tamamla", ButtonBar.ButtonData.OK_DONE);
-        ButtonType cancelButtonType = new ButtonType("Vazgeç", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType completeButtonType = new ButtonType(
+                resourceBundle.getString("dialog.complete.action"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButtonType = new ButtonType(
+                resourceBundle.getString("btn.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
         dialog.getDialogPane().getButtonTypes().addAll(completeButtonType, cancelButtonType);
-        dialog.getDialogPane().setPrefWidth(620);
 
         // Create form
         GridPane grid = new GridPane();
@@ -1548,7 +1555,8 @@ public class TicketDetailsController {
 
         addBillingPartyButton.setOnAction(event -> {
             TextInputDialog createDialog = new TextInputDialog();
-            com.pusula.desktop.util.ThemeHelper.applyToDialog(createDialog, lblStatus.getScene().getWindow());
+            com.pusula.desktop.util.ThemeHelper.applyToDialog(createDialog, lblStatus.getScene().getWindow(),
+                    com.pusula.desktop.util.ThemeHelper.DialogProfile.FORM);
             createDialog.setTitle("Yeni Kurum/Firma Cari Kartı");
             createDialog.setHeaderText("Servis bedelinin aktarılacağı kurum veya firma");
             createDialog.setContentText("Kurum/firma adı:");
@@ -1655,6 +1663,7 @@ public class TicketDetailsController {
         ScrollPane formScroll = new ScrollPane(dialogContent);
         formScroll.setFitToWidth(true);
         formScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        formScroll.setMinHeight(0);
         formScroll.setPrefViewportHeight(570);
         formScroll.getStyleClass().add("dialog-form-scroll");
         dialog.getDialogPane().setContent(formScroll);

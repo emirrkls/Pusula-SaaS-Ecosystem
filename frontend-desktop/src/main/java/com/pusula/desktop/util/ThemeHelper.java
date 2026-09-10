@@ -30,6 +30,26 @@ public final class ThemeHelper {
     private ThemeHelper() {
     }
 
+    /** Shared sizing contract for secondary desktop workspaces. */
+    public enum DialogProfile {
+        COMPACT(460, 360, 400, 280),
+        FORM(640, 580, 520, 420),
+        WORKFLOW(820, 720, 620, 500),
+        DETAIL(1120, 780, 760, 540);
+
+        private final double width;
+        private final double height;
+        private final double minWidth;
+        private final double minHeight;
+
+        DialogProfile(double width, double height, double minWidth, double minHeight) {
+            this.width = width;
+            this.height = height;
+            this.minWidth = minWidth;
+            this.minHeight = minHeight;
+        }
+    }
+
     public static void applyGlobalTheme(boolean dark) {
         Application.setUserAgentStylesheet(
                 dark ? new PrimerDark().getUserAgentStylesheet() : new PrimerLight().getUserAgentStylesheet());
@@ -75,9 +95,14 @@ public final class ThemeHelper {
 
     /** Applies the same branded shell to programmatically constructed form dialogs. */
     public static void applyToDialog(Dialog<?> dialog, Window owner) {
+        applyToDialog(dialog, owner, null);
+    }
+
+    public static void applyToDialog(Dialog<?> dialog, Window owner, DialogProfile profile) {
         if (dialog == null) return;
         if (owner != null && dialog.getOwner() == null) dialog.initOwner(owner);
         DialogPane pane = dialog.getDialogPane();
+        if (profile != null) pane.getProperties().put("pusula.dialog.profile", profile);
         String stylesUrl = ThemeHelper.class.getResource(STYLES).toExternalForm();
         String tableUrl = ThemeHelper.class.getResource(TABLE_OVERRIDE).toExternalForm();
         if (!pane.getStylesheets().contains(stylesUrl)) pane.getStylesheets().add(stylesUrl);
@@ -125,6 +150,14 @@ public final class ThemeHelper {
         double maxWidth = Math.max(420, bounds.getWidth() - 48);
         double maxHeight = Math.max(320, bounds.getHeight() - 48);
         stage.sizeToScene();
+        Object configuredProfile = pane.getProperties().get("pusula.dialog.profile");
+        if (configuredProfile instanceof DialogProfile profile) {
+            stage.setMinWidth(Math.min(profile.minWidth, maxWidth));
+            stage.setMinHeight(Math.min(profile.minHeight, maxHeight));
+            stage.setWidth(Math.min(profile.width, maxWidth));
+            stage.setHeight(Math.min(profile.height, maxHeight));
+            stage.setResizable(true);
+        }
         stage.setMaxWidth(maxWidth);
         stage.setMaxHeight(maxHeight);
         if (stage.getWidth() > maxWidth) stage.setWidth(maxWidth);
@@ -133,6 +166,39 @@ public final class ThemeHelper {
                 Math.min(stage.getX(), bounds.getMaxX() - stage.getWidth())));
         stage.setY(Math.max(bounds.getMinY(),
                 Math.min(stage.getY(), bounds.getMaxY() - stage.getHeight())));
+    }
+
+    /** Applies the same adaptive profile to FXML-backed stages. */
+    public static void configureDialogStage(Stage stage, Window owner, DialogProfile profile) {
+        if (stage == null || profile == null) return;
+        if (owner != null && stage.getOwner() == null) stage.initOwner(owner);
+        if (stage.getScene() != null && stage.getScene().getRoot() instanceof Region root) {
+            root.setMinWidth(0);
+            root.setMinHeight(0);
+        }
+        Rectangle2D bounds = boundsFor(owner == null ? stage : owner);
+        double maxWidth = Math.max(420, bounds.getWidth() - 48);
+        double maxHeight = Math.max(320, bounds.getHeight() - 48);
+        stage.setMinWidth(Math.min(profile.minWidth, maxWidth));
+        stage.setMinHeight(Math.min(profile.minHeight, maxHeight));
+        stage.setMaxWidth(maxWidth);
+        stage.setMaxHeight(maxHeight);
+        stage.setWidth(Math.min(profile.width, maxWidth));
+        stage.setHeight(Math.min(profile.height, maxHeight));
+        stage.setResizable(true);
+        stage.setOnShown(event -> {
+            Rectangle2D activeBounds = boundsFor(owner == null ? stage : owner);
+            double centeredX = owner == null
+                    ? activeBounds.getMinX() + (activeBounds.getWidth() - stage.getWidth()) / 2
+                    : owner.getX() + (owner.getWidth() - stage.getWidth()) / 2;
+            double centeredY = owner == null
+                    ? activeBounds.getMinY() + (activeBounds.getHeight() - stage.getHeight()) / 2
+                    : owner.getY() + (owner.getHeight() - stage.getHeight()) / 2;
+            stage.setX(Math.max(activeBounds.getMinX(),
+                    Math.min(centeredX, activeBounds.getMaxX() - stage.getWidth())));
+            stage.setY(Math.max(activeBounds.getMinY(),
+                    Math.min(centeredY, activeBounds.getMaxY() - stage.getHeight())));
+        });
     }
 
     private static void styleDialogAction(Button button, javafx.scene.control.ButtonType type, String title) {

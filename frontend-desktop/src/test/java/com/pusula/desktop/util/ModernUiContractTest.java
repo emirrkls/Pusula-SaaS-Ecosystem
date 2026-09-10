@@ -119,6 +119,11 @@ class ModernUiContractTest {
         assertTrue(finance.contains("finance-analytics-kpis"));
         assertTrue(finance.contains("report-summary-scroll"));
         assertTrue(finance.contains("report-archive-table"));
+        assertTrue(finance.contains("fx:id=\"currentAccountDetailPane\""));
+        assertTrue(finance.contains("current-account-summary-grid"));
+        assertTrue(finance.contains("fx:id=\"currentAccountHistorySearchField\""));
+        assertTrue(finance.contains("UNCONSTRAINED_RESIZE_POLICY"),
+                "Dense account history must scroll horizontally instead of crushing its columns");
         assertFalse(finance.contains("btn-danger btn-block"),
                 "Closing the day must remain a deliberate compact action, not a full-width banner");
         assertTrue(dashboard.contains("fx:id=\"performanceYAxis\""));
@@ -130,6 +135,33 @@ class ModernUiContractTest {
         assertTrue(debts.contains("fx:id=\"debtDetailPane\""));
         assertFalse(debts.contains("<SplitPane"),
                 "Debt cards and movement history should not compete in a fixed split view");
+    }
+
+    @Test
+    void secondaryWorkspacesUseAdaptiveDialogProfiles() throws Exception {
+        Path javaRoot = Path.of("src", "main", "java", "com", "pusula", "desktop");
+        String theme = Files.readString(javaRoot.resolve(Path.of("util", "ThemeHelper.java")), StandardCharsets.UTF_8);
+        assertTrue(theme.contains("enum DialogProfile"));
+        assertTrue(theme.contains("COMPACT(460, 360"));
+        assertTrue(theme.contains("DETAIL(1120, 780"));
+        assertTrue(theme.contains("boundsFor(owner"), "Dialog bounds must follow the active display");
+
+        for (String controller : java.util.List.of(
+                "ServiceTicketController.java", "CustomerController.java", "SettingsController.java",
+                "InventoryController.java", "CompanyDebtController.java", "CommercialDeviceViewController.java")) {
+            String source = Files.readString(javaRoot.resolve(Path.of("controller", controller)), StandardCharsets.UTF_8);
+            assertTrue(source.contains("DialogProfile."),
+                    () -> controller + " must select an adaptive dialog profile");
+        }
+
+        Path viewRoot = Path.of("src", "main", "resources", "view");
+        String transfer = Files.readString(viewRoot.resolve("transfer_stock_dialog.fxml"), StandardCharsets.UTF_8);
+        String ticketDetails = Files.readString(viewRoot.resolve("ticket_details.fxml"), StandardCharsets.UTF_8);
+        String customerDetails = Files.readString(viewRoot.resolve("customer_detail.fxml"), StandardCharsets.UTF_8);
+        assertFalse(transfer.contains("prefWidth=\"500.0\""),
+                "Transfer form fields must grow with the dialog instead of forcing a fixed width");
+        assertTrue(ticketDetails.contains("UNCONSTRAINED_RESIZE_POLICY"));
+        assertTrue(customerDetails.contains("UNCONSTRAINED_RESIZE_POLICY"));
     }
 
     private String readSafely(Path path) {

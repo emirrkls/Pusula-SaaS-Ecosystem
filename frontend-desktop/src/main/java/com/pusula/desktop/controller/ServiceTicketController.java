@@ -565,6 +565,8 @@ public class ServiceTicketController {
             if (ticketsListView.getScene() != null) {
                 stage.initOwner(ticketsListView.getScene().getWindow());
             }
+            ThemeHelper.configureDialogStage(stage, ticketsListView.getScene().getWindow(),
+                    ThemeHelper.DialogProfile.DETAIL);
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             stage.showAndWait();
 
@@ -597,6 +599,8 @@ public class ServiceTicketController {
             javafx.stage.Stage stage = new javafx.stage.Stage();
             stage.setTitle("Yeni Servis Fişi");
             stage.setScene(ThemeHelper.createDialogScene(root));
+            ThemeHelper.configureDialogStage(stage, ticketsListView.getScene().getWindow(),
+                    ThemeHelper.DialogProfile.WORKFLOW);
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             stage.showAndWait();
         } catch (Exception e) {
@@ -663,6 +667,8 @@ public class ServiceTicketController {
             stage.setTitle("Toplu Atama");
             stage.setScene(ThemeHelper.createDialogScene(root, 720, 620));
             stage.initOwner(ticketsListView.getScene().getWindow());
+            ThemeHelper.configureDialogStage(stage, ticketsListView.getScene().getWindow(),
+                    ThemeHelper.DialogProfile.WORKFLOW);
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             stage.showAndWait();
 

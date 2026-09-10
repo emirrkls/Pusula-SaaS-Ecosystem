@@ -224,6 +224,8 @@ public class CustomerDetailController {
             stage.setTitle("Servis Fişi - " + ticket.getId());
             stage.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root, 900, 720));
             stage.initOwner(historyTable.getScene().getWindow());
+            com.pusula.desktop.util.ThemeHelper.configureDialogStage(stage, historyTable.getScene().getWindow(),
+                    com.pusula.desktop.util.ThemeHelper.DialogProfile.DETAIL);
             stage.initModality(Modality.APPLICATION_MODAL);
             stage.showAndWait();
             if (currentCustomer != null) loadServiceHistory(currentCustomer.getId());

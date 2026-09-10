@@ -724,6 +724,9 @@ public class ProposalEditorController {
             dialogStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             dialogStage.initOwner(customerComboBox.getScene().getWindow());
             dialogStage.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root));
+            com.pusula.desktop.util.ThemeHelper.configureDialogStage(dialogStage,
+                    customerComboBox.getScene().getWindow(),
+                    com.pusula.desktop.util.ThemeHelper.DialogProfile.FORM);
             dialogStage.showAndWait();
         } catch (Exception e) {
             e.printStackTrace();

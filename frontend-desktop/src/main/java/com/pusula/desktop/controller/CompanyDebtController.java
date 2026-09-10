@@ -9,6 +9,8 @@ import com.pusula.desktop.dto.PayablePartySummaryDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.CurrencyTextField;
+import com.pusula.desktop.util.ThemeHelper;
+import com.pusula.desktop.util.UTF8Control;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -37,6 +39,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 public class CompanyDebtController {
 
@@ -84,9 +87,11 @@ public class CompanyDebtController {
     private PayablePartySummaryDTO selectedPayableParty;
     private DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("tr", "TR"));
+    private ResourceBundle bundle;
 
     @FXML
     public void initialize() {
+        bundle = ResourceBundle.getBundle("i18n.messages", Locale.forLanguageTag("tr-TR"), new UTF8Control());
         api = RetrofitClient.getClient().create(CompanyDebtApi.class);
 
         setupTable();
@@ -304,6 +309,7 @@ public class CompanyDebtController {
             dialog.setTitle("Borç Ekle");
             dialog.initModality(Modality.APPLICATION_MODAL);
             dialog.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root));
+            ThemeHelper.configureDialogStage(dialog, debtTable.getScene().getWindow(), ThemeHelper.DialogProfile.FORM);
             dialog.showAndWait();
         } catch (Exception e) {
             showError("Dialog açılamadı: " + e.getMessage());
@@ -312,11 +318,12 @@ public class CompanyDebtController {
 
     private void handlePayDebt(CompanyDebtDTO debt) {
         Dialog<DebtPaymentRequestDTO> dialog = new Dialog<>();
-        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, debtTable.getScene().getWindow());
+        ThemeHelper.applyToDialog(dialog, debtTable.getScene().getWindow(), ThemeHelper.DialogProfile.FORM);
         dialog.setTitle("Borç Öde");
         dialog.setHeaderText(debt.getCreditorName() + " - Kalan: " + formatCurrency(debt.getRemainingAmount()));
         ButtonType payButtonType = new ButtonType("Ödemeyi Kaydet", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(payButtonType, ButtonType.CANCEL);
+        dialog.getDialogPane().getButtonTypes().addAll(payButtonType,
+                new ButtonType(bundle.getString("btn.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE));
 
         CurrencyTextField amountField = new CurrencyTextField();
         amountField.setRawValue(debt.getRemainingAmount());
@@ -495,11 +502,12 @@ public class CompanyDebtController {
     private void handlePayParty(PayablePartySummaryDTO party) {
         if (party == null || party.getBalance() == null || party.getBalance().signum() <= 0) return;
         Dialog<DebtPaymentRequestDTO> dialog = new Dialog<>();
-        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, partyTable.getScene().getWindow());
+        ThemeHelper.applyToDialog(dialog, partyTable.getScene().getWindow(), ThemeHelper.DialogProfile.FORM);
         dialog.setTitle("Tedarikçi Kartına Ödeme");
         dialog.setHeaderText(party.getName() + " · Kalan " + formatCurrency(party.getBalance()));
         ButtonType save = new ButtonType("Ödemeyi Kaydet", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
+        dialog.getDialogPane().getButtonTypes().addAll(save,
+                new ButtonType(bundle.getString("btn.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE));
         CurrencyTextField amount = new CurrencyTextField(); amount.setRawValue(party.getBalance());
         DatePicker date = new DatePicker(LocalDate.now());
         TextArea notes = new TextArea(); notes.setPromptText("Ödeme notu (isteğe bağlı)"); notes.setPrefRowCount(2);
@@ -549,11 +557,11 @@ public class CompanyDebtController {
 
     private void showPaymentHistoryDialog(CompanyDebtDTO debt, List<CompanyDebtPaymentDTO> payments) {
         Dialog<Void> dialog = new Dialog<>();
-        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, debtTable.getScene().getWindow());
-        dialog.setTitle("Ödeme Geçmişi");
+        ThemeHelper.applyToDialog(dialog, debtTable.getScene().getWindow(), ThemeHelper.DialogProfile.DETAIL);
+        dialog.setTitle(bundle.getString("debt.payment_history.title"));
         dialog.setHeaderText(debt.getCreditorName() + " - " + getCategoryText(debt.getExpenseCategory()));
-        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        dialog.getDialogPane().setPrefWidth(720);
+        dialog.getDialogPane().getButtonTypes().add(new ButtonType(
+                bundle.getString("common.close"), ButtonBar.ButtonData.CANCEL_CLOSE));
 
         TableView<CompanyDebtPaymentDTO> table = new TableView<>();
         TableColumn<CompanyDebtPaymentDTO, String> dateColumn = new TableColumn<>("Ödeme Tarihi");
@@ -626,12 +634,13 @@ public class CompanyDebtController {
 
     private void handleAddAmountToDebt(CompanyDebtDTO debt) {
         Dialog<DebtAdditionRequestDTO> dialog = new Dialog<>();
-        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, debtTable.getScene().getWindow());
+        ThemeHelper.applyToDialog(dialog, debtTable.getScene().getWindow(), ThemeHelper.DialogProfile.FORM);
         dialog.setTitle("Borca İlave Yap");
         dialog.setHeaderText(debt.getCreditorName() + " borcuna ilave tutar ekleniyor.");
 
         ButtonType saveButtonType = new ButtonType("Ekle", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType,
+                new ButtonType(bundle.getString("btn.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE));
 
         GridPane grid = new GridPane();
         grid.setHgap(10);

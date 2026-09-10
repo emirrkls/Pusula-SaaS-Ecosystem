@@ -164,6 +164,8 @@ public class BusinessAssetController {
             stage.setScene(ThemeHelper.createDialogScene(loader.load()));
             stage.setTitle(asset == null ? "Takım / Demirbaş Ekle" : "Takım / Demirbaş Düzenle");
             stage.initOwner(assetTable.getScene().getWindow());
+            ThemeHelper.configureDialogStage(stage, assetTable.getScene().getWindow(),
+                    ThemeHelper.DialogProfile.FORM);
             stage.initModality(Modality.APPLICATION_MODAL);
             BusinessAssetDialogController controller = loader.getController();
             controller.setAsset(asset);

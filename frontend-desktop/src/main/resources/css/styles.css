@@ -3802,6 +3802,55 @@
     -fx-font-size: 10px;
 }
 
+/* Current-account list/detail workspace. Data-rich account history belongs to the
+   finance page instead of a fixed-size modal so it remains readable at every DPI. */
+.finance-current-account-workspace,
+.current-account-detail-page {
+    -fx-background-color: -pusula-background;
+}
+
+.current-account-summary-grid > .finance-summary-card {
+    -fx-min-width: 205;
+    -fx-pref-width: 235;
+}
+
+.current-account-summary-balance { -fx-border-color: #E2E8F0 #E2E8F0 #E2E8F0 #1C3461; }
+.current-account-summary-charge { -fx-border-color: #E2E8F0 #E2E8F0 #E2E8F0 #F59E0B; }
+.current-account-summary-payment { -fx-border-color: #E2E8F0 #E2E8F0 #E2E8F0 #10B981; }
+.current-account-summary-count { -fx-border-color: #E2E8F0 #E2E8F0 #E2E8F0 #38BDF8; }
+
+.current-account-back-button {
+    -fx-min-width: 118;
+}
+
+.current-account-filter-bar .text-field {
+    -fx-min-width: 240;
+}
+
+.current-account-filter-bar .date-picker {
+    -fx-min-width: 150;
+    -fx-pref-width: 160;
+}
+
+.compact-ui .current-account-summary-grid > .finance-summary-card {
+    -fx-min-width: 190;
+    -fx-pref-width: 215;
+}
+
+.narrow-ui .current-account-filter-bar {
+    -fx-hgap: 6;
+    -fx-vgap: 8;
+}
+
+.narrow-ui .current-account-filter-bar .text-field {
+    -fx-pref-width: 280;
+}
+
+.dark-theme .finance-current-account-workspace,
+.dark-theme .current-account-detail-page {
+    -fx-background-color: -pusula-background;
+}
+
 .finance-ledger-split,
 .finance-ledger-split > .split-pane-divider {
     -fx-background-color: transparent;

@@ -290,6 +290,8 @@ public class CustomerController {
 
             stage.setScene(ThemeHelper.createDialogScene(root));
             stage.initOwner(customersListView.getScene().getWindow());
+            ThemeHelper.configureDialogStage(stage, customersListView.getScene().getWindow(),
+                    ThemeHelper.DialogProfile.DETAIL);
 
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
 
@@ -339,6 +341,8 @@ public class CustomerController {
 
             stage.setScene(ThemeHelper.createDialogScene(root));
             stage.initOwner(customersListView.getScene().getWindow());
+            ThemeHelper.configureDialogStage(stage, customersListView.getScene().getWindow(),
+                    ThemeHelper.DialogProfile.FORM);
 
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
 

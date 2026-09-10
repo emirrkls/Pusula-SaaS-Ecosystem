@@ -242,38 +242,112 @@
             
             <!-- TAB 4: CARİ HESAPLAR (CURRENT ACCOUNTS) -->
             <Tab text="%finance.tab.current_accounts">
-               <VBox spacing="15.0" styleClass="finance-panel">
-                  <padding>
-                     <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-                  </padding>
+               <StackPane styleClass="finance-current-account-workspace">
                   <children>
-                     <HBox alignment="CENTER_LEFT" spacing="12.0">
-                        <Label text="%finance.tab.current_accounts" styleClass="section-title">
-                           <font>
-                              <Font name="System Bold" size="18.0" />
-                           </font>
-                        </Label>
-                        <Region HBox.hgrow="ALWAYS" />
-                        <Button onAction="#handleManageAccountParties" styleClass="btn-secondary" text="Kurum/Firma Kartları" />
-                        <Button onAction="#handleExportCurrentAccountsPdf" styleClass="btn-export" text="PDF Kaydet" />
-                     </HBox>
-                     
-                     <Separator />
-                     
-                     <TableView fx:id="currentAccountsTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
-                        <placeholder><Label styleClass="empty-state" text="Açık cari hesap bulunmuyor." /></placeholder>
-                        <columns>
-                           <TableColumn fx:id="colAccountCustomer" text="%current_account.customer" prefWidth="200.0" />
-                           <TableColumn fx:id="colAccountBalance" text="%current_account.balance" prefWidth="150.0" />
-                           <TableColumn fx:id="colAccountLastUpdated" text="%current_account.last_updated" prefWidth="180.0" />
-                           <TableColumn fx:id="colAccountActions" text="%table.actions" prefWidth="210.0" />
-                        </columns>
-                        <columnResizePolicy>
-                           <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                        </columnResizePolicy>
-                     </TableView>
+                     <VBox fx:id="currentAccountListPane" spacing="15.0" styleClass="finance-panel">
+                        <padding>
+                           <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                        </padding>
+                        <children>
+                           <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="finance-command-bar">
+                              <VBox spacing="3.0" HBox.hgrow="ALWAYS">
+                                 <Label text="%finance.tab.current_accounts" styleClass="section-heading" />
+                                 <Label text="%current_account.list.subtitle" styleClass="section-caption" />
+                              </VBox>
+                              <Button onAction="#handleManageAccountParties" styleClass="btn-secondary" text="%current_account.parties" />
+                              <Button onAction="#handleExportCurrentAccountsPdf" styleClass="btn-export" text="%current_account.export_all" />
+                           </HBox>
+
+                           <TableView fx:id="currentAccountsTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
+                              <placeholder><Label styleClass="empty-state" text="%current_account.empty" /></placeholder>
+                              <columns>
+                                 <TableColumn fx:id="colAccountCustomer" text="%current_account.customer" prefWidth="260.0" />
+                                 <TableColumn fx:id="colAccountBalance" text="%current_account.balance" prefWidth="180.0" />
+                                 <TableColumn fx:id="colAccountLastUpdated" text="%current_account.last_updated" prefWidth="220.0" />
+                                 <TableColumn fx:id="colAccountActions" text="%table.actions" prefWidth="230.0" />
+                              </columns>
+                              <columnResizePolicy>
+                                 <TableView fx:constant="CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN" />
+                              </columnResizePolicy>
+                           </TableView>
+                        </children>
+                     </VBox>
+
+                     <VBox fx:id="currentAccountDetailPane" managed="false" visible="false" spacing="14.0"
+                           styleClass="finance-panel, current-account-detail-page">
+                        <padding>
+                           <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                        </padding>
+                        <children>
+                           <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="finance-command-bar">
+                              <Button mnemonicParsing="false" onAction="#handleBackToCurrentAccounts"
+                                      styleClass="button-secondary, current-account-back-button"
+                                      text="%current_account.back" />
+                              <VBox spacing="3.0" HBox.hgrow="ALWAYS">
+                                 <Label fx:id="currentAccountDetailNameLabel" styleClass="section-heading" />
+                                 <Label text="%current_account.detail.subtitle" styleClass="section-caption" />
+                              </VBox>
+                              <Button mnemonicParsing="false" onAction="#handleExportCurrentAccountStatement"
+                                      styleClass="btn-export" text="%current_account.export_statement" />
+                           </HBox>
+
+                           <FlowPane hgap="12.0" vgap="12.0" styleClass="current-account-summary-grid">
+                              <VBox spacing="5.0" styleClass="finance-summary-card, current-account-summary-balance">
+                                 <Label text="%current_account.current_balance" styleClass="finance-summary-label" />
+                                 <Label fx:id="currentAccountDetailBalanceLabel" styleClass="finance-summary-value" />
+                                 <Label text="%current_account.current_balance.caption" styleClass="finance-summary-caption" />
+                              </VBox>
+                              <VBox spacing="5.0" styleClass="finance-summary-card, current-account-summary-charge">
+                                 <Label text="%current_account.total_charges" styleClass="finance-summary-label" />
+                                 <Label fx:id="currentAccountTotalChargesLabel" styleClass="finance-summary-value" />
+                                 <Label text="%current_account.total_charges.caption" styleClass="finance-summary-caption" />
+                              </VBox>
+                              <VBox spacing="5.0" styleClass="finance-summary-card, current-account-summary-payment">
+                                 <Label text="%current_account.total_payments" styleClass="finance-summary-label" />
+                                 <Label fx:id="currentAccountTotalPaymentsLabel" styleClass="finance-summary-value" />
+                                 <Label text="%current_account.total_payments.caption" styleClass="finance-summary-caption" />
+                              </VBox>
+                              <VBox spacing="5.0" styleClass="finance-summary-card, current-account-summary-count">
+                                 <Label text="%current_account.transaction_count" styleClass="finance-summary-label" />
+                                 <Label fx:id="currentAccountTransactionCountLabel" styleClass="finance-summary-value" />
+                                 <Label text="%current_account.transaction_count.caption" styleClass="finance-summary-caption" />
+                              </VBox>
+                           </FlowPane>
+
+                           <FlowPane alignment="CENTER_LEFT" hgap="10.0" vgap="10.0" styleClass="filter-bar, current-account-filter-bar">
+                              <TextField fx:id="currentAccountHistorySearchField" prefWidth="360.0"
+                                         onAction="#handleApplyCurrentAccountHistoryFilters"
+                                         promptText="%current_account.search_prompt" />
+                              <DatePicker fx:id="currentAccountHistoryStartDate" promptText="%filter.start_date" />
+                              <DatePicker fx:id="currentAccountHistoryEndDate" promptText="%filter.end_date" />
+                              <Button mnemonicParsing="false" onAction="#handleApplyCurrentAccountHistoryFilters"
+                                      styleClass="btn-primary" text="%btn.filter" />
+                              <Button mnemonicParsing="false" onAction="#handleClearCurrentAccountHistoryFilters"
+                                      styleClass="btn-secondary" text="%btn.clear" />
+                           </FlowPane>
+
+                           <StackPane VBox.vgrow="ALWAYS">
+                              <children>
+                                 <TableView fx:id="currentAccountHistoryTable" styleClass="premium-table">
+                                    <placeholder><Label styleClass="empty-state" text="%current_account.history.empty" /></placeholder>
+                                    <columns>
+                                       <TableColumn fx:id="colCurrentAccountHistoryDate" minWidth="110.0" prefWidth="125.0" text="%table.date" />
+                                       <TableColumn fx:id="colCurrentAccountHistoryType" minWidth="130.0" prefWidth="150.0" text="%current_account.transaction" />
+                                       <TableColumn fx:id="colCurrentAccountHistoryDescription" minWidth="320.0" prefWidth="520.0" text="%table.description" />
+                                       <TableColumn fx:id="colCurrentAccountHistoryAmount" minWidth="135.0" prefWidth="155.0" text="%table.amount" />
+                                       <TableColumn fx:id="colCurrentAccountHistoryBalance" minWidth="145.0" prefWidth="165.0" text="%current_account.balance_after" />
+                                    </columns>
+                                    <columnResizePolicy>
+                                       <TableView fx:constant="UNCONSTRAINED_RESIZE_POLICY" />
+                                    </columnResizePolicy>
+                                 </TableView>
+                                 <ProgressIndicator fx:id="currentAccountHistoryProgress" managed="false" visible="false" maxHeight="42.0" maxWidth="42.0" />
+                              </children>
+                           </StackPane>
+                        </children>
+                     </VBox>
                   </children>
-               </VBox>
+               </StackPane>
             </Tab>
             
             <!-- TAB 5: BORÇLARIMIZ (OUR DEBTS) -->

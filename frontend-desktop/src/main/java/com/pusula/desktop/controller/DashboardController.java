@@ -344,8 +344,9 @@ public class DashboardController {
 
             javafx.stage.Stage stage = new javafx.stage.Stage();
             com.pusula.desktop.util.StageHelper.setIcon(stage);
-            stage.setTitle("Ticket Details - " + ticket.getId());
+            stage.setTitle(bundle.getString("ticket.details.window_title") + " - " + ticket.getId());
             stage.setScene(ThemeHelper.createDialogScene(root));
+            ThemeHelper.configureDialogStage(stage, ownerWindow(), ThemeHelper.DialogProfile.DETAIL);
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             stage.showAndWait();
 

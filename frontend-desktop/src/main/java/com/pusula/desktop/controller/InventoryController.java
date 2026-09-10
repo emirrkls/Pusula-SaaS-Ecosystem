@@ -698,6 +698,9 @@ public class InventoryController {
 
             stage.setScene(ThemeHelper.createDialogScene(root));
 
+            ThemeHelper.configureDialogStage(stage, inventoryTable.getScene().getWindow(),
+                    ThemeHelper.DialogProfile.FORM);
+
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
 
             stage.showAndWait();
@@ -973,6 +976,9 @@ public class InventoryController {
             stage.setTitle("Stok Transfer");
 
             stage.setScene(ThemeHelper.createDialogScene(root));
+
+            ThemeHelper.configureDialogStage(stage, vehicleStocksTable.getScene().getWindow(),
+                    ThemeHelper.DialogProfile.WORKFLOW);
 
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
 

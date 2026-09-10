@@ -199,13 +199,14 @@ public class UnifiedExpenseDialogController {
 
                 Dialog<ButtonType> dialog = new Dialog<>();
                 com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog,
-                        comboCategory.getScene().getWindow());
-                dialog.setTitle("Akıllı Eşleştirme Önerisi");
-                dialog.setHeaderText("Ödenmemiş Sabit Giderler Bulundu");
+                        comboCategory.getScene().getWindow(),
+                        com.pusula.desktop.util.ThemeHelper.DialogProfile.WORKFLOW);
+                dialog.setTitle(bundle.getString("expense.match.title"));
+                dialog.setHeaderText(bundle.getString("expense.match.header"));
                 
-                ButtonType btnMatch = new ButtonType("Seçili Olanla Eşleştir", ButtonBar.ButtonData.OK_DONE);
-                ButtonType btnStandalone = new ButtonType("Hiçbiriyle Eşleştirme", ButtonBar.ButtonData.OTHER);
-                ButtonType btnCancel = new ButtonType("İptal", ButtonBar.ButtonData.CANCEL_CLOSE);
+                ButtonType btnMatch = new ButtonType(bundle.getString("expense.match.selected"), ButtonBar.ButtonData.OK_DONE);
+                ButtonType btnStandalone = new ButtonType(bundle.getString("expense.match.standalone"), ButtonBar.ButtonData.OTHER);
+                ButtonType btnCancel = new ButtonType(bundle.getString("btn.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
                 
                 dialog.getDialogPane().getButtonTypes().addAll(btnMatch, btnStandalone, btnCancel);
                 
