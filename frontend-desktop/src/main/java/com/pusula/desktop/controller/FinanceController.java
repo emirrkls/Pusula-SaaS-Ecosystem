@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import com.pusula.desktop.api.FinanceApi;
 import com.pusula.desktop.api.CurrentAccountApi;
 import com.pusula.desktop.api.AccountPartyApi;
+import com.pusula.desktop.api.ServiceTicketApi;
 import com.pusula.desktop.dto.*;
 import com.pusula.desktop.util.AlertHelper;
 import com.pusula.desktop.util.CurrencyTextField;
@@ -1077,8 +1078,70 @@ public class FinanceController {
             }
         });
         currentAccountHistoryTable.setItems(FXCollections.observableArrayList());
+        currentAccountHistoryTable.setRowFactory(table -> {
+            TableRow<CurrentAccountHistoryDTO.Transaction> row = new TableRow<>();
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 1 && !row.isEmpty()
+                        && "SERVICE_TICKET".equals(row.getItem().getSourceType())) {
+                    openCurrentAccountSource(row.getItem());
+                }
+            });
+            row.itemProperty().addListener((observable, oldValue, value) -> {
+                boolean hasTicket = value != null && value.getSourceId() != null
+                        && "SERVICE_TICKET".equals(value.getSourceType());
+                row.setCursor(hasTicket ? javafx.scene.Cursor.HAND : javafx.scene.Cursor.DEFAULT);
+                row.setTooltip(hasTicket ? new Tooltip(bundle.getString("current_account.ticket.open")) : null);
+            });
+            return row;
+        });
         currentAccountHistorySearchField.textProperty().addListener((observable, oldValue, newValue) ->
                 applyCurrentAccountHistoryFilters());
+    }
+
+    private void openCurrentAccountSource(CurrentAccountHistoryDTO.Transaction transaction) {
+        if (transaction == null || transaction.getSourceId() == null
+                || !"SERVICE_TICKET".equals(transaction.getSourceType())) {
+            return;
+        }
+        RetrofitClient.getClient().create(ServiceTicketApi.class).getTicketById(transaction.getSourceId())
+                .enqueue(new Callback<ServiceTicketDTO>() {
+                    @Override public void onResponse(Call<ServiceTicketDTO> call, Response<ServiceTicketDTO> response) {
+                        if (!response.isSuccessful() || response.body() == null) {
+                            Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                    currentAccountHistoryTable.getScene().getWindow(),
+                                    bundle.getString("current_account.ticket.error.title"),
+                                    java.text.MessageFormat.format(bundle.getString("current_account.ticket.error.load"), response.code())));
+                            return;
+                        }
+                        Platform.runLater(() -> showTicketDetailWindow(response.body()));
+                    }
+                    @Override public void onFailure(Call<ServiceTicketDTO> call, Throwable throwable) {
+                        Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
+                                currentAccountHistoryTable.getScene().getWindow(), bundle.getString("current_account.ticket.error.title"),
+                                throwable.getMessage()));
+                    }
+                });
+    }
+
+    private void showTicketDetailWindow(ServiceTicketDTO ticket) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/ticket_details.fxml"), bundle);
+            javafx.scene.Parent root = loader.load();
+            TicketDetailsController controller = loader.getController();
+            controller.setTicket(ticket);
+            Stage stage = new Stage();
+            stage.setTitle("Servis Fişi - " + ticket.getId());
+            stage.setScene(com.pusula.desktop.util.ThemeHelper.createDialogScene(root, 900, 720));
+            stage.initOwner(currentAccountHistoryTable.getScene().getWindow());
+            com.pusula.desktop.util.ThemeHelper.configureDialogStage(stage,
+                    currentAccountHistoryTable.getScene().getWindow(),
+                    com.pusula.desktop.util.ThemeHelper.DialogProfile.DETAIL);
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.showAndWait();
+        } catch (Exception exception) {
+            AlertHelper.showAlert(Alert.AlertType.ERROR, currentAccountHistoryTable.getScene().getWindow(),
+                    bundle.getString("current_account.ticket.error.title"), exception.getMessage());
+        }
     }
 
     @FXML

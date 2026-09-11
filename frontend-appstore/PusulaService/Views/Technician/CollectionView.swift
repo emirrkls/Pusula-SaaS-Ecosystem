@@ -15,22 +15,31 @@ struct CollectionView: View {
     @State private var isProcessing = false
     @State private var errorMessage: String?
     @State private var technicianNote = ""
-    @State private var institutionalWarranty = false
+    @State private var transferToOrganization = false
+    @State private var billingPartyAmount = ""
     @State private var billingOrganizations: [AccountPartyOptionDTO] = []
     @State private var selectedBillingPartyId: Int?
     
     var isWarranty: Bool { selectedMethod == .warranty }
-    var isInstitutionalWarranty: Bool { isWarranty && institutionalWarranty }
+    var isInstitutionalWarranty: Bool { isWarranty && transferToOrganization }
     var isCurrentAccount: Bool { selectedMethod == .currentAccount }
     var laborValue: Double { isWarranty && !isInstitutionalWarranty ? 0 : (Double(laborFee.replacingOccurrences(of: ",", with: ".")) ?? 0) }
     var serviceTotal: Double { isWarranty && !isInstitutionalWarranty ? 0 : partsTotal + laborValue }
     var collectedValue: Double {
         (isWarranty || isCurrentAccount) ? 0 : (Double(collectedAmount.replacingOccurrences(of: ",", with: ".")) ?? 0)
     }
-    var remainingDebt: Double { isWarranty && !isInstitutionalWarranty ? 0 : max(0, serviceTotal - collectedValue) }
-    var isOverpayment: Bool { !isWarranty && !isCurrentAccount && collectedValue > serviceTotal + 0.005 }
+    var organizationAmount: Double {
+        transferToOrganization ? (Double(billingPartyAmount.replacingOccurrences(of: ",", with: ".")) ?? 0) : 0
+    }
+    var customerShare: Double { max(0, serviceTotal - organizationAmount) }
+    var remainingDebt: Double { isWarranty && !isInstitutionalWarranty ? 0 : max(0, customerShare - collectedValue) }
+    var isOverpayment: Bool { collectedValue > customerShare + 0.005 }
+    var isOrganizationAmountInvalid: Bool {
+        transferToOrganization && (selectedBillingPartyId == nil || organizationAmount <= 0
+            || organizationAmount > serviceTotal + 0.005 || (isWarranty && abs(organizationAmount - serviceTotal) > 0.005))
+    }
     var existingDebt: Double { ticket.customerBalance ?? 0 }
-    var isFullPayment: Bool { collectedValue >= serviceTotal }
+    var isFullPayment: Bool { remainingDebt < 0.005 }
     var finalDebt: Double { existingDebt + remainingDebt }
     
     var body: some View {
@@ -43,7 +52,7 @@ struct CollectionView: View {
                     // Payment method selector
                     paymentMethodPicker
 
-                    if isWarranty { institutionalBillingCard }
+                    institutionalBillingCard
                     
                     // Amount input
                     amountInput
@@ -96,18 +105,40 @@ struct CollectionView: View {
 
     private var institutionalBillingCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Toggle("Ücreti anlaşmalı kurum karşılayacak", isOn: $institutionalWarranty)
+            Toggle("Tutarın bir kısmını kuruma aktar", isOn: $transferToOrganization)
                 .font(.subheadline.weight(.semibold))
-            if institutionalWarranty {
+                .onChange(of: transferToOrganization) { _, enabled in
+                    if enabled {
+                        billingPartyAmount = String(format: "%.2f", serviceTotal)
+                        collectedAmount = "0.00"
+                    } else {
+                        selectedBillingPartyId = nil
+                        billingPartyAmount = ""
+                        if !isWarranty && !isCurrentAccount {
+                            collectedAmount = String(format: "%.2f", serviceTotal)
+                        }
+                    }
+                }
+            if transferToOrganization {
                 Picker("Ödemeyi üstlenen kurum", selection: $selectedBillingPartyId) {
                     Text("Kurum seçin").tag(nil as Int?)
                     ForEach(billingOrganizations) { party in
                         Text(party.displayName).tag(Optional(party.id))
                     }
                 }
-                Text("Tutar müşteriden alınmaz; seçilen kurumun cari hesabına hakediş olarak aktarılır.")
+                TextField("Kuruma aktarılacak tutar", text: $billingPartyAmount)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(.roundedBorder)
+                HStack {
+                    Text("Müşteriye düşen")
+                    Spacer()
+                    Text(formatCurrency(customerShare)).fontWeight(.semibold)
+                }
+                Text(isWarranty
+                     ? "Garanti ödeme yönteminde fiş toplamının tamamı kuruma aktarılmalıdır. Kısmi paylaşım için nakit, kart veya cari seçin."
+                     : "Yalnızca buradaki tutar kurum carisine yazılır; kalan bölüm müşteriden tahsil edilebilir veya müşteri carisine bırakılabilir.")
                     .font(.caption).foregroundStyle(.secondary)
-            } else {
+            } else if isWarranty {
                 Text("İşletme garantisi: satış ve tahsilat oluşmaz, yalnızca gerçek servis maliyeti izlenir.")
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -292,17 +323,20 @@ struct CollectionView: View {
             Text("Ödeme Özeti")
                 .font(.subheadline.weight(.semibold))
             
+            if transferToOrganization {
+                waterfallRow("Kurum carisine aktarılacak", amount: organizationAmount,
+                             icon: "building.2", color: .orange)
+            }
             if isWarranty {
                 if isInstitutionalWarranty {
-                    waterfallRow("Kurum carisine aktarılacak", amount: serviceTotal,
-                                 icon: "building.2", color: .orange)
+                    Text("Müşteriden tahsilat alınmayacak.").font(.caption).foregroundStyle(.secondary)
                 } else {
                     Text("İşletme garantisinde tahsilat veya cari işlem oluşturulmayacak.")
                         .font(.caption).foregroundColor(.orange)
                 }
             } else if isCurrentAccount {
-                waterfallRow("Cariye aktarılacak",
-                             amount: serviceTotal,
+                waterfallRow("Müşteri carisine aktarılacak",
+                             amount: remainingDebt,
                              icon: "doc.text",
                              color: .orange)
                 Divider()
@@ -310,7 +344,7 @@ struct CollectionView: View {
             } else if collectedValue > 0 {
                 // Step 1: Service payment
                 waterfallRow("1. Servis Ücreti",
-                             amount: min(collectedValue, serviceTotal),
+                             amount: min(collectedValue, customerShare),
                              icon: "wrench.and.screwdriver",
                              color: .green)
                 
@@ -377,7 +411,7 @@ struct CollectionView: View {
         .foregroundColor(.white)
         .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
         .disabled(isProcessing || isOverpayment
-                  || (isInstitutionalWarranty && selectedBillingPartyId == nil)
+                  || isOrganizationAmountInvalid
                   || (!isWarranty && !isCurrentAccount && collectedAmount.isEmpty))
     }
     
@@ -385,7 +419,11 @@ struct CollectionView: View {
     
     private func handleSubmit() {
         guard !isOverpayment else {
-            errorMessage = "Tahsil edilen tutar fiş toplamını aşamaz."
+            errorMessage = "Tahsil edilen tutar müşteriye düşen kısmı aşamaz."
+            return
+        }
+        guard !isOrganizationAmountInvalid else {
+            errorMessage = "Kurum, tutar ve ödeme yöntemi dağılımını kontrol edin."
             return
         }
         if isWarranty {
@@ -411,8 +449,11 @@ struct CollectionView: View {
                 paymentMethod: selectedMethod.apiValue,
                 laborFee: laborValue,
                 technicianNote: technicianNote,
-                billingPartyId: isInstitutionalWarranty ? selectedBillingPartyId : nil,
-                billingResponsibility: isInstitutionalWarranty ? "ORGANIZATION" : (isWarranty ? "INTERNAL" : "CUSTOMER")
+                billingPartyId: transferToOrganization ? selectedBillingPartyId : nil,
+                billingResponsibility: transferToOrganization
+                    ? (organizationAmount >= serviceTotal ? "ORGANIZATION" : "SPLIT")
+                    : (isWarranty ? "INTERNAL" : "CUSTOMER"),
+                billingPartyAmount: transferToOrganization ? organizationAmount : nil
             )
             await onComplete()
         } catch {

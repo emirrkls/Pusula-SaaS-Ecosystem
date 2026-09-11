@@ -15,6 +15,7 @@ public class CompleteServiceRequest {
     private String technicianNote;
     private Long billingPartyId;
     private String billingResponsibility;
+    private BigDecimal billingPartyAmount;
 
     public CompleteServiceRequest() {
     }
@@ -76,4 +77,6 @@ public class CompleteServiceRequest {
     public void setBillingPartyId(Long billingPartyId) { this.billingPartyId = billingPartyId; }
     public String getBillingResponsibility() { return billingResponsibility; }
     public void setBillingResponsibility(String billingResponsibility) { this.billingResponsibility = billingResponsibility; }
+    public BigDecimal getBillingPartyAmount() { return billingPartyAmount; }
+    public void setBillingPartyAmount(BigDecimal billingPartyAmount) { this.billingPartyAmount = billingPartyAmount; }
 }

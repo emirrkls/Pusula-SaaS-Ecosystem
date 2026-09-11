@@ -73,9 +73,12 @@
 
       <FlowPane fx:id="financialSummary" managed="false" hgap="12.0" vgap="10.0" styleClass="ticket-financial-summary" visible="false">
          <children>
+            <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="%ticket.financial.parts"/><Label fx:id="lblPartsTotal" styleClass="ticket-summary-value"/></VBox>
+            <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="%ticket.financial.labor"/><Label fx:id="lblLaborFee" styleClass="ticket-summary-value"/></VBox>
             <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="Fiş Toplamı"/><Label fx:id="lblInvoiceTotal" styleClass="ticket-summary-value"/></VBox>
             <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="Tahsil Edilen"/><Label fx:id="lblCollectedAmount" styleClass="ticket-summary-value-success"/></VBox>
-            <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="Cariye Aktarılan"/><Label fx:id="lblOutstandingAmount" styleClass="ticket-summary-value-warning"/></VBox>
+            <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="%ticket.financial.customer_current"/><Label fx:id="lblOutstandingAmount" styleClass="ticket-summary-value-warning"/></VBox>
+            <VBox styleClass="ticket-summary-card"><Label fx:id="lblBillingPartyAmountTitle" styleClass="field-label" text="%ticket.financial.organization"/><Label fx:id="lblBillingPartyAmount" styleClass="ticket-summary-value-warning"/></VBox>
             <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="Ödeme Yöntemi"/><Label fx:id="lblPaymentMethod" styleClass="ticket-summary-value"/></VBox>
             <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="Kapanış Tarihi"/><Label fx:id="lblCompletionDate" styleClass="ticket-summary-value"/></VBox>
          </children>

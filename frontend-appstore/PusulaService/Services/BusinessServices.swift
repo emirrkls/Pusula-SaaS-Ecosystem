@@ -76,6 +76,10 @@ enum FinanceService {
         try await NetworkManager.shared.downloadData("/api/reports/open-current-accounts/pdf")
     }
 
+    static func downloadCurrentAccountStatementPDF(accountId: Int) async throws -> Data {
+        try await NetworkManager.shared.downloadData("/api/reports/current-accounts/\(accountId)/pdf")
+    }
+
     static func getCompanyDebts() async throws -> [CompanyDebtDTO] {
         try await NetworkManager.shared.get("/api/company-debts")
     }

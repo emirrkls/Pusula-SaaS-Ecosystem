@@ -217,6 +217,41 @@ class ServiceTicketCompletionTest {
     }
 
     @Test
+    void splitBillingCollectsCustomerShareAndPostsOnlyInstitutionShareToOrganization() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = openTicket(100L, 10L, null);
+        ticket.setCustomerId(20L);
+        Customer customer = Customer.builder().id(20L).companyId(10L).name("Müşteri").build();
+        AccountParty organization = AccountParty.builder().id(90L).companyId(10L)
+                .partyType(AccountParty.PartyType.ORGANIZATION).displayName("Termodinamik")
+                .normalizedName("termodinamik").active(true).build();
+        CurrentAccount organizationAccount = CurrentAccount.builder().id(91L).companyId(10L).party(organization)
+                .balance(BigDecimal.ZERO).build();
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
+        when(accountPartyService.getEntity(10L, 90L)).thenReturn(organization);
+        when(currentAccountRepository.findByPartyIdAndCompanyId(90L, 10L))
+                .thenReturn(Optional.of(organizationAccount));
+        when(currentAccountRepository.save(any(CurrentAccount.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.completeService(100L, new BigDecimal("500.00"), new BigDecimal("1000.00"),
+                PaymentMethod.CASH, null, 90L, "SPLIT", new BigDecimal("1000.00"));
+
+        assertEquals(new BigDecimal("1500.00"), ticket.getInvoiceTotal());
+        assertEquals(new BigDecimal("500.00"), ticket.getCollectedAmount());
+        assertEquals(new BigDecimal("1000.00"), ticket.getBillingPartyAmount());
+        assertEquals(new BigDecimal("1000.00"), ticket.getOutstandingAmount());
+        assertEquals(ServiceTicket.BillingResponsibility.SPLIT, ticket.getBillingResponsibility());
+        assertEquals(new BigDecimal("1000.00"), organizationAccount.getBalance());
+        verify(currentAccountLedgerService).record(eq(organizationAccount),
+                eq(com.pusula.backend.entity.CurrentAccountTransaction.TransactionType.CHARGE),
+                eq(new BigDecimal("1000.00")), any(LocalDate.class), contains("Hizmet alan müşteri"),
+                eq(PaymentMethod.CASH), eq("SERVICE_TICKET"), eq(100L));
+        verify(currentAccountRepository, never()).findByCustomerIdAndCompanyId(20L, 10L);
+    }
+
+    @Test
     void legacyCurrentAccountClientKeepsInvoiceFallbackWithoutRecordingCash() {
         authenticate(1L, 10L, "COMPANY_ADMIN");
         ServiceTicket ticket = openTicket(100L, 10L, null);

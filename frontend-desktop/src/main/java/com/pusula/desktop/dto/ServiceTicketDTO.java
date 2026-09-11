@@ -36,6 +36,7 @@ public class ServiceTicketDTO {
     private Long billingPartyId;
     private String billingPartyName;
     private String billingResponsibility;
+    private BigDecimal billingPartyAmount;
 
     // Getters and Setters
     public Long getId() {
@@ -162,6 +163,8 @@ public class ServiceTicketDTO {
     public void setBillingPartyName(String billingPartyName) { this.billingPartyName = billingPartyName; }
     public String getBillingResponsibility() { return billingResponsibility; }
     public void setBillingResponsibility(String billingResponsibility) { this.billingResponsibility = billingResponsibility; }
+    public BigDecimal getBillingPartyAmount() { return billingPartyAmount; }
+    public void setBillingPartyAmount(BigDecimal billingPartyAmount) { this.billingPartyAmount = billingPartyAmount; }
 
     public BigDecimal getCollectedAmount() {
         return collectedAmount;

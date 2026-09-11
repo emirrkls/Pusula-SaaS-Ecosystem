@@ -102,6 +102,7 @@ struct TicketDetailView: View {
                 }
                 
                 partsSection
+                if currentTicket.statusEnum == .completed { financialSummarySection }
                 technicianNotesSection
                 timelineSection
                 
@@ -428,12 +429,40 @@ struct TicketDetailView: View {
         .pusulaCard()
     }
 
+    private var financialSummarySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Ücret ve Tahsilat Özeti", systemImage: "creditcard")
+                .font(.subheadline.weight(.semibold))
+            financialRow("Kullanılan malzemeler", currentTicket.partsTotal ?? totalPartsValue)
+            financialRow("İşçilik / servis", currentTicket.laborFee ?? 0)
+            Divider()
+            financialRow("Fiş toplamı", currentTicket.invoiceTotal ?? ((currentTicket.partsTotal ?? totalPartsValue) + (currentTicket.laborFee ?? 0)), emphasized: true)
+            financialRow("Müşteriden tahsil edilen", currentTicket.collectedAmount ?? 0, color: .green)
+            if let amount = currentTicket.billingPartyAmount, amount > 0 {
+                financialRow("\(currentTicket.billingPartyName ?? "Kurum") carisine aktarılan", amount, color: .orange)
+            }
+            let customerDebt = max(0, (currentTicket.outstandingAmount ?? 0) - (currentTicket.billingPartyAmount ?? 0))
+            if customerDebt > 0 { financialRow("Müşteri carisine aktarılan", customerDebt, color: .orange) }
+        }
+        .pusulaCard()
+    }
+
+    private func financialRow(_ title: String, _ amount: Double, emphasized: Bool = false, color: Color = .primary) -> some View {
+        HStack {
+            Text(title).font(emphasized ? .subheadline.weight(.semibold) : .subheadline)
+            Spacer()
+            Text(formatCurrency(amount)).font(emphasized ? .headline : .subheadline.weight(.semibold)).foregroundStyle(color)
+        }
+    }
+
     private var technicianNotesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Teknisyen Notları", systemImage: "note.text")
                 .font(.subheadline.weight(.semibold))
             if technicianNotes.isEmpty {
-                Text("Henüz teknisyen notu eklenmemiş")
+                Text(currentTicket.statusEnum == .completed
+                     ? "Bu servis kapatılırken teknisyen notu girilmemiş."
+                     : "Henüz teknisyen notu eklenmemiş")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {

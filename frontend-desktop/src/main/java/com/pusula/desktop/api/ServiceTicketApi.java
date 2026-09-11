@@ -15,6 +15,9 @@ public interface ServiceTicketApi {
     @GET("api/tickets")
     Call<List<ServiceTicketDTO>> getAllTickets();
 
+    @GET("api/tickets/{id}")
+    Call<ServiceTicketDTO> getTicketById(@Path("id") Long id);
+
     @GET("api/tickets/customer/{customerId}")
     Call<List<ServiceTicketDTO>> getCustomerTickets(@Path("customerId") Long customerId);
 

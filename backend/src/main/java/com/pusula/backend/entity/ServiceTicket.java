@@ -114,6 +114,9 @@ public class ServiceTicket extends BaseEntity {
     @Column(name = "billing_responsibility", length = 32)
     private BillingResponsibility billingResponsibility;
 
+    @Column(name = "billing_party_amount", precision = 14, scale = 2)
+    private BigDecimal billingPartyAmount;
+
     public ServiceTicket() {
     }
 
@@ -359,8 +362,10 @@ public class ServiceTicket extends BaseEntity {
     public void setBillingResponsibility(BillingResponsibility billingResponsibility) {
         this.billingResponsibility = billingResponsibility;
     }
+    public BigDecimal getBillingPartyAmount() { return billingPartyAmount; }
+    public void setBillingPartyAmount(BigDecimal billingPartyAmount) { this.billingPartyAmount = billingPartyAmount; }
 
-    public enum BillingResponsibility { CUSTOMER, ORGANIZATION, INTERNAL }
+    public enum BillingResponsibility { CUSTOMER, ORGANIZATION, INTERNAL, SPLIT }
 
     public enum TicketStatus {
         PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED

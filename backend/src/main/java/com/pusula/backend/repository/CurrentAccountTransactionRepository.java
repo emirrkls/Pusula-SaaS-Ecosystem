@@ -7,4 +7,7 @@ import java.util.List;
 public interface CurrentAccountTransactionRepository extends JpaRepository<CurrentAccountTransaction, Long> {
     List<CurrentAccountTransaction> findByCurrentAccountIdAndCompanyIdOrderByEffectiveDateAscCreatedAtAscIdAsc(
             Long currentAccountId, Long companyId);
+
+    List<CurrentAccountTransaction> findByCompanyIdAndSourceTypeAndSourceIdOrderByIdAsc(
+            Long companyId, String sourceType, Long sourceId);
 }

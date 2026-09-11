@@ -104,10 +104,14 @@ public class TicketDetailsController {
     private Button btnWhatsApp;
     @FXML private FlowPane financialSummary;
     @FXML private Label lblInvoiceTotal;
+    @FXML private Label lblPartsTotal;
+    @FXML private Label lblLaborFee;
     @FXML private Label lblCollectedAmount;
     @FXML private Label lblOutstandingAmount;
     @FXML private Label lblPaymentMethod;
     @FXML private Label lblCompletionDate;
+    @FXML private Label lblBillingPartyAmount;
+    @FXML private Label lblBillingPartyAmountTitle;
 
     private java.util.ResourceBundle resourceBundle;
 
@@ -493,9 +497,19 @@ public class TicketDetailsController {
         financialSummary.setVisible(isCompleted);
         financialSummary.setManaged(isCompleted);
         if (isCompleted) {
+            lblPartsTotal.setText(formatMoney(currentTicket.getPartsTotal()));
+            lblLaborFee.setText(formatMoney(currentTicket.getLaborFee()));
             lblInvoiceTotal.setText(formatMoney(currentTicket.getInvoiceTotal()));
             lblCollectedAmount.setText(formatMoney(currentTicket.getCollectedAmount()));
-            lblOutstandingAmount.setText(formatMoney(currentTicket.getOutstandingAmount()));
+            BigDecimal institutionAmount = currentTicket.getBillingPartyAmount() != null
+                    ? currentTicket.getBillingPartyAmount() : BigDecimal.ZERO;
+            BigDecimal totalOutstanding = currentTicket.getOutstandingAmount() != null
+                    ? currentTicket.getOutstandingAmount() : BigDecimal.ZERO;
+            lblOutstandingAmount.setText(formatMoney(totalOutstanding.subtract(institutionAmount).max(BigDecimal.ZERO)));
+            lblBillingPartyAmount.setText(formatMoney(institutionAmount));
+            lblBillingPartyAmountTitle.setText(currentTicket.getBillingPartyName() != null
+                    ? currentTicket.getBillingPartyName() + " Carisine Aktarılan"
+                    : resourceBundle.getString("ticket.financial.organization"));
             lblPaymentMethod.setText(paymentMethodLabel(currentTicket.getPaymentMethod()));
             LocalDateTime completedAt = currentTicket.getCompletedAt();
             lblCompletionDate.setText(completedAt != null
@@ -1497,7 +1511,10 @@ public class TicketDetailsController {
         grid.add(outstandingLabel, 1, 4);
         grid.add(new Label(resourceBundle.getString("payment.method") + ":"), 0, 5);
         grid.add(paymentCombo, 1, 5);
-        CheckBox institutionalWarranty = new CheckBox("Anlaşmalı kurum ödeyecek");
+        CheckBox institutionalWarranty = new CheckBox(resourceBundle.getString("service.complete.organization.toggle"));
+        CurrencyTextField billingPartyAmountField = new CurrencyTextField();
+        billingPartyAmountField.setPromptText(resourceBundle.getString("service.complete.organization.amount.prompt"));
+        billingPartyAmountField.setDisable(true);
         ComboBox<AccountPartyOptionDTO> billingPartyCombo = new ComboBox<>();
         billingPartyCombo.setPromptText("Kurumlar yükleniyor…");
         billingPartyCombo.setMaxWidth(Double.MAX_VALUE);
@@ -1512,19 +1529,21 @@ public class TicketDetailsController {
         grid.add(institutionalWarranty, 1, 6);
         grid.add(new Label("Ödemeyi üstlenen kurum:"), 0, 7);
         grid.add(billingPartyBox, 1, 7);
-        Label billingPartyHint = new Label("Kurum ödemeli işlerde tutar, seçilen kurumun cari hesabına aktarılır.");
+        grid.add(new Label(resourceBundle.getString("service.complete.organization.amount") + ":"), 0, 8);
+        grid.add(billingPartyAmountField, 1, 8);
+        Label billingPartyHint = new Label(resourceBundle.getString("service.complete.organization.hint"));
         billingPartyHint.setWrapText(true);
         billingPartyHint.getStyleClass().add("section-caption");
-        grid.add(billingPartyHint, 1, 8);
+        grid.add(billingPartyHint, 1, 9);
         TextArea technicianNoteField = new TextArea();
         technicianNoteField.setPromptText("Yapılan işlem / kapanış notu");
         technicianNoteField.setWrapText(true);
         technicianNoteField.setPrefRowCount(3);
-        grid.add(new Label("Kapanış notu:"), 0, 9);
-        grid.add(technicianNoteField, 1, 9);
+        grid.add(new Label("Kapanış notu:"), 0, 10);
+        grid.add(technicianNoteField, 1, 10);
         if (com.pusula.desktop.util.SessionManager.isAdmin()) {
-            grid.add(new Label(resourceBundle.getString("dialog.complete.date") + ":"), 0, 10);
-            grid.add(completionDatePicker, 1, 10);
+            grid.add(new Label(resourceBundle.getString("dialog.complete.date") + ":"), 0, 11);
+            grid.add(completionDatePicker, 1, 11);
         }
 
         RetrofitClient.getClient().create(AccountPartyApi.class).getBillingOptions().enqueue(
@@ -1615,7 +1634,10 @@ public class TicketDetailsController {
                 collectedField.setRawValue(BigDecimal.ZERO);
             }
             BigDecimal collected = collectedField.getRawValue();
-            BigDecimal outstanding = invoiceTotal.subtract(collected).max(BigDecimal.ZERO);
+            BigDecimal institutionAmount = institutionalWarranty.isSelected()
+                    ? billingPartyAmountField.getRawValue() : BigDecimal.ZERO;
+            BigDecimal customerShare = invoiceTotal.subtract(institutionAmount).max(BigDecimal.ZERO);
+            BigDecimal outstanding = customerShare.subtract(collected).max(BigDecimal.ZERO);
             invoiceTotalLabel.setText(formatMoney(invoiceTotal));
             outstandingLabel.setText(formatMoney(outstanding));
         };
@@ -1628,11 +1650,11 @@ public class TicketDetailsController {
             updateTotals.run();
         });
         collectedField.textProperty().addListener((observable, oldValue, newValue) -> updateTotals.run());
+        billingPartyAmountField.textProperty().addListener((observable, oldValue, newValue) -> updateTotals.run());
         paymentCombo.valueProperty().addListener((observable, oldValue, newValue) -> {
             boolean currentAccount = newValue.equals(resourceBundle.getString("payment.current_account"));
             boolean warranty = newValue.equals(resourceBundle.getString("payment.warranty"));
             institutionalWarranty.setDisable(false);
-            if (!warranty) institutionalWarranty.setSelected(false);
             laborFeeField.setDisable(warranty && !institutionalWarranty.isSelected());
             if (warranty && !institutionalWarranty.isSelected()) laborFeeField.setRawValue(BigDecimal.ZERO);
             collectedField.setDisable(currentAccount || warranty);
@@ -1642,11 +1664,19 @@ public class TicketDetailsController {
             updateTotals.run();
         });
         institutionalWarranty.selectedProperty().addListener((observable, oldValue, selected) -> {
-            if (selected && !paymentCombo.getValue().equals(resourceBundle.getString("payment.warranty"))) {
-                paymentCombo.setValue(resourceBundle.getString("payment.warranty"));
-            }
             boolean warranty = paymentCombo.getValue().equals(resourceBundle.getString("payment.warranty"));
-            billingPartyCombo.setDisable(!warranty || !selected);
+            billingPartyCombo.setDisable(!selected);
+            billingPartyAmountField.setDisable(!selected);
+            if (selected) {
+                billingPartyAmountField.setRawValue(partsTotal.add(laborFeeField.getRawValue()));
+                collectedField.setRawValue(BigDecimal.ZERO);
+            } else {
+                billingPartyAmountField.setRawValue(BigDecimal.ZERO);
+                billingPartyCombo.setValue(null);
+                if (!warranty && !paymentCombo.getValue().equals(resourceBundle.getString("payment.current_account"))) {
+                    collectedField.setRawValue(partsTotal.add(laborFeeField.getRawValue()));
+                }
+            }
             laborFeeField.setDisable(warranty && !selected);
             if (warranty && !selected) laborFeeField.setRawValue(BigDecimal.ZERO);
             updateTotals.run();
@@ -1678,6 +1708,7 @@ public class TicketDetailsController {
                 result.put("technicianNote", technicianNoteField.getText());
                 result.put("institutionalWarranty", institutionalWarranty.isSelected());
                 result.put("billingParty", billingPartyCombo.getValue());
+                result.put("billingPartyAmount", billingPartyAmountField.getRawValue());
                 if (com.pusula.desktop.util.SessionManager.isAdmin()) {
                     result.put("completionDate", completionDatePicker.getValue());
                 }
@@ -1693,15 +1724,24 @@ public class TicketDetailsController {
                 String paymentMethodDisplay = result.get("paymentMethod").toString();
                 boolean billedToInstitution = Boolean.TRUE.equals(result.get("institutionalWarranty"));
                 AccountPartyOptionDTO billingParty = (AccountPartyOptionDTO) result.get("billingParty");
+                BigDecimal billingPartyAmount = (BigDecimal) result.get("billingPartyAmount");
                 if (billedToInstitution && billingParty == null) {
                     AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                            "Kurum seçilmedi", "Garanti bedelinin aktarılacağı kurum/firma cari kartını seçin.");
+                            "Kurum seçilmedi", "Tutarın aktarılacağı kurum/firma cari kartını seçin.");
                     return;
                 }
                 BigDecimal invoiceTotal = partsTotal.add(laborFee);
-                if (collectedAmount.compareTo(invoiceTotal) > 0) {
+                if (billedToInstitution && (billingPartyAmount.signum() <= 0
+                        || billingPartyAmount.compareTo(invoiceTotal) > 0)) {
                     AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                            "Geçersiz tahsilat", "Tahsil edilen tutar fiş toplamını aşamaz.");
+                            "Geçersiz kurum payı", "Kurum payı sıfırdan büyük ve fiş toplamını aşmayacak şekilde girilmelidir.");
+                    return;
+                }
+                BigDecimal customerShare = invoiceTotal.subtract(billedToInstitution
+                        ? billingPartyAmount : BigDecimal.ZERO);
+                if (collectedAmount.compareTo(customerShare) > 0) {
+                    AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                            "Geçersiz tahsilat", "Tahsil edilen tutar müşteriye düşen kısmı aşamaz.");
                     return;
                 }
 
@@ -1715,6 +1755,11 @@ public class TicketDetailsController {
                     paymentMethod = "WARRANTY";
                     if (!billedToInstitution) laborFee = BigDecimal.ZERO;
                     collectedAmount = BigDecimal.ZERO;
+                    if (billedToInstitution && billingPartyAmount.compareTo(invoiceTotal) != 0) {
+                        AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
+                                "Garanti dağılımı geçersiz", "Garanti yönteminde fiş toplamının tamamı kuruma aktarılmalıdır.");
+                        return;
+                    }
                 }
 
                 // Create request body as Map
@@ -1723,9 +1768,13 @@ public class TicketDetailsController {
                 requestBody.put("collectedAmount", collectedAmount);
                 requestBody.put("paymentMethod", paymentMethod);
                 requestBody.put("technicianNote", result.get("technicianNote"));
-                requestBody.put("billingResponsibility", billedToInstitution ? "ORGANIZATION"
+                requestBody.put("billingResponsibility", billedToInstitution
+                        ? (billingPartyAmount.compareTo(invoiceTotal) == 0 ? "ORGANIZATION" : "SPLIT")
                         : "WARRANTY".equals(paymentMethod) ? "INTERNAL" : "CUSTOMER");
-                if (billingParty != null) requestBody.put("billingPartyId", billingParty.getId());
+                if (billingParty != null) {
+                    requestBody.put("billingPartyId", billingParty.getId());
+                    requestBody.put("billingPartyAmount", billingPartyAmount);
+                }
                 if (result.get("completionDate") != null) {
                     requestBody.put("completionDate", result.get("completionDate").toString());
                 }

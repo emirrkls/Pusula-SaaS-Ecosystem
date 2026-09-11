@@ -38,6 +38,7 @@ public class ServiceTicketDTO {
     private Long billingPartyId;
     private String billingPartyName;
     private String billingResponsibility;
+    private BigDecimal billingPartyAmount;
     // Enriched fields for mobile technician view
     private String customerPhone;
     private String customerAddress;
@@ -238,6 +239,8 @@ public class ServiceTicketDTO {
     public void setBillingPartyName(String billingPartyName) { this.billingPartyName = billingPartyName; }
     public String getBillingResponsibility() { return billingResponsibility; }
     public void setBillingResponsibility(String billingResponsibility) { this.billingResponsibility = billingResponsibility; }
+    public BigDecimal getBillingPartyAmount() { return billingPartyAmount; }
+    public void setBillingPartyAmount(BigDecimal billingPartyAmount) { this.billingPartyAmount = billingPartyAmount; }
 
     public String getCustomerPhone() { return customerPhone; }
     public void setCustomerPhone(String customerPhone) { this.customerPhone = customerPhone; }

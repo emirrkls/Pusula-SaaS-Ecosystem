@@ -359,6 +359,9 @@ struct CurrentAccountHistorySheet: View {
     @State private var isLoading = true
     @State private var showPaySheet = false
     @State private var errorMessage: String?
+    @State private var selectedTicket: FieldTicketDTO?
+    @State private var pdfPreview: PDFPreviewItem?
+    @State private var isOpeningTicket = false
 
     var body: some View {
         NavigationStack {
@@ -374,7 +377,15 @@ struct CurrentAccountHistorySheet: View {
                         ContentUnavailableView("Cari hareket bulunamadı", systemImage: "clock.arrow.circlepath")
                     } else {
                         ForEach(history?.transactions ?? []) { transaction in
-                            currentAccountTransactionRow(transaction)
+                            if transaction.sourceType == "SERVICE_TICKET", transaction.sourceId != nil {
+                                Button { Task { await openTicket(transaction) } } label: {
+                                    currentAccountTransactionRow(transaction, showsDisclosure: true)
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(isOpeningTicket)
+                            } else {
+                                currentAccountTransactionRow(transaction)
+                            }
                         }
                     }
                 }
@@ -384,9 +395,12 @@ struct CurrentAccountHistorySheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Kapat") { dismiss() } }
                 ToolbarItem(placement: .primaryAction) {
-                    Button { showPaySheet = true } label: { Label("Tahsilat", systemImage: "banknote") }
-                        .disabled((history?.currentBalance ?? account.balance ?? 0) <= 0)
-                        .readOnlyProtected()
+                    Menu {
+                        Button { showPaySheet = true } label: { Label("Tahsilat Gir", systemImage: "banknote") }
+                            .disabled((history?.currentBalance ?? account.balance ?? 0) <= 0)
+                            .readOnlyProtected()
+                        Button { Task { await downloadStatement() } } label: { Label("Cari Ekstre PDF", systemImage: "arrow.down.doc") }
+                    } label: { Image(systemName: "ellipsis.circle") }
                 }
             }
             .task { await loadHistory() }
@@ -397,6 +411,10 @@ struct CurrentAccountHistorySheet: View {
                     await loadHistory()
                 }
             }
+            .sheet(item: $selectedTicket) { ticket in
+                NavigationStack { TicketDetailView(ticket: ticket, isAdmin: true, onComplete: {}) }
+            }
+            .sheet(item: $pdfPreview) { PDFPreviewSheet(item: $0) }
             .alert("Cari Geçmişi Yüklenemedi", isPresented: Binding(
                 get: { errorMessage != nil },
                 set: { if !$0 { errorMessage = nil } }
@@ -429,9 +447,28 @@ struct CurrentAccountHistorySheet: View {
         do { history = try await FinanceService.getCurrentAccountHistory(accountId: accountId) }
         catch { errorMessage = error.localizedDescription }
     }
+
+    private func openTicket(_ transaction: CurrentAccountTransactionDTO) async {
+        guard let ticketId = transaction.sourceId else { return }
+        isOpeningTicket = true
+        defer { isOpeningTicket = false }
+        do { selectedTicket = try await TicketService.getTicket(id: ticketId) }
+        catch { errorMessage = "İş emri detayı açılamadı: \(error.localizedDescription)" }
+    }
+
+    private func downloadStatement() async {
+        guard let accountId = account.id else { return }
+        do {
+            pdfPreview = try PDFPreviewItem(
+                data: try await FinanceService.downloadCurrentAccountStatementPDF(accountId: accountId),
+                fileName: "cari-ekstre-\(accountId).pdf",
+                title: "Cari Hesap Ekstresi"
+            )
+        } catch { errorMessage = error.localizedDescription }
+    }
 }
 
-private func currentAccountTransactionRow(_ transaction: CurrentAccountTransactionDTO) -> some View {
+private func currentAccountTransactionRow(_ transaction: CurrentAccountTransactionDTO, showsDisclosure: Bool = false) -> some View {
     HStack(alignment: .top, spacing: 12) {
         Image(systemName: currentAccountTransactionIcon(transaction.type))
             .foregroundStyle(transaction.amount >= 0 ? Color.orange : Color.green)
@@ -458,6 +495,7 @@ private func currentAccountTransactionRow(_ transaction: CurrentAccountTransacti
             Text("Bakiye \(formatCurrency(transaction.balanceAfter))")
                 .font(.caption2).foregroundStyle(.secondary)
         }
+        if showsDisclosure { Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary) }
     }
     .padding(.vertical, 4)
 }

@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.pusula.backend.entity.AuditLog;
 import com.pusula.backend.entity.User;
+import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.repository.AuditLogRepository;
+import com.pusula.backend.repository.ServiceTicketRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +15,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +24,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Comparator;
 
 @Service
 public class AuditLogService {
@@ -30,6 +35,9 @@ public class AuditLogService {
     private final AuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
     private final FeatureService featureService;
+
+    @Autowired
+    private ServiceTicketRepository serviceTicketRepository;
 
     public AuditLogService(AuditLogRepository auditLogRepository, FeatureService featureService) {
         this.auditLogRepository = auditLogRepository;
@@ -43,7 +51,6 @@ public class AuditLogService {
     /**
      * Log an action with Object serialization for before/after comparison
      */
-    @Async
     @Transactional
     public void logChange(String actionType, String entityType, Long entityId,
             String description, Object oldObj, Object newObj) {
@@ -93,7 +100,6 @@ public class AuditLogService {
     /**
      * Log an action asynchronously
      */
-    @Async
     @Transactional
     public void log(String actionType, String entityType, Long entityId, String description) {
         log(actionType, entityType, entityId, description, null, null);
@@ -102,7 +108,6 @@ public class AuditLogService {
     /**
      * Log an action with before/after values asynchronously
      */
-    @Async
     @Transactional
     public void log(String actionType, String entityType, Long entityId, String description,
             String oldValue, String newValue) {
@@ -195,10 +200,49 @@ public class AuditLogService {
      */
     public List<AuditLog> getTicketTimeline(Long companyId, Long ticketId) {
         LocalDateTime cutoff = retentionCutoff(companyId);
-        return auditLogRepository.findByCompanyIdAndEntityTypeAndEntityIdOrderByTimestampAsc(
+        List<AuditLog> timeline = new ArrayList<>(auditLogRepository.findByCompanyIdAndEntityTypeAndEntityIdOrderByTimestampAsc(
                 companyId, "TICKET", ticketId).stream()
                 .filter(log -> cutoff == null || !log.getTimestamp().isBefore(cutoff))
-                .toList();
+                .toList());
+
+        if (serviceTicketRepository != null) {
+            serviceTicketRepository.findById(ticketId)
+                    .filter(ticket -> companyId.equals(ticket.getCompanyId()))
+                    .ifPresent(ticket -> addLifecycleFallbacks(timeline, ticket));
+        }
+        timeline.sort(Comparator.comparing(AuditLog::getTimestamp));
+        return timeline;
+    }
+
+    private void addLifecycleFallbacks(List<AuditLog> timeline, ServiceTicket ticket) {
+        boolean hasCreate = timeline.stream().anyMatch(log -> "CREATE".equalsIgnoreCase(log.getActionType())
+                || containsIgnoreCase(log.getDescription(), "oluştur"));
+        if (!hasCreate && ticket.getCreatedAt() != null) {
+            timeline.add(systemTimeline(ticket, "CREATE", "İş emri oluşturuldu", ticket.getCreatedAt()));
+        }
+        if (ticket.getStatus() == ServiceTicket.TicketStatus.COMPLETED && ticket.getEffectiveCompletedAt() != null) {
+            boolean hasComplete = timeline.stream().anyMatch(log -> containsIgnoreCase(log.getDescription(), "tamamlan"));
+            if (!hasComplete) {
+                timeline.add(systemTimeline(ticket, "COMPLETE", "Servis tamamlandı", ticket.getEffectiveCompletedAt()));
+            }
+        } else if (ticket.getStatus() == ServiceTicket.TicketStatus.CANCELLED && ticket.getUpdatedAt() != null) {
+            boolean hasCancel = timeline.stream().anyMatch(log -> containsIgnoreCase(log.getDescription(), "iptal"));
+            if (!hasCancel) {
+                timeline.add(systemTimeline(ticket, "CANCEL", "İş emri iptal edildi", ticket.getUpdatedAt()));
+            }
+        }
+    }
+
+    private AuditLog systemTimeline(ServiceTicket ticket, String action, String description, LocalDateTime time) {
+        AuditLog log = new AuditLog(ticket.getCompanyId(), 0L, "Sistem", action,
+                "TICKET", ticket.getId(), description);
+        log.setTimestamp(time);
+        return log;
+    }
+
+    private boolean containsIgnoreCase(String value, String needle) {
+        return value != null && value.toLowerCase(java.util.Locale.ROOT)
+                .contains(needle.toLowerCase(java.util.Locale.ROOT));
     }
 
     /**

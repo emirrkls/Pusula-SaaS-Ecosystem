@@ -19,6 +19,7 @@ import com.pusula.backend.entity.ServiceTicketReschedule;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.event.TicketAssignedEvent;
 import com.pusula.backend.repository.CurrentAccountRepository;
+import com.pusula.backend.repository.CurrentAccountTransactionRepository;
 import com.pusula.backend.repository.AccountPartyRepository;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.InventoryRepository;
@@ -101,6 +102,9 @@ public class ServiceTicketService {
     private final UploadUrlSigner uploadUrlSigner;
     private final CurrentAccountLedgerService currentAccountLedgerService;
     private final AdminNotificationService adminNotificationService;
+
+    @Autowired
+    private CurrentAccountTransactionRepository currentAccountTransactionRepository;
 
     @Autowired(required = false)
     private AccountPartyService accountPartyService;
@@ -615,27 +619,50 @@ public class ServiceTicketService {
             throw new IllegalStateException("Yalnızca tamamlanmış normal servis fişleri yeniden açılabilir.");
         }
 
-        BigDecimal previousOutstanding = ticket.getOutstandingAmount() != null
-                ? ticket.getOutstandingAmount().max(BigDecimal.ZERO)
-                : (ticket.getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT
-                        ? ticket.getEffectiveInvoiceTotal().max(BigDecimal.ZERO)
-                        : BigDecimal.ZERO);
-        if (previousOutstanding.signum() > 0) {
-            CurrentAccount account = currentAccountRepository
-                    .findByCustomerIdAndCompanyIdForUpdate(ticket.getCustomerId(), ticket.getCompanyId())
-                    .orElseThrow(() -> new IllegalStateException(
-                            "Fişin oluşturduğu cari borç bulunamadığı için güvenli biçimde yeniden açılamıyor."));
-            BigDecimal balance = account.getBalance() != null ? account.getBalance() : BigDecimal.ZERO;
-            if (balance.compareTo(previousOutstanding) < 0) {
+        Map<Long, BigDecimal> accountDebts = new HashMap<>();
+        Map<Long, CurrentAccount> preloadedAccounts = new HashMap<>();
+        if (currentAccountTransactionRepository != null) {
+            accountDebts.putAll(currentAccountTransactionRepository
+                    .findByCompanyIdAndSourceTypeAndSourceIdOrderByIdAsc(
+                            ticket.getCompanyId(), "SERVICE_TICKET", ticket.getId()).stream()
+                    .collect(Collectors.groupingBy(CurrentAccountTransaction::getCurrentAccountId,
+                            Collectors.reducing(BigDecimal.ZERO, CurrentAccountTransaction::getAmount, BigDecimal::add))));
+        }
+        if (accountDebts.isEmpty()) {
+            BigDecimal legacyOutstanding = valueOrZero(ticket.getOutstandingAmount()).max(BigDecimal.ZERO);
+            if (legacyOutstanding.signum() == 0 && ticket.getPaymentMethod() == PaymentMethod.CURRENT_ACCOUNT) {
+                legacyOutstanding = ticket.getEffectiveInvoiceTotal().max(BigDecimal.ZERO);
+            }
+            Optional<CurrentAccount> legacyAccount = ticket.getBillingParty() != null
+                    ? currentAccountRepository.findByPartyIdAndCompanyId(
+                            ticket.getBillingParty().getId(), ticket.getCompanyId())
+                    : currentAccountRepository.findByCustomerIdAndCompanyIdForUpdate(
+                            ticket.getCustomerId(), ticket.getCompanyId());
+            BigDecimal amount = legacyOutstanding;
+            legacyAccount.ifPresent(account -> {
+                accountDebts.put(account.getId(), amount);
+                preloadedAccounts.put(account.getId(), account);
+            });
+        }
+        for (Map.Entry<Long, BigDecimal> entry : accountDebts.entrySet()) {
+            BigDecimal amountToReverse = entry.getValue().max(BigDecimal.ZERO);
+            if (amountToReverse.signum() == 0) continue;
+            CurrentAccount account = preloadedAccounts.containsKey(entry.getKey())
+                    ? preloadedAccounts.get(entry.getKey())
+                    : currentAccountRepository.findByIdAndCompanyIdForUpdate(entry.getKey(), ticket.getCompanyId())
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "Fişin oluşturduğu cari borç kartı bulunamadığı için güvenli biçimde yeniden açılamıyor."));
+            BigDecimal balance = valueOrZero(account.getBalance());
+            if (balance.compareTo(amountToReverse) < 0) {
                 throw new IllegalStateException(
                         "Bu fişin cari borcuna ödeme yapılmış. Cari bakiye düzeltilmeden fiş yeniden açılamaz.");
             }
-            account.setBalance(balance.subtract(previousOutstanding));
+            account.setBalance(balance.subtract(amountToReverse));
             currentAccountRepository.save(account);
             currentAccountLedgerService.record(account, CurrentAccountTransaction.TransactionType.REVERSAL,
-                    previousOutstanding.negate(), LocalDate.now(businessZone),
+                    amountToReverse.negate(), LocalDate.now(businessZone),
                     "Yeniden açılan servis fişi #" + ticket.getId(), null,
-                    "SERVICE_TICKET_REOPEN", ticket.getId());
+                    "SERVICE_TICKET", ticket.getId());
         }
 
         String previousStatus = getStatusInTurkish(ticket.getStatus());
@@ -1063,7 +1090,7 @@ public class ServiceTicketService {
     @Transactional
     public ServiceTicketDTO completeService(Long ticketId, BigDecimal collectedAmount, PaymentMethod paymentMethod,
             LocalDate requestedCompletionDate) {
-        return completeService(ticketId, collectedAmount, null, paymentMethod, requestedCompletionDate, null, null);
+        return completeService(ticketId, collectedAmount, null, paymentMethod, requestedCompletionDate, null, null, null);
     }
 
     public List<ServiceTicketDTO> getCustomerTickets(Long customerId) {
@@ -1079,13 +1106,21 @@ public class ServiceTicketService {
     @Transactional
     public ServiceTicketDTO completeService(Long ticketId, BigDecimal collectedAmount, BigDecimal laborFee,
             PaymentMethod paymentMethod, LocalDate requestedCompletionDate) {
-        return completeService(ticketId, collectedAmount, laborFee, paymentMethod, requestedCompletionDate, null, null);
+        return completeService(ticketId, collectedAmount, laborFee, paymentMethod, requestedCompletionDate, null, null, null);
     }
 
     @Transactional
     public ServiceTicketDTO completeService(Long ticketId, BigDecimal collectedAmount, BigDecimal laborFee,
             PaymentMethod paymentMethod, LocalDate requestedCompletionDate, Long billingPartyId,
             String requestedBillingResponsibility) {
+        return completeService(ticketId, collectedAmount, laborFee, paymentMethod, requestedCompletionDate,
+                billingPartyId, requestedBillingResponsibility, null);
+    }
+
+    @Transactional
+    public ServiceTicketDTO completeService(Long ticketId, BigDecimal collectedAmount, BigDecimal laborFee,
+            PaymentMethod paymentMethod, LocalDate requestedCompletionDate, Long billingPartyId,
+            String requestedBillingResponsibility, BigDecimal requestedBillingPartyAmount) {
         User currentUser = getCurrentUser();
         ServiceTicket ticket = repository.findById(ticketId)
                 .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
@@ -1132,8 +1167,6 @@ public class ServiceTicketService {
                 || billingParty.getPartyType() != AccountParty.PartyType.ORGANIZATION)) {
             throw new IllegalArgumentException("Ödemeyi üstlenen cari kart aktif bir kurum/firma olmalıdır.");
         }
-        ServiceTicket.BillingResponsibility billingResponsibility = parseBillingResponsibility(
-                requestedBillingResponsibility, billingParty, warrantyCompletion);
         boolean institutionalWarranty = warrantyCompletion && billingParty != null;
         boolean structuredPricingRequest = laborFee != null || warrantyCompletion;
 
@@ -1196,6 +1229,30 @@ public class ServiceTicketService {
             outstandingAmount = invoiceTotal.subtract(effectiveCollectedAmount);
         }
 
+        BigDecimal billingPartyAmount = BigDecimal.ZERO;
+        if (billingParty != null) {
+            billingPartyAmount = requestedBillingPartyAmount != null
+                    ? requestedBillingPartyAmount
+                    : outstandingAmount;
+            if (billingPartyAmount.signum() < 0 || billingPartyAmount.compareTo(invoiceTotal) > 0) {
+                throw new IllegalArgumentException("Kuruma aktarılacak tutar sıfır ile fiş toplamı arasında olmalıdır.");
+            }
+        } else if (requestedBillingPartyAmount != null && requestedBillingPartyAmount.signum() != 0) {
+            throw new IllegalArgumentException("Kuruma tutar aktarabilmek için kurum/firma cari kartı seçilmelidir.");
+        }
+        BigDecimal customerShare = invoiceTotal.subtract(billingPartyAmount);
+        if (effectiveCollectedAmount.compareTo(customerShare) > 0) {
+            throw new IllegalArgumentException("Müşteriden alınan tutar, müşteriye düşen kısmı aşamaz.");
+        }
+        BigDecimal customerOutstanding = customerShare.subtract(effectiveCollectedAmount).max(BigDecimal.ZERO);
+        outstandingAmount = billingPartyAmount.add(customerOutstanding);
+        ServiceTicket.BillingResponsibility billingResponsibility = billingPartyAmount.signum() == 0
+                ? (warrantyCompletion ? ServiceTicket.BillingResponsibility.INTERNAL
+                        : ServiceTicket.BillingResponsibility.CUSTOMER)
+                : (billingPartyAmount.compareTo(invoiceTotal) == 0
+                        ? ServiceTicket.BillingResponsibility.ORGANIZATION
+                        : ServiceTicket.BillingResponsibility.SPLIT);
+
         LocalDate businessToday = LocalDate.now(businessZone);
         if (requestedCompletionDate != null && !isAdmin(currentUser)) {
             throw new AccessDeniedException("Geçmiş kapanış tarihi yalnızca yöneticiler tarafından seçilebilir.");
@@ -1221,6 +1278,7 @@ public class ServiceTicketService {
         ticket.setPaymentMethod(effectivePaymentMethod);
         ticket.setBillingParty(billingParty);
         ticket.setBillingResponsibility(billingResponsibility);
+        ticket.setBillingPartyAmount(structuredPricingRequest ? billingPartyAmount : null);
         if (warrantyCompletion) {
             ticket.setWarrantyCall(true);
         }
@@ -1228,39 +1286,33 @@ public class ServiceTicketService {
         ticket.setCollectionDate(effectiveCollectedAmount.signum() > 0 ? completionDate : null);
 
         // Any unpaid portion becomes customer debt, including partial cash/card payments.
-        CurrentAccount debtAccount = null;
-        if (outstandingAmount.signum() > 0 && (billingParty != null || ticket.getCustomerId() != null)) {
-            // Fetch customer entity
-            Customer customer = billingParty == null ? customerRepository.findById(ticket.getCustomerId())
-                    .orElseThrow(() -> new RuntimeException("Customer not found")) : null;
-            CurrentAccount account = billingParty != null
-                    ? currentAccountRepository.findByPartyIdAndCompanyId(billingParty.getId(), ticket.getCompanyId())
-                            .orElseGet(() -> CurrentAccount.builder().companyId(ticket.getCompanyId())
-                                    .party(billingParty).balance(BigDecimal.ZERO).build())
-                    : currentAccountRepository.findByCustomerIdAndCompanyId(ticket.getCustomerId(), ticket.getCompanyId())
-                            .orElseGet(() -> {
-                        AccountParty customerParty = ensureCustomerBillingParty(customer);
-                        CurrentAccount newAccount = CurrentAccount.builder()
-                                .companyId(ticket.getCompanyId())
-                                .customer(customer)
-                                .party(customerParty)
-                                .balance(BigDecimal.ZERO)
-                                .build();
-                        return currentAccountRepository.save(newAccount);
-                    });
-
-            // ADD to debt (positive balance = customer owes us)
-            BigDecimal currentBalance = account.getBalance() != null ? account.getBalance() : BigDecimal.ZERO;
-            account.setBalance(currentBalance.add(outstandingAmount));
-            debtAccount = currentAccountRepository.save(account);
-        }
-
         ServiceTicket saved = saveNetworkAware(ticket);
-        if (debtAccount != null) {
-            currentAccountLedgerService.record(debtAccount, CurrentAccountTransaction.TransactionType.CHARGE,
-                    outstandingAmount, completionDate,
+        if (billingPartyAmount.signum() > 0) {
+            CurrentAccount institutionAccount = currentAccountRepository
+                    .findByPartyIdAndCompanyId(billingParty.getId(), ticket.getCompanyId())
+                    .orElseGet(() -> currentAccountRepository.save(CurrentAccount.builder()
+                            .companyId(ticket.getCompanyId()).party(billingParty).balance(BigDecimal.ZERO).build()));
+            institutionAccount.setBalance(valueOrZero(institutionAccount.getBalance()).add(billingPartyAmount));
+            institutionAccount = currentAccountRepository.save(institutionAccount);
+            currentAccountLedgerService.record(institutionAccount, CurrentAccountTransaction.TransactionType.CHARGE,
+                    billingPartyAmount, completionDate,
                     "Servis fişi #" + saved.getId() + " - " + saved.getDescription()
-                            + (billingParty != null ? " | Hizmet alan müşteri: " + customerDisplayName(saved) : ""),
+                            + " | Hizmet alan müşteri: " + customerDisplayName(saved),
+                    effectivePaymentMethod, "SERVICE_TICKET", saved.getId());
+        }
+        if (customerOutstanding.signum() > 0 && ticket.getCustomerId() != null) {
+            Customer customer = customerRepository.findById(ticket.getCustomerId())
+                    .orElseThrow(() -> new RuntimeException("Customer not found"));
+            CurrentAccount customerAccount = currentAccountRepository
+                    .findByCustomerIdAndCompanyId(ticket.getCustomerId(), ticket.getCompanyId())
+                    .orElseGet(() -> currentAccountRepository.save(CurrentAccount.builder()
+                            .companyId(ticket.getCompanyId()).customer(customer)
+                            .party(ensureCustomerBillingParty(customer)).balance(BigDecimal.ZERO).build()));
+            customerAccount.setBalance(valueOrZero(customerAccount.getBalance()).add(customerOutstanding));
+            customerAccount = currentAccountRepository.save(customerAccount);
+            currentAccountLedgerService.record(customerAccount, CurrentAccountTransaction.TransactionType.CHARGE,
+                    customerOutstanding, completionDate,
+                    "Servis fişi #" + saved.getId() + " - " + saved.getDescription(),
                     effectivePaymentMethod, "SERVICE_TICKET", saved.getId());
         }
         financeService.reconcileClosedDay(saved.getCompanyId(), completionDate);
@@ -1505,6 +1557,7 @@ public class ServiceTicketService {
         dto.setBillingPartyName(ticket.getBillingParty() != null ? ticket.getBillingParty().getDisplayName() : null);
         dto.setBillingResponsibility(ticket.getBillingResponsibility() != null
                 ? ticket.getBillingResponsibility().name() : null);
+        dto.setBillingPartyAmount(ticket.getBillingPartyAmount());
 
         return dto;
     }
@@ -1543,6 +1596,10 @@ public class ServiceTicketService {
     private String customerDisplayName(ServiceTicket ticket) {
         if (ticket.getCustomerId() == null) return "-";
         return customerRepository.findById(ticket.getCustomerId()).map(Customer::getName).orElse("-");
+    }
+
+    private BigDecimal valueOrZero(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 
     private AccountParty ensureCustomerBillingParty(Customer customer) {
