@@ -2818,6 +2818,36 @@
     -fx-min-width: 104;
 }
 
+/* Adaptive modal shell: form content scrolls independently while primary
+   actions remain visible at every supported screen size and DPI scale. */
+.adaptive-dialog-shell {
+    -fx-background-color: -pusula-surface;
+}
+
+.adaptive-dialog-scroll,
+.adaptive-dialog-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+}
+
+.adaptive-dialog-scroll {
+    -fx-padding: 0;
+    -fx-border-color: transparent;
+}
+
+.adaptive-dialog-shell > .dialog-action-bar {
+    -fx-min-height: 64;
+    -fx-padding: 12 24 18 24;
+    -fx-background-color: -pusula-surface;
+    -fx-border-color: -pusula-border transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
+.adaptive-dialog-shell > .dialog-action-bar .button {
+    -fx-min-width: 104;
+    -fx-min-height: 40;
+}
+
 .separator > .line {
     -fx-border-color: -pusula-border;
     -fx-border-width: 1 0 0 0;

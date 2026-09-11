@@ -3,6 +3,9 @@ package com.pusula.desktop.util;
 import atlantafx.base.theme.PrimerDark;
 import atlantafx.base.theme.PrimerLight;
 import javafx.application.Application;
+import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -10,13 +13,16 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.OverrunStyle;
-import javafx.scene.layout.Region;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.GridPane;
-import javafx.geometry.Rectangle2D;
+import javafx.scene.layout.Region;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -115,6 +121,7 @@ public final class ThemeHelper {
     /** Normalizes wrapping, action sizes and screen bounds after a dialog becomes visible. */
     public static void prepareVisibleDialog(Dialog<?> dialog, Window owner) {
         DialogPane pane = dialog.getDialogPane();
+        ensureScrollableDialogContent(pane);
         pane.applyCss();
 
         if (pane.lookup(".header-panel .label") instanceof Label header) {
@@ -150,12 +157,14 @@ public final class ThemeHelper {
         double maxWidth = Math.max(420, bounds.getWidth() - 48);
         double maxHeight = Math.max(320, bounds.getHeight() - 48);
         stage.sizeToScene();
+        double preferredWidth = stage.getWidth();
+        double preferredHeight = stage.getHeight();
         Object configuredProfile = pane.getProperties().get("pusula.dialog.profile");
         if (configuredProfile instanceof DialogProfile profile) {
             stage.setMinWidth(Math.min(profile.minWidth, maxWidth));
             stage.setMinHeight(Math.min(profile.minHeight, maxHeight));
-            stage.setWidth(Math.min(profile.width, maxWidth));
-            stage.setHeight(Math.min(profile.height, maxHeight));
+            stage.setWidth(Math.min(Math.max(profile.width, preferredWidth), maxWidth));
+            stage.setHeight(Math.min(Math.max(profile.height, preferredHeight), maxHeight));
             stage.setResizable(true);
         }
         stage.setMaxWidth(maxWidth);
@@ -179,12 +188,19 @@ public final class ThemeHelper {
         Rectangle2D bounds = boundsFor(owner == null ? stage : owner);
         double maxWidth = Math.max(420, bounds.getWidth() - 48);
         double maxHeight = Math.max(320, bounds.getHeight() - 48);
+        if (stage.getScene() != null) {
+            stage.getScene().getRoot().applyCss();
+            stage.getScene().getRoot().layout();
+        }
+        stage.sizeToScene();
+        double preferredWidth = stage.getWidth();
+        double preferredHeight = stage.getHeight();
         stage.setMinWidth(Math.min(profile.minWidth, maxWidth));
         stage.setMinHeight(Math.min(profile.minHeight, maxHeight));
         stage.setMaxWidth(maxWidth);
         stage.setMaxHeight(maxHeight);
-        stage.setWidth(Math.min(profile.width, maxWidth));
-        stage.setHeight(Math.min(profile.height, maxHeight));
+        stage.setWidth(Math.min(Math.max(profile.width, preferredWidth), maxWidth));
+        stage.setHeight(Math.min(Math.max(profile.height, preferredHeight), maxHeight));
         stage.setResizable(true);
         stage.setOnShown(event -> {
             Rectangle2D activeBounds = boundsFor(owner == null ? stage : owner);
@@ -226,18 +242,88 @@ public final class ThemeHelper {
 
     /** Scene for modal dialogs — stylesheets + current dark/light preference. */
     public static Scene createDialogScene(Parent root) {
-        Scene scene = new Scene(root);
+        Parent dialogRoot = buildAdaptiveDialogRoot(root);
+        Scene scene = new Scene(dialogRoot);
         ensureStylesheets(scene);
-        toggleDarkClass(root, isDarkMode());
+        toggleDarkClass(dialogRoot, isDarkMode());
         ResponsiveLayoutSupport.install(scene);
         return scene;
     }
 
     public static Scene createDialogScene(Parent root, double width, double height) {
-        Scene scene = new Scene(root, width, height);
+        Parent dialogRoot = buildAdaptiveDialogRoot(root);
+        Scene scene = new Scene(dialogRoot, width, height);
         ensureStylesheets(scene);
-        toggleDarkClass(root, isDarkMode());
+        toggleDarkClass(dialogRoot, isDarkMode());
         ResponsiveLayoutSupport.install(scene);
         return scene;
+    }
+
+    /**
+     * Converts classic FXML forms into a three-part dialog shell. The form body
+     * may scroll, while the single action bar remains permanently visible at
+     * the bottom. Complex views that intentionally own multiple action bars
+     * keep their existing layout.
+     */
+    static Parent buildAdaptiveDialogRoot(Parent root) {
+        if (root == null || root.getStyleClass().contains("adaptive-dialog-shell")) return root;
+
+        List<Node> actionBars = new ArrayList<>();
+        collectNodesWithStyle(root, "dialog-action-bar", actionBars);
+        if (actionBars.size() != 1 || !(actionBars.get(0) instanceof Region actionBar)) return root;
+        if (!(actionBar.getParent() instanceof Pane actionParent)) return root;
+        if (actionParent instanceof BorderPane borderPane && borderPane.getBottom() == actionBar) return root;
+
+        actionParent.getChildren().remove(actionBar);
+        actionBar.setMinHeight(Region.USE_PREF_SIZE);
+        actionBar.setMaxWidth(Double.MAX_VALUE);
+
+        ScrollPane scrollPane;
+        if (root instanceof ScrollPane existingScrollPane) {
+            scrollPane = existingScrollPane;
+        } else {
+            scrollPane = new ScrollPane(root);
+        }
+        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(false);
+        scrollPane.setPannable(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setMinWidth(0);
+        scrollPane.setMinHeight(0);
+        if (!scrollPane.getStyleClass().contains("adaptive-dialog-scroll")) {
+            scrollPane.getStyleClass().add("adaptive-dialog-scroll");
+        }
+
+        BorderPane shell = new BorderPane();
+        shell.getStyleClass().addAll("dialog-container", "adaptive-dialog-shell");
+        shell.setCenter(scrollPane);
+        shell.setBottom(actionBar);
+        BorderPane.setAlignment(actionBar, Pos.CENTER_RIGHT);
+        return shell;
+    }
+
+    private static void collectNodesWithStyle(Parent parent, String styleClass, List<Node> result) {
+        for (Node child : parent.getChildrenUnmodifiable()) {
+            if (child.getStyleClass().contains(styleClass)) result.add(child);
+            if (child instanceof Parent nested) collectNodesWithStyle(nested, styleClass, result);
+        }
+    }
+
+    private static void ensureScrollableDialogContent(DialogPane pane) {
+        Object configuredProfile = pane.getProperties().get("pusula.dialog.profile");
+        Node content = pane.getContent();
+        if (!(configuredProfile instanceof DialogProfile) || content == null || content instanceof ScrollPane) return;
+
+        ScrollPane scrollPane = new ScrollPane(content);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(false);
+        scrollPane.setPannable(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setMinWidth(0);
+        scrollPane.setMinHeight(0);
+        scrollPane.getStyleClass().add("adaptive-dialog-scroll");
+        pane.setContent(scrollPane);
     }
 }

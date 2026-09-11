@@ -164,6 +164,24 @@ class ModernUiContractTest {
         assertTrue(customerDetails.contains("UNCONSTRAINED_RESIZE_POLICY"));
     }
 
+    @Test
+    void adaptiveDialogShellKeepsActionsVisibleOutsideScrollableContent() throws Exception {
+        Path javaRoot = Path.of("src", "main", "java", "com", "pusula", "desktop");
+        String theme = Files.readString(javaRoot.resolve(Path.of("util", "ThemeHelper.java")), StandardCharsets.UTF_8);
+        assertTrue(theme.contains("buildAdaptiveDialogRoot(root)"));
+        assertTrue(theme.contains("shell.setCenter(scrollPane)"));
+        assertTrue(theme.contains("shell.setBottom(actionBar)"));
+        assertTrue(theme.contains("Math.max(profile.height, preferredHeight)"),
+                "Dialog sizing must never replace a larger measured content height with a smaller profile height");
+
+        try (InputStream input = getClass().getResourceAsStream("/css/styles.css")) {
+            assertNotNull(input);
+            String css = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+            assertTrue(css.contains(".adaptive-dialog-shell > .dialog-action-bar"));
+            assertTrue(css.contains(".adaptive-dialog-scroll > .viewport"));
+        }
+    }
+
     private String readSafely(Path path) {
         try {
             return Files.readString(path, StandardCharsets.UTF_8);
