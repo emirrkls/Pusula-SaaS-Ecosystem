@@ -1,5 +1,6 @@
 package com.pusula.backend.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -47,10 +48,31 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .headers(headers -> headers.frameOptions(frame -> frame.disable())) // Allow H2 Console in iframe
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, exception) -> writeSecurityError(
+                                response,
+                                HttpServletResponse.SC_UNAUTHORIZED,
+                                "AUTHENTICATION_REQUIRED",
+                                "Oturum bulunamadı veya süresi doldu."))
+                        .accessDeniedHandler((request, response, exception) -> writeSecurityError(
+                                response,
+                                HttpServletResponse.SC_FORBIDDEN,
+                                "ACCESS_DENIED",
+                                "Bu işlem için yetkiniz bulunmamaktadır.")))
                 .authenticationProvider(authenticationProvider)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(uploadSecurityFilter, JwtAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    private static void writeSecurityError(HttpServletResponse response, int status, String code, String message)
+            throws java.io.IOException {
+        response.setStatus(status);
+        response.setCharacterEncoding("UTF-8");
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"status\":" + status
+                + ",\"code\":\"" + code
+                + "\",\"message\":\"" + message + "\"}");
     }
 }

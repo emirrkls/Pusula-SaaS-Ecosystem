@@ -53,6 +53,14 @@ enum TicketService {
         }
     }
 
+    static func updateUsedPart(ticketId: Int, partId: Int, part: UsedPartDTO) async throws -> UsedPartDTO {
+        try await NetworkManager.shared.put("/api/tickets/\(ticketId)/parts/\(partId)", body: part)
+    }
+
+    static func deleteUsedPart(ticketId: Int, partId: Int) async throws {
+        try await NetworkManager.shared.delete("/api/tickets/\(ticketId)/parts/\(partId)")
+    }
+
     static func reschedule(ticketId: Int, request: RescheduleTicketRequest) async throws -> FieldTicketDTO {
         try await NetworkManager.shared.request(
             .PATCH, path: "/api/tickets/\(ticketId)/reschedule", body: request

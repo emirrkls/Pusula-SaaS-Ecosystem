@@ -15,12 +15,15 @@ struct TicketDetailView: View {
     @State private var isImportantTechnicianNote = false
     @State private var showScanner = false
     @State private var showPartPicker = false
+    @State private var editingPart: UsedPartDTO?
+    @State private var partPendingDeletion: UsedPartDTO?
     @State private var showCollection = false
     @State private var showSignature = false
     @State private var showPhotos = false
     @State private var showReschedule = false
     @State private var isLoadingParts = false
     @State private var isAddingPart = false
+    @State private var isMutatingPart = false
     @State private var isGeneratingPDF = false
     @State private var pdfPreview: PDFPreviewItem?
     @State private var isUpdatingTicket = false
@@ -134,6 +137,11 @@ struct TicketDetailView: View {
                 Task { await addPart(from: item, quantity: quantity, unitPrice: unitPrice) }
             }
         }
+        .sheet(item: $editingPart) { part in
+            UsedPartEditorSheet(part: part) { quantity, unitPrice in
+                try await updatePart(part, quantity: quantity, unitPrice: unitPrice)
+            }
+        }
         .sheet(isPresented: $showCollection) {
             CollectionView(
                 ticket: currentTicket,
@@ -183,6 +191,22 @@ struct TicketDetailView: View {
                 Task { await createFollowUp() }
             }
             Button("Vazgeç", role: .cancel) {}
+        }
+        .confirmationDialog(
+            "Kullanılan parça silinsin mi?",
+            isPresented: Binding(
+                get: { partPendingDeletion != nil },
+                set: { if !$0 { partPendingDeletion = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: partPendingDeletion
+        ) { part in
+            Button("Parçayı Sil", role: .destructive) {
+                Task { await deletePart(part) }
+            }
+            Button("Vazgeç", role: .cancel) { partPendingDeletion = nil }
+        } message: { part in
+            Text("\(part.partName) kaydı kaldırılacak ve kullanılan miktar stoğa geri eklenecek.")
         }
     }
     
@@ -369,6 +393,22 @@ struct TicketDetailView: View {
                         Spacer()
                         Text(formatCurrency(part.totalPrice))
                             .font(.subheadline.weight(.semibold))
+                        if isEditable {
+                            Menu {
+                                Button { editingPart = part } label: {
+                                    Label("Düzenle", systemImage: "pencil")
+                                }
+                                Button(role: .destructive) { partPendingDeletion = part } label: {
+                                    Label("Sil", systemImage: "trash")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis.circle")
+                                    .font(.title3)
+                                    .frame(width: 34, height: 34)
+                            }
+                            .disabled(isMutatingPart)
+                            .readOnlyProtected()
+                        }
                     }
                     Divider()
                 }
@@ -739,6 +779,53 @@ struct TicketDetailView: View {
             }
         }
     }
+
+    @MainActor
+    private func updatePart(_ part: UsedPartDTO, quantity: Double, unitPrice: Double) async throws {
+        guard let partId = part.id, !isMutatingPart else { return }
+        isMutatingPart = true
+        defer { isMutatingPart = false }
+
+        let request = UsedPartDTO(
+            id: part.id,
+            ticketId: ticket.id,
+            inventoryId: part.inventoryId,
+            partName: part.partName,
+            quantityUsed: quantity,
+            sellingPriceSnapshot: unitPrice,
+            unitOfMeasure: part.unitOfMeasure,
+            sourceVehicleId: part.sourceVehicleId,
+            clientRequestId: part.clientRequestId
+        )
+        let updated = try await TicketService.updateUsedPart(
+            ticketId: ticket.id,
+            partId: partId,
+            part: request
+        )
+        if let index = usedParts.firstIndex(where: { $0.id == partId }) {
+            usedParts[index] = updated
+        }
+        operationMessage = "Parça bilgileri güncellendi: \(updated.partName)"
+        await loadTimeline()
+    }
+
+    @MainActor
+    private func deletePart(_ part: UsedPartDTO) async {
+        guard let partId = part.id, !isMutatingPart else { return }
+        isMutatingPart = true
+        defer {
+            isMutatingPart = false
+            partPendingDeletion = nil
+        }
+        do {
+            try await TicketService.deleteUsedPart(ticketId: ticket.id, partId: partId)
+            usedParts.removeAll { $0.id == partId }
+            operationMessage = "Parça silindi ve miktar stoğa iade edildi: \(part.partName)"
+            await loadTimeline()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
     
     private func assign(techId: Int) async {
         do {
@@ -853,6 +940,102 @@ struct TicketDetailView: View {
         case "METRE": return "m"
         case "LITRE": return "lt"
         default: return "adet"
+        }
+    }
+}
+
+private struct UsedPartEditorSheet: View {
+    let part: UsedPartDTO
+    let onSave: (Double, Double) async throws -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var quantityText: String
+    @State private var unitPriceText: String
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    init(part: UsedPartDTO, onSave: @escaping (Double, Double) async throws -> Void) {
+        self.part = part
+        self.onSave = onSave
+        _quantityText = State(initialValue: String(part.quantityUsed))
+        _unitPriceText = State(initialValue: String(part.sellingPriceSnapshot))
+    }
+
+    private var parsedQuantity: Double? { parseNumber(quantityText) }
+    private var parsedUnitPrice: Double? { parseNumber(unitPriceText) }
+    private var allowsFractionalQuantity: Bool { (part.unitOfMeasure ?? "ADET") != "ADET" }
+    private var isValid: Bool {
+        guard let quantity = parsedQuantity, quantity > 0,
+              let price = parsedUnitPrice, price >= 0 else { return false }
+        return allowsFractionalQuantity || quantity.rounded() == quantity
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Parça") {
+                    LabeledContent("Ürün", value: part.partName)
+                    LabeledContent("Birim", value: unitDisplayName(part.unitOfMeasure))
+                }
+                Section("Kullanım") {
+                    TextField(allowsFractionalQuantity ? "Kullanılan miktar" : "Adet", text: $quantityText)
+                        .keyboardType(allowsFractionalQuantity ? .decimalPad : .numberPad)
+                    TextField("Birim satış fiyatı (₺)", text: $unitPriceText)
+                        .keyboardType(.decimalPad)
+                    if !allowsFractionalQuantity, let quantity = parsedQuantity, quantity.rounded() != quantity {
+                        Text("Adet birimli ürünlerde tam sayı girilmelidir.")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle("Kullanılan Parçayı Düzenle")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Vazgeç") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Kaydet") { Task { await save() } }
+                        .disabled(!isValid || isSaving)
+                }
+            }
+            .alert("Parça Güncellenemedi", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("Tamam", role: .cancel) { errorMessage = nil }
+            } message: {
+                Text(errorMessage ?? "")
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    @MainActor
+    private func save() async {
+        guard let quantity = parsedQuantity, let unitPrice = parsedUnitPrice, isValid else { return }
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            try await onSave(quantity, unitPrice)
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func parseNumber(_ value: String) -> Double? {
+        Double(value.replacingOccurrences(of: ",", with: "."))
+    }
+
+    private func unitDisplayName(_ unit: String?) -> String {
+        switch unit ?? "ADET" {
+        case "KG": return "Kilogram"
+        case "GRAM": return "Gram"
+        case "METRE": return "Metre"
+        case "LITRE": return "Litre"
+        default: return "Adet"
         }
     }
 }

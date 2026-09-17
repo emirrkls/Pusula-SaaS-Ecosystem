@@ -896,15 +896,26 @@ public class ServiceTicketService {
                 .orElseThrow(() -> new RuntimeException("Kullanılan parça bulunamadı."));
 
         BigDecimal oldQuantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : BigDecimal.ZERO;
+        BigDecimal oldSellingPrice = part.getSellingPriceSnapshot() != null
+                ? part.getSellingPriceSnapshot()
+                : BigDecimal.ZERO;
         BigDecimal requestedQuantity = normalizeUsedQuantity(dto.getQuantityUsed(), part.getUnitOfMeasure());
+        BigDecimal requestedSellingPrice = dto.getSellingPriceSnapshot() != null
+                ? dto.getSellingPriceSnapshot().setScale(2, RoundingMode.HALF_UP)
+                : oldSellingPrice;
+        if (requestedSellingPrice.signum() < 0) {
+            throw new IllegalArgumentException("Parça satış fiyatı negatif olamaz.");
+        }
         BigDecimal delta = requestedQuantity.subtract(oldQuantity);
         StockAdjustment stockAdjustment = adjustUsedPartStock(part, delta, currentUser.getCompanyId());
         part.setQuantityUsed(requestedQuantity);
+        part.setSellingPriceSnapshot(requestedSellingPrice);
         com.pusula.backend.entity.ServiceUsedPart saved = serviceUsedPartRepository.save(part);
 
         auditLogService.log("UPDATE", "TICKET", ticketId,
                 "Parça adedi güncellendi: " + partDisplayName(saved) + " x" + oldQuantity + " → x"
-                        + saved.getQuantityUsed());
+                        + saved.getQuantityUsed() + ", birim satış fiyatı " + oldSellingPrice + " → "
+                        + requestedSellingPrice);
         if (delta.signum() > 0 && stockAdjustment != null) {
             notifyCriticalStockCrossing(stockAdjustment.inventory(), stockAdjustment.previousQuantity(),
                     currentUser, ticketId);

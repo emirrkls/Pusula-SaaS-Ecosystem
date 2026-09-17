@@ -135,6 +135,7 @@ public class MainDashboardController {
 
     @FXML
     public void initialize() {
+        SessionManager.setSessionExpiredHandler(this::handleSessionExpired);
         setupUserProfile();
         setupNavigationIcons();
         setupThemeToggleIcon();
@@ -729,19 +730,43 @@ public class MainDashboardController {
 
     @FXML
     private void handleLogout() {
-        // Stop idle timer before logout
+        stopSessionServices();
+        SessionManager.clearSession();
+        showLoginScene();
+    }
+
+    private void handleSessionExpired() {
+        stopSessionServices();
+        java.util.ResourceBundle messages = bundle();
+        Stage stage = currentStage();
+        closeSecondaryWindows(stage);
+        NotificationService.modal(stage, NotificationService.Kind.WARNING,
+                messages.getString("session.expired.title"),
+                messages.getString("session.expired.message"));
+        showLoginScene();
+    }
+
+    private void stopSessionServices() {
+        if (notificationRefreshTimer != null) {
+            notificationRefreshTimer.stop();
+            notificationRefreshTimer = null;
+        }
         if (idleTimer != null) {
             idleTimer.stop();
         }
         hideScreensaver();
+    }
 
-        SessionManager.clearSession();
+    private void showLoginScene() {
         try {
             java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("i18n.messages",
                     new java.util.Locale("tr", "TR"), new UTF8Control());
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/login.fxml"), bundle);
             Parent root = loader.load();
-            Stage stage = (Stage) userLabel.getScene().getWindow();
+            Stage stage = currentStage();
+            if (stage == null) {
+                throw new IOException("Ana uygulama penceresi bulunamadı.");
+            }
             Scene scene = new Scene(root, 960, 640);
             ThemeHelper.applyToScene(scene, ThemeHelper.isDarkMode());
             stage.setScene(scene);
@@ -750,6 +775,26 @@ public class MainDashboardController {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private Stage currentStage() {
+        if (userLabel != null && userLabel.getScene() != null
+                && userLabel.getScene().getWindow() instanceof Stage stage) {
+            return stage;
+        }
+        return javafx.stage.Window.getWindows().stream()
+                .filter(javafx.stage.Window::isShowing)
+                .filter(window -> window instanceof Stage stage && stage.getOwner() == null)
+                .map(window -> (Stage) window)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void closeSecondaryWindows(Stage mainStage) {
+        if (mainStage == null) return;
+        java.util.List.copyOf(javafx.stage.Window.getWindows()).stream()
+                .filter(window -> window != mainStage && window.isShowing())
+                .forEach(javafx.stage.Window::hide);
     }
 
     // =================== SCREENSAVER METHODS ===================

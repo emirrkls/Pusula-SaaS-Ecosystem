@@ -249,10 +249,12 @@ class ServiceTicketUsedPartsTest {
         when(usedPartRepository.save(part)).thenReturn(part);
 
         ServiceUsedPartDTO result = service.updateUsedPart(100L, 300L,
-                ServiceUsedPartDTO.builder().quantityUsed(1).build());
+                ServiceUsedPartDTO.builder().quantityUsed(1)
+                        .sellingPriceSnapshot(new BigDecimal("175.50")).build());
 
         assertEquals(BigDecimal.valueOf(7), inventory.getQuantity());
         assertEquals(BigDecimal.ONE, result.getQuantityUsed());
+        assertEquals(new BigDecimal("175.50"), result.getSellingPriceSnapshot());
         verify(inventoryRepository).save(inventory);
     }
 

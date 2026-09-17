@@ -5,6 +5,7 @@ struct CustomerView: View {
     @State private var searchText = ""
     @State private var isLoading = true
     @State private var editingCustomer: CustomerDTO?
+    @State private var selectedCustomer: CustomerDTO?
     @State private var showCreate = false
     @State private var ticketCustomer: CustomerDTO?
     @State private var errorMessage: String?
@@ -62,6 +63,9 @@ struct CustomerView: View {
         .sheet(item: $editingCustomer) { customer in
             CustomerEditorSheet(customer: customer) { await load() }
         }
+        .sheet(item: $selectedCustomer) { customer in
+            CustomerDetailSheet(customer: customer)
+        }
         .sheet(item: $ticketCustomer) { customer in
             CreateTicketFromCustomerSheet(customer: customer) { await load() }
         }
@@ -72,34 +76,45 @@ struct CustomerView: View {
     
     private func customerRow(_ customer: CustomerDTO) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(customer.name).font(.headline)
-                Spacer()
-                Button { editingCustomer = customer } label: {
-                    Image(systemName: "pencil")
-                        .frame(width: 32, height: 32)
+            Button { selectedCustomer = customer } label: {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(customer.name).font(.headline)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    if let phone = customer.phone, !phone.isEmpty {
+                        Label(phone, systemImage: "phone.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let address = customer.address, !address.isEmpty {
+                        Label(address, systemImage: "mappin")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
                 }
-                    .accessibilityLabel("Müşteriyi düzenle")
-                    .readOnlyProtected()
+                .contentShape(Rectangle())
             }
-            
-            if let phone = customer.phone, !phone.isEmpty {
-                Label(phone, systemImage: "phone.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            .buttonStyle(.plain)
+
+            HStack(spacing: 18) {
+                Button { editingCustomer = customer } label: {
+                    Label("Düzenle", systemImage: "pencil")
+                }
+                .accessibilityLabel("Müşteriyi düzenle")
+                .readOnlyProtected()
+
+                Button(action: { ticketCustomer = customer }) {
+                    Label("Servis Fişi Aç", systemImage: "doc.badge.plus")
+                }
+                .readOnlyProtected()
             }
-            if let address = customer.address, !address.isEmpty {
-                Label(address, systemImage: "mappin")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-            
-            Button(action: { ticketCustomer = customer }) {
-                Label("Servis Fişi Aç", systemImage: "doc.badge.plus")
-                    .font(.caption.weight(.semibold))
-            }
-            .readOnlyProtected()
+            .font(.caption.weight(.semibold))
+            .buttonStyle(.borderless)
         }
         .padding(.vertical, 6)
     }
@@ -112,6 +127,121 @@ struct CustomerView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+}
+
+private struct CustomerDetailSheet: View {
+    let customer: CustomerDTO
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var tickets: [FieldTicketDTO] = []
+    @State private var selectedTicket: FieldTicketDTO?
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Müşteri") {
+                    LabeledContent("Ad / Firma", value: customer.name)
+                    if let phone = customer.phone, !phone.isEmpty {
+                        LabeledContent("Telefon", value: phone)
+                    }
+                    if let address = customer.address, !address.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Adres").font(.caption).foregroundStyle(.secondary)
+                            Text(address)
+                        }
+                    }
+                }
+
+                Section("İşlem Geçmişi") {
+                    if isLoading {
+                        HStack { Spacer(); ProgressView(); Spacer() }
+                    } else if tickets.isEmpty {
+                        ContentUnavailableView(
+                            "İşlem geçmişi yok",
+                            systemImage: "clock.arrow.circlepath",
+                            description: Text("Bu müşteri için henüz servis kaydı bulunmuyor.")
+                        )
+                    } else {
+                        ForEach(tickets) { ticket in
+                            Button { selectedTicket = ticket } label: {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack {
+                                        Text("İş Emri #\(ticket.id)")
+                                            .font(.subheadline.weight(.semibold))
+                                        Spacer()
+                                        Label(ticket.statusEnum.displayName, systemImage: ticket.statusEnum.iconName)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Text(ticket.description ?? "Açıklama bulunmuyor")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                    if let date = serviceDate(ticket) {
+                                        Text(date)
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(customer.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Kapat") { dismiss() }
+                }
+            }
+            .task { await loadHistory() }
+            .refreshable { await loadHistory() }
+            .sheet(item: $selectedTicket) { ticket in
+                NavigationStack {
+                    TicketDetailView(ticket: ticket, isAdmin: true, onComplete: { await loadHistory() })
+                }
+            }
+            .alert("İşlem Geçmişi Yüklenemedi", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("Tamam", role: .cancel) { errorMessage = nil }
+            } message: {
+                Text(errorMessage ?? "")
+            }
+        }
+    }
+
+    @MainActor
+    private func loadHistory() async {
+        guard let customerId = customer.id else {
+            isLoading = false
+            return
+        }
+        isLoading = true
+        do {
+            tickets = try await CustomerService.getServiceHistory(customerId: customerId)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    private func serviceDate(_ ticket: FieldTicketDTO) -> String? {
+        let raw = ticket.completedAt ?? ticket.scheduledDate ?? ticket.createdAt
+        guard let raw else { return nil }
+        guard let date = TicketFilters.parseBusinessDate(raw) else { return raw }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.timeZone = TimeZone(identifier: "Europe/Istanbul")
+        formatter.dateFormat = "d MMMM yyyy, HH:mm"
+        return formatter.string(from: date)
     }
 }
 

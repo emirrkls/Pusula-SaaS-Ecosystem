@@ -4,18 +4,20 @@ import java.util.Collections;
 import java.util.Map;
 
 public class SessionManager {
-    private static String authToken;
-    private static String username;
-    private static String userRole;
-    private static Long companyId;
-    private static String planType;
-    private static Map<String, Boolean> features = Collections.emptyMap();
+    private static volatile String authToken;
+    private static volatile String username;
+    private static volatile String userRole;
+    private static volatile Long companyId;
+    private static volatile String planType;
+    private static volatile Map<String, Boolean> features = Collections.emptyMap();
+    private static Runnable sessionExpiredHandler;
+    private static boolean sessionExpirationHandled;
 
     public static void setSession(String token, String user, String role, Long cId) {
         setSession(token, user, role, cId, null, Collections.emptyMap());
     }
 
-    public static void setSession(String token, String user, String role, Long cId,
+    public static synchronized void setSession(String token, String user, String role, Long cId,
             String plan, Map<String, Boolean> planFeatures) {
         authToken = token;
         username = user;
@@ -23,6 +25,7 @@ public class SessionManager {
         companyId = cId;
         planType = plan;
         features = planFeatures != null ? Map.copyOf(planFeatures) : Collections.emptyMap();
+        sessionExpirationHandled = false;
     }
 
     public static Long getCompanyId() {
@@ -53,7 +56,32 @@ public class SessionManager {
         return Boolean.TRUE.equals(features.get(featureKey));
     }
 
-    public static void clearSession() {
+    public static synchronized void clearSession() {
+        clearSessionState();
+        sessionExpiredHandler = null;
+        sessionExpirationHandled = false;
+    }
+
+    public static synchronized void setSessionExpiredHandler(Runnable handler) {
+        sessionExpiredHandler = handler;
+    }
+
+    /**
+     * Invalidates the current session once and returns the UI callback to invoke.
+     * Concurrent API failures therefore cannot open multiple expiry dialogs.
+     */
+    public static synchronized Runnable expireSession(String rejectedToken) {
+        if (sessionExpirationHandled || authToken == null || !authToken.equals(rejectedToken)) {
+            return null;
+        }
+        sessionExpirationHandled = true;
+        clearSessionState();
+        Runnable handler = sessionExpiredHandler;
+        sessionExpiredHandler = null;
+        return handler;
+    }
+
+    private static void clearSessionState() {
         authToken = null;
         username = null;
         userRole = null;

@@ -54,9 +54,7 @@ public class RetrofitClient {
                 return retrofit;
         }
 
-        /**
-         * Interceptor to handle 403 Forbidden responses globally.
-         */
+        /** Handles expired sessions and genuine authorization failures globally. */
         private static class ForbiddenInterceptor implements Interceptor {
                 private static boolean forbiddenAlertVisible = false;
                 private static long lastForbiddenAlertAt = 0L;
@@ -65,6 +63,19 @@ public class RetrofitClient {
                 @Override
                 public Response intercept(Chain chain) throws IOException {
                         Response response = chain.proceed(chain.request());
+
+                        if (response.code() == 401 && isProtectedRequest(response)) {
+                                String authorization = response.request().header("Authorization");
+                                String rejectedToken = authorization != null && authorization.startsWith("Bearer ")
+                                                ? authorization.substring(7)
+                                                : null;
+                                Runnable sessionExpiredHandler = com.pusula.desktop.util.SessionManager
+                                                .expireSession(rejectedToken);
+                                if (sessionExpiredHandler != null) {
+                                        Platform.runLater(sessionExpiredHandler);
+                                }
+                                return response;
+                        }
 
                         if (response.code() == 403) {
                                 // Do not show alerts for audit logs, public endpoints, or background refreshes.
@@ -90,6 +101,11 @@ public class RetrofitClient {
                         }
 
                         return response;
+                }
+
+                private static boolean isProtectedRequest(Response response) {
+                        String path = response.request().url().encodedPath();
+                        return !path.startsWith("/api/auth/") && !path.startsWith("/api/public/");
                 }
 
                 private static synchronized boolean shouldShowForbiddenAlert() {

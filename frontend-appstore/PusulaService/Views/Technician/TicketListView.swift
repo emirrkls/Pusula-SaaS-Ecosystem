@@ -5,6 +5,7 @@ struct TicketListView: View {
     var onRequestedFilterApplied: (() -> Void)? = nil
     
     private let session = SessionManager.shared
+    @StateObject private var navigation = AppNavigation.shared
     @State private var tickets: [FieldTicketDTO] = []
     @State private var technicians: [TechnicianDTO] = []
     @State private var customers: [CustomerDTO] = []
@@ -16,6 +17,7 @@ struct TicketListView: View {
     @State private var dateFilterEnd: Date?
     @State private var showDateFilter = false
     @State private var selectedTicket: FieldTicketDTO?
+    @State private var openingPendingTicketId: Int?
     @State private var showCreateTicket = false
     @State private var showBulkAssign = false
     @State private var errorMessage: String?
@@ -89,6 +91,10 @@ struct TicketListView: View {
         .background(PusulaTheme.page)
         .navigationTitle(isAdmin ? "Operasyon" : "İşlerim")
         .task { await loadTickets() }
+        .onChange(of: navigation.pendingTicketId) { _, ticketId in
+            guard ticketId != nil else { return }
+            Task { await openPendingTicket(in: tickets) }
+        }
         .onAppear {
             if let filter = requestedFilter ?? AppNavigation.shared.consumeOperationFilter(),
                availableFilters.contains(filter) {
@@ -318,18 +324,18 @@ struct TicketListView: View {
                 await MainActor.run {
                     tickets = loadedTickets
                     technicians = loadedTechs
-                    openPendingTicket(in: loadedTickets)
                     isLoading = false
                     isRefreshing = false
                 }
+                await openPendingTicket(in: loadedTickets)
             } else {
                 let loaded = try await TicketService.getMyAssignedTickets()
                 await MainActor.run {
                     tickets = loaded
-                    openPendingTicket(in: loaded)
                     isLoading = false
                     isRefreshing = false
                 }
+                await openPendingTicket(in: loaded)
             }
         } catch {
             await MainActor.run {
@@ -340,11 +346,27 @@ struct TicketListView: View {
         }
     }
 
-    private func openPendingTicket(in loadedTickets: [FieldTicketDTO]) {
-        guard let ticketId = AppNavigation.shared.pendingTicketId,
-              let ticket = loadedTickets.first(where: { $0.id == ticketId }) else { return }
-        selectedTicket = ticket
-        AppNavigation.shared.clearPendingTicket(id: ticketId)
+    @MainActor
+    private func openPendingTicket(in loadedTickets: [FieldTicketDTO]) async {
+        guard let ticketId = navigation.pendingTicketId,
+              openingPendingTicketId != ticketId else { return }
+
+        openingPendingTicketId = ticketId
+        defer { openingPendingTicketId = nil }
+
+        do {
+            let ticket: FieldTicketDTO
+            if let loadedTicket = loadedTickets.first(where: { $0.id == ticketId }) {
+                ticket = loadedTicket
+            } else {
+                ticket = try await TicketService.getTicket(id: ticketId)
+            }
+            selectedTicket = ticket
+            navigation.clearPendingTicket(id: ticketId)
+        } catch {
+            navigation.clearPendingTicket(id: ticketId)
+            errorMessage = "İş emri açılamadı: \(error.localizedDescription)"
+        }
     }
     
     private func assignTechnician(ticketId: Int, technicianId: Int) async {

@@ -82,8 +82,10 @@ final class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate 
             if let id { await MainActor.run { AppNavigation.shared.openNetwork(referenceType: reference, referenceId: id) } }
             return
         }
-        let ticketId = (userInfo["ticketId"] as? Int)
-            ?? (userInfo["ticketId"] as? String).flatMap(Int.init)
+        let ticketValue = userInfo["ticketId"] ?? userInfo["referenceId"]
+        let ticketId = (ticketValue as? Int)
+            ?? (ticketValue as? NSNumber)?.intValue
+            ?? (ticketValue as? String).flatMap(Int.init)
         guard let ticketId else { return }
         await MainActor.run {
             AppNavigation.shared.openTicket(id: ticketId)

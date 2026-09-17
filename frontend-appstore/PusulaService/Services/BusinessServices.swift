@@ -185,6 +185,10 @@ enum CustomerService {
     static func updateCustomer(id: Int, customer: CustomerDTO) async throws -> CustomerDTO {
         try await NetworkManager.shared.put("/api/customers/\(id)", body: customer)
     }
+
+    static func getServiceHistory(customerId: Int) async throws -> [FieldTicketDTO] {
+        try await NetworkManager.shared.get("/api/tickets/customer/\(customerId)")
+    }
 }
 
 enum ProposalService {
