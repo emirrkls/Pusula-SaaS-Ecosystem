@@ -28,6 +28,29 @@ class ModernUiContractTest {
     }
 
     @Test
+    void selectedTableRowsDoNotRecolorEmbeddedActionControls() throws Exception {
+        String styles;
+        String override;
+        try (InputStream input = getClass().getResourceAsStream("/css/styles.css")) {
+            assertNotNull(input);
+            styles = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        try (InputStream input = getClass().getResourceAsStream("/css/table-override.css")) {
+            assertNotNull(input);
+            override = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        }
+
+        for (String css : java.util.List.of(styles, override)) {
+            assertFalse(css.contains(".table-row-cell:selected .text"),
+                    "Selected rows must not force embedded control text to white");
+            assertFalse(css.contains(".table-row-cell:selected .label"),
+                    "Selected rows must not force embedded control labels to white");
+        }
+        assertTrue(styles.contains(".table-row-cell:selected .action-menu-button .label"));
+        assertTrue(styles.contains(".menu-item .label .text"));
+    }
+
+    @Test
     void modernDialogOverridesComeAfterGenericDialogRules() throws Exception {
         try (InputStream input = getClass().getResourceAsStream("/css/styles.css")) {
             assertNotNull(input);

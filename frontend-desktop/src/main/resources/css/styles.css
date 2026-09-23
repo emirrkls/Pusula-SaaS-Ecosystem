@@ -747,21 +747,15 @@
     -fx-background-color: #1E40AF;  /* Blue-800 - dark blue */
 }
 
-/* Selected row text - WHITE for contrast */
+/* Selected row text - WHITE for contrast.
+   Keep the selector on the cell itself: descendant .text/.label selectors also
+   recolor embedded controls (MenuButton, Button, ComboBox) and can make their
+   captions disappear on a light control surface. */
 .table-row-cell:selected .table-cell,
 .table-row-cell:odd:selected .table-cell,
-.table-row-cell:selected .text,
-.table-row-cell:odd:selected .text,
-.table-row-cell:selected .label,
-.table-row-cell:odd:selected .label,
 .table-view .table-row-cell:selected .table-cell,
-.table-view .table-row-cell:selected .text,
-.table-view .table-row-cell:selected .label,
-.table-view:focused .table-row-cell:selected .table-cell,
-.table-view:focused .table-row-cell:selected .text,
-.table-view:focused .table-row-cell:selected .label {
+.table-view:focused .table-row-cell:selected .table-cell {
     -fx-text-fill: #FFFFFF;
-    -fx-fill: #FFFFFF;
 }
 
 /* Focused table selected row */
@@ -1856,6 +1850,26 @@
     -fx-alignment: CENTER;
 }
 
+/* A selected table row must not leak its white foreground into controls placed
+   inside an action cell. This is shared by proposals, finance, debts and ticket
+   detail tables. */
+.table-row-cell:selected .action-menu-button,
+.table-row-cell:odd:selected .action-menu-button,
+.table-row-cell:selected .action-menu-button .label,
+.table-row-cell:odd:selected .action-menu-button .label {
+    -fx-text-fill: #1E293B;
+}
+
+.table-row-cell:selected .action-menu-button .text,
+.table-row-cell:odd:selected .action-menu-button .text {
+    -fx-fill: #1E293B;
+}
+
+.table-row-cell:selected .action-menu-button .arrow,
+.table-row-cell:odd:selected .action-menu-button .arrow {
+    -fx-background-color: #475569;
+}
+
 .compact-action-menu {
     -fx-min-width: 68;
     -fx-alignment: CENTER;
@@ -2875,6 +2889,10 @@
 
 .menu-item .label {
     -fx-text-fill: -pusula-text;
+}
+
+.menu-item .label .text {
+    -fx-fill: -pusula-text;
 }
 
 .tooltip {

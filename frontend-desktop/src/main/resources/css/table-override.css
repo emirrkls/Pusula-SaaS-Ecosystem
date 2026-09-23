@@ -25,16 +25,9 @@
     -fx-background: #475569 !important;
 }
 
-/* Force WHITE text for all selected row content */
+/* Force white text on the data cell, but do not target every descendant Label
+   or Text. Action controls inside a selected row own their foreground color. */
 .table-row-cell:selected .table-cell {
-    -fx-text-fill: #FFFFFF !important;
-}
-
-.table-row-cell:selected .text {
-    -fx-fill: #FFFFFF !important;
-}
-
-.table-row-cell:selected .label {
     -fx-text-fill: #FFFFFF !important;
 }
 
@@ -42,18 +35,7 @@
     -fx-text-fill: #FFFFFF !important;
 }
 
-.table-row-cell:odd:selected .text {
-    -fx-fill: #FFFFFF !important;
-}
-
-.table-row-cell:odd:selected .label {
-    -fx-text-fill: #FFFFFF !important;
-}
-
 /* Focused table - white text */
-.table-view:focused .table-row-cell:selected .table-cell,
-.table-view:focused .table-row-cell:selected .text,
-.table-view:focused .table-row-cell:selected .label {
+.table-view:focused .table-row-cell:selected .table-cell {
     -fx-text-fill: #FFFFFF !important;
-    -fx-fill: #FFFFFF !important;
 }
