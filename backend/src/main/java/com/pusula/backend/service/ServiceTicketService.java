@@ -1447,15 +1447,24 @@ public class ServiceTicketService {
         ticket.setStatus(ServiceTicket.TicketStatus.CANCELLED);
         ticket.setWorkProgressReason(null);
         ticket.setWorkProgressNote(null);
+        ServiceTicket saved = saveNetworkAware(ticket);
 
         // Log cancellation
         auditLogService.log(
                 "CANCEL",
                 "TICKET",
-                ticket.getId(),
+                saved.getId(),
                 "Servis fişi iptal edildi");
 
-        return mapToDTO(saveNetworkAware(ticket));
+        if ("TECHNICIAN".equals(currentUser.getRole())) {
+            notifyAdmins(saved, "Servis iptal edildi",
+                    "#" + saved.getId() + " · " + displayName(currentUser) + " · "
+                            + (saved.getDescription() == null ? "Servis talebi" : saved.getDescription()),
+                    Notification.NotificationType.WARNING, Notification.NotificationCategory.GENERAL,
+                    currentUser.getId());
+        }
+
+        return mapToDTO(saved);
     }
 
     public ServiceTicketDTO createFollowUpTicket(Long originalTicketId) {

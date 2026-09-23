@@ -19,6 +19,8 @@ public interface ServiceTicketRepository extends JpaRepository<ServiceTicket, Lo
     List<ServiceTicket> findByCompanyIdAndCustomerIdOrderByScheduledDateDescCreatedAtDesc(
             Long companyId, Long customerId);
 
+    boolean existsByCompanyIdAndCustomerId(Long companyId, Long customerId);
+
     List<ServiceTicket> findByAssignedTechnicianId(Long technicianId);
 
     @Query("SELECT t FROM ServiceTicket t WHERE t.assignedTechnicianId IS NOT NULL "

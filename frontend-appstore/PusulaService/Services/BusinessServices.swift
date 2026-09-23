@@ -186,6 +186,10 @@ enum CustomerService {
         try await NetworkManager.shared.put("/api/customers/\(id)", body: customer)
     }
 
+    static func deleteCustomer(id: Int) async throws {
+        try await NetworkManager.shared.delete("/api/customers/\(id)")
+    }
+
     static func getServiceHistory(customerId: Int) async throws -> [FieldTicketDTO] {
         try await NetworkManager.shared.get("/api/tickets/customer/\(customerId)")
     }

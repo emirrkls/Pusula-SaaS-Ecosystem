@@ -6,6 +6,7 @@ import com.pusula.backend.entity.ServiceUsedPart;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.entity.Inventory;
 import com.pusula.backend.entity.InventoryUnit;
+import com.pusula.backend.entity.Notification;
 import com.pusula.backend.repository.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -309,6 +312,25 @@ class ServiceTicketUsedPartsTest {
         assertFalse(deletedInventory.isDeleted());
         verify(inventoryRepository).save(deletedInventory);
         verify(usedPartRepository).delete(part);
+    }
+
+    @Test
+    void assignedTechnicianCancellationNotifiesCompanyAdmins() {
+        authenticate(7L, 10L, "TECHNICIAN");
+        ServiceTicket ticket = ticket(75L, 10L, 7L);
+        ticket.setStatus(ServiceTicket.TicketStatus.IN_PROGRESS);
+        ticket.setDescription("Kombi arızası");
+        when(ticketRepository.findById(75L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByServiceTicketId(75L)).thenReturn(List.of());
+        when(ticketRepository.save(ticket)).thenReturn(ticket);
+
+        service.cancelService(75L);
+
+        assertEquals(ServiceTicket.TicketStatus.CANCELLED, ticket.getStatus());
+        verify(adminNotificationService).notifyCompanyAdmins(
+                eq(10L), eq("Servis iptal edildi"), contains("#75"),
+                eq(Notification.NotificationType.WARNING), eq(Notification.NotificationCategory.GENERAL),
+                eq("TICKET"), eq(75L), eq(7L));
     }
 
     @Test

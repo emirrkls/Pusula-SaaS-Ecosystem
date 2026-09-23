@@ -184,7 +184,7 @@ struct TicketDetailView: View {
             }
             Button("Vazgeç", role: .cancel) {}
         } message: {
-            Text("Kullanılan parçalar stoğa geri alınacak.")
+            Text("Kullanılan parçalar stoğa geri alınacak, işlem geçmişine kaydedilecek ve teknisyen tarafından yapıldığında yöneticiye bildirilecek.")
         }
         .confirmationDialog("Takip kaydı oluşturulsun mu?", isPresented: $showFollowUpConfirmation, titleVisibility: .visible) {
             Button("Takip Kaydı Oluştur") {
@@ -308,15 +308,23 @@ struct TicketDetailView: View {
                 .font(.subheadline.weight(.semibold))
             Spacer()
 
-            if isEditable && (isAdmin || !availableOperationalStatuses.isEmpty) {
+            if isEditable {
                 Menu {
-                    ForEach(availableOperationalStatuses, id: \.self) { status in
-                        Button {
-                            Task { await updateStatus(status) }
-                        } label: {
-                            Label(status.displayName, systemImage: status.iconName)
+                    if !availableOperationalStatuses.isEmpty {
+                        ForEach(availableOperationalStatuses, id: \.self) { status in
+                            Button {
+                                Task { await updateStatus(status) }
+                            } label: {
+                                Label(status.displayName, systemImage: status.iconName)
+                            }
+                            .disabled(status == currentTicket.statusEnum)
                         }
-                        .disabled(status == currentTicket.statusEnum)
+                        Divider()
+                    }
+                    Button(role: .destructive) {
+                        showCancelConfirmation = true
+                    } label: {
+                        Label("İş Emrini İptal Et", systemImage: "xmark.circle")
                     }
                 } label: {
                     HStack(spacing: 6) {
@@ -593,15 +601,6 @@ struct TicketDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
             .readOnlyProtected()
 
-            if isAdmin {
-                Button(role: .destructive) { showCancelConfirmation = true } label: {
-                    Label("Servis Fişini İptal Et", systemImage: "xmark.circle")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .disabled(isUpdatingTicket)
-                .readOnlyProtected()
-            }
         }
     }
     

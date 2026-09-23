@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct CustomerView: View {
+    @StateObject private var session = SessionManager.shared
     @State private var customers: [CustomerDTO] = []
     @State private var searchText = ""
     @State private var isLoading = true
@@ -8,6 +9,8 @@ struct CustomerView: View {
     @State private var selectedCustomer: CustomerDTO?
     @State private var showCreate = false
     @State private var ticketCustomer: CustomerDTO?
+    @State private var customerPendingDeletion: CustomerDTO?
+    @State private var isDeletingCustomer = false
     @State private var errorMessage: String?
     
     private var filtered: [CustomerDTO] {
@@ -72,6 +75,22 @@ struct CustomerView: View {
         .alert("Hata", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Tamam", role: .cancel) { errorMessage = nil }
         } message: { Text(errorMessage ?? "") }
+        .confirmationDialog(
+            "Müşteri silinsin mi?",
+            isPresented: Binding(
+                get: { customerPendingDeletion != nil },
+                set: { if !$0 { customerPendingDeletion = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: customerPendingDeletion
+        ) { customer in
+            Button("Müşteriyi Sil", role: .destructive) {
+                Task { await deleteCustomer(customer) }
+            }
+            Button("Vazgeç", role: .cancel) { customerPendingDeletion = nil }
+        } message: { customer in
+            Text("\(customer.name) aktif müşteri listesinden kaldırılacak. Geçmiş iş, teklif veya cari kaydı bulunan müşteriler kayıt bütünlüğü için silinemez.")
+        }
     }
     
     private func customerRow(_ customer: CustomerDTO) -> some View {
@@ -101,22 +120,74 @@ struct CustomerView: View {
             }
             .buttonStyle(.plain)
 
-            HStack(spacing: 18) {
-                Button { editingCustomer = customer } label: {
-                    Label("Düzenle", systemImage: "pencil")
-                }
-                .accessibilityLabel("Müşteriyi düzenle")
-                .readOnlyProtected()
-
+            HStack(spacing: 12) {
                 Button(action: { ticketCustomer = customer }) {
                     Label("Servis Fişi Aç", systemImage: "doc.badge.plus")
                 }
+                .readOnlyProtected()
+
+                Spacer()
+
+                Menu {
+                    Button { editingCustomer = customer } label: {
+                        Label("Düzenle", systemImage: "pencil")
+                    }
+                    Button(role: .destructive) { customerPendingDeletion = customer } label: {
+                        Label("Sil", systemImage: "trash")
+                    }
+                } label: {
+                    Label("İşlemler", systemImage: "ellipsis.circle")
+                }
+                .disabled(isDeletingCustomer)
                 .readOnlyProtected()
             }
             .font(.caption.weight(.semibold))
             .buttonStyle(.borderless)
         }
         .padding(.vertical, 6)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) { customerPendingDeletion = customer } label: {
+                Label("Sil", systemImage: "trash")
+            }
+            .disabled(session.isReadOnly || isDeletingCustomer)
+
+            Button { editingCustomer = customer } label: {
+                Label("Düzenle", systemImage: "pencil")
+            }
+            .tint(PusulaTheme.accent)
+            .disabled(session.isReadOnly)
+        }
+        .contextMenu {
+            Button { editingCustomer = customer } label: {
+                Label("Müşteriyi Düzenle", systemImage: "pencil")
+            }
+            .disabled(session.isReadOnly)
+            Button { ticketCustomer = customer } label: {
+                Label("Servis Fişi Aç", systemImage: "doc.badge.plus")
+            }
+            .disabled(session.isReadOnly)
+            Divider()
+            Button(role: .destructive) { customerPendingDeletion = customer } label: {
+                Label("Müşteriyi Sil", systemImage: "trash")
+            }
+            .disabled(session.isReadOnly || isDeletingCustomer)
+        }
+    }
+
+    @MainActor
+    private func deleteCustomer(_ customer: CustomerDTO) async {
+        guard let id = customer.id, !session.isReadOnly, !isDeletingCustomer else { return }
+        isDeletingCustomer = true
+        defer {
+            isDeletingCustomer = false
+            customerPendingDeletion = nil
+        }
+        do {
+            try await CustomerService.deleteCustomer(id: id)
+            customers.removeAll { $0.id == id }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
     
     private func load() async {

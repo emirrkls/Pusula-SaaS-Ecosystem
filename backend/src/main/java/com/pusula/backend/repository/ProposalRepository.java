@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 public interface ProposalRepository extends JpaRepository<Proposal, Long> {
     List<Proposal> findByCustomerId(Long customerId);
 
+    boolean existsByCompanyIdAndCustomerId(Long companyId, Long customerId);
+
     List<Proposal> findByCompanyId(Long companyId);
 
     long countByCompanyIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
