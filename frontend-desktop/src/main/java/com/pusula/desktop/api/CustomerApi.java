@@ -3,6 +3,7 @@ package com.pusula.desktop.api;
 import com.pusula.desktop.dto.CustomerDTO;
 import retrofit2.Call;
 import retrofit2.http.Body;
+import retrofit2.http.DELETE;
 import retrofit2.http.GET;
 import retrofit2.http.POST;
 import retrofit2.http.PUT;
@@ -22,4 +23,7 @@ public interface CustomerApi {
 
     @PUT("api/customers/{id}")
     Call<CustomerDTO> updateCustomer(@Path("id") Long id, @Body CustomerDTO customer);
+
+    @DELETE("api/customers/{id}")
+    Call<Void> deleteCustomer(@Path("id") Long id);
 }

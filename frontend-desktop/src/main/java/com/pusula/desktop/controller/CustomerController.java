@@ -10,6 +10,8 @@ import com.pusula.desktop.network.RetrofitClient;
 
 import com.pusula.desktop.util.AlertHelper;
 
+import com.pusula.desktop.util.ApiErrorHelper;
+
 import com.pusula.desktop.util.AnimationHelper;
 
 import com.pusula.desktop.util.TableUiHelper;
@@ -44,6 +46,8 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+
+import javafx.scene.Node;
 
 import javafx.scene.layout.HBox;
 
@@ -169,6 +173,10 @@ public class CustomerController {
 
         private final Button whatsAppBtn = new Button();
 
+        private final Button editBtn = new Button();
+
+        private final Button deleteBtn = new Button();
+
         CustomerCardCell() {
             avatar.getStyleClass().add("customer-avatar");
             avatar.setAlignment(Pos.CENTER);
@@ -182,6 +190,16 @@ public class CustomerController {
             whatsAppBtn.getStyleClass().addAll("btn-whatsapp", "btn-whatsapp-icon");
             whatsAppBtn.setTooltip(new Tooltip("WhatsApp"));
             whatsAppBtn.setAccessibleText("Müşteriyle WhatsApp üzerinden iletişim kur");
+
+            editBtn.setText(bundle.getString("customer.action.edit"));
+            editBtn.getStyleClass().addAll("btn-secondary", "customer-card-action");
+            editBtn.setTooltip(new Tooltip(bundle.getString("customer.action.edit.tooltip")));
+            editBtn.setAccessibleText(bundle.getString("customer.action.edit.tooltip"));
+
+            deleteBtn.setText(bundle.getString("customer.action.delete"));
+            deleteBtn.getStyleClass().addAll("btn-danger", "customer-card-action");
+            deleteBtn.setTooltip(new Tooltip(bundle.getString("customer.action.delete.tooltip")));
+            deleteBtn.setAccessibleText(bundle.getString("customer.action.delete.tooltip"));
 
             whatsAppBtn.setOnAction(e -> {
 
@@ -197,6 +215,22 @@ public class CustomerController {
 
             });
 
+            editBtn.setOnAction(e -> {
+                CustomerDTO customer = getItem();
+                if (customer != null) {
+                    handleEditCustomer(customer);
+                }
+                e.consume();
+            });
+
+            deleteBtn.setOnAction(e -> {
+                CustomerDTO customer = getItem();
+                if (customer != null) {
+                    handleDeleteCustomer(customer);
+                }
+                e.consume();
+            });
+
 
 
             HBox phoneRow = new HBox(8, metaLabel, whatsAppBtn);
@@ -209,14 +243,17 @@ public class CustomerController {
 
             card.setAlignment(Pos.CENTER_LEFT);
 
-            card.getChildren().addAll(avatar, content);
+            HBox actions = new HBox(8, editBtn, deleteBtn);
+            actions.setAlignment(Pos.CENTER_RIGHT);
+
+            card.getChildren().addAll(avatar, content, actions);
 
             HBox.setHgrow(content, Priority.ALWAYS);
 
 
 
             card.setOnMouseClicked(e -> {
-                if (isEmpty() || getItem() == null || e.getTarget() instanceof Button) {
+                if (isEmpty() || getItem() == null || isButtonTarget(e.getTarget())) {
                     return;
                 }
 
@@ -420,6 +457,71 @@ public class CustomerController {
 
         });
 
+    }
+
+    private boolean isButtonTarget(Object target) {
+        if (!(target instanceof Node node)) {
+            return false;
+        }
+        while (node != null) {
+            if (node instanceof Button) {
+                return true;
+            }
+            node = node.getParent();
+        }
+        return false;
+    }
+
+    private void handleDeleteCustomer(CustomerDTO customer) {
+        if (customer == null || customer.getId() == null) {
+            return;
+        }
+
+        String customerName = customer.getName() == null || customer.getName().isBlank()
+                ? bundle.getString("customer.delete.unnamed")
+                : customer.getName();
+        String message = java.text.MessageFormat.format(
+                bundle.getString("customer.delete.confirm"), customerName);
+        if (!AlertHelper.showConfirmation(customersListView.getScene().getWindow(),
+                bundle.getString("customer.delete.title"), message)) {
+            return;
+        }
+
+        setLoading(true);
+        CustomerApi api = RetrofitClient.getClient().create(CustomerApi.class);
+        api.deleteCustomer(customer.getId()).enqueue(new Callback<>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                Platform.runLater(() -> {
+                    setLoading(false);
+                    if (response.isSuccessful()) {
+                        customerList.removeIf(item -> customer.getId().equals(item.getId()));
+                        updateEmptyState();
+                        AlertHelper.showSuccess(customersListView.getScene().getWindow(),
+                                bundle.getString("customer.delete.success.title"),
+                                bundle.getString("customer.delete.success"));
+                        return;
+                    }
+
+                    String error = ApiErrorHelper.message(response,
+                            bundle.getString("customer.delete.failed"));
+                    AlertHelper.showAlert(Alert.AlertType.ERROR,
+                            customersListView.getScene().getWindow(),
+                            bundle.getString("customer.delete.failed.title"), error);
+                });
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable throwable) {
+                Platform.runLater(() -> {
+                    setLoading(false);
+                    AlertHelper.showAlert(Alert.AlertType.ERROR,
+                            customersListView.getScene().getWindow(),
+                            bundle.getString("common.connection_error"),
+                            bundle.getString("customer.delete.network_error") + " " + throwable.getMessage());
+                });
+            }
+        });
     }
 
     private void setLoading(boolean loading) {
