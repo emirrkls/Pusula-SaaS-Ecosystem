@@ -32,10 +32,11 @@ class ReportServiceMissingInventoryTest {
         ServiceUsedPartRepository usedPartRepository = mock(ServiceUsedPartRepository.class);
         ProposalRepository proposalRepository = mock(ProposalRepository.class);
         ServiceTicketNoteRepository serviceTicketNoteRepository = mock(ServiceTicketNoteRepository.class);
+        FinancialTransactionRepository financialTransactionRepository = mock(FinancialTransactionRepository.class);
 
         ReportService service = new ReportService(ticketRepository, customerRepository, companyRepository,
                 dailyClosingRepository, expenseRepository, userRepository, usedPartRepository, proposalRepository,
-                serviceTicketNoteRepository);
+                serviceTicketNoteRepository, financialTransactionRepository);
 
         ServiceTicket ticket = ServiceTicket.builder()
                 .id(100L)
@@ -89,10 +90,11 @@ class ReportServiceMissingInventoryTest {
         ServiceUsedPartRepository usedPartRepository = mock(ServiceUsedPartRepository.class);
         ProposalRepository proposalRepository = mock(ProposalRepository.class);
         ServiceTicketNoteRepository serviceTicketNoteRepository = mock(ServiceTicketNoteRepository.class);
+        FinancialTransactionRepository financialTransactionRepository = mock(FinancialTransactionRepository.class);
 
         ReportService service = new ReportService(ticketRepository, customerRepository, companyRepository,
                 dailyClosingRepository, expenseRepository, userRepository, usedPartRepository, proposalRepository,
-                serviceTicketNoteRepository);
+                serviceTicketNoteRepository, financialTransactionRepository);
 
         LocalDateTime historicalDate = LocalDateTime.of(2025, 4, 17, 9, 0);
         ServiceTicket ticket = ServiceTicket.builder()

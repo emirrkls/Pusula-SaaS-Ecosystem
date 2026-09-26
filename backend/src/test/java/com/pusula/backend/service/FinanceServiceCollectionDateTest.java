@@ -4,6 +4,7 @@ import com.pusula.backend.dto.DailySummaryDTO;
 import com.pusula.backend.entity.DailyClosing;
 import com.pusula.backend.entity.Expense;
 import com.pusula.backend.entity.ExpenseCategory;
+import com.pusula.backend.entity.FinancialTransaction;
 import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.repository.*;
@@ -33,6 +34,7 @@ class FinanceServiceCollectionDateTest {
     @Mock AuditLogService auditLogService;
     @Mock CompanyDebtPaymentRepository companyDebtPaymentRepository;
     @Mock ServiceTicketExpenseRepository serviceTicketExpenseRepository;
+    @Mock FinancialTransactionRepository financialTransactionRepository;
 
     private FinanceService service;
 
@@ -40,7 +42,8 @@ class FinanceServiceCollectionDateTest {
     void setUp() {
         service = new FinanceService(ticketRepository, expenseRepository, dailyClosingRepository,
                 customerRepository, fixedExpenseDefinitionRepository, auditLogService,
-                companyDebtPaymentRepository, serviceTicketExpenseRepository);
+                companyDebtPaymentRepository, serviceTicketExpenseRepository,
+                financialTransactionRepository);
     }
 
     @Test
@@ -91,9 +94,22 @@ class FinanceServiceCollectionDateTest {
     @Test
     void currentAccountCollectionRemainsLiquidIncome() {
         LocalDate collectionDate = LocalDate.now().minusDays(3);
-        ServiceTicket payment = completedCashTicket(new BigDecimal("135000.00"), collectionDate);
-        payment.setCurrentAccountPayment(true);
-        when(ticketRepository.findByCompanyId(10L)).thenReturn(List.of(payment));
+        ServiceTicket legacyPayment = completedCashTicket(new BigDecimal("135000.00"), collectionDate);
+        legacyPayment.setCurrentAccountPayment(true);
+        FinancialTransaction payment = new FinancialTransaction();
+        payment.setCompanyId(10L);
+        payment.setDirection(FinancialTransaction.Direction.INCOME);
+        payment.setCategory(FinancialTransaction.Category.CURRENT_ACCOUNT_COLLECTION);
+        payment.setStatus(FinancialTransaction.Status.POSTED);
+        payment.setEffectiveDate(collectionDate);
+        payment.setAmount(new BigDecimal("135000.00"));
+        payment.setCounterpartyName("Kurum carisi");
+        when(ticketRepository.findByCompanyId(10L)).thenReturn(List.of(legacyPayment));
+        when(financialTransactionRepository
+                .findByCompanyIdAndStatusAndDirectionAndEffectiveDateBetweenOrderByEffectiveDateAscIdAsc(
+                        10L, FinancialTransaction.Status.POSTED,
+                        FinancialTransaction.Direction.INCOME, collectionDate, collectionDate))
+                .thenReturn(List.of(payment));
         when(expenseRepository.findByCompanyIdAndDateBetween(10L, collectionDate, collectionDate))
                 .thenReturn(List.of());
 

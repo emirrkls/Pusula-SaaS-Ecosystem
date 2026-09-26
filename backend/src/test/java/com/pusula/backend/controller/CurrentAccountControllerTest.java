@@ -1,14 +1,12 @@
 package com.pusula.backend.controller;
 
 import com.pusula.backend.entity.CurrentAccount;
-import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.PaymentMethod;
-import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.CurrentAccountRepository;
 import com.pusula.backend.repository.CustomerRepository;
-import com.pusula.backend.repository.ServiceTicketRepository;
 import com.pusula.backend.service.CurrentAccountLedgerService;
+import com.pusula.backend.service.CurrentAccountPaymentService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,8 +31,8 @@ class CurrentAccountControllerTest {
 
     @Mock CurrentAccountRepository currentAccountRepository;
     @Mock CustomerRepository customerRepository;
-    @Mock ServiceTicketRepository serviceTicketRepository;
     @Mock CurrentAccountLedgerService ledgerService;
+    @Mock CurrentAccountPaymentService currentAccountPaymentService;
 
     private CurrentAccountController controller;
 
@@ -43,8 +41,8 @@ class CurrentAccountControllerTest {
         controller = new CurrentAccountController();
         ReflectionTestUtils.setField(controller, "currentAccountRepository", currentAccountRepository);
         ReflectionTestUtils.setField(controller, "customerRepository", customerRepository);
-        ReflectionTestUtils.setField(controller, "serviceTicketRepository", serviceTicketRepository);
         ReflectionTestUtils.setField(controller, "ledgerService", ledgerService);
+        ReflectionTestUtils.setField(controller, "currentAccountPaymentService", currentAccountPaymentService);
         User admin = User.builder().id(1L).companyId(7L).username("admin")
                 .passwordHash("secret").role("COMPANY_ADMIN").fullName("Admin").build();
         SecurityContextHolder.getContext().setAuthentication(
@@ -66,26 +64,21 @@ class CurrentAccountControllerTest {
 
     @Test
     void paymentCannotExceedCurrentBalance() {
-        Customer customer = Customer.builder().id(30L).companyId(7L).name("Müşteri").build();
-        CurrentAccount account = CurrentAccount.builder().id(9L).companyId(7L).customer(customer)
-                .balance(new BigDecimal("1000.00")).build();
-        when(currentAccountRepository.findByIdAndCompanyId(9L, 7L)).thenReturn(Optional.of(account));
+        when(currentAccountPaymentService.pay(eq(9L), eq(7L), eq(1L),
+                any(), any(), any(), any(), any(), any()))
+                .thenThrow(new IllegalArgumentException("Ödeme ve indirim toplamı cari bakiyeyi aşamaz."));
 
         assertThrows(IllegalArgumentException.class, () -> controller.payDebt(9L, Map.of(
                 "paymentAmount", new BigDecimal("900.00"),
                 "discount", new BigDecimal("200.00"))));
-
-        verify(serviceTicketRepository, never()).save(any());
-        verify(currentAccountRepository, never()).save(any());
     }
 
     @Test
     void paymentUsesRequestedDateMethodAndNotes() {
-        Customer customer = Customer.builder().id(30L).companyId(7L).name("Müşteri").build();
-        CurrentAccount account = CurrentAccount.builder().id(9L).companyId(7L).customer(customer)
+        CurrentAccount account = CurrentAccount.builder().id(9L).companyId(7L)
                 .balance(new BigDecimal("1000.00")).build();
-        when(currentAccountRepository.findByIdAndCompanyId(9L, 7L)).thenReturn(Optional.of(account));
-        when(currentAccountRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(currentAccountPaymentService.pay(anyLong(), anyLong(), anyLong(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(account);
 
         controller.payDebt(9L, Map.of(
                 "paymentAmount", new BigDecimal("400.00"),
@@ -94,13 +87,8 @@ class CurrentAccountControllerTest {
                 "paymentMethod", "CREDIT_CARD",
                 "notes", "Temmuz tahsilatı"));
 
-        var captor = org.mockito.ArgumentCaptor.forClass(ServiceTicket.class);
-        verify(serviceTicketRepository).save(captor.capture());
-        ServiceTicket ticket = captor.getValue();
-        assertEquals(LocalDate.of(2026, 7, 3), ticket.getCollectionDate());
-        assertEquals(LocalDate.of(2026, 7, 3), ticket.getCompletedAt().toLocalDate());
-        assertEquals(PaymentMethod.CREDIT_CARD, ticket.getPaymentMethod());
-        assertEquals("Cari hesap ödemesi - Müşteri - Temmuz tahsilatı", ticket.getDescription());
-        assertEquals(new BigDecimal("600.00"), account.getBalance());
+        verify(currentAccountPaymentService).pay(9L, 7L, 1L,
+                new BigDecimal("400.00"), BigDecimal.ZERO, LocalDate.of(2026, 7, 3),
+                PaymentMethod.CREDIT_CARD, "Temmuz tahsilatı", null);
     }
 }

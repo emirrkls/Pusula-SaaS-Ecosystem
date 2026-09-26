@@ -28,6 +28,7 @@ public class ReportService {
         private final ExpenseRepository expenseRepository;
         private final UserRepository userRepository;
         private final ServiceTicketNoteRepository serviceTicketNoteRepository;
+        private final FinancialTransactionRepository financialTransactionRepository;
 
         private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -96,7 +97,8 @@ public class ReportService {
                         UserRepository userRepository,
                         ServiceUsedPartRepository serviceUsedPartRepository,
                         ProposalRepository proposalRepository,
-                        ServiceTicketNoteRepository serviceTicketNoteRepository) {
+                        ServiceTicketNoteRepository serviceTicketNoteRepository,
+                        FinancialTransactionRepository financialTransactionRepository) {
                 this.ticketRepository = ticketRepository;
                 this.customerRepository = customerRepository;
                 this.companyRepository = companyRepository;
@@ -106,6 +108,7 @@ public class ReportService {
                 this.serviceUsedPartRepository = serviceUsedPartRepository;
                 this.proposalRepository = proposalRepository;
                 this.serviceTicketNoteRepository = serviceTicketNoteRepository;
+                this.financialTransactionRepository = financialTransactionRepository;
         }
 
         /**
@@ -954,8 +957,14 @@ public class ReportService {
 
                 // Cash reporting recognizes money only on its actual collection date.
                 List<ServiceTicket> collectionTickets = completedTickets.stream()
+                                .filter(st -> !st.isCurrentAccountPayment())
                                 .filter(st -> st.getEffectiveCollectionDate() != null)
                                 .collect(java.util.stream.Collectors.toList());
+
+                List<FinancialTransaction> currentAccountCollectionMovements = financialTransactionRepository
+                                .findByCompanyIdAndStatusAndCategory(companyId,
+                                                FinancialTransaction.Status.POSTED,
+                                                FinancialTransaction.Category.CURRENT_ACCOUNT_COLLECTION);
 
                 List<Expense> allExpenses = expenseRepository.findByCompanyId(companyId);
 
@@ -967,6 +976,12 @@ public class ReportService {
                                 .collect(java.util.stream.Collectors.groupingBy(
                                                 st -> java.time.YearMonth.from(st.getEffectiveCollectionDate())));
 
+                Map<java.time.YearMonth, List<FinancialTransaction>> currentAccountCollectionsByMonth =
+                                currentAccountCollectionMovements.stream()
+                                                .collect(java.util.stream.Collectors.groupingBy(
+                                                                movement -> java.time.YearMonth.from(
+                                                                                movement.getEffectiveDate())));
+
                 // Group expenses by month
                 Map<java.time.YearMonth, List<Expense>> expensesByMonth = allExpenses.stream()
                                 .collect(java.util.stream.Collectors.groupingBy(
@@ -976,6 +991,7 @@ public class ReportService {
                 java.util.Set<java.time.YearMonth> allMonths = new java.util.TreeSet<>();
                 allMonths.addAll(salesByMonth.keySet());
                 allMonths.addAll(collectionsByMonth.keySet());
+                allMonths.addAll(currentAccountCollectionsByMonth.keySet());
                 allMonths.addAll(expensesByMonth.keySet());
 
                 DateTimeFormatter turkishFormat = DateTimeFormatter.ofPattern("MMMM yyyy", new Locale("tr", "TR"));
@@ -1003,10 +1019,10 @@ public class ReportService {
                                         .filter(java.util.Objects::nonNull)
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                        BigDecimal currentAccountCollections = monthCollections.stream()
-                                        .filter(ServiceTicket::isCurrentAccountPayment)
-                                        .map(ServiceTicket::getCollectedAmount)
-                                        .filter(java.util.Objects::nonNull)
+                        BigDecimal currentAccountCollections = currentAccountCollectionsByMonth
+                                        .getOrDefault(month, java.util.Collections.emptyList())
+                                        .stream()
+                                        .map(FinancialTransaction::getAmount)
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                         BigDecimal partsCost = monthSales

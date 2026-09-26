@@ -1581,6 +1581,7 @@ public class FinanceController {
                 Map<String, Object> requestBody = new java.util.HashMap<>();
                 requestBody.put("paymentAmount", payment);
                 requestBody.put("discount", discount);
+                requestBody.put("requestId", java.util.UUID.randomUUID().toString());
 
                 CurrentAccountApi api = RetrofitClient.getClient().create(CurrentAccountApi.class);
                 api.payDebt(account.getId(), requestBody).enqueue(new Callback<CurrentAccountDTO>() {

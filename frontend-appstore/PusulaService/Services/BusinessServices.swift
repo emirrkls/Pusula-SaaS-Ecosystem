@@ -68,7 +68,7 @@ enum FinanceService {
     }
     
     static func payDebt(accountId: Int, paymentAmount: Double, discount: Double, collectionDate: String, paymentMethod: String, notes: String?) async throws -> CurrentAccountDTO {
-        let body = PayDebtRequest(paymentAmount: paymentAmount, discount: discount, collectionDate: collectionDate, paymentMethod: paymentMethod, notes: notes)
+        let body = PayDebtRequest(paymentAmount: paymentAmount, discount: discount, collectionDate: collectionDate, paymentMethod: paymentMethod, notes: notes, requestId: UUID().uuidString)
         return try await NetworkManager.shared.post("/api/current-accounts/\(accountId)/pay", body: body)
     }
 

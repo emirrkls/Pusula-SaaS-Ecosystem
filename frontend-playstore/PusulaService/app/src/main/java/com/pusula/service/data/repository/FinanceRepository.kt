@@ -54,7 +54,8 @@ class FinanceRepository @Inject constructor(
     suspend fun payDebt(accountId: Long, paymentAmount: Double, discount: Double): CurrentAccountDTO {
         val payload = mapOf(
             "paymentAmount" to paymentAmount,
-            "discount" to discount
+            "discount" to discount,
+            "requestId" to java.util.UUID.randomUUID().toString()
         )
         return apiService.financePayDebt(accountId, payload)
     }

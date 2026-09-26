@@ -7,6 +7,7 @@ import com.pusula.backend.entity.DailyClosing;
 import com.pusula.backend.entity.Expense;
 import com.pusula.backend.entity.ExpenseCategory;
 import com.pusula.backend.entity.ExpenseTreatment;
+import com.pusula.backend.entity.FinancialTransaction;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.FixedExpenseDefinition;
 import com.pusula.backend.repository.CustomerRepository;
@@ -14,6 +15,7 @@ import com.pusula.backend.repository.CompanyDebtPaymentRepository;
 import com.pusula.backend.repository.DailyClosingRepository;
 import com.pusula.backend.repository.ExpenseRepository;
 import com.pusula.backend.repository.FixedExpenseDefinitionRepository;
+import com.pusula.backend.repository.FinancialTransactionRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
 import com.pusula.backend.repository.ServiceTicketExpenseRepository;
 import lombok.Builder;
@@ -47,6 +49,7 @@ public class FinanceService {
         private final AuditLogService auditLogService;
         private final CompanyDebtPaymentRepository companyDebtPaymentRepository;
         private final ServiceTicketExpenseRepository serviceTicketExpenseRepository;
+        private final FinancialTransactionRepository financialTransactionRepository;
 
         @Data
         @Builder
@@ -85,6 +88,8 @@ public class FinanceService {
 
                 BigDecimal totalIncome = tickets.stream()
                                 .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
+                                .filter(t -> !t.isCurrentAccountPayment())
+                                .filter(t -> t.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT)
                                 .filter(t -> {
                                         LocalDate collectionDate = t.getEffectiveCollectionDate();
                                         return collectionDate != null && !collectionDate.isBefore(startDate)
@@ -93,6 +98,14 @@ public class FinanceService {
                                 .map(ServiceTicket::getCollectedAmount)
                                 .filter(amount -> amount != null)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                totalIncome = totalIncome.add(financialTransactionRepository
+                                .findByCompanyIdAndStatusAndDirectionAndEffectiveDateBetweenOrderByEffectiveDateAscIdAsc(
+                                                companyId, FinancialTransaction.Status.POSTED,
+                                                FinancialTransaction.Direction.INCOME, startDate, endDate)
+                                .stream()
+                                .map(FinancialTransaction::getAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add));
 
                 // Calculate Expenses
                 List<Expense> expenses = expenseRepository.findByCompanyIdAndDateBetween(companyId, startDate, endDate);
@@ -136,11 +149,20 @@ public class FinanceService {
 
                 BigDecimal totalIncome = allTickets.stream()
                                 .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
+                                .filter(t -> !t.isCurrentAccountPayment())
                                 .filter(t -> t.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT) // Exclude
                                                                                                                               // credit
                                 .map(ServiceTicket::getCollectedAmount)
                                 .filter(amount -> amount != null)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                totalIncome = totalIncome.add(financialTransactionRepository
+                                .findByCompanyIdAndStatusAndDirection(companyId,
+                                                FinancialTransaction.Status.POSTED,
+                                                FinancialTransaction.Direction.INCOME)
+                                .stream()
+                                .map(FinancialTransaction::getAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add));
 
                 // Calculate ALL-TIME PAID Expenses
                 // These are expenses that actually left the cash register
@@ -244,6 +266,7 @@ public class FinanceService {
                 List<ServiceTicket> tickets = ticketRepository.findByCompanyId(companyId);
                 List<ServiceTicket> completedTicketsToday = tickets.stream()
                                 .filter(t -> ServiceTicket.TicketStatus.COMPLETED.equals(t.getStatus()))
+                                .filter(t -> !t.isCurrentAccountPayment())
                                 .filter(t -> t.getPaymentMethod() != com.pusula.backend.entity.PaymentMethod.CURRENT_ACCOUNT) // Exclude
                                                                                                                               // credit/debt
                                 .filter(t -> {
@@ -273,6 +296,19 @@ public class FinanceService {
                                         .customerName(customerName)
                                         .amount(ticket.getCollectedAmount() != null ? ticket.getCollectedAmount()
                                                         : BigDecimal.ZERO)
+                                        .build());
+                }
+
+                List<FinancialTransaction> financialIncome = financialTransactionRepository
+                                .findByCompanyIdAndStatusAndDirectionAndEffectiveDateBetweenOrderByEffectiveDateAscIdAsc(
+                                                companyId, FinancialTransaction.Status.POSTED,
+                                                FinancialTransaction.Direction.INCOME, date, date);
+                for (FinancialTransaction movement : financialIncome) {
+                        totalIncome = totalIncome.add(movement.getAmount());
+                        incomeDetails.add(DailySummaryDTO.IncomeItemDTO.builder()
+                                        .ticketId(null)
+                                        .customerName(movement.getCounterpartyName())
+                                        .amount(movement.getAmount())
                                         .build());
                 }
 

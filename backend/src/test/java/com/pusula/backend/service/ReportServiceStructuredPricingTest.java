@@ -8,6 +8,7 @@ import com.pusula.backend.entity.Inventory;
 import com.pusula.backend.entity.Expense;
 import com.pusula.backend.entity.ExpenseCategory;
 import com.pusula.backend.entity.ExpenseTreatment;
+import com.pusula.backend.entity.FinancialTransaction;
 import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.entity.ServiceUsedPart;
@@ -40,6 +41,7 @@ class ReportServiceStructuredPricingTest {
     @Mock ServiceUsedPartRepository usedPartRepository;
     @Mock ProposalRepository proposalRepository;
     @Mock ServiceTicketNoteRepository serviceTicketNoteRepository;
+    @Mock FinancialTransactionRepository financialTransactionRepository;
 
     private ReportService service;
 
@@ -47,7 +49,7 @@ class ReportServiceStructuredPricingTest {
     void setUp() {
         service = new ReportService(ticketRepository, customerRepository, companyRepository,
                 dailyClosingRepository, expenseRepository, userRepository, usedPartRepository,
-                proposalRepository, serviceTicketNoteRepository);
+                proposalRepository, serviceTicketNoteRepository, financialTransactionRepository);
     }
 
     @Test
@@ -116,9 +118,22 @@ class ReportServiceStructuredPricingTest {
         laterCollection.setCollectedAmount(new BigDecimal("135000.00"));
         laterCollection.setCurrentAccountPayment(true);
 
+        FinancialTransaction collectionMovement = new FinancialTransaction();
+        collectionMovement.setCompanyId(10L);
+        collectionMovement.setDirection(FinancialTransaction.Direction.INCOME);
+        collectionMovement.setCategory(FinancialTransaction.Category.CURRENT_ACCOUNT_COLLECTION);
+        collectionMovement.setStatus(FinancialTransaction.Status.POSTED);
+        collectionMovement.setEffectiveDate(collectionDate);
+        collectionMovement.setAmount(new BigDecimal("135000.00"));
+        collectionMovement.setCounterpartyName("Kurum carisi");
+
         when(ticketRepository.findAll()).thenReturn(List.of(originalSale, laterCollection));
         when(expenseRepository.findByCompanyId(10L)).thenReturn(List.of());
         when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of());
+        when(financialTransactionRepository.findByCompanyIdAndStatusAndCategory(
+                10L, FinancialTransaction.Status.POSTED,
+                FinancialTransaction.Category.CURRENT_ACCOUNT_COLLECTION))
+                .thenReturn(List.of(collectionMovement));
 
         List<MonthlySummaryDTO> summaries = service.getMonthlyArchives(10L);
 

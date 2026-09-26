@@ -150,6 +150,7 @@ struct PayDebtRequest: Codable {
     let collectionDate: String
     let paymentMethod: String
     let notes: String?
+    let requestId: String
 }
 
 struct CompanyDebtDTO: Codable, Identifiable {
