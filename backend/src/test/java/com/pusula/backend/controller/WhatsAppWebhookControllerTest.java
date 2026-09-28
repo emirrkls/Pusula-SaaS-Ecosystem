@@ -6,11 +6,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
 class WhatsAppWebhookControllerTest {
@@ -25,6 +30,19 @@ class WhatsAppWebhookControllerTest {
         assertEquals(200, controller.verify("subscribe", "token", "challenge").getStatusCode().value());
         assertEquals("challenge", controller.verify("subscribe", "token", "challenge").getBody());
         assertEquals(403, controller.verify("subscribe", "wrong", "challenge").getStatusCode().value());
+    }
+
+    @Test
+    void invalidVerificationTokenReturnsForbiddenForJsonAcceptHeader() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
+                new WhatsAppWebhookController(security, service)).build();
+
+        mockMvc.perform(get("/api/public/whatsapp/webhook")
+                        .accept(MediaType.APPLICATION_JSON)
+                        .param("hub.mode", "subscribe")
+                        .param("hub.verify_token", "wrong")
+                        .param("hub.challenge", "challenge"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

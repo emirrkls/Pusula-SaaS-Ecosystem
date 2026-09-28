@@ -21,7 +21,7 @@ public class WhatsAppWebhookController {
         this.webhookService = webhookService;
     }
 
-    @GetMapping(produces = MediaType.TEXT_PLAIN_VALUE)
+    @GetMapping
     public ResponseEntity<String> verify(
             @RequestParam(name = "hub.mode", required = false) String mode,
             @RequestParam(name = "hub.verify_token", required = false) String verifyToken,
