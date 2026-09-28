@@ -193,6 +193,25 @@ enum CustomerService {
     static func getServiceHistory(customerId: Int) async throws -> [FieldTicketDTO] {
         try await NetworkManager.shared.get("/api/tickets/customer/\(customerId)")
     }
+
+    static func getWhatsAppConsent(customerId: Int) async throws -> CustomerWhatsAppConsentDTO {
+        try await NetworkManager.shared.get("/api/customers/\(customerId)/whatsapp-consent")
+    }
+
+    static func updateWhatsAppConsent(
+        customerId: Int,
+        optedIn: Bool,
+        source: WhatsAppConsentSource?
+    ) async throws -> CustomerWhatsAppConsentDTO {
+        let request = UpdateCustomerWhatsAppConsentRequest(
+            optedIn: optedIn,
+            source: source?.rawValue
+        )
+        return try await NetworkManager.shared.put(
+            "/api/customers/\(customerId)/whatsapp-consent",
+            body: request
+        )
+    }
 }
 
 enum ProposalService {

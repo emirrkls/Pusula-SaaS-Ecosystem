@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Phone, Mail, Send, CheckCircle, AlertCircle, Loader2, XCircle } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
 
@@ -195,7 +195,7 @@ const Toast = ({ type, title, message, onClose }) => {
     const c = config[type] || config.error;
 
     return (
-        <motion.div
+        <Motion.div
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
@@ -216,7 +216,7 @@ const Toast = ({ type, title, message, onClose }) => {
                     ✕
                 </button>
             </div>
-        </motion.div>
+        </Motion.div>
     );
 };
 

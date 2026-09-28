@@ -35,6 +35,8 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.awt.Desktop;
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 public class SettingsController {
 
@@ -131,10 +133,22 @@ public class SettingsController {
                         return;
                     }
                     try {
+                        WhatsAppOnboardingStartDTO session = response.body();
+                        if (session.getAppId() == null || !session.getAppId().matches("[0-9]{5,32}")
+                                || session.getConfigurationId() == null
+                                || !session.getConfigurationId().matches("[0-9]{5,32}")
+                                || session.getExpiresAt() == null) {
+                            throw new IllegalStateException("Sunucu Meta bağlantı ayarlarını eksik döndürdü");
+                        }
                         if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
                             throw new IllegalStateException("Tarayıcı açılamıyor");
                         }
-                        Desktop.getDesktop().browse(new URI(response.body().getUrl()));
+                        String separator = session.getUrl().contains("#") ? "&" : "#";
+                        String connectionUrl = session.getUrl()
+                                + separator + "app_id=" + encodeFragmentValue(session.getAppId())
+                                + "&configuration_id=" + encodeFragmentValue(session.getConfigurationId())
+                                + "&expires_at=" + encodeFragmentValue(session.getExpiresAt().toString());
+                        Desktop.getDesktop().browse(new URI(connectionUrl));
                         lblWhatsAppStatus.setText("Meta bağlantı ekranı tarayıcıda açıldı. Bağlantı 15 dakika geçerlidir.");
                     } catch (Exception ex) {
                         lblWhatsAppStatus.setText("Bağlantı adresi açılamadı: " + ex.getMessage());
@@ -150,6 +164,10 @@ public class SettingsController {
                 });
             }
         });
+    }
+
+    private static String encodeFragmentValue(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     @FXML

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, Plus, Minus, Phone, ArrowRight } from 'lucide-react';
 import { landingPages } from './landingPages';
 import { PageSeo } from '../../seo/PageSeo';
@@ -159,7 +159,7 @@ const ServiceLandingPage = ({ pageKey }) => {
                                 </button>
                                 <AnimatePresence>
                                     {activeAccordion === index && (
-                                        <motion.div
+                                        <Motion.div
                                             initial={{ height: 0, opacity: 0 }}
                                             animate={{ height: 'auto', opacity: 1 }}
                                             exit={{ height: 0, opacity: 0 }}
@@ -168,7 +168,7 @@ const ServiceLandingPage = ({ pageKey }) => {
                                             <div className="p-6 pt-0 text-gray-600 bg-gray-50 border-t border-gray-100">
                                                 {faq.a}
                                             </div>
-                                        </motion.div>
+                                        </Motion.div>
                                     )}
                                 </AnimatePresence>
                             </div>

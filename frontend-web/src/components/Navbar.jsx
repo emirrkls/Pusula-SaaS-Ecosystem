@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Phone, Menu, X, ChevronDown } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { mainNavLinks, serviceMenuGroups } from '../data/navigation';
 
 const Navbar = () => {
@@ -19,9 +19,12 @@ const Navbar = () => {
     }, []);
 
     useEffect(() => {
-        setIsServicesOpen(false);
-        setIsMobileMenuOpen(false);
-        setIsMobileServicesOpen(false);
+        const closeTimer = window.setTimeout(() => {
+            setIsServicesOpen(false);
+            setIsMobileMenuOpen(false);
+            setIsMobileServicesOpen(false);
+        }, 0);
+        return () => window.clearTimeout(closeTimer);
     }, [location.pathname, location.hash]);
 
     useEffect(() => {
@@ -86,7 +89,7 @@ const Navbar = () => {
 
                         <AnimatePresence>
                             {isServicesOpen && (
-                                <motion.div
+                                <Motion.div
                                     initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: 8 }}
@@ -118,7 +121,7 @@ const Navbar = () => {
                                             </ul>
                                         </div>
                                     ))}
-                                </motion.div>
+                                </Motion.div>
                             )}
                         </AnimatePresence>
                     </div>
@@ -155,7 +158,7 @@ const Navbar = () => {
             {/* Mobile Menu */}
             <AnimatePresence>
                 {isMobileMenuOpen && (
-                    <motion.div
+                    <Motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
@@ -183,7 +186,7 @@ const Navbar = () => {
 
                             <AnimatePresence>
                                 {isMobileServicesOpen && (
-                                    <motion.div
+                                    <Motion.div
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: 'auto' }}
                                         exit={{ opacity: 0, height: 0 }}
@@ -208,7 +211,7 @@ const Navbar = () => {
                                                 ))}
                                             </div>
                                         ))}
-                                    </motion.div>
+                                    </Motion.div>
                                 )}
                             </AnimatePresence>
 
@@ -231,7 +234,7 @@ const Navbar = () => {
                                 Hemen Servis Çağır
                             </Link>
                         </div>
-                    </motion.div>
+                    </Motion.div>
                 )}
             </AnimatePresence>
         </nav>

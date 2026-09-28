@@ -1,5 +1,6 @@
 package com.pusula.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
@@ -20,6 +21,19 @@ public class Customer extends BaseEntity {
     private String address;
 
     private String coordinates; // Format: "lat,long"
+
+    @Column(name = "whatsapp_opt_in", nullable = false)
+    private boolean whatsappOptIn = false;
+
+    @Column(name = "whatsapp_opt_in_at")
+    private LocalDateTime whatsappOptInAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "whatsapp_opt_in_source", length = 32)
+    private WhatsAppConsentSource whatsappOptInSource;
+
+    @Column(name = "whatsapp_opt_out_at")
+    private LocalDateTime whatsappOptOutAt;
 
     public Customer() {
     }
@@ -69,6 +83,42 @@ public class Customer extends BaseEntity {
 
     public void setCoordinates(String coordinates) {
         this.coordinates = coordinates;
+    }
+
+    @JsonIgnore
+    public boolean isWhatsappOptIn() {
+        return whatsappOptIn;
+    }
+
+    public void setWhatsappOptIn(boolean whatsappOptIn) {
+        this.whatsappOptIn = whatsappOptIn;
+    }
+
+    @JsonIgnore
+    public LocalDateTime getWhatsappOptInAt() {
+        return whatsappOptInAt;
+    }
+
+    public void setWhatsappOptInAt(LocalDateTime whatsappOptInAt) {
+        this.whatsappOptInAt = whatsappOptInAt;
+    }
+
+    @JsonIgnore
+    public WhatsAppConsentSource getWhatsappOptInSource() {
+        return whatsappOptInSource;
+    }
+
+    public void setWhatsappOptInSource(WhatsAppConsentSource whatsappOptInSource) {
+        this.whatsappOptInSource = whatsappOptInSource;
+    }
+
+    @JsonIgnore
+    public LocalDateTime getWhatsappOptOutAt() {
+        return whatsappOptOutAt;
+    }
+
+    public void setWhatsappOptOutAt(LocalDateTime whatsappOptOutAt) {
+        this.whatsappOptOutAt = whatsappOptOutAt;
     }
 
     public static class CustomerBuilder {

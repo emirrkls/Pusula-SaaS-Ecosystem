@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { ArrowRight, ShieldCheck, Clock, Wallet, ChevronRight } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
 import { DEFAULT_DESCRIPTION } from '../seo/constants';
@@ -117,7 +117,7 @@ const Home = () => {
             <section className="py-20 container mx-auto px-4 -mt-20 relative z-20">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {features.map((feature, index) => (
-                        <motion.div
+                        <Motion.div
                             key={index}
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
@@ -130,7 +130,7 @@ const Home = () => {
                             </div>
                             <h3 className="text-xl font-bold text-brand-dark mb-3">{feature.title}</h3>
                             <p className="text-gray-600 leading-relaxed">{feature.desc}</p>
-                        </motion.div>
+                        </Motion.div>
                     ))}
                 </div>
             </section>
@@ -147,7 +147,7 @@ const Home = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {services.map((service, index) => (
-                            <motion.div
+                            <Motion.div
                                 key={index}
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 whileInView={{ opacity: 1, scale: 1 }}
@@ -168,7 +168,7 @@ const Home = () => {
                                         Detaylı Bilgi <ChevronRight className="w-4 h-4" />
                                     </Link>
                                 </div>
-                            </motion.div>
+                            </Motion.div>
                         ))}
                     </div>
                 </div>

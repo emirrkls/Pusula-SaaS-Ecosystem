@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, CheckCircle } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
 import { AuthorizedBrandsSection } from '../components/AuthorizedBrandsSection';
@@ -126,7 +126,7 @@ const Services = () => {
             {/* Services List */}
             <div className="container mx-auto px-4 py-16 space-y-20">
                 {servicesList.map((service, index) => (
-                    <motion.div
+                    <Motion.div
                         key={service.id}
                         id={service.id}
                         initial={{ opacity: 0, y: 30 }}
@@ -161,7 +161,7 @@ const Services = () => {
                                 Detaylı Bilgi
                             </Link>
                         </div>
-                    </motion.div>
+                    </Motion.div>
                 ))}
             </div>
 
@@ -189,7 +189,7 @@ const Services = () => {
                                 </button>
                                 <AnimatePresence>
                                     {activeAccordion === index && (
-                                        <motion.div
+                                        <Motion.div
                                             initial={{ height: 0, opacity: 0 }}
                                             animate={{ height: 'auto', opacity: 1 }}
                                             exit={{ height: 0, opacity: 0 }}
@@ -198,7 +198,7 @@ const Services = () => {
                                             <div className="p-6 pt-0 text-gray-600 bg-gray-50 border-t border-gray-100">
                                                 {faq.a}
                                             </div>
-                                        </motion.div>
+                                        </Motion.div>
                                     )}
                                 </AnimatePresence>
                             </div>

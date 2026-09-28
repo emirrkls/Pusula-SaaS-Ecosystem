@@ -1,10 +1,14 @@
 package com.pusula.backend.controller;
 
 import com.pusula.backend.entity.Customer;
+import com.pusula.backend.dto.CustomerWhatsAppConsentDTO;
+import com.pusula.backend.dto.UpdateCustomerWhatsAppConsentRequest;
 import com.pusula.backend.service.CustomerService;
 import com.pusula.backend.annotation.RequiresFeature;
 
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -44,5 +48,19 @@ public class CustomerController {
     public ResponseEntity<Void> deleteCustomer(@PathVariable Long id) {
         customerService.deleteCustomer(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/whatsapp-consent")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<CustomerWhatsAppConsentDTO> getWhatsAppConsent(@PathVariable Long id) {
+        return ResponseEntity.ok(customerService.getWhatsAppConsent(id));
+    }
+
+    @PutMapping("/{id}/whatsapp-consent")
+    @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<CustomerWhatsAppConsentDTO> updateWhatsAppConsent(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateCustomerWhatsAppConsentRequest request) {
+        return ResponseEntity.ok(customerService.updateWhatsAppConsent(id, request));
     }
 }

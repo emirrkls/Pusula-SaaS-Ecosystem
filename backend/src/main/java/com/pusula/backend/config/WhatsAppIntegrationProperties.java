@@ -11,6 +11,7 @@ public class WhatsAppIntegrationProperties {
     private final String connectUrl;
     private final String credentialEncryptionKey;
     private final String graphVersion;
+    private final String webhookVerifyToken;
 
     public WhatsAppIntegrationProperties(
             @Value("${whatsapp.onboarding.app-id:}") String appId,
@@ -18,13 +19,15 @@ public class WhatsAppIntegrationProperties {
             @Value("${whatsapp.onboarding.configuration-id:}") String configurationId,
             @Value("${whatsapp.onboarding.connect-url:https://www.pusulaiklimlendirme.com/whatsapp-connect}") String connectUrl,
             @Value("${whatsapp.onboarding.credential-encryption-key:}") String credentialEncryptionKey,
-            @Value("${whatsapp.api.graph-version:v26.0}") String graphVersion) {
+            @Value("${whatsapp.api.graph-version:v26.0}") String graphVersion,
+            @Value("${whatsapp.webhook.verify-token:}") String webhookVerifyToken) {
         this.appId = appId;
         this.appSecret = appSecret;
         this.configurationId = configurationId;
         this.connectUrl = connectUrl;
         this.credentialEncryptionKey = credentialEncryptionKey;
         this.graphVersion = graphVersion;
+        this.webhookVerifyToken = webhookVerifyToken;
     }
 
     public String getAppId() { return appId; }
@@ -33,4 +36,5 @@ public class WhatsAppIntegrationProperties {
     public String getConnectUrl() { return connectUrl; }
     public String getCredentialEncryptionKey() { return credentialEncryptionKey; }
     public String getGraphVersion() { return graphVersion; }
+    public String getWebhookVerifyToken() { return webhookVerifyToken; }
 }

@@ -226,6 +226,12 @@ private struct CustomerDetailSheet: View {
                     }
                 }
 
+                if SessionManager.shared.isAdmin, let customerId = customer.id {
+                    Section("WhatsApp Bilgilendirme") {
+                        CustomerWhatsAppConsentSection(customerId: customerId)
+                    }
+                }
+
                 Section("İşlem Geçmişi") {
                     if isLoading {
                         HStack { Spacer(); ProgressView(); Spacer() }
@@ -307,6 +313,190 @@ private struct CustomerDetailSheet: View {
     private func serviceDate(_ ticket: FieldTicketDTO) -> String? {
         let raw = ticket.completedAt ?? ticket.scheduledDate ?? ticket.createdAt
         guard let raw else { return nil }
+        guard let date = TicketFilters.parseBusinessDate(raw) else { return raw }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.timeZone = TimeZone(identifier: "Europe/Istanbul")
+        formatter.dateFormat = "d MMMM yyyy, HH:mm"
+        return formatter.string(from: date)
+    }
+}
+
+private struct CustomerWhatsAppConsentSection: View {
+    let customerId: Int
+
+    @StateObject private var session = SessionManager.shared
+    @State private var consent: CustomerWhatsAppConsentDTO?
+    @State private var isLoading = true
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+    @State private var showSourcePicker = false
+    @State private var showRevokeConfirmation = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if isLoading {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("İzin durumu kontrol ediliyor…")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else if let consent {
+                statusHeader(consent)
+
+                if consent.optedIn {
+                    consentDetail("İzin tarihi", value: formattedDate(consent.optedInAt) ?? "—")
+                    consentDetail("İzin kaynağı", value: consent.sourceTitle ?? "—")
+                } else {
+                    consentDetail("Son izin tarihi", value: formattedDate(consent.optedInAt) ?? "—")
+                    consentDetail("Son izin kaynağı", value: consent.sourceTitle ?? "—")
+                    consentDetail("İptal tarihi", value: formattedDate(consent.optedOutAt) ?? "—")
+                }
+
+                if let errorMessage {
+                    PusulaInlineMessage(text: errorMessage)
+                }
+
+                if !session.isReadOnly {
+                    if consent.optedIn {
+                        Button(role: .destructive) {
+                            showRevokeConfirmation = true
+                        } label: {
+                            Label("İzni İptal Et", systemImage: "xmark.shield")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isSaving)
+                    } else {
+                        Button {
+                            showSourcePicker = true
+                        } label: {
+                            Label("İzin Kaydet", systemImage: "checkmark.shield")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(PusulaTheme.accent)
+                        .disabled(isSaving)
+                    }
+                }
+
+                if isSaving {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("İzin durumu güncelleniyor…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                PusulaInlineMessage(
+                    text: errorMessage ?? "WhatsApp izin durumu alınamadı.",
+                    kind: .warning
+                )
+                Button("Yeniden Dene") {
+                    Task { await loadConsent() }
+                }
+                .font(.subheadline.weight(.semibold))
+                .disabled(isLoading)
+            }
+        }
+        .task(id: customerId) { await loadConsent() }
+        .confirmationDialog(
+            "İzin kaynağını seçin",
+            isPresented: $showSourcePicker,
+            titleVisibility: .visible
+        ) {
+            ForEach(WhatsAppConsentSource.allCases) { source in
+                Button(source.title) {
+                    Task { await updateConsent(optedIn: true, source: source) }
+                }
+            }
+            Button("Vazgeç", role: .cancel) { }
+        } message: {
+            Text("Müşterinin WhatsApp bilgilendirmeleri için açık izin verdiği yöntemi seçin.")
+        }
+        .confirmationDialog(
+            "WhatsApp izni iptal edilsin mi?",
+            isPresented: $showRevokeConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("İzni İptal Et", role: .destructive) {
+                Task { await updateConsent(optedIn: false, source: nil) }
+            }
+            Button("Vazgeç", role: .cancel) { }
+        } message: {
+            Text("Bu müşteriye yeni otomatik servis bilgilendirme mesajları gönderilmeyecek.")
+        }
+    }
+
+    private func statusHeader(_ consent: CustomerWhatsAppConsentDTO) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: consent.optedIn ? "checkmark.shield.fill" : "shield.slash.fill")
+                .font(.title3)
+                .foregroundStyle(consent.optedIn ? Color.green : Color.orange)
+                .frame(width: 28)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(consent.optedIn ? "Bilgilendirme izni açık" : "Bilgilendirme izni kapalı")
+                    .font(.subheadline.weight(.semibold))
+                Text(consent.optedIn
+                     ? "Otomatik servis bildirimleri gönderilebilir."
+                     : "Otomatik WhatsApp mesajı gönderilmez.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func consentDetail(_ title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(value)
+                .font(.caption.weight(.medium))
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    @MainActor
+    private func loadConsent() async {
+        guard session.isAdmin else {
+            isLoading = false
+            return
+        }
+        isLoading = true
+        errorMessage = nil
+        do {
+            consent = try await CustomerService.getWhatsAppConsent(customerId: customerId)
+        } catch {
+            consent = nil
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    @MainActor
+    private func updateConsent(optedIn: Bool, source: WhatsAppConsentSource?) async {
+        guard session.isAdmin, !session.isReadOnly, !isSaving else { return }
+        isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+        do {
+            consent = try await CustomerService.updateWhatsAppConsent(
+                customerId: customerId,
+                optedIn: optedIn,
+                source: source
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func formattedDate(_ raw: String?) -> String? {
         guard let date = TicketFilters.parseBusinessDate(raw) else { return raw }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "tr_TR")

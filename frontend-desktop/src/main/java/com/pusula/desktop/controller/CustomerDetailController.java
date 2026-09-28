@@ -4,10 +4,15 @@ import com.pusula.desktop.api.CustomerApi;
 import com.pusula.desktop.api.ServiceTicketApi;
 import com.pusula.desktop.api.UserApi;
 import com.pusula.desktop.dto.CustomerDTO;
+import com.pusula.desktop.dto.CustomerWhatsAppConsentDTO;
 import com.pusula.desktop.dto.ServiceTicketDTO;
+import com.pusula.desktop.dto.UpdateCustomerWhatsAppConsentRequest;
 import com.pusula.desktop.dto.UserDTO;
+import com.pusula.desktop.dto.WhatsAppConsentSource;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
+import com.pusula.desktop.util.ApiErrorHelper;
+import com.pusula.desktop.util.SessionManager;
 import com.pusula.desktop.util.WhatsAppHelper;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -15,11 +20,15 @@ import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.paint.Color;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.Modality;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -29,6 +38,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 import java.time.format.DateTimeFormatter;
+import java.text.MessageFormat;
 import java.util.List;
 
 public class CustomerDetailController {
@@ -44,6 +54,27 @@ public class CustomerDetailController {
 
     @FXML
     private Button btnWhatsApp;
+
+    @FXML
+    private VBox whatsappConsentPane;
+
+    @FXML
+    private Label whatsappConsentStatusLabel;
+
+    @FXML
+    private Label whatsappConsentDetailLabel;
+
+    @FXML
+    private ComboBox<ConsentSourceOption> whatsappConsentSourceCombo;
+
+    @FXML
+    private Button btnGrantWhatsAppConsent;
+
+    @FXML
+    private Button btnRevokeWhatsAppConsent;
+
+    @FXML
+    private ProgressIndicator whatsappConsentProgress;
 
     @FXML
     private TableView<ServiceTicketDTO> historyTable;
@@ -67,6 +98,9 @@ public class CustomerDetailController {
     private Runnable onSaveSuccess;
     private java.util.ResourceBundle resourceBundle;
     private java.util.Map<Long, String> technicianMap = new java.util.HashMap<>();
+    private CustomerWhatsAppConsentDTO whatsappConsent;
+    private boolean whatsappConsentBusy;
+    private static final DateTimeFormatter CONSENT_DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
     @FXML
     public void initialize() {
@@ -74,8 +108,31 @@ public class CustomerDetailController {
         resourceBundle = java.util.ResourceBundle.getBundle("i18n.messages",
                 java.util.Locale.of("tr", "TR"), new com.pusula.desktop.util.UTF8Control());
         setupWhatsAppButton();
+        setupWhatsAppConsentControls();
         setupTable();
         loadTechnicians();
+    }
+
+    private void setupWhatsAppConsentControls() {
+        boolean admin = SessionManager.isAdmin();
+        whatsappConsentPane.setVisible(admin);
+        whatsappConsentPane.setManaged(admin);
+        if (!admin) return;
+
+        whatsappConsentSourceCombo.setItems(FXCollections.observableArrayList(
+                sourceOption(WhatsAppConsentSource.WRITTEN_FORM, "customer.whatsapp_consent.source.written"),
+                sourceOption(WhatsAppConsentSource.VERBAL_CONFIRMATION, "customer.whatsapp_consent.source.verbal"),
+                sourceOption(WhatsAppConsentSource.DIGITAL_FORM, "customer.whatsapp_consent.source.digital"),
+                sourceOption(WhatsAppConsentSource.WHATSAPP_CONVERSATION, "customer.whatsapp_consent.source.whatsapp"),
+                sourceOption(WhatsAppConsentSource.OTHER, "customer.whatsapp_consent.source.other")));
+        whatsappConsentSourceCombo.valueProperty().addListener((observable, oldValue, newValue) ->
+                updateWhatsAppConsentActions());
+        setWhatsAppConsentBusy(false);
+        renderWhatsAppConsent(null);
+    }
+
+    private ConsentSourceOption sourceOption(WhatsAppConsentSource source, String key) {
+        return new ConsentSourceOption(source, resourceBundle.getString(key));
     }
 
     private void setupWhatsAppButton() {
@@ -184,6 +241,185 @@ public class CustomerDetailController {
             phoneField.setText(customer.getPhone());
             addressField.setText(customer.getAddress());
             loadServiceHistory(customer.getId());
+            if (SessionManager.isAdmin()) loadWhatsAppConsent(customer.getId());
+        }
+    }
+
+    private void loadWhatsAppConsent(Long customerId) {
+        setWhatsAppConsentBusy(true);
+        CustomerApi api = RetrofitClient.getClient().create(CustomerApi.class);
+        api.getWhatsAppConsent(customerId).enqueue(new Callback<>() {
+            @Override
+            public void onResponse(Call<CustomerWhatsAppConsentDTO> call,
+                    Response<CustomerWhatsAppConsentDTO> response) {
+                Platform.runLater(() -> {
+                    setWhatsAppConsentBusy(false);
+                    if (response.isSuccessful() && response.body() != null) {
+                        renderWhatsAppConsent(response.body());
+                    } else {
+                        renderWhatsAppConsentError();
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<CustomerWhatsAppConsentDTO> call, Throwable throwable) {
+                Platform.runLater(() -> {
+                    setWhatsAppConsentBusy(false);
+                    renderWhatsAppConsentError();
+                });
+            }
+        });
+    }
+
+    private void renderWhatsAppConsent(CustomerWhatsAppConsentDTO consent) {
+        whatsappConsent = consent;
+        whatsappConsentStatusLabel.getStyleClass().removeAll(
+                "status-badge-pending", "status-badge-completed", "status-badge-cancelled");
+
+        if (consent == null) {
+            whatsappConsentStatusLabel.setText(resourceBundle.getString("customer.whatsapp_consent.status.not_granted"));
+            whatsappConsentStatusLabel.getStyleClass().add("status-badge-pending");
+            whatsappConsentDetailLabel.setText(resourceBundle.getString("customer.whatsapp_consent.not_granted_hint"));
+        } else if (consent.optedIn()) {
+            whatsappConsentStatusLabel.setText(resourceBundle.getString("customer.whatsapp_consent.status.granted"));
+            whatsappConsentStatusLabel.getStyleClass().add("status-badge-completed");
+            whatsappConsentDetailLabel.setText(consentDetail(consent));
+        } else if (consent.optedOutAt() != null) {
+            whatsappConsentStatusLabel.setText(resourceBundle.getString("customer.whatsapp_consent.status.revoked"));
+            whatsappConsentStatusLabel.getStyleClass().add("status-badge-cancelled");
+            whatsappConsentDetailLabel.setText(consentDetail(consent));
+        } else {
+            whatsappConsentStatusLabel.setText(resourceBundle.getString("customer.whatsapp_consent.status.not_granted"));
+            whatsappConsentStatusLabel.getStyleClass().add("status-badge-pending");
+            whatsappConsentDetailLabel.setText(resourceBundle.getString("customer.whatsapp_consent.not_granted_hint"));
+        }
+        updateWhatsAppConsentActions();
+    }
+
+    private void renderWhatsAppConsentError() {
+        whatsappConsent = null;
+        whatsappConsentStatusLabel.getStyleClass().removeAll(
+                "status-badge-pending", "status-badge-completed", "status-badge-cancelled");
+        whatsappConsentStatusLabel.getStyleClass().add("status-badge-cancelled");
+        whatsappConsentStatusLabel.setText(resourceBundle.getString("customer.whatsapp_consent.status.unavailable"));
+        whatsappConsentDetailLabel.setText(resourceBundle.getString("customer.whatsapp_consent.load_failed"));
+        updateWhatsAppConsentActions();
+    }
+
+    private String consentDetail(CustomerWhatsAppConsentDTO consent) {
+        java.util.List<String> details = new java.util.ArrayList<>();
+        if (consent.source() != null) {
+            details.add(format("customer.whatsapp_consent.source_detail", sourceLabel(consent.source())));
+        }
+        if (consent.optedInAt() != null) {
+            details.add(format("customer.whatsapp_consent.granted_at",
+                    consent.optedInAt().format(CONSENT_DATE_FORMAT)));
+        }
+        if (consent.optedOutAt() != null) {
+            details.add(format("customer.whatsapp_consent.revoked_at",
+                    consent.optedOutAt().format(CONSENT_DATE_FORMAT)));
+        }
+        return String.join("  ·  ", details);
+    }
+
+    private String sourceLabel(WhatsAppConsentSource source) {
+        return switch (source) {
+            case WRITTEN_FORM -> resourceBundle.getString("customer.whatsapp_consent.source.written");
+            case VERBAL_CONFIRMATION -> resourceBundle.getString("customer.whatsapp_consent.source.verbal");
+            case DIGITAL_FORM -> resourceBundle.getString("customer.whatsapp_consent.source.digital");
+            case WHATSAPP_CONVERSATION -> resourceBundle.getString("customer.whatsapp_consent.source.whatsapp");
+            case OTHER -> resourceBundle.getString("customer.whatsapp_consent.source.other");
+        };
+    }
+
+    private String format(String key, Object... values) {
+        return MessageFormat.format(resourceBundle.getString(key), values);
+    }
+
+    private void setWhatsAppConsentBusy(boolean busy) {
+        whatsappConsentBusy = busy;
+        whatsappConsentProgress.setVisible(busy);
+        whatsappConsentProgress.setManaged(busy);
+        updateWhatsAppConsentActions();
+    }
+
+    private void updateWhatsAppConsentActions() {
+        if (!SessionManager.isAdmin()) return;
+        boolean optedIn = whatsappConsent != null && whatsappConsent.optedIn();
+        btnGrantWhatsAppConsent.setDisable(whatsappConsentBusy || optedIn
+                || whatsappConsentSourceCombo.getValue() == null);
+        btnRevokeWhatsAppConsent.setDisable(whatsappConsentBusy || !optedIn);
+        whatsappConsentSourceCombo.setDisable(whatsappConsentBusy || optedIn);
+    }
+
+    @FXML
+    private void handleGrantWhatsAppConsent() {
+        if (!SessionManager.isAdmin() || currentCustomer == null || whatsappConsentBusy) return;
+        ConsentSourceOption selected = whatsappConsentSourceCombo.getValue();
+        if (selected == null) {
+            AlertHelper.showAlert(Alert.AlertType.WARNING, nameField.getScene().getWindow(),
+                    resourceBundle.getString("customer.whatsapp_consent.source_required_title"),
+                    resourceBundle.getString("customer.whatsapp_consent.source_required_message"));
+            return;
+        }
+        updateWhatsAppConsent(new UpdateCustomerWhatsAppConsentRequest(true, selected.source()), true);
+    }
+
+    @FXML
+    private void handleRevokeWhatsAppConsent() {
+        if (!SessionManager.isAdmin() || currentCustomer == null || whatsappConsentBusy) return;
+        boolean confirmed = AlertHelper.showConfirmation(nameField.getScene().getWindow(),
+                resourceBundle.getString("customer.whatsapp_consent.revoke_confirm_title"),
+                resourceBundle.getString("customer.whatsapp_consent.revoke_confirm_message"));
+        if (confirmed) {
+            updateWhatsAppConsent(new UpdateCustomerWhatsAppConsentRequest(false, null), false);
+        }
+    }
+
+    private void updateWhatsAppConsent(UpdateCustomerWhatsAppConsentRequest request, boolean granting) {
+        setWhatsAppConsentBusy(true);
+        CustomerApi api = RetrofitClient.getClient().create(CustomerApi.class);
+        api.updateWhatsAppConsent(currentCustomer.getId(), request).enqueue(new Callback<>() {
+            @Override
+            public void onResponse(Call<CustomerWhatsAppConsentDTO> call,
+                    Response<CustomerWhatsAppConsentDTO> response) {
+                Platform.runLater(() -> {
+                    setWhatsAppConsentBusy(false);
+                    if (response.isSuccessful() && response.body() != null) {
+                        renderWhatsAppConsent(response.body());
+                        AlertHelper.showSuccess(nameField.getScene().getWindow(),
+                                resourceBundle.getString("customer.whatsapp_consent.success_title"),
+                                resourceBundle.getString(granting
+                                        ? "customer.whatsapp_consent.grant_success"
+                                        : "customer.whatsapp_consent.revoke_success"));
+                    } else {
+                        String message = ApiErrorHelper.message(response,
+                                resourceBundle.getString("customer.whatsapp_consent.update_failed"));
+                        showWhatsAppConsentError(message);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<CustomerWhatsAppConsentDTO> call, Throwable throwable) {
+                Platform.runLater(() -> {
+                    setWhatsAppConsentBusy(false);
+                    showWhatsAppConsentError(resourceBundle.getString("customer.whatsapp_consent.update_failed"));
+                });
+            }
+        });
+    }
+
+    private void showWhatsAppConsentError(String message) {
+        AlertHelper.showAlert(Alert.AlertType.ERROR, nameField.getScene().getWindow(),
+                resourceBundle.getString("customer.whatsapp_consent.error_title"), message);
+    }
+
+    private record ConsentSourceOption(WhatsAppConsentSource source, String label) {
+        @Override
+        public String toString() {
+            return label;
         }
     }
 

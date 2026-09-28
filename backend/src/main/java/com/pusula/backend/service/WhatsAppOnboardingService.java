@@ -70,12 +70,21 @@ public class WhatsAppOnboardingService {
                 url, properties.getAppId(), properties.getConfigurationId(), expiresAt);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public WhatsAppOnboardingDtos.StatusResponse status(Long companyId) {
         return integrationRepository.findByCompanyIdAndDeletedFalse(companyId)
-                .map(value -> new WhatsAppOnboardingDtos.StatusResponse(
-                        "CONNECTED".equals(value.getStatus()), value.getDisplayPhoneNumber(),
-                        value.getVerifiedName(), value.getStatus(), value.getTokenExpiresAt(), value.getUpdatedAt()))
+                .map(value -> {
+                    boolean expired = value.getTokenExpiresAt() != null
+                            && !value.getTokenExpiresAt().isAfter(LocalDateTime.now());
+                    if (expired && "CONNECTED".equals(value.getStatus())) {
+                        value.setStatus("EXPIRED");
+                        integrationRepository.save(value);
+                    }
+                    return new WhatsAppOnboardingDtos.StatusResponse(
+                            "CONNECTED".equals(value.getStatus()) && !expired,
+                            value.getDisplayPhoneNumber(), value.getVerifiedName(), value.getStatus(),
+                            value.getTokenExpiresAt(), value.getUpdatedAt());
+                })
                 .orElseGet(() -> new WhatsAppOnboardingDtos.StatusResponse(
                         false, null, null, "NOT_CONNECTED", null, null));
     }
@@ -108,6 +117,11 @@ public class WhatsAppOnboardingService {
         integration.setAccessTokenCiphertext(crypto.encrypt(token.accessToken()));
         integration.setTokenExpiresAt(now.plusSeconds(token.expiresInSeconds()));
         integration.setStatus("CONNECTED");
+        integration.setWebhookSubscriptionStatus("PENDING");
+        integration.setWebhookSubscriptionAttempts(0);
+        integration.setWebhookSubscriptionNextAttemptAt(now);
+        integration.setWebhookSubscriptionLastError(null);
+        integration.setWebhookSubscribedAt(null);
         integrationRepository.save(integration);
 
         session.setUsedAt(now);

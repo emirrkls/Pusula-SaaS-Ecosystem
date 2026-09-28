@@ -5,6 +5,7 @@ import com.pusula.backend.config.WhatsAppIntegrationProperties;
 import com.pusula.backend.dto.WhatsAppOnboardingDtos;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.entity.WhatsAppOnboardingSession;
+import com.pusula.backend.entity.WhatsAppBusinessIntegration;
 import com.pusula.backend.repository.WhatsAppBusinessIntegrationRepository;
 import com.pusula.backend.repository.WhatsAppOnboardingSessionRepository;
 import org.junit.jupiter.api.Test;
@@ -73,10 +74,30 @@ class WhatsAppOnboardingServiceTest {
         verify(integrations).findByCompanyIdAndDeletedFalse(10L);
     }
 
+    @Test
+    void statusMarksExpiredTokenDisconnected() {
+        WhatsAppOnboardingService service = service("app-secret", "encryption-key");
+        WhatsAppBusinessIntegration integration = new WhatsAppBusinessIntegration();
+        integration.setCompanyId(10L);
+        integration.setWabaId("12345");
+        integration.setPhoneNumberId("67890");
+        integration.setAccessTokenCiphertext("ciphertext");
+        integration.setStatus("CONNECTED");
+        integration.setTokenExpiresAt(LocalDateTime.now().minusMinutes(1));
+        when(integrations.findByCompanyIdAndDeletedFalse(10L)).thenReturn(Optional.of(integration));
+
+        var status = service.status(10L);
+
+        assertFalse(status.connected());
+        assertEquals("EXPIRED", status.status());
+        verify(integrations).save(integration);
+    }
+
     private WhatsAppOnboardingService service(String secret, String encryptionKey) {
         var properties = new WhatsAppIntegrationProperties(
                 "4494017667582443", secret, "2136126430333068",
-                "https://www.pusulaiklimlendirme.com/whatsapp-connect", encryptionKey, "v26.0");
+                "https://www.pusulaiklimlendirme.com/whatsapp-connect", encryptionKey, "v26.0",
+                "verify-token");
         return new WhatsAppOnboardingService(properties, sessions, integrations, crypto, new ObjectMapper());
     }
 }

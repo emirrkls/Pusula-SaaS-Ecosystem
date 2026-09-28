@@ -27,6 +27,16 @@ public class WhatsAppBusinessIntegration {
     private LocalDateTime tokenExpiresAt;
     @Column(nullable = false, length = 24)
     private String status = "CONNECTED";
+    @Column(name = "webhook_subscription_status", nullable = false, length = 24)
+    private String webhookSubscriptionStatus = "PENDING";
+    @Column(name = "webhook_subscription_attempts", nullable = false)
+    private int webhookSubscriptionAttempts;
+    @Column(name = "webhook_subscription_next_attempt_at")
+    private LocalDateTime webhookSubscriptionNextAttemptAt;
+    @Column(name = "webhook_subscription_last_error", length = 1000)
+    private String webhookSubscriptionLastError;
+    @Column(name = "webhook_subscribed_at")
+    private LocalDateTime webhookSubscribedAt;
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted;
     @CreationTimestamp @Column(name = "created_at", nullable = false, updatable = false)
@@ -51,6 +61,16 @@ public class WhatsAppBusinessIntegration {
     public void setTokenExpiresAt(LocalDateTime tokenExpiresAt) { this.tokenExpiresAt = tokenExpiresAt; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getWebhookSubscriptionStatus() { return webhookSubscriptionStatus; }
+    public void setWebhookSubscriptionStatus(String value) { this.webhookSubscriptionStatus = value; }
+    public int getWebhookSubscriptionAttempts() { return webhookSubscriptionAttempts; }
+    public void setWebhookSubscriptionAttempts(int value) { this.webhookSubscriptionAttempts = value; }
+    public LocalDateTime getWebhookSubscriptionNextAttemptAt() { return webhookSubscriptionNextAttemptAt; }
+    public void setWebhookSubscriptionNextAttemptAt(LocalDateTime value) { this.webhookSubscriptionNextAttemptAt = value; }
+    public String getWebhookSubscriptionLastError() { return webhookSubscriptionLastError; }
+    public void setWebhookSubscriptionLastError(String value) { this.webhookSubscriptionLastError = value; }
+    public LocalDateTime getWebhookSubscribedAt() { return webhookSubscribedAt; }
+    public void setWebhookSubscribedAt(LocalDateTime value) { this.webhookSubscribedAt = value; }
     public boolean isDeleted() { return deleted; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

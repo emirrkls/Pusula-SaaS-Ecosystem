@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { Users, Target, Award } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
 import { AuthorizedBrandsSection } from '../components/AuthorizedBrandsSection';
@@ -29,13 +29,13 @@ const About = () => {
                     />
                 </div>
                 <div className="container mx-auto px-4 relative z-10 text-center">
-                    <motion.h1
+                    <Motion.h1
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="text-4xl md:text-6xl font-bold mb-6"
                     >
                         Hakkımızda
-                    </motion.h1>
+                    </Motion.h1>
                     <p className="text-xl text-gray-300 max-w-2xl mx-auto">
                         2010'dan beri iklimlendirme sektöründe güven ve kalitenin adresi.
                     </p>

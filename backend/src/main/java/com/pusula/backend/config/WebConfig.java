@@ -46,7 +46,10 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(rateLimitInterceptor)
-                .addPathPatterns("/api/public/**");
+                .addPathPatterns("/api/public/**")
+                // Meta signs every webhook payload. Applying the public three-request
+                // limit here would drop legitimate delivery bursts from Meta.
+                .excludePathPatterns("/api/public/whatsapp/webhook");
 
         registry.addInterceptor(tenantInterceptor)
                 .addPathPatterns("/api/**")

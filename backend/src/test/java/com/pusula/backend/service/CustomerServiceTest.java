@@ -3,6 +3,9 @@ package com.pusula.backend.service;
 import com.pusula.backend.entity.AccountParty;
 import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.User;
+import com.pusula.backend.entity.WhatsAppConsentSource;
+import com.pusula.backend.dto.CustomerWhatsAppConsentDTO;
+import com.pusula.backend.dto.UpdateCustomerWhatsAppConsentRequest;
 import com.pusula.backend.repository.AccountPartyRepository;
 import com.pusula.backend.repository.CurrentAccountRepository;
 import com.pusula.backend.repository.CustomerRepository;
@@ -20,6 +23,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -113,6 +117,122 @@ class CustomerServiceTest {
         assertEquals("Yeni adres", result.getAddress());
         assertEquals("Yeni Ad", party.getDisplayName());
         verify(accountPartyRepository).save(party);
+    }
+
+    @Test
+    void createCustomerDoesNotAcceptImplicitWhatsAppConsent() {
+        Customer request = customer(null, null, "Yeni Müşteri");
+        request.setWhatsappOptIn(true);
+        request.setWhatsappOptInAt(LocalDateTime.now().minusDays(1));
+        request.setWhatsappOptInSource(WhatsAppConsentSource.DIGITAL_FORM);
+        when(customerRepository.save(request)).thenReturn(request);
+
+        Customer saved = service.createCustomer(request);
+
+        assertEquals(false, saved.isWhatsappOptIn());
+        assertEquals(null, saved.getWhatsappOptInAt());
+        assertEquals(null, saved.getWhatsappOptInSource());
+        assertEquals(null, saved.getWhatsappOptOutAt());
+        assertEquals(10L, saved.getCompanyId());
+    }
+
+    @Test
+    void explicitConsentGrantIsTenantScopedAndAudited() {
+        Customer customer = customer(25L, 10L, "İzinli Müşteri");
+        when(customerRepository.findByIdAndCompanyId(25L, 10L)).thenReturn(Optional.of(customer));
+        when(customerRepository.save(customer)).thenReturn(customer);
+        LocalDateTime before = LocalDateTime.now();
+
+        CustomerWhatsAppConsentDTO result = service.updateWhatsAppConsent(25L,
+                new UpdateCustomerWhatsAppConsentRequest(true, WhatsAppConsentSource.WRITTEN_FORM));
+
+        assertEquals(true, result.optedIn());
+        assertEquals(WhatsAppConsentSource.WRITTEN_FORM, result.source());
+        assertEquals(null, result.optedOutAt());
+        org.junit.jupiter.api.Assertions.assertNotNull(result.optedInAt());
+        org.junit.jupiter.api.Assertions.assertFalse(result.optedInAt().isBefore(before));
+        verify(customerRepository).findByIdAndCompanyId(25L, 10L);
+        verify(auditLogService).log("UPDATE", "CUSTOMER_WHATSAPP_CONSENT", 25L,
+                "Müşteri WhatsApp izni verildi. Kaynak: WRITTEN_FORM");
+    }
+
+    @Test
+    void consentRevocationPreservesGrantEvidenceAndRecordsFirstOptOutTime() {
+        Customer customer = customer(25L, 10L, "İzin İptali");
+        LocalDateTime grantedAt = LocalDateTime.of(2026, 9, 1, 10, 30);
+        customer.setWhatsappOptIn(true);
+        customer.setWhatsappOptInAt(grantedAt);
+        customer.setWhatsappOptInSource(WhatsAppConsentSource.VERBAL_CONFIRMATION);
+        when(customerRepository.findByIdAndCompanyId(25L, 10L)).thenReturn(Optional.of(customer));
+        when(customerRepository.save(customer)).thenReturn(customer);
+
+        CustomerWhatsAppConsentDTO result = service.updateWhatsAppConsent(25L,
+                new UpdateCustomerWhatsAppConsentRequest(false, null));
+
+        assertEquals(false, result.optedIn());
+        assertEquals(grantedAt, result.optedInAt());
+        assertEquals(WhatsAppConsentSource.VERBAL_CONFIRMATION, result.source());
+        org.junit.jupiter.api.Assertions.assertNotNull(result.optedOutAt());
+    }
+
+    @Test
+    void consentGrantRequiresEvidenceSource() {
+        Customer customer = customer(25L, 10L, "Kaynak Eksik");
+        when(customerRepository.findByIdAndCompanyId(25L, 10L)).thenReturn(Optional.of(customer));
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> service.updateWhatsAppConsent(25L,
+                        new UpdateCustomerWhatsAppConsentRequest(true, null)));
+
+        assertEquals("WhatsApp izni verilirken izin kaynağı zorunludur.", error.getMessage());
+        verify(customerRepository, never()).save(any(Customer.class));
+    }
+
+    @Test
+    void adminReadsConsentFromAuthenticatedCompanyOnly() {
+        Customer customer = customer(25L, 10L, "İzin Durumu");
+        customer.setWhatsappOptIn(true);
+        customer.setWhatsappOptInAt(LocalDateTime.of(2026, 9, 2, 9, 15));
+        customer.setWhatsappOptInSource(WhatsAppConsentSource.WHATSAPP_CONVERSATION);
+        when(customerRepository.findByIdAndCompanyId(25L, 10L)).thenReturn(Optional.of(customer));
+
+        CustomerWhatsAppConsentDTO result = service.getWhatsAppConsent(25L);
+
+        assertEquals(25L, result.customerId());
+        assertEquals(true, result.optedIn());
+        assertEquals(WhatsAppConsentSource.WHATSAPP_CONVERSATION, result.source());
+        verify(customerRepository).findByIdAndCompanyId(25L, 10L);
+        verify(customerRepository, never()).findById(25L);
+    }
+
+    @Test
+    void technicianCannotReadOrChangeWhatsAppConsent() {
+        currentUser.setRole("TECHNICIAN");
+
+        assertThrows(AccessDeniedException.class, () -> service.getWhatsAppConsent(25L));
+        assertThrows(AccessDeniedException.class, () -> service.updateWhatsAppConsent(25L,
+                new UpdateCustomerWhatsAppConsentRequest(true, WhatsAppConsentSource.OTHER)));
+
+        verify(customerRepository, never()).findByIdAndCompanyId(any(), any());
+    }
+
+    @Test
+    void regularCustomerUpdateCannotOverwriteConsentState() {
+        Customer existing = customer(25L, 10L, "Eski Ad");
+        LocalDateTime grantedAt = LocalDateTime.of(2026, 9, 1, 10, 30);
+        existing.setWhatsappOptIn(true);
+        existing.setWhatsappOptInAt(grantedAt);
+        existing.setWhatsappOptInSource(WhatsAppConsentSource.DIGITAL_FORM);
+        Customer request = customer(null, null, "Yeni Ad");
+        request.setWhatsappOptIn(false);
+        when(customerRepository.findByIdAndCompanyId(25L, 10L)).thenReturn(Optional.of(existing));
+        when(customerRepository.save(existing)).thenReturn(existing);
+
+        Customer result = service.updateCustomer(25L, request);
+
+        assertEquals(true, result.isWhatsappOptIn());
+        assertEquals(grantedAt, result.getWhatsappOptInAt());
+        assertEquals(WhatsAppConsentSource.DIGITAL_FORM, result.getWhatsappOptInSource());
     }
 
     private Customer customer(Long id, Long companyId, String name) {

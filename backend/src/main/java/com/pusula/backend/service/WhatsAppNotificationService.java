@@ -1,12 +1,13 @@
 package com.pusula.backend.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pusula.backend.annotation.RequiresFeature;
 import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
-import com.pusula.backend.repository.WhatsAppBusinessIntegrationRepository;
+import com.pusula.backend.repository.WhatsAppMessageOutboxRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
@@ -45,8 +47,8 @@ public class WhatsAppNotificationService {
 
     private final CustomerRepository customerRepository;
     private final ServiceTicketRepository ticketRepository;
-    private final WhatsAppBusinessIntegrationRepository integrationRepository;
-    private final WhatsAppCredentialCrypto credentialCrypto;
+    private final WhatsAppMessageOutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
     @Value("${whatsapp.api.enabled:false}")
     private boolean apiEnabled;
@@ -54,14 +56,8 @@ public class WhatsAppNotificationService {
     @Value("${whatsapp.api.token:}")
     private String apiToken;
 
-    @Value("${whatsapp.api.phone-id:}")
-    private String phoneNumberId;
-
     @Value("${whatsapp.api.provider:META}")
     private String provider; // META or NETGSM
-
-    @Value("${whatsapp.api.graph-version:v26.0}")
-    private String graphApiVersion;
 
     @Value("${whatsapp.api.allowed-company-ids:}")
     private String allowedCompanyIds;
@@ -85,12 +81,12 @@ public class WhatsAppNotificationService {
     @Autowired
     public WhatsAppNotificationService(CustomerRepository customerRepository,
                                        ServiceTicketRepository ticketRepository,
-                                       WhatsAppBusinessIntegrationRepository integrationRepository,
-                                       WhatsAppCredentialCrypto credentialCrypto) {
+                                       WhatsAppMessageOutboxRepository outboxRepository,
+                                       ObjectMapper objectMapper) {
         this.customerRepository = customerRepository;
         this.ticketRepository = ticketRepository;
-        this.integrationRepository = integrationRepository;
-        this.credentialCrypto = credentialCrypto;
+        this.outboxRepository = outboxRepository;
+        this.objectMapper = objectMapper;
     }
 
     WhatsAppNotificationService(CustomerRepository customerRepository,
@@ -112,7 +108,9 @@ public class WhatsAppNotificationService {
                 : ticket.getScheduledDate().format(SERVICE_DATE_FORMAT);
         String description = summarize(ticket.getDescription(), "Servis talebi", 120);
         String fallback = buildCreationMessage(customer.getName(), ticketId, scheduledAt, description);
-        sendNotification(customer.getCompanyId(), customer.getPhone(), serviceCreatedTemplate,
+        sendNotification(customer.getCompanyId(), ticketId, "SERVICE_CREATED",
+                "service-created:" + customer.getCompanyId() + ":" + ticketId,
+                customer.getPhone(), serviceCreatedTemplate,
                 List.of(customer.getName(), String.valueOf(ticketId), scheduledAt, description), fallback);
     }
 
@@ -130,7 +128,11 @@ public class WhatsAppNotificationService {
 
         String paymentStatus = buildPaymentStatus(ticket.getPaymentMethod(), collectedAmount, remainingDebt);
         String message = buildCompletionMessage(customer.getName(), ticketId, paymentStatus);
-        sendNotification(customer.getCompanyId(), customer.getPhone(), serviceCompletedTemplate,
+        String completionVersion = ticket.getCompletedAt() == null
+                ? "initial" : ticket.getCompletedAt().toString();
+        sendNotification(customer.getCompanyId(), ticketId, "SERVICE_COMPLETED",
+                "service-completed:" + customer.getCompanyId() + ":" + ticketId + ":" + completionVersion,
+                customer.getPhone(), serviceCompletedTemplate,
                 List.of(customer.getName(), String.valueOf(ticketId), paymentStatus),
                 message);
     }
@@ -142,10 +144,13 @@ public class WhatsAppNotificationService {
     @RequiresFeature("WHATSAPP_INTEGRATION")
     public void notifyCariUpdate(Long customerId, BigDecimal newBalance) {
         Customer customer = customerRepository.findById(customerId).orElse(null);
-        if (customer == null || !isCompanyAllowed(customer.getCompanyId()) || customer.getPhone() == null) return;
+        if (customer == null || !isCompanyAllowed(customer.getCompanyId())
+                || customer.getPhone() == null || !hasActiveWhatsAppConsent(customer)) return;
 
         String message = buildCariMessage(customer.getName(), newBalance);
-        sendNotification(customer.getCompanyId(), customer.getPhone(), "", List.of(), message);
+        sendNotification(customer.getCompanyId(), null, "CURRENT_ACCOUNT_UPDATED",
+                "current-account:" + customer.getCompanyId() + ":" + customerId + ":" + newBalance,
+                customer.getPhone(), "", List.of(), message);
     }
 
     // ── Message Templates ──────────────────────────────────────
@@ -207,7 +212,8 @@ public class WhatsAppNotificationService {
 
     // ── Message Delivery ──────────────────────────────────────
 
-    private void sendNotification(Long companyId, String phone, String templateName,
+    private void sendNotification(Long companyId, Long ticketId, String notificationType,
+                                  String idempotencyKey, String phone, String templateName,
                                   List<String> parameters, String fallbackMessage) {
         String normalizedPhone = normalizePhone(phone);
 
@@ -235,62 +241,22 @@ public class WhatsAppNotificationService {
                     log.warn("WhatsApp notification skipped: Meta template is not configured for this event");
                     return;
                 }
-                MetaCredentials credentials = resolveMetaCredentials(companyId);
-                if (credentials == null) {
-                    log.error("WhatsApp notification skipped: Meta credentials are not configured for company {}",
-                            companyId);
+                if (outboxRepository == null || objectMapper == null) {
+                    log.error("WhatsApp notification skipped: persistent outbox is not available");
                     return;
                 }
-                sendViaMeta(normalizedPhone, templateName, parameters, credentials);
+                String parametersJson = objectMapper.writeValueAsString(parameters);
+                int inserted = outboxRepository.enqueueIfAbsent(companyId, ticketId, notificationType,
+                        idempotencyKey, normalizedPhone, templateName, templateLanguage,
+                        parametersJson, LocalDateTime.now());
+                if (inserted == 0) {
+                    log.debug("WhatsApp notification already queued: {}", idempotencyKey);
+                }
             }
         } catch (Exception e) {
             log.error("WhatsApp notification failed for {}: {}", maskPhone(normalizedPhone), e.getMessage());
         }
     }
-
-    /**
-     * Send via Meta WhatsApp Business Cloud API.
-     */
-    private void sendViaMeta(String phone, String templateName, List<String> parameters,
-                             MetaCredentials credentials) throws Exception {
-        String url = "https://graph.facebook.com/" + graphApiVersion + "/" + credentials.phoneNumberId() + "/messages";
-        String jsonBody = buildMetaTemplatePayload(phone, templateName, parameters);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(15))
-                .header("Authorization", "Bearer " + credentials.accessToken())
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                .build();
-
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() == 200) {
-            log.info("WhatsApp (Meta) template {} sent successfully to {}", templateName, maskPhone(phone));
-        } else {
-            log.error("WhatsApp (Meta) template {} failed: HTTP {} - {}",
-                    templateName, response.statusCode(), summarize(response.body(), "empty response", 500));
-        }
-    }
-
-    private MetaCredentials resolveMetaCredentials(Long companyId) {
-        if (integrationRepository != null && credentialCrypto != null && companyId != null) {
-            var integration = integrationRepository.findByCompanyIdAndDeletedFalse(companyId).orElse(null);
-            if (integration != null && "CONNECTED".equals(integration.getStatus())
-                    && (integration.getTokenExpiresAt() == null
-                        || integration.getTokenExpiresAt().isAfter(java.time.LocalDateTime.now()))) {
-                return new MetaCredentials(integration.getPhoneNumberId(),
-                        credentialCrypto.decrypt(integration.getAccessTokenCiphertext()));
-            }
-        }
-        if (apiToken == null || apiToken.isBlank() || phoneNumberId == null || phoneNumberId.isBlank()) {
-            return null;
-        }
-        return new MetaCredentials(phoneNumberId, apiToken);
-    }
-
-    private record MetaCredentials(String phoneNumberId, String accessToken) {}
 
     /**
      * Send via Netgsm WhatsApp API (Turkish provider).
@@ -372,7 +338,18 @@ public class WhatsAppNotificationService {
             log.warn("WhatsApp notification skipped: customer missing, tenant mismatch, or no phone number");
             return null;
         }
+        if (!hasActiveWhatsAppConsent(customer)) {
+            log.debug("WhatsApp notification skipped: customer {} has no active consent", customer.getId());
+            return null;
+        }
         return customer;
+    }
+
+    private boolean hasActiveWhatsAppConsent(Customer customer) {
+        return customer.isWhatsappOptIn()
+                && customer.getWhatsappOptInAt() != null
+                && customer.getWhatsappOptInSource() != null
+                && customer.getWhatsappOptOutAt() == null;
     }
 
     boolean isCompanyAllowed(Long companyId) {

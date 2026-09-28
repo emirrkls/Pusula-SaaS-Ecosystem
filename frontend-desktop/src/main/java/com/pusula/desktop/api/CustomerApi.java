@@ -1,6 +1,8 @@
 package com.pusula.desktop.api;
 
 import com.pusula.desktop.dto.CustomerDTO;
+import com.pusula.desktop.dto.CustomerWhatsAppConsentDTO;
+import com.pusula.desktop.dto.UpdateCustomerWhatsAppConsentRequest;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.DELETE;
@@ -26,4 +28,12 @@ public interface CustomerApi {
 
     @DELETE("api/customers/{id}")
     Call<Void> deleteCustomer(@Path("id") Long id);
+
+    @GET("api/customers/{id}/whatsapp-consent")
+    Call<CustomerWhatsAppConsentDTO> getWhatsAppConsent(@Path("id") Long id);
+
+    @PUT("api/customers/{id}/whatsapp-consent")
+    Call<CustomerWhatsAppConsentDTO> updateWhatsAppConsent(
+            @Path("id") Long id,
+            @Body UpdateCustomerWhatsAppConsentRequest request);
 }

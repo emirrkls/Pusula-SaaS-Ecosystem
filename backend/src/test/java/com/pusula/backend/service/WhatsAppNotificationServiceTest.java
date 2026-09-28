@@ -1,10 +1,13 @@
 package com.pusula.backend.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pusula.backend.entity.Customer;
 import com.pusula.backend.entity.PaymentMethod;
 import com.pusula.backend.entity.ServiceTicket;
+import com.pusula.backend.entity.WhatsAppConsentSource;
 import com.pusula.backend.repository.CustomerRepository;
 import com.pusula.backend.repository.ServiceTicketRepository;
+import com.pusula.backend.repository.WhatsAppMessageOutboxRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,12 +16,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -28,6 +33,7 @@ class WhatsAppNotificationServiceTest {
 
     @Mock CustomerRepository customerRepository;
     @Mock ServiceTicketRepository ticketRepository;
+    @Mock WhatsAppMessageOutboxRepository outboxRepository;
 
     private WhatsAppNotificationService service;
 
@@ -97,5 +103,59 @@ class WhatsAppNotificationServiceTest {
         service.notifyServiceCreated(100L);
 
         verify(customerRepository, never()).findById(20L);
+    }
+
+    @Test
+    void customerWithoutExplicitConsentIsNeverQueued() {
+        WhatsAppNotificationService persistentService = persistentService();
+        ServiceTicket ticket = eligibleTicket();
+        Customer customer = eligibleCustomer();
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
+
+        persistentService.notifyServiceCreated(100L);
+
+        verify(outboxRepository, never()).enqueueIfAbsent(any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void explicitlyConsentedCustomerIsQueuedIdempotently() {
+        WhatsAppNotificationService persistentService = persistentService();
+        ServiceTicket ticket = eligibleTicket();
+        Customer customer = eligibleCustomer();
+        customer.setWhatsappOptIn(true);
+        customer.setWhatsappOptInAt(LocalDateTime.now().minusMinutes(1));
+        customer.setWhatsappOptInSource(WhatsAppConsentSource.VERBAL_CONFIRMATION);
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
+        when(outboxRepository.enqueueIfAbsent(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(1);
+
+        persistentService.notifyServiceCreated(100L);
+
+        verify(outboxRepository).enqueueIfAbsent(eq(10L), eq(100L), eq("SERVICE_CREATED"),
+                eq("service-created:10:100"), eq("+905551112233"),
+                eq("pusula_service_created"), eq("tr"), anyString(), any(LocalDateTime.class));
+    }
+
+    private WhatsAppNotificationService persistentService() {
+        WhatsAppNotificationService value = new WhatsAppNotificationService(
+                customerRepository, ticketRepository, outboxRepository, new ObjectMapper());
+        ReflectionTestUtils.setField(value, "allowedCompanyIds", "10");
+        ReflectionTestUtils.setField(value, "apiEnabled", true);
+        ReflectionTestUtils.setField(value, "provider", "META");
+        ReflectionTestUtils.setField(value, "templateLanguage", "tr");
+        ReflectionTestUtils.setField(value, "serviceCreatedTemplate", "pusula_service_created");
+        return value;
+    }
+
+    private ServiceTicket eligibleTicket() {
+        return ServiceTicket.builder().id(100L).companyId(10L).customerId(20L)
+                .description("Klima arızası").status(ServiceTicket.TicketStatus.PENDING).build();
+    }
+
+    private Customer eligibleCustomer() {
+        return Customer.builder().id(20L).companyId(10L).name("Ayşe")
+                .phone("0555 111 22 33").build();
     }
 }
