@@ -40,3 +40,17 @@ onboarding session through the backend and forwards the backend `StartResponse`
 values in the URL fragment together with the single-use state and expiry. The
 fragment is validated before the Meta SDK is initialized and is not sent in HTTP
 request logs or referrer headers.
+
+The page is only the public browser bridge. Credentials are exchanged and stored
+by the backend; the web bundle must never contain the Meta App Secret, access
+tokens, the credential-encryption key, or the webhook verify token.
+
+Production dependencies:
+
+- public route: `https://www.pusulaiklimlendirme.com/whatsapp-connect`
+- onboarding API: `/api/integrations/whatsapp/onboarding-session`
+- status API: `/api/integrations/whatsapp/status`
+- webhook callback: `https://api.pusulaiklimlendirme.com/api/public/whatsapp/webhook`
+- the Meta app must be published before production webhook traffic is delivered
+
+The complete production checklist is in [RUNBOOK.md](../RUNBOOK.md#whatsapp-release-checks).

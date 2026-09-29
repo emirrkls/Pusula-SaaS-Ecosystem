@@ -24,6 +24,7 @@
 - [Quick Start](#quick-start)
 - [Environment Variables](#environment-variables)
 - [Database Migrations](#database-migrations)
+- [WhatsApp Integration](#whatsapp-integration)
 - [Testing](#testing)
 - [Production Deployment](#production-deployment)
 - [Security](#security)
@@ -133,9 +134,8 @@ Pusula-SaaS-Ecosystem/
 ├── backend/                    # Spring Boot REST API
 │   ├── src/main/java/          # Controllers, services, entities, DTOs
 │   ├── src/main/resources/     # Configuration, legacy bootstrap SQL, fonts
-│   ├── src/main/resources/db/migration/ # Active Flyway migrations (baseline 20, V21–V36)
+│   ├── src/main/resources/db/migration/ # Active Flyway migrations (baseline 20, V21–V42)
 │   ├── src/test/               # JUnit regression tests
-│   ├── deploy_vps_staging.sh   # VPS deployment helper
 │   └── .env.example            # Backend env template
 ├── frontend-web/               # Marketing / corporate website (Vercel + SSG)
 ├── frontend-desktop/           # JavaFX desktop application (Windows / MSI)
@@ -143,7 +143,6 @@ Pusula-SaaS-Ecosystem/
 │   └── PusulaService/
 ├── frontend-appstore/          # iOS (App Store) app
 │   └── PusulaService/
-├── Pusula-Super-Admin-Panel/   # Super-admin web application
 ├── docs/                       # Architecture and feature notes
 ├── scripts/                    # Helper scripts (e.g. Play Store assets)
 ├── RUNBOOK.md                  # Production rollout checklist
@@ -151,7 +150,7 @@ Pusula-SaaS-Ecosystem/
 └── README.tr.md                # Turkish documentation
 ```
 
-> Some directories may have their own build or deployment lifecycle. The root CI workflow currently verifies the backend and desktop projects; service-network validation adds PostgreSQL integration tests and an unsigned iOS simulator build.
+> The product-marketing website and super-admin panel are maintained as separate repositories and are intentionally ignored by this repository when checked out beside it. CI is split into four workflows: core backend/desktop/web checks, Android validation, iOS compile validation, and PostgreSQL service-network integration tests.
 
 ---
 
@@ -163,7 +162,7 @@ Pusula-SaaS-Ecosystem/
 | **Java (JDK)** | 21 | Desktop (JavaFX) |
 | **Maven** | 3.8+ | Backend & desktop builds |
 | **PostgreSQL** | 14+ | Database |
-| **Node.js** | 18+ | Web frontend |
+| **Node.js** | 22 | Web frontend and CI |
 | **Android Studio** | Latest | Android development |
 | **Xcode** | Compatible with the iOS 17 SDK / SwiftUI project | iOS development |
 
@@ -214,6 +213,7 @@ Alternatively, run the main class `com.pusula.desktop.Launcher` from your IDE.
 
 - **API base URL:** `RetrofitClient.BASE_URL` (production: `https://api.pusulaiklimlendirme.com/`)
 - **App version:** `frontend-desktop/src/main/resources/app-version.properties`
+- **Current production version:** `3.8.12`
 - **Auto-update:** desktop checks `/api/public/desktop-version` and applies MSI updates
 - **Windows installer output:** `frontend-desktop/installer/Output/` (gitignored)
 
@@ -298,6 +298,12 @@ cd frontend-playstore/PusulaService
 | `WHATSAPP_ALLOWED_COMPANY_IDS` | Explicit tenant allow-list; empty means no tenant can send |
 | `WHATSAPP_TEMPLATE_LANGUAGE` | Approved template language code |
 | `WHATSAPP_TEMPLATE_SERVICE_CREATED` / `WHATSAPP_TEMPLATE_SERVICE_COMPLETED` | Approved Meta template names |
+| `WHATSAPP_META_APP_ID` / `WHATSAPP_META_APP_SECRET` | Meta application credentials used by Embedded Signup and webhook signature verification |
+| `WHATSAPP_META_CONFIGURATION_ID` / `WHATSAPP_CONNECT_URL` | Embedded Signup configuration and public callback page |
+| `WHATSAPP_CREDENTIAL_ENCRYPTION_KEY` | Base64-encoded 32-byte key for tenant WhatsApp credentials at rest |
+| `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Random value configured identically in Meta Webhooks and the backend |
+| `WHATSAPP_OUTBOX_DISPATCH_DELAY_MS` | Reliable outbox polling interval (default: `10000`) |
+| `WHATSAPP_SUBSCRIPTION_RETRY_DELAY_MS` | Failed webhook-subscription retry interval (default: `60000`) |
 | `IYZICO_API_KEY` / `IYZICO_API_SECRET` | Iyzico payments (sandbox defaults exist for dev) |
 | `IYZICO_BASE_URL` / `IYZICO_CALLBACK_URL` | Iyzico API base and webhook callback URL |
 | `APP_BUSINESS_TIMEZONE` | Business timezone (default: `Europe/Istanbul`) |
@@ -317,7 +323,7 @@ Template: `frontend-web/.env.example`
 
 ## Database Migrations
 
-Production Flyway uses `classpath:db/migration`, baseline version `20`, with Hibernate schema mutation disabled (`ddl-auto=none`). The active sequence currently runs from V21 through V36:
+Production Flyway uses `classpath:db/migration`, baseline version `20`, with Hibernate schema mutation disabled (`ddl-auto=none`). The active sequence currently runs from V21 through V42:
 
 | Range | Main changes |
 |-------|--------------|
@@ -326,10 +332,29 @@ Production Flyway uses `classpath:db/migration`, baseline version `20`, with Hib
 | `V25–V29` | Idempotent/custom-priced used parts, onboarding, scheduled windows/push tracking, fractional inventory, private assignment notes |
 | `V30–V34` | Service-photo catalog/archive, current-account ledger, controlled rescheduling, admin notification center, archive indexes |
 | `V35–V36` | Tenant-isolated service networks and idempotent child-company creation |
+| `V37` | Tenant WhatsApp Business integrations |
+| `V38–V40` | Unified account parties, split service billing, and financial transaction ledger |
+| `V41–V42` | Reliable WhatsApp outbox/status tracking and explicit customer consent |
 
 Legacy bootstrap/evolution scripts remain directly under `backend/src/main/resources/` for historical installations, but they are **not** in the active production Flyway location. Do not rename, reorder, or edit an applied migration. Add a new versioned migration instead.
 
 Manual recovery/maintenance scripts under `backend/src/main/resources/db/manual/` are never applied automatically. Production deployment must take a verified database backup before migrations and verify `flyway_schema_history` afterwards.
+
+---
+
+## WhatsApp Integration
+
+WhatsApp uses Meta Embedded Signup so each entitled company can connect its own WhatsApp Business account. The desktop client requests a single-use onboarding session from the backend and opens the public `/whatsapp-connect` page; Meta identifiers are supplied by the backend in the URL fragment and are not stored in the web bundle.
+
+- Admin endpoints: `/api/integrations/whatsapp/status` and `/api/integrations/whatsapp/onboarding-session`
+- Meta callback: `GET/POST /api/public/whatsapp/webhook`
+- Production callback URL: `https://api.pusulaiklimlendirme.com/api/public/whatsapp/webhook`
+- Tenant access is feature-gated and allow-listed; encrypted per-tenant credentials take precedence over the legacy global token/phone ID.
+- Outgoing notifications are persisted to an outbox, retried safely, and updated from signed Meta delivery-status webhooks.
+- Customer messages require explicit WhatsApp consent. Consent changes are tenant-scoped and audited.
+- Meta POST payloads require a valid `X-Hub-Signature-256`; webhook verification uses the separately configured verify token.
+
+The Meta app must be published before production webhook events are delivered. Keep app secrets, access tokens, encryption keys, and the verify token in the server environment only.
 
 ---
 
@@ -341,6 +366,14 @@ mvn verify
 
 cd ../frontend-desktop
 mvn verify
+
+cd ../frontend-web
+npm ci
+npm run lint
+npm run build
+
+cd ../frontend-playstore/PusulaService
+./gradlew --no-daemon testDebugUnitTest assembleDebug
 ```
 
 Coverage includes:
@@ -354,8 +387,9 @@ Coverage includes:
 - Finance / report semantics (pricing snapshots, current-account classification, open balances)
 - Ticket reopening, warranty completion, custom/fractional part usage, photo archive, and controlled rescheduling
 - Service-network tenant isolation, idempotency, concurrency, quotas, and ticket lifecycle (PostgreSQL integration suite)
+- WhatsApp onboarding, credential encryption, consent, outbox idempotency/retry, webhook verification/signatures, and delivery-status processing
 
-GitHub Actions runs backend verification on Java 17 and desktop verification on Java 21. The service-network workflow also starts PostgreSQL 17 and compiles the iOS app for an unsigned simulator. App Store/TestFlight distribution remains a separate release action.
+GitHub Actions runs backend verification on Java 17, desktop verification on Java 21, and web lint/build on Node 22. Separate workflows run Android unit tests/debug compilation, iOS unsigned simulator compilation, and PostgreSQL 17 service-network integration tests. App Store/TestFlight distribution remains a separate manual release action.
 
 ---
 
@@ -363,17 +397,9 @@ GitHub Actions runs backend verification on Java 17 and desktop verification on 
 
 ### Backend (VPS)
 
-```bash
-export DB_PASSWORD='...'
-export JWT_SECRET='...'
-export GOOGLE_WEB_CLIENT_ID='...'
-# Other production env vars (Play, App Store, APNs, Iyzico)...
+Build the backend with `mvn --batch-mode --no-transfer-progress verify`, take and verify a PostgreSQL backup, deploy the generated JAR, and restart the `pusula-backend` systemd service. The VPS service loads secrets from its protected environment file and starts with the `vps` Spring profile. Flyway then applies pending `db/migration` scripts automatically; confirm the new versions in `flyway_schema_history` and check service logs before smoke testing.
 
-cd backend
-bash deploy_vps_staging.sh
-```
-
-Spring profile: `-Dspring.profiles.active=vps`
+Use [`RUNBOOK.md`](RUNBOOK.md) for the canonical backup, artifact replacement, restart, rollback, and verification sequence. Machine-specific commands and credentials intentionally remain outside the repository.
 
 ### Web (Vercel)
 
@@ -395,7 +421,8 @@ For post-deploy smoke tests, see **[`RUNBOOK.md`](RUNBOOK.md)**.
 - Do not rely on Iyzico sandbox fallback values in production; supply all secrets via environment variables.
 - Push device tokens are encrypted at rest when `PUSH_TOKEN_ENCRYPTION_KEY` is configured.
 - Service-network child-account creation stores idempotency receipts but never stores or fingerprints the supplied password.
-- WhatsApp delivery fails closed unless the feature is enabled and the tenant is explicitly allow-listed.
+- WhatsApp delivery fails closed unless the feature is enabled, the tenant is explicitly allowed, a valid integration exists, and the customer has consented.
+- Per-tenant WhatsApp credentials and push-device tokens are encrypted at rest; Meta webhook POST bodies are HMAC-verified before processing.
 - Android HTTP logging uses `SensitiveHttpLogRedactor` to mask tokens and passwords.
 - Inventory mutations and vehicle access are tenant-scoped on the backend.
 
@@ -420,6 +447,8 @@ For post-deploy smoke tests, see **[`RUNBOOK.md`](RUNBOOK.md)**.
 | `/api/push-devices` | Mobile push device registration (APNs) |
 | `/api/notifications` | Tenant-scoped user notification center |
 | `/api/service-network` | Opt-in child-service membership, dispatch, decision, history, and status flows |
+| `/api/integrations/whatsapp` | WhatsApp status and Embedded Signup onboarding session |
+| `/api/public/whatsapp/webhook` | Meta webhook verification and signed status events |
 | `/api/reports` | Reporting (profitability, cash flow, open debt, etc.) |
 | `/api/public` | Unauthenticated public endpoints |
 | `/api/public/desktop-version` | Desktop MSI auto-update version check |
@@ -429,6 +458,7 @@ For post-deploy smoke tests, see **[`RUNBOOK.md`](RUNBOOK.md)**.
 ## Related Documentation
 
 - [`RUNBOOK.md`](RUNBOOK.md) — Production deploy checklist, smoke test plan, env references
+- [`docs/SERVICE_NETWORK.md`](docs/SERVICE_NETWORK.md) — Service-network architecture, tenant boundaries, and operating model
 - [`README.tr.md`](README.tr.md) — Turkish documentation
 - [`frontend-appstore/REAL_DEVICE_TEST_PLAN.md`](frontend-appstore/REAL_DEVICE_TEST_PLAN.md) — iOS real-device test plan
 - [`scripts/`](scripts/) — Play Store asset generation helpers

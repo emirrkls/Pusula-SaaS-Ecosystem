@@ -24,6 +24,7 @@
 - [Hızlı Başlangıç](#hızlı-başlangıç)
 - [Ortam Değişkenleri](#ortam-değişkenleri)
 - [Veritabanı Migrasyonları](#veritabanı-migrasyonları)
+- [WhatsApp Entegrasyonu](#whatsapp-entegrasyonu)
 - [Testler](#testler)
 - [Production Dağıtımı](#production-dağıtımı)
 - [Güvenlik](#güvenlik)
@@ -133,9 +134,8 @@ Pusula-SaaS-Ecosystem/
 ├── backend/                    # Spring Boot REST API
 │   ├── src/main/java/          # Controller, service, entity, DTO
 │   ├── src/main/resources/     # Yapılandırma, eski kurulum SQL'leri, fontlar
-│   ├── src/main/resources/db/migration/ # Aktif Flyway migrasyonları (baseline 20, V21–V36)
+│   ├── src/main/resources/db/migration/ # Aktif Flyway migrasyonları (baseline 20, V21–V42)
 │   ├── src/test/               # JUnit regression testleri
-│   ├── deploy_vps_staging.sh   # VPS deployment helper
 │   └── .env.example            # Backend env şablonu
 ├── frontend-web/               # Marketing / kurumsal web sitesi (Vercel + SSG)
 ├── frontend-desktop/           # JavaFX masaüstü uygulaması (Windows / MSI)
@@ -143,7 +143,6 @@ Pusula-SaaS-Ecosystem/
 │   └── PusulaService/
 ├── frontend-appstore/          # iOS (App Store) uygulaması
 │   └── PusulaService/
-├── Pusula-Super-Admin-Panel/   # Super-admin web uygulaması
 ├── docs/                       # Mimari ve özellik notları
 ├── scripts/                    # Yardımcı scriptler (ör. Play Store asset)
 ├── RUNBOOK.md                  # Production rollout checklist
@@ -151,7 +150,7 @@ Pusula-SaaS-Ecosystem/
 └── README.tr.md                # Türkçe dokümantasyon (bu dosya)
 ```
 
-> Bazı dizinlerin kendi build veya dağıtım yaşam döngüsü olabilir. Kök CI akışı şu anda backend ve desktop projelerini doğrular; servis ağı doğrulaması bunlara PostgreSQL entegrasyon testleri ve imzasız iOS Simulator derlemesi ekler.
+> Ürün tanıtım sitesi ve super-admin paneli ayrı depolarda tutulur; bu deponun yanına alındıklarında özellikle gitignore kapsamındadır. CI dört akışa ayrılmıştır: çekirdek backend/masaüstü/web kontrolleri, Android doğrulaması, iOS derleme doğrulaması ve PostgreSQL servis ağı entegrasyon testleri.
 
 ---
 
@@ -163,7 +162,7 @@ Pusula-SaaS-Ecosystem/
 | **Java (JDK)** | 21 | Desktop (JavaFX) |
 | **Maven** | 3.8+ | Backend & Desktop build |
 | **PostgreSQL** | 14+ | Veritabanı |
-| **Node.js** | 18+ | Web frontend |
+| **Node.js** | 22 | Web frontend ve CI |
 | **Android Studio** | Latest | Android geliştirme |
 | **Xcode** | iOS 17 SDK / SwiftUI projesiyle uyumlu sürüm | iOS geliştirme |
 
@@ -214,6 +213,7 @@ Alternatif olarak IDE'den `com.pusula.desktop.Launcher` main class'ını çalı�
 
 - **API base URL:** `RetrofitClient.BASE_URL` (production: `https://api.pusulaiklimlendirme.com/`)
 - **Uygulama sürümü:** `frontend-desktop/src/main/resources/app-version.properties`
+- **Güncel production sürümü:** `3.8.12`
 - **Otomatik güncelleme:** desktop `/api/public/desktop-version` ile kontrol eder ve MSI güncellemesi uygular
 - **Windows installer çıktıları:** `frontend-desktop/installer/Output/` (gitignore'da)
 
@@ -298,6 +298,12 @@ cd frontend-playstore/PusulaService
 | `WHATSAPP_ALLOWED_COMPANY_IDS` | Açık işletme izin listesi; boşsa hiçbir işletme gönderemez |
 | `WHATSAPP_TEMPLATE_LANGUAGE` | Onaylı şablon dil kodu |
 | `WHATSAPP_TEMPLATE_SERVICE_CREATED` / `WHATSAPP_TEMPLATE_SERVICE_COMPLETED` | Onaylı Meta şablon adları |
+| `WHATSAPP_META_APP_ID` / `WHATSAPP_META_APP_SECRET` | Embedded Signup ve webhook imza doğrulamasında kullanılan Meta uygulama bilgileri |
+| `WHATSAPP_META_CONFIGURATION_ID` / `WHATSAPP_CONNECT_URL` | Embedded Signup yapılandırması ve herkese açık dönüş sayfası |
+| `WHATSAPP_CREDENTIAL_ENCRYPTION_KEY` | İşletme bazlı WhatsApp bilgilerini şifreleyen Base64 32-byte anahtar |
+| `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Meta Webhooks ve backend tarafında aynı tanımlanan rastgele doğrulama değeri |
+| `WHATSAPP_OUTBOX_DISPATCH_DELAY_MS` | Güvenilir outbox tarama aralığı (varsayılan: `10000`) |
+| `WHATSAPP_SUBSCRIPTION_RETRY_DELAY_MS` | Başarısız webhook aboneliği tekrar aralığı (varsayılan: `60000`) |
 | `IYZICO_API_KEY` / `IYZICO_API_SECRET` | Iyzico ödeme (sandbox varsayılanları dev için) |
 | `IYZICO_BASE_URL` / `IYZICO_CALLBACK_URL` | Iyzico API tabanı ve webhook callback URL |
 | `APP_BUSINESS_TIMEZONE` | İş saatleri timezone (varsayılan: `Europe/Istanbul`) |
@@ -317,7 +323,7 @@ cd frontend-playstore/PusulaService
 
 ## Veritabanı Migrasyonları
 
-Production Flyway konumu `classpath:db/migration`, baseline sürümü `20`'dir; production'da Hibernate şema değişikliği kapalıdır (`ddl-auto=none`). Aktif sıra şu anda V21–V36 arasındadır:
+Production Flyway konumu `classpath:db/migration`, baseline sürümü `20`'dir; production'da Hibernate şema değişikliği kapalıdır (`ddl-auto=none`). Aktif sıra şu anda V21–V42 arasındadır:
 
 | Aralık | Başlıca değişiklikler |
 |--------|----------------------|
@@ -326,10 +332,29 @@ Production Flyway konumu `classpath:db/migration`, baseline sürümü `20`'dir; 
 | `V25–V29` | İdempotent/özel fiyatlı parça kullanımı, onboarding, tarih-saat aralığı/push takibi, kesirli stok, özel atama notu |
 | `V30–V34` | Servis görsel kataloğu/arşivi, cari hareket defteri, kontrollü yeniden planlama, admin bildirim merkezi, arşiv indeksleri |
 | `V35–V36` | Tenant izolasyonlu servis ağı ve idempotent alt işletme oluşturma |
+| `V37` | İşletme bazlı WhatsApp Business entegrasyonları |
+| `V38–V40` | Birleşik hesap tarafları, bölünmüş servis tahsilatı ve finans hareket defteri |
+| `V41–V42` | Güvenilir WhatsApp outbox/durum takibi ve açık müşteri izni |
 
 Eski kurulum ve şema evrimi dosyaları tarihsel kurulumlar için doğrudan `backend/src/main/resources/` altında tutulur; bunlar aktif production Flyway konumunda **değildir**. Uygulanmış bir migrasyonu değiştirmeyin, yeniden adlandırmayın veya sırasını bozmayın; yeni numaralı migrasyon ekleyin.
 
 `backend/src/main/resources/db/manual/` altındaki kurtarma/bakım scriptleri otomatik çalışmaz. Production dağıtımından önce doğrulanmış veritabanı yedeği alınmalı, sonrasında `flyway_schema_history` kontrol edilmelidir.
+
+---
+
+## WhatsApp Entegrasyonu
+
+WhatsApp entegrasyonu Meta Embedded Signup kullanır; hak sahibi her işletme kendi WhatsApp Business hesabını bağlar. Masaüstü istemcisi backend'den tek kullanımlık onboarding oturumu ister ve herkese açık `/whatsapp-connect` sayfasını açar. Meta kimlikleri backend tarafından URL fragment içinde verilir ve web paketine gömülmez.
+
+- Yönetici endpoint'leri: `/api/integrations/whatsapp/status` ve `/api/integrations/whatsapp/onboarding-session`
+- Meta callback: `GET/POST /api/public/whatsapp/webhook`
+- Production callback adresi: `https://api.pusulaiklimlendirme.com/api/public/whatsapp/webhook`
+- Erişim özellik/izin listesiyle kapalı varsayılan çalışır; şifreli işletme bilgileri eski global token/telefon kimliğine göre önceliklidir.
+- Giden bildirimler outbox'a kalıcı yazılır, güvenli biçimde tekrar denenir ve imzalı Meta teslimat webhook'larıyla güncellenir.
+- Müşteriye mesaj göndermek için açık WhatsApp izni gerekir. İzin değişiklikleri tenant kapsamında ve denetim kayıtlıdır.
+- Meta POST gövdelerinde geçerli `X-Hub-Signature-256` zorunludur; webhook doğrulaması ayrı verify token kullanır.
+
+Production webhook olayları için Meta uygulamasının yayınlanmış olması gerekir. App secret, erişim token'ı, şifreleme anahtarı ve verify token yalnızca sunucu ortamında tutulmalıdır.
 
 ---
 
@@ -341,6 +366,14 @@ mvn verify
 
 cd ../frontend-desktop
 mvn verify
+
+cd ../frontend-web
+npm ci
+npm run lint
+npm run build
+
+cd ../frontend-playstore/PusulaService
+./gradlew --no-daemon testDebugUnitTest assembleDebug
 ```
 
 Kapsanan alanlar:
@@ -354,8 +387,9 @@ Kapsanan alanlar:
 - Finans / rapor semantiği (fiyat snapshot, cari sınıflandırma, açık bakiyeler)
 - Fiş yeniden açma, garanti kapanışı, özel/kesirli parça kullanımı, görsel arşivi ve kontrollü yeniden planlama
 - Servis ağı tenant izolasyonu, idempotency, eşzamanlılık, kotalar ve fiş yaşam döngüsü (PostgreSQL entegrasyon paketi)
+- WhatsApp onboarding, kimlik bilgisi şifreleme, müşteri izni, outbox idempotency/tekrar, webhook doğrulama/imza ve teslimat durumu işleme
 
-GitHub Actions backend'i Java 17, masaüstünü Java 21 ile doğrular. Servis ağı akışı ayrıca PostgreSQL 17 başlatır ve iOS uygulamasını imzasız Simulator hedefi için derler. App Store/TestFlight dağıtımı ayrı bir release işlemidir.
+GitHub Actions backend'i Java 17, masaüstünü Java 21 ve web lint/build işlemlerini Node 22 ile doğrular. Ayrı akışlar Android birim testleri/debug derlemesini, iOS imzasız Simulator derlemesini ve PostgreSQL 17 servis ağı entegrasyon testlerini çalıştırır. App Store/TestFlight dağıtımı ayrı ve manuel bir release işlemidir.
 
 ---
 
@@ -363,17 +397,9 @@ GitHub Actions backend'i Java 17, masaüstünü Java 21 ile doğrular. Servis a�
 
 ### Backend (VPS)
 
-```bash
-export DB_PASSWORD='...'
-export JWT_SECRET='...'
-export GOOGLE_WEB_CLIENT_ID='...'
-# Diğer production env'ler (Play, App Store, APNs, Iyzico)...
+Backend'i `mvn --batch-mode --no-transfer-progress verify` ile doğrulayın, PostgreSQL yedeği alıp doğrulayın, oluşan JAR'ı yayınlayın ve `pusula-backend` systemd servisini yeniden başlatın. VPS servisi gizli değerleri korumalı ortam dosyasından alır ve `vps` Spring profiliyle başlar. Flyway bekleyen `db/migration` dosyalarını otomatik uygular; smoke testten önce `flyway_schema_history` ve servis logları kontrol edilmelidir.
 
-cd backend
-bash deploy_vps_staging.sh
-```
-
-Spring profili: `-Dspring.profiles.active=vps`
+Ana yedekleme, artifact değiştirme, yeniden başlatma, geri dönüş ve doğrulama sırası için [`RUNBOOK.md`](RUNBOOK.md) kullanılmalıdır. Makineye özel komutlar ve kimlik bilgileri bilinçli olarak repo dışında tutulur.
 
 ### Web (Vercel)
 
@@ -395,7 +421,8 @@ Deploy sonrası smoke test planı için **[`RUNBOOK.md`](RUNBOOK.md)** dosyasın
 - Production'da sandbox Iyzico fallback değerlerine güvenmeyin; tüm secret'ları env üzerinden sağlayın.
 - `PUSH_TOKEN_ENCRYPTION_KEY` yapılandırıldığında push cihaz token’ları at-rest şifrelenir.
 - Alt işletme oluşturma işlemi idempotency kaydı tutar; verilen şifreyi veya şifre parmak izini saklamaz.
-- WhatsApp gönderimi yalnızca özellik açık ve işletme açık izin listesinde ise çalışır; aksi halde kapalı kalır.
+- WhatsApp gönderimi yalnızca özellik açık, işletme izinli, geçerli entegrasyon mevcut ve müşteri izin vermişse çalışır; aksi halde kapalı kalır.
+- İşletme bazlı WhatsApp kimlik bilgileri ve push cihaz token'ları şifreli tutulur; Meta webhook POST gövdeleri işlenmeden önce HMAC ile doğrulanır.
 - Android HTTP log'larında `SensitiveHttpLogRedactor` token ve şifre alanlarını maskeler.
 - Stok mutasyonları ve araç erişimi backend’de tenant kapsamındadır.
 
@@ -420,6 +447,8 @@ Deploy sonrası smoke test planı için **[`RUNBOOK.md`](RUNBOOK.md)** dosyasın
 | `/api/push-devices` | Mobil push cihaz kaydı (APNs) |
 | `/api/notifications` | Tenant kapsamlı kullanıcı bildirim merkezi |
 | `/api/service-network` | İsteğe bağlı alt servis üyeliği, iş gönderimi, karar, geçmiş ve durum akışları |
+| `/api/integrations/whatsapp` | WhatsApp durumu ve Embedded Signup onboarding oturumu |
+| `/api/public/whatsapp/webhook` | Meta webhook doğrulaması ve imzalı durum olayları |
 | `/api/reports` | Raporlama (kârlılık, nakit akışı, açık borç vb.) |
 | `/api/public` | Kimlik doğrulama gerektirmeyen endpoint'ler |
 | `/api/public/desktop-version` | Desktop MSI otomatik güncelleme sürüm kontrolü |
@@ -430,6 +459,7 @@ Deploy sonrası smoke test planı için **[`RUNBOOK.md`](RUNBOOK.md)** dosyasın
 
 - [`README.md`](README.md) — English documentation
 - [`RUNBOOK.md`](RUNBOOK.md) — Production deploy checklist, smoke test planı, env referansları
+- [`docs/SERVICE_NETWORK.md`](docs/SERVICE_NETWORK.md) — Servis ağı mimarisi, tenant sınırları ve operasyon modeli
 - [`frontend-appstore/REAL_DEVICE_TEST_PLAN.md`](frontend-appstore/REAL_DEVICE_TEST_PLAN.md) — iOS gerçek cihaz test planı
 - [`scripts/`](scripts/) — Play Store asset üretim yardımcıları
 

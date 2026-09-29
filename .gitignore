@@ -41,6 +41,7 @@ Desktop.ini
 # Temp Files
 *.tmp
 *.temp
+*.bak
 temp/
 tmp/
 
@@ -49,6 +50,7 @@ tmp/
 *.war
 *.ear
 !.mvn/wrapper/*.jar
+!frontend-playstore/PusulaService/gradle/wrapper/gradle-wrapper.jar
 
 # JVM Crash Logs
 hs_err_pid*
@@ -108,6 +110,12 @@ DidimKlima/
 # Private admin panel repo (kept outside the public portfolio repo)
 .gitmodules
 Pusula-Super-Admin-Panel/
+
+# Separate product marketing website repo
+Pusula-Product-Website/
+
+# Retired local Vite prototype (source preserved locally, outside this repository)
+pusula-web/
 
 # Local editor workspace files
 *.code-workspace

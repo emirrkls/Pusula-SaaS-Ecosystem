@@ -1,8 +1,6 @@
-# Servis Ağı — yayın öncesi inceleme
+# Servis Ağı — Mimari ve İşleyiş
 
-Dal: `codex/subdealer-service-network`. Başlangıç: `88e603f`.
-
-Bu geliştirme üretimden ayrıdır. Main birleştirmesi, üretim veritabanı migration'ı, masaüstü dağıtımı ve TestFlight yüklemesi kullanıcı onayı olmadan yapılmaz.
+Servis ağı özelliği ana dalda ve production ortamında kullanımdadır. Bu belge kalıcı iş kurallarını, tenant sınırlarını, ölçek yaklaşımını ve sonraki geliştirme alanlarını açıklar. Dağıtım adımları için kök [`RUNBOOK.md`](../RUNBOOK.md) dosyası kullanılmalıdır.
 
 ## Bu sürümün kapsamı
 
@@ -63,13 +61,11 @@ V36, hesap oluşturma makbuzunun anahtar/yönetici adı/kullanıcı adı alanlar
 
 ## Doğrulama
 
-- Backend tam `mvn verify`: 219 test, 0 hata, 1 atlama. Atlanan PostgreSQL migration testi ayrı PostgreSQL koşusunda çalıştırıldı.
-- Servis Ağı entegrasyonları: 25 test, H2 ve PostgreSQL 17'de başarılı. Tenant izolasyonu, rol, davet onayı, döngü/ikinci kademe engeli, şifre hash'i, limitler, tarih/arama, transaction geri alma, özel veri sızıntısı, 400 kayıt, eşzamanlı kabul, hesap oluşturma tekrarı ve kota yarışı dahil.
-- Ek 2 gerçek yaşam döngüsü testi, `ServiceTicketService` oluşturma/kapama metodunu taklit etmeden kabul → teknisyen güncellemesi → kısmi tahsilat/cari → ağ geçmişi/bildirim akışını ve kapama hatasında geri almayı H2/PostgreSQL üzerinde sınar. Ana firmada finansal kayıt oluşmadığı, tekrar kapamanın ikinci cari yaratmadığı doğrulanır. Dış mesajlar ve günlük finans özeti uzlaştırma çağrısı bu testte taklit edilen sınırlardır; cari bakiye/hareketleri gerçek servislerle yazılır.
-- Gerçek V35 + V36 SQL migration: PostgreSQL 17'de tekillik, partial index, kabul-fiş bağlantısı ve randevu kontrolleri başarılı (toplam 28 PostgreSQL testi). İkinci ana firma kontrolünde genel SQL hatası yerine `23505` ve özellikle `uq_network_child_live` doğrulanır; test verisi ID sequence'ini atlamaz.
-- Masaüstü tam `mvn verify` (`NETWORK_UI_TEST=true`): 30 test başarılı. Üç JavaFX testi localhost sentetik verilerle 900×600 liste/form ve görünür aksiyonları, iş/davet bildiriminin tam kayda gidişini ve doğru listeye dönüşü sınar; canlı API kullanmaz. Liste/form render çıktıları görsel olarak da incelendi.
-- iOS imzasız simulator derlemesi için ayrı GitHub Actions doğrulaması eklendi. Archive, mağaza yüklemesi veya TestFlight dağıtım adımı içermez. Son CI sonucu yayın öncesi ayrıca kontrol edilmelidir.
-- Üretim verisi testlere alınmadı. Yerel test DB/log/görselleri gitignore altında; kimlik bilgileri commit'e dahil değil.
+- Kök `CI` akışı backend ve masaüstü testlerini, web lint/build işlemini çalıştırır.
+- `Service Network Validation`, gerçek PostgreSQL 17 üzerinde tenant izolasyonu, migration, eşzamanlılık ve fiş yaşam döngüsü testlerini çalıştırır.
+- `iOS Compile Gate` imzasız Simulator hedefini derler; archive, TestFlight veya mağaza dağıtımı yapmaz.
+- `Android Validation` birim testlerini ve debug derlemesini çalıştırır.
+- Üretim verisi otomatik testlere alınmaz. Yerel test verileri, derleme çıktıları ve kimlik bilgileri gitignore kapsamındadır.
 
 ## Sonraki geliştirme alanları
 
@@ -82,12 +78,8 @@ V36, hesap oluşturma makbuzunun anahtar/yönetici adı/kullanıcı adı alanlar
 7. Hesap oluşturma sonrası güvenli tek kullanımlık davet/şifre belirleme bağlantısı; bugün yönetici ilk şifreyi belirleyip güvenli kanaldan paylaşır. Aynı formdan tekrar korumalıdır; uygulama kapanması sonrasında makbuz kurtarma/davet akışı ileride geliştirilebilir.
 8. Gerçek iPhone/iPad cihazında kabul/gezinme/push ve erişilebilirlik kabul testi; 400 servis seviyesinde staging yük testi.
 
-## Onay sonrası kontrollü yayın planı
+## Operasyon ve geri dönüş
 
-1. Branch/CI ve uygulama kabul sonuçlarını kontrol et; ana dal ilerlediyse çakışmaları tekrar test et.
-2. Üretim PostgreSQL'in tam yedeğini al ve ayrı restore ile doğrula. Önce backend V35 + V36 migration'larını ve uygulamayı yayınla; hiçbir işletmenin ağ yetkisini topluca açma.
-3. Bir pilot ana firma için SUPER_ADMIN üzerinden kapasite tanımla. 3–5 test/izinli alt servisle tenant izolasyonu, davet, kabul, fiş kapama, finansın iki kez yazılmadığı ve bildirimleri kontrol et.
-4. Masaüstü sürüm/installer metadatasını yükseltip dağıt; onaylı iOS release hattını ayrı tetikle. Geliştirme dalının CI hattı TestFlight dağıtmaz.
-5. Hata halinde önce pilot ağ politikasını devre dışı bırak (yeni ağ oluşturma/gönderimini durdurur; kabul edilmiş işlerin takibi sürer). Gerekirse önceki backend/client sürümüne dön; ek tabloları koru. Veri oluştuktan sonra tabloları silmek veya otomatik down-migration yapmak güvenli rollback değildir. Tam DB restore yalnızca sonradan oluşan gerçek işlemler değerlendirilerek bakım penceresinde uygulanmalıdır.
+Yeni bir ana firmaya ağ yetkisi verirken önce 3–5 alt servislik pilotla tenant izolasyonu, davet, kabul, fiş kapama, finansın iki kez yazılmadığı ve bildirim akışı kontrol edilmelidir. Kapasite gözlemlendikten sonra 25–50 ve ardından daha büyük ağlara geçilir.
 
-**Üretime geçiş için kullanıcı onayı beklenir.**
+Sorunda önce ilgili ağ politikasını devre dışı bırakmak yeni bağlantı ve iş gönderimini durdurur; kabul edilmiş işlerin takibi sürer. Uygulama sürümü geri alınabilir ancak V35/V36 tabloları veri oluştuktan sonra silinmemeli ve otomatik down-migration uygulanmamalıdır. Tam veritabanı geri yükleme yalnızca bakım penceresinde, yedekten sonra oluşan gerçek işlemler değerlendirilerek yapılır.
