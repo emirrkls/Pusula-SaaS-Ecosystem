@@ -70,7 +70,7 @@ When changing a secret, update the protected environment file, restart the backe
 4. Update and verify `/api/public/desktop-version` only after the installer is reachable.
 5. Test download, Windows administrator elevation, installation, relaunch, and version recognition from a second Windows device.
 
-Current production desktop version at the time of this update: `3.8.12`.
+Current production desktop version at the time of this update: `3.8.13`.
 
 ## Web Release
 

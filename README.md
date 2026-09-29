@@ -213,7 +213,7 @@ Alternatively, run the main class `com.pusula.desktop.Launcher` from your IDE.
 
 - **API base URL:** `RetrofitClient.BASE_URL` (production: `https://api.pusulaiklimlendirme.com/`)
 - **App version:** `frontend-desktop/src/main/resources/app-version.properties`
-- **Current production version:** `3.8.12`
+- **Current production version:** `3.8.13`
 - **Auto-update:** desktop checks `/api/public/desktop-version` and applies MSI updates
 - **Windows installer output:** `frontend-desktop/installer/Output/` (gitignored)
 

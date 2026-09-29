@@ -155,6 +155,10 @@ class ModernUiContractTest {
         assertTrue(tickets.contains("date-range-group"));
         assertTrue(photos.contains("filter-control-group"));
         assertTrue(debts.contains("debt-summary-strip"));
+        assertTrue(debts.contains("fx:id=\"debtPageScroll\""));
+        assertTrue(debts.contains("fitToWidth=\"true\""));
+        assertTrue(debts.contains("fx:id=\"partyTable\" minHeight=\"220\" prefHeight=\"310\""),
+                "Supplier cards need a stable visible table height inside the scrollable workspace");
         assertTrue(debts.contains("fx:id=\"debtDetailPane\""));
         assertFalse(debts.contains("<SplitPane"),
                 "Debt cards and movement history should not compete in a fixed split view");

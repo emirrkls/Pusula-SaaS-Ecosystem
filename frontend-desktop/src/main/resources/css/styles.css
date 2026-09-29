@@ -3586,6 +3586,19 @@
     -fx-padding: 2 0 2 0;
 }
 
+.debt-page-scroll {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.debt-page-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.debt-page-scroll > .corner {
+    -fx-background-color: transparent;
+}
+
 .debt-summary-card {
     -fx-padding: 14 16;
     -fx-background-color: -pusula-surface;

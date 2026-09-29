@@ -80,6 +80,7 @@ public class CompanyDebtController {
     @FXML private TableColumn<PayablePartySummaryDTO, Void> colPartyActions;
     @FXML private Label debtDetailLabel;
     @FXML private TitledPane debtDetailPane;
+    @FXML private ScrollPane debtPageScroll;
 
     private CompanyDebtApi api;
     private ObservableList<CompanyDebtDTO> debts = FXCollections.observableArrayList();
@@ -466,6 +467,9 @@ public class CompanyDebtController {
                         debtDetailLabel.setText(party.getName() + " · Alım ve Hareketler");
                         debtDetailPane.setText(party.getName() + " · Hareket geçmişi");
                         debtDetailPane.setExpanded(true);
+                        // The whole debt workspace is scrollable. Move the selected card's
+                        // history into view after JavaFX has completed the expanded layout.
+                        Platform.runLater(() -> debtPageScroll.setVvalue(1.0));
                     }
                 });
             }

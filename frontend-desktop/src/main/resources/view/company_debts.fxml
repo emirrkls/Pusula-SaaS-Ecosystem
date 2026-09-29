@@ -4,12 +4,16 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.pusula.desktop.controller.CompanyDebtController"
-      spacing="16" styleClass="subsection-panel, debt-workspace">
-    <padding>
-        <Insets top="20" right="20" bottom="20" left="20"/>
-    </padding>
+<ScrollPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="debtPageScroll"
+            fx:controller="com.pusula.desktop.controller.CompanyDebtController"
+            fitToWidth="true" hbarPolicy="NEVER" pannable="true"
+            styleClass="finance-scroll-pane, debt-page-scroll">
+    <content>
+    <VBox spacing="16" styleClass="subsection-panel, debt-workspace">
+        <padding>
+            <Insets top="20" right="20" bottom="24" left="20"/>
+        </padding>
 
     <VBox spacing="10" styleClass="page-header">
         <HBox alignment="CENTER_LEFT" spacing="12">
@@ -50,14 +54,14 @@
         <Button onAction="#clearFilters" styleClass="btn-secondary" text="Temizle"/>
     </FlowPane>
 
-    <VBox spacing="8" VBox.vgrow="ALWAYS" styleClass="debt-table-card">
+    <VBox spacing="8" styleClass="debt-table-card">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="2" HBox.hgrow="ALWAYS">
                     <Label styleClass="section-title" text="Tedarikçi Kartları"/>
                     <Label styleClass="section-caption" text="Bir karta çift tıklayarak ayrıntılı hareketleri açabilirsiniz."/>
                 </VBox>
             </HBox>
-            <TableView fx:id="partyTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
+            <TableView fx:id="partyTable" minHeight="220" prefHeight="310" styleClass="premium-table" VBox.vgrow="ALWAYS">
                 <columns>
                     <TableColumn fx:id="colPartyName" minWidth="180" text="Tedarikçi / Alacaklı"/>
                     <TableColumn fx:id="colPartyPurchases" minWidth="120" text="Toplam Alım"/>
@@ -76,7 +80,7 @@
         <content>
         <VBox spacing="8" styleClass="debt-detail-content">
             <Label fx:id="debtDetailLabel" styleClass="section-title" text="Bir tedarikçi kartı seçin"/>
-            <TableView fx:id="debtTable" prefHeight="270" styleClass="premium-table">
+            <TableView fx:id="debtTable" minHeight="260" prefHeight="360" styleClass="premium-table">
                 <columns>
                     <TableColumn fx:id="colCreditor" minWidth="130" text="Alacaklı"/>
                     <TableColumn fx:id="colCategory" minWidth="90" text="Kategori"/>
@@ -94,4 +98,6 @@
         </VBox>
         </content>
     </TitledPane>
-</VBox>
+    </VBox>
+    </content>
+</ScrollPane>
