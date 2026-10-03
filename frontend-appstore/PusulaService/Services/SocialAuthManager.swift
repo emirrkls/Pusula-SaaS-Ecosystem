@@ -88,7 +88,7 @@ final class SocialAuthManager: NSObject, ObservableObject, ASAuthorizationContro
     static func isCancellation(_ error: Error) -> Bool {
         let nsError = error as NSError
         return (nsError.domain == ASAuthorizationError.errorDomain && nsError.code == ASAuthorizationError.canceled.rawValue)
-            || (nsError.domain == kGIDSignInErrorDomain && nsError.code == GIDSignInErrorCode.canceled.rawValue)
+            || (nsError.domain == kGIDSignInErrorDomain && nsError.code == GIDSignInError.Code.canceled.rawValue)
     }
 
     private static var activeWindow: UIWindow? {
