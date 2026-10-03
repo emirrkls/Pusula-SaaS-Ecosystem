@@ -2,7 +2,17 @@
 
 Implementation added in October 2026. Provider configuration and a real Xcode/device validation are release gates, not implied by passing server tests. Do not upload separate intermediate iOS builds for these changes.
 
-Provider setup status (2026-10-03): the `Pusula iOS` Google OAuth client has been created for `com.pusula.service` / `DDV3HCZRP6`, and its public IDs are saved in `OAuth.xcconfig`. Google Branding has been saved with the application name, existing public home/privacy/terms URLs and `pusulaiklimlendirme.com` authorized domain. After separate operator approval, Google Audience was published and verified as `In production` / `External`; this removes the test-user audience restriction, not the requirement to validate the client/backend integration. Only basic identity/profile/email access is requested; no sensitive or restricted scopes were added. Sign in with Apple has been saved and verified by reopening the existing App ID (primary App ID enabled); the operator approved regeneration of its provisioning profiles for future builds. The separate `Pusula Sign In with Apple` key (`BV8VBFQ73Y`) has been registered for that App ID and downloaded once. Its local copy and downloaded backup have restricted Windows ACLs and are excluded from version control; its contents must never be logged. The private key and token-encryption key have not been installed on the production server. Existing APNs keys, certificates and uploaded builds were not changed. Publishing Google OAuth did not upload a build or submit/publish the app to App Store.
+Provider setup status (2026-10-03): the `Pusula iOS` Google OAuth client has been created for `com.pusula.service` / `DDV3HCZRP6`, and its public IDs are saved in `OAuth.xcconfig`. Google Branding has been saved with the application name, existing public home/privacy/terms URLs and `pusulaiklimlendirme.com` authorized domain. After separate operator approval, Google Audience was published and verified as `In production` / `External`; this removes the test-user audience restriction, not the requirement to validate the client/backend integration. Only basic identity/profile/email access is requested; no sensitive or restricted scopes were added. Sign in with Apple has been saved and verified by reopening the existing App ID (primary App ID enabled); the operator approved regeneration of its provisioning profiles for future builds. The separate `Pusula Sign In with Apple` key (`BV8VBFQ73Y`) has been registered for that App ID and downloaded once. Its local copy and downloaded backup have restricted Windows ACLs and are excluded from version control; its contents must never be logged. The private key and an independent stable token-encryption key are installed on the production server with root-only permissions. Existing APNs keys, certificates and uploaded builds were not changed. Publishing Google OAuth and deploying the backend did not upload a build or submit/publish the app to App Store. Mobile and desktop source changes remain pending for the combined client release.
+
+## Backend deployment verification (2026-10-03)
+
+- Deployed backend source: `50131946ced76a0d1169546b18d57b3f397dff36`. The live artifact checksum was verified after activation, and `pusula-backend` is active.
+- Local backend verification: 302 tests, zero failures/errors, one conditional PostgreSQL test skipped. Both CI and Service Network Validation passed for the exact source commit; the latter exercised PostgreSQL integration.
+- A protected custom-format database backup was verified, restored into an isolated temporary database, and tested with V43 before production migration. Restore used `--no-owner --no-acl --role=pusula_db`. Production Flyway successfully applied V43; paid-plan dates and explicit company restrictions matched the pre-deployment state.
+- Public plans/version endpoints returned 200; protected ticket/initial-password endpoints rejected anonymous access with 401. Authenticated read-only checks against the prepared review tenant returned 200 for feature context and customers without creating a customer or account.
+- Apple challenge returned a valid nonce/UUID. Apple accepted the server-signed client credentials and rejected a deliberately invalid authorization code as `invalid_grant`, not `invalid_client`. This is a credential-configuration check, not a real-device sign-in or revocation test.
+- Server signing key: `/etc/pusula/apple-signin/AuthKey_BV8VBFQ73Y.p8` (root, mode 600; parent directory 700). The protected environment file holds the independent stable encryption key; never print either secret or change the encryption key during routine deployment.
+- Retain the protected pre-deployment database, artifact and environment backups for rollback/recovery. A code rollback must not discard the newly installed encryption key or reverse the migrated database blindly.
 
 ## Account behaviour
 
@@ -55,9 +65,9 @@ Official reference: [Apple token revocation](https://developer.apple.com/documen
 
 ## Combined-release gates
 
-- [ ] Provider settings saved with required operator approval; public iOS Google IDs configured.
-- [ ] Apple capability and server-only signing/encryption keys configured; challenge endpoint responds successfully on the intended test backend.
-- [ ] V43 tested and deployed after verified database backup; existing paid and restricted accounts unchanged.
+- [x] Provider settings saved with required operator approval; public iOS Google IDs configured locally (client source publication remains pending).
+- [x] Apple capability and server-only signing/encryption keys configured; challenge endpoint responds successfully on production.
+- [x] V43 tested and deployed after verified database backup; existing paid and restricted accounts unchanged.
 - [ ] Server/desktop verification and Android compile/unit tests pass.
 - [ ] On the Mac, sync the latest shared commit, resolve Google packages, run Release simulator build/tests and archive validation.
 - [ ] Real device: Google and Apple first registration, cancellation, subsequent login, hide-my-email, local password/desktop login, tenant-conflict rejection and Apple account deletion/revocation.
