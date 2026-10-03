@@ -38,7 +38,7 @@ class AuthenticationServicePasswordVerificationTest {
     @BeforeEach
     void setUp() {
         service = new AuthenticationService(userRepository, companyRepository, passwordEncoder,
-                jwtService, authenticationManager, auditLogService, featureService);
+                jwtService, authenticationManager, auditLogService, featureService, org.mockito.Mockito.mock(SocialAccountDeletionService.class));
     }
 
     @AfterEach
@@ -95,6 +95,32 @@ class AuthenticationServicePasswordVerificationTest {
                 () -> service.updateMobileOnboardingVersion(user, null));
         assertThrows(IllegalArgumentException.class,
                 () -> service.updateMobileOnboardingVersion(user, 1001));
+    }
+
+    @Test
+    void initialSocialPasswordUsesAuthenticatedTenantAndCannotOverwriteExistingPassword() {
+        User principal = user(44L, 9L, "social-user", "jwt-copy");
+        User persisted = user(44L, 9L, "social-user", "random-hash");
+        persisted.setLocalPasswordEnabled(false);
+        authenticate(principal);
+        when(userRepository.findByIdAndCompanyId(44L, 9L)).thenReturn(Optional.of(persisted));
+        when(passwordEncoder.encode("Secret123")).thenReturn("new-hash");
+        service.setInitialSocialPassword("Secret123");
+        assertTrue(persisted.isLocalPasswordEnabled()); assertEquals("new-hash", persisted.getPasswordHash());
+        verify(userRepository).save(persisted);
+        assertThrows(IllegalStateException.class, () -> service.setInitialSocialPassword("Other123"));
+        verify(passwordEncoder, never()).encode("Other123");
+    }
+
+    @Test
+    void initialSocialPasswordRejectsWeakLongAndMissingTenantUser() {
+        User principal = user(44L, 9L, "social-user", "jwt-copy"); authenticate(principal);
+        assertThrows(IllegalArgumentException.class, () -> service.setInitialSocialPassword("weak"));
+        assertThrows(IllegalArgumentException.class, () -> service.setInitialSocialPassword("Ş".repeat(40) + "12345678"));
+        when(userRepository.findByIdAndCompanyId(44L, 9L)).thenReturn(Optional.empty());
+        assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
+                () -> service.setInitialSocialPassword("Secret123"));
+        verify(userRepository, never()).save(org.mockito.ArgumentMatchers.any());
     }
 
     private void authenticate(User principal) {

@@ -2,7 +2,6 @@ package com.pusula.backend.controller;
 
 import com.pusula.backend.dto.AuthRequest;
 import com.pusula.backend.dto.AuthResponse;
-import com.pusula.backend.dto.GoogleAuthRequest;
 import com.pusula.backend.dto.RegisterRequest;
 import com.pusula.backend.entity.User;
 import com.pusula.backend.service.AuthenticationService;
@@ -87,14 +86,6 @@ public class AuthController {
     }
 
     /**
-     * Google authentication — verifies Google ID token and signs user in/up.
-     */
-    @PostMapping("/google")
-    public ResponseEntity<AuthResponse> authenticateWithGoogle(@RequestBody GoogleAuthRequest request) {
-        return ResponseEntity.ok(service.authenticateWithGoogle(request));
-    }
-
-    /**
      * Verify password — used for sensitive operations requiring re-authentication.
      */
     @PostMapping("/verify-password")
@@ -102,6 +93,15 @@ public class AuthController {
         boolean valid = service.verifyCurrentUserPassword(request != null ? request.getPassword() : null);
         return ResponseEntity.ok(java.util.Map.of("valid", valid));
     }
+
+    @PostMapping("/initial-password")
+    public ResponseEntity<Void> setInitialPassword(@jakarta.validation.Valid @RequestBody InitialPassword request) {
+        service.setInitialSocialPassword(request.password());
+        return ResponseEntity.noContent().build();
+    }
+
+    public record InitialPassword(@jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Size(min = 8, max = 72) String password) {}
 
     /**
      * Get current feature context — returns updated features, quota, and plan info.

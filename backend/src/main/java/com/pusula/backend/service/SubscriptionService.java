@@ -365,8 +365,13 @@ public class SubscriptionService {
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new RuntimeException("Company not found"));
 
-        company.setPlanType(PlanType.CIRAK);
-        company.setSubscriptionStatus("CANCELLED");
+        if (!"SUSPENDED".equals(company.getSubscriptionStatus())) {
+            CompanyAccessPolicy.initializeFreePlan(company);
+        } else {
+            company.setPlanType(PlanType.CIRAK);
+            company.setTrialEndsAt(null);
+            company.setSubscriptionExpiresAt(null);
+        }
         company.setIyzicoSubscriptionId(null);
         companyRepository.save(company);
 
@@ -378,7 +383,7 @@ public class SubscriptionService {
      */
     public boolean isReadOnly(Long companyId) {
         return companyRepository.findById(companyId)
-                .map(Company::getIsReadOnly)
+                .map(CompanyAccessPolicy::isReadOnly)
                 .orElse(false);
     }
 

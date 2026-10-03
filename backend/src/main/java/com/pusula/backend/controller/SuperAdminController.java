@@ -174,12 +174,12 @@ public class SuperAdminController {
         Company company = new Company();
         company.setName(request.name.trim());
         company.setPlanType(planType);
-        company.setSubscriptionStatus(planType == PlanType.CIRAK ? "TRIAL" : "ACTIVE");
+        company.setSubscriptionStatus("ACTIVE");
         company.setBillingEmail(trimOrNull(request.billingEmail));
         company.setEmail(trimOrNull(request.billingEmail));
         company.setOrgCode(generateUniqueOrgCode());
         if (planType == PlanType.CIRAK) {
-            company.setTrialEndsAt(java.time.LocalDateTime.now().plusDays(14));
+            com.pusula.backend.service.CompanyAccessPolicy.initializeFreePlan(company);
         } else {
             company.setSubscriptionExpiresAt(java.time.LocalDateTime.now().plusDays(30));
         }

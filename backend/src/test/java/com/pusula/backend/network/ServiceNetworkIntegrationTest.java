@@ -120,11 +120,11 @@ class ServiceNetworkIntegrationTest {
         assertThrows(IllegalStateException.class,()->service.invite(new Invite(other.getOrgCode(),"")));
         assertThrows(IllegalStateException.class,()->service.createChild(new CreateChild(UUID.randomUUID().toString(),"Nested","","Admin","admin","Password123")));
     }
-    @Test void newChildHasIndependentTrialAndHashedCredentials() {
+    @Test void newChildHasIndependentPerpetualFreePlanAndHashedCredentials() {
         CreatedChild result=service.createChild(new CreateChild(UUID.randomUUID().toString(),"Fresh service","Ege","Service Admin","admin","StrongPass123"));
         Company company=companies.findById(result.member().childCompanyId()).orElseThrow();
-        assertEquals(PlanType.CIRAK,company.getPlanType());assertEquals("TRIAL",company.getSubscriptionStatus());
-        assertNotNull(company.getTrialEndsAt());assertNotEquals(parent.getId(),company.getId());
+        assertEquals(PlanType.CIRAK,company.getPlanType());assertEquals("ACTIVE",company.getSubscriptionStatus());
+        assertNull(company.getTrialEndsAt());assertNull(company.getSubscriptionExpiresAt());assertNotEquals(parent.getId(),company.getId());
         User admin=users.findByUsernameAndCompanyId("admin",company.getId()).orElseThrow();
         assertEquals("COMPANY_ADMIN",admin.getRole());assertTrue(passwords.matches("StrongPass123",admin.getPasswordHash()));
         assertFalse(result.toString().contains("StrongPass123"));

@@ -118,7 +118,7 @@ flowchart TB
 Service networks are opt-in and separate from ordinary subscription-plan access. A super administrator enables a policy for a parent company and sets member and monthly dispatch limits.
 
 1. A parent company administrator either creates a new child service (with its own company-admin account and isolated tenant) or invites an existing company by organization code.
-2. An existing company must accept the invitation; a newly created child is linked immediately and begins with the configured trial behavior.
+2. An existing company must accept the invitation; a newly created child is linked immediately and begins with the perpetual free Çırak plan, subject to its feature and usage limits.
 3. The parent dispatches a dated network order with customer contact/address details and private instructions.
 4. The child accepts the order, optionally selects an existing customer and technician, and receives a normal ticket in its own company. Alternatively, the child may reject a still-pending order; the parent may cancel it.
 5. Notes and ticket lifecycle updates remain visible through the network-order history. A relationship cannot be closed while it has pending or non-terminal work.
@@ -134,7 +134,7 @@ Pusula-SaaS-Ecosystem/
 ├── backend/                    # Spring Boot REST API
 │   ├── src/main/java/          # Controllers, services, entities, DTOs
 │   ├── src/main/resources/     # Configuration, legacy bootstrap SQL, fonts
-│   ├── src/main/resources/db/migration/ # Active Flyway migrations (baseline 20, V21–V42)
+│   ├── src/main/resources/db/migration/ # Active Flyway migrations (baseline 20, V21–V43)
 │   ├── src/test/               # JUnit regression tests
 │   └── .env.example            # Backend env template
 ├── frontend-web/               # Marketing / corporate website (Vercel + SSG)
@@ -266,6 +266,8 @@ cd frontend-playstore/PusulaService
 | `DB_PASSWORD` | PostgreSQL password |
 | `JWT_SECRET` | JWT signing secret (64+ characters recommended) |
 | `GOOGLE_WEB_CLIENT_ID` | Google OAuth web client ID |
+| `APPLE_SIGN_IN_CLIENT_ID`, `APPLE_SIGN_IN_TEAM_ID`, `APPLE_SIGN_IN_KEY_ID`, `APPLE_SIGN_IN_KEY_PATH` | Native Apple sign-in audience and server-only signing key |
+| `SOCIAL_AUTH_TOKEN_ENCRYPTION_KEY` | Separate AES-256-GCM key for Apple refresh-token storage |
 | `GOOGLE_PLAY_PACKAGE_NAME` | Android package name |
 | `GOOGLE_PLAY_API_ACCESS_TOKEN` | Google Play Developer API access token |
 | `IYZICO_WEBHOOK_SECRET` | Iyzico webhook signature secret |
@@ -323,7 +325,7 @@ Template: `frontend-web/.env.example`
 
 ## Database Migrations
 
-Production Flyway uses `classpath:db/migration`, baseline version `20`, with Hibernate schema mutation disabled (`ddl-auto=none`). The active sequence currently runs from V21 through V42:
+Production Flyway uses `classpath:db/migration`, baseline version `20`, with Hibernate schema mutation disabled (`ddl-auto=none`). The active sequence currently runs from V21 through V43:
 
 | Range | Main changes |
 |-------|--------------|
@@ -335,6 +337,7 @@ Production Flyway uses `classpath:db/migration`, baseline version `20`, with Hib
 | `V37` | Tenant WhatsApp Business integrations |
 | `V38–V40` | Unified account parties, split service billing, and financial transaction ledger |
 | `V41–V42` | Reliable WhatsApp outbox/status tracking and explicit customer consent |
+| `V43` | Perpetual free plan, stable social identities, and single-use Apple login challenges |
 
 Legacy bootstrap/evolution scripts remain directly under `backend/src/main/resources/` for historical installations, but they are **not** in the active production Flyway location. Do not rename, reorder, or edit an applied migration. Add a new versioned migration instead.
 
@@ -432,7 +435,7 @@ For post-deploy smoke tests, see **[`RUNBOOK.md`](RUNBOOK.md)**.
 
 | Prefix | Description |
 |--------|-------------|
-| `/api/auth` | Login, register, Google auth |
+| `/api/auth` | Login, register, Google/Apple auth, initial social-account password, account deletion |
 | `/api/tickets` | Service tickets, assignment, lifecycle, completion, signature, reopening, notes, and rescheduling |
 | `/api/inventory` | Inventory management |
 | `/api/service-photos` | Service photo upload, archive, filtering, thumbnail, and download metadata |
@@ -459,6 +462,7 @@ For post-deploy smoke tests, see **[`RUNBOOK.md`](RUNBOOK.md)**.
 
 - [`RUNBOOK.md`](RUNBOOK.md) — Production deploy checklist, smoke test plan, env references
 - [`docs/SERVICE_NETWORK.md`](docs/SERVICE_NETWORK.md) — Service-network architecture, tenant boundaries, and operating model
+- [`docs/SOCIAL_AUTH.md`](docs/SOCIAL_AUTH.md) — Social identity rules, provider configuration, and combined-release gates
 - [`README.tr.md`](README.tr.md) — Turkish documentation
 - [`frontend-appstore/REAL_DEVICE_TEST_PLAN.md`](frontend-appstore/REAL_DEVICE_TEST_PLAN.md) — iOS real-device test plan
 - [`scripts/`](scripts/) — Play Store asset generation helpers

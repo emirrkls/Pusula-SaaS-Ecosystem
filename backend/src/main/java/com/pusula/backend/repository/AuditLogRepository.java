@@ -14,6 +14,12 @@ import java.util.List;
 @Repository
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
+        // Legacy Google registrations stored the verified provider email only in the auth audit.
+        // Exact email matching, never a company-name/email heuristic or client-supplied username.
+        @Query("SELECT a FROM AuditLog a WHERE a.actionType = 'USER_REGISTERED_GOOGLE' " +
+                        "AND a.entityType = 'AUTH' AND LOWER(a.description) = LOWER(:description)")
+        List<AuditLog> findLegacyGoogleRegistrations(@Param("description") String description);
+
         // Find all logs for a company, ordered by timestamp descending
         Page<AuditLog> findByCompanyIdOrderByTimestampDesc(Long companyId, Pageable pageable);
 

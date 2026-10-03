@@ -152,6 +152,7 @@ public class UserController {
         if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
             com.pusula.backend.util.PasswordPolicy.requireStrong(userDTO.getPassword());
             existingUser.setPasswordHash(passwordEncoder.encode(userDTO.getPassword()));
+            existingUser.setLocalPasswordEnabled(true);
         }
 
         User updated = userRepository.save(existingUser);
@@ -231,6 +232,7 @@ public class UserController {
         }
 
         userToReset.setPasswordHash(passwordEncoder.encode(newPassword));
+        userToReset.setLocalPasswordEnabled(true);
         userRepository.save(userToReset);
 
         return ResponseEntity.ok().build();

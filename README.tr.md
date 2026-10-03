@@ -118,7 +118,7 @@ flowchart TB
 Servis ağı isteğe bağlıdır ve normal abonelik paketi erişiminden ayrıdır. Super-admin üst işletme için politikayı açar; azami alt servis ve aylık ağ iş emri limitlerini belirler.
 
 1. Üst işletmenin şirket yöneticisi ayrı tenant ve şirket-admin hesabıyla yeni alt servis oluşturur veya mevcut işletmeyi organizasyon koduyla davet eder.
-2. Mevcut işletme daveti kabul etmelidir; yeni oluşturulan alt servis doğrudan bağlanır ve tanımlı deneme davranışıyla başlar.
+2. Mevcut işletme daveti kabul etmelidir; yeni oluşturulan alt servis doğrudan bağlanır ve özellik/kullanım limitlerine tabi süresiz ücretsiz Çırak planıyla başlar.
 3. Üst işletme müşteri iletişim/adres bilgileri ve teknisyene özel talimatla tarihli ağ iş emri gönderir.
 4. Alt servis işi kabul eder; isterse mevcut müşterisini ve teknisyenini seçer ve kendi işletmesinde normal servis fişi oluşur. Bekleyen iş alt servis tarafından reddedilebilir veya üst işletme tarafından geri çekilebilir.
 5. Notlar ve fiş yaşam döngüsü ağ işi geçmişinden izlenir. Bekleyen veya sonuçlanmamış iş varken servis ağı bağlantısı kapatılamaz.
@@ -134,7 +134,7 @@ Pusula-SaaS-Ecosystem/
 ├── backend/                    # Spring Boot REST API
 │   ├── src/main/java/          # Controller, service, entity, DTO
 │   ├── src/main/resources/     # Yapılandırma, eski kurulum SQL'leri, fontlar
-│   ├── src/main/resources/db/migration/ # Aktif Flyway migrasyonları (baseline 20, V21–V42)
+│   ├── src/main/resources/db/migration/ # Aktif Flyway migrasyonları (baseline 20, V21–V43)
 │   ├── src/test/               # JUnit regression testleri
 │   └── .env.example            # Backend env şablonu
 ├── frontend-web/               # Marketing / kurumsal web sitesi (Vercel + SSG)
@@ -266,6 +266,8 @@ cd frontend-playstore/PusulaService
 | `DB_PASSWORD` | PostgreSQL şifresi |
 | `JWT_SECRET` | JWT imzalama anahtarı (64+ karakter önerilir) |
 | `GOOGLE_WEB_CLIENT_ID` | Google OAuth web client ID |
+| `APPLE_SIGN_IN_CLIENT_ID`, `APPLE_SIGN_IN_TEAM_ID`, `APPLE_SIGN_IN_KEY_ID`, `APPLE_SIGN_IN_KEY_PATH` | Apple giriş kimliği ve yalnızca sunucuda tutulan imzalama anahtarı |
+| `SOCIAL_AUTH_TOKEN_ENCRYPTION_KEY` | Apple yenileme token'ları için bağımsız AES-256-GCM anahtarı |
 | `GOOGLE_PLAY_PACKAGE_NAME` | Android paket adı |
 | `GOOGLE_PLAY_API_ACCESS_TOKEN` | Google Play Developer API erişim token'ı |
 | `IYZICO_WEBHOOK_SECRET` | Iyzico webhook imza doğrulama |
@@ -323,7 +325,7 @@ cd frontend-playstore/PusulaService
 
 ## Veritabanı Migrasyonları
 
-Production Flyway konumu `classpath:db/migration`, baseline sürümü `20`'dir; production'da Hibernate şema değişikliği kapalıdır (`ddl-auto=none`). Aktif sıra şu anda V21–V42 arasındadır:
+Production Flyway konumu `classpath:db/migration`, baseline sürümü `20`'dir; production'da Hibernate şema değişikliği kapalıdır (`ddl-auto=none`). Aktif sıra şu anda V21–V43 arasındadır:
 
 | Aralık | Başlıca değişiklikler |
 |--------|----------------------|
@@ -335,6 +337,7 @@ Production Flyway konumu `classpath:db/migration`, baseline sürümü `20`'dir; 
 | `V37` | İşletme bazlı WhatsApp Business entegrasyonları |
 | `V38–V40` | Birleşik hesap tarafları, bölünmüş servis tahsilatı ve finans hareket defteri |
 | `V41–V42` | Güvenilir WhatsApp outbox/durum takibi ve açık müşteri izni |
+| `V43` | Süresiz ücretsiz plan, kalıcı sosyal kimlik eşleştirmesi ve tek kullanımlık Apple giriş doğrulaması |
 
 Eski kurulum ve şema evrimi dosyaları tarihsel kurulumlar için doğrudan `backend/src/main/resources/` altında tutulur; bunlar aktif production Flyway konumunda **değildir**. Uygulanmış bir migrasyonu değiştirmeyin, yeniden adlandırmayın veya sırasını bozmayın; yeni numaralı migrasyon ekleyin.
 
@@ -432,7 +435,7 @@ Deploy sonrası smoke test planı için **[`RUNBOOK.md`](RUNBOOK.md)** dosyasın
 
 | Prefix | Açıklama |
 |--------|----------|
-| `/api/auth` | Login, register, Google auth |
+| `/api/auth` | Giriş, kayıt, Google/Apple girişi, sosyal hesap işlem şifresi ve hesap silme |
 | `/api/tickets` | Servis fişleri, atama, yaşam döngüsü, kapatma, imza, yeniden açma, not ve yeniden planlama |
 | `/api/inventory` | Stok yönetimi |
 | `/api/service-photos` | Servis görseli yükleme, arşiv, filtre, küçük resim ve indirme metadatası |
@@ -460,6 +463,7 @@ Deploy sonrası smoke test planı için **[`RUNBOOK.md`](RUNBOOK.md)** dosyasın
 - [`README.md`](README.md) — English documentation
 - [`RUNBOOK.md`](RUNBOOK.md) — Production deploy checklist, smoke test planı, env referansları
 - [`docs/SERVICE_NETWORK.md`](docs/SERVICE_NETWORK.md) — Servis ağı mimarisi, tenant sınırları ve operasyon modeli
+- [`docs/SOCIAL_AUTH.md`](docs/SOCIAL_AUTH.md) — Sosyal giriş güvenliği, sağlayıcı ayarları ve ortak sürüm kontrol listesi
 - [`frontend-appstore/REAL_DEVICE_TEST_PLAN.md`](frontend-appstore/REAL_DEVICE_TEST_PLAN.md) — iOS gerçek cihaz test planı
 - [`scripts/`](scripts/) — Play Store asset üretim yardımcıları
 

@@ -24,6 +24,11 @@ public class User extends BaseEntity implements UserDetails {
 
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
+    @Column(name = "local_password_enabled", nullable = false)
+    private boolean localPasswordEnabled = true;
+
+    public boolean isLocalPasswordEnabled() { return localPasswordEnabled; }
+    public void setLocalPasswordEnabled(boolean enabled) { localPasswordEnabled = enabled; }
 
     @Column(nullable = false)
     private String role; // SUPER_ADMIN, COMPANY_ADMIN, TECHNICIAN

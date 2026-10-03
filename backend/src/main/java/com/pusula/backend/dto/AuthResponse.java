@@ -4,6 +4,12 @@ import java.util.Map;
 
 public class AuthResponse {
     private String token;
+    private String loginUsername;
+    public String getLoginUsername() { return loginUsername; }
+    public void setLoginUsername(String username) { loginUsername = username; }
+    private boolean requiresPasswordSetup;
+    public boolean isRequiresPasswordSetup() { return requiresPasswordSetup; }
+    public void setRequiresPasswordSetup(boolean value) { requiresPasswordSetup = value; }
     private String role;
     private String fullName;
     private Long companyId;

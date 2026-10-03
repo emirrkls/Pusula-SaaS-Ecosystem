@@ -2,7 +2,6 @@ package com.pusula.backend.service;
 
 import com.pusula.backend.dto.AuthRequest;
 import com.pusula.backend.dto.AuthResponse;
-import com.pusula.backend.dto.GoogleAuthRequest;
 import com.pusula.backend.dto.QuotaDTO;
 import com.pusula.backend.dto.RegisterRequest;
 import com.pusula.backend.entity.Company;
@@ -11,23 +10,16 @@ import com.pusula.backend.entity.User;
 import com.pusula.backend.repository.CompanyRepository;
 import com.pusula.backend.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.jackson2.JacksonFactory;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,8 +38,7 @@ public class AuthenticationService {
         private final AuditLogService auditLogService;
         private final FeatureService featureService;
 
-        @Value("${google.oauth.web-client-id:}")
-        private String googleWebClientId;
+        private final SocialAccountDeletionService socialAccountDeletion;
 
         public AuthenticationService(UserRepository userRepository,
                         CompanyRepository companyRepository,
@@ -55,7 +46,8 @@ public class AuthenticationService {
                         JwtService jwtService,
                         AuthenticationManager authenticationManager,
                         AuditLogService auditLogService,
-                        FeatureService featureService) {
+                        FeatureService featureService,
+                        SocialAccountDeletionService socialAccountDeletion) {
                 this.userRepository = userRepository;
                 this.companyRepository = companyRepository;
                 this.passwordEncoder = passwordEncoder;
@@ -63,15 +55,25 @@ public class AuthenticationService {
                 this.authenticationManager = authenticationManager;
                 this.auditLogService = auditLogService;
                 this.featureService = featureService;
+                this.socialAccountDeletion = socialAccountDeletion;
         }
 
         /**
          * Individual registration — creates a new Company + Admin user.
          * Used by independent technicians who download from App Store.
-         * Auto-assigns CIRAK plan with 14-day trial.
+         * Auto-assigns the perpetual free CIRAK plan.
          */
+        @org.springframework.transaction.annotation.Transactional
         public AuthResponse registerIndividual(RegisterRequest request) {
                 com.pusula.backend.util.PasswordPolicy.requireStrong(request.getPassword());
+                String username = request.getUsername() != null && !request.getUsername().isBlank()
+                                ? request.getUsername().trim() : request.getEmail();
+                if (username == null || username.isBlank()) {
+                        throw new BadCredentialsException("Kullanıcı adı veya e-posta gerekli");
+                }
+                if (!userRepository.findAllByUsernameIgnoreCase(username).isEmpty()) {
+                        throw new BadCredentialsException("Bu kullanıcı adı zaten kullanılıyor");
+                }
                 // 1. Generate unique org code
                 String orgCode = generateOrgCode();
 
@@ -80,24 +82,13 @@ public class AuthenticationService {
                 company.setName(request.getFullName() != null
                                 ? request.getFullName() + " Servisi"
                                 : "Yeni Servis");
-                company.setSubscriptionStatus("TRIAL");
-                company.setPlanType(PlanType.CIRAK);
-                company.setTrialEndsAt(LocalDateTime.now().plusDays(14));
+                CompanyAccessPolicy.initializeFreePlan(company);
                 company.setOrgCode(orgCode);
                 company.setEmail(request.getEmail());
                 company.setBillingEmail(request.getEmail());
                 companyRepository.save(company);
 
                 // 3. Create admin user
-                String username = request.getUsername() != null && !request.getUsername().isBlank()
-                                ? request.getUsername().trim()
-                                : request.getEmail();
-                if (username == null || username.isBlank()) {
-                        throw new BadCredentialsException("Kullanıcı adı veya e-posta gerekli");
-                }
-                if (userRepository.findByUsername(username).isPresent()) {
-                        throw new BadCredentialsException("Bu kullanıcı adı zaten kullanılıyor");
-                }
                 var user = User.builder()
                                 .companyId(company.getId())
                                 .username(username)
@@ -251,114 +242,15 @@ public class AuthenticationService {
                                 && passwordEncoder.matches(password, currentUser.getPasswordHash());
         }
 
-        public AuthResponse authenticateWithGoogle(GoogleAuthRequest request) {
-                String ipAddress = getClientIpAddress();
-                try {
-                        if (request == null || request.getIdToken() == null || request.getIdToken().isBlank()) {
-                                throw new BadCredentialsException("Google token gerekli");
-                        }
-                        if (googleWebClientId == null || googleWebClientId.isBlank()) {
-                                throw new BadCredentialsException("Google OAuth yapılandırması eksik");
-                        }
-
-                        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
-                                        new NetHttpTransport(),
-                                        JacksonFactory.getDefaultInstance())
-                                        .setAudience(Collections.singletonList(googleWebClientId))
-                                        .build();
-
-                        GoogleIdToken googleIdToken = verifier.verify(request.getIdToken());
-                        if (googleIdToken == null) {
-                                throw new BadCredentialsException("Google token doğrulanamadı");
-                        }
-
-                        GoogleIdToken.Payload payload = googleIdToken.getPayload();
-                        String email = payload.getEmail();
-                        String fullName = (String) payload.get("name");
-                        if (fullName == null || fullName.isBlank()) {
-                                String givenName = (String) payload.get("given_name");
-                                String familyName = (String) payload.get("family_name");
-                                fullName = String.join(" ",
-                                                givenName != null ? givenName.trim() : "",
-                                                familyName != null ? familyName.trim() : "")
-                                                .trim();
-                        }
-
-                        if (email == null || email.isBlank()) {
-                                throw new BadCredentialsException("Google hesabından e-posta alınamadı");
-                        }
-
-                        User user = userRepository.findByUsername(email).orElse(null);
-                        Company company;
-
-                        if (user == null) {
-                                String orgCode = generateOrgCode();
-                                company = new Company();
-                                company.setName((fullName != null && !fullName.isBlank() ? fullName : email) + " Servisi");
-                                company.setSubscriptionStatus("TRIAL");
-                                company.setPlanType(PlanType.CIRAK);
-                                company.setTrialEndsAt(LocalDateTime.now().plusDays(14));
-                                company.setOrgCode(orgCode);
-                                company.setEmail(email);
-                                company.setBillingEmail(email);
-                                companyRepository.save(company);
-
-                                String preferredUsername = request.getPreferredUsername();
-                                String username = preferredUsername != null && !preferredUsername.isBlank()
-                                                ? preferredUsername.trim()
-                                                : email;
-                                if (userRepository.findByUsername(username).isPresent()) {
-                                        throw new BadCredentialsException("Bu kullanıcı adı zaten kullanılıyor");
-                                }
-
-                                user = User.builder()
-                                                .companyId(company.getId())
-                                                .username(username)
-                                                .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
-                                                .fullName(fullName != null && !fullName.isBlank() ? fullName : email)
-                                                .role("COMPANY_ADMIN")
-                                                .build();
-                                userRepository.save(user);
-
-                                auditLogService.logAuth(
-                                                user.getCompanyId(),
-                                                user.getId(),
-                                                user.getFullName(),
-                                                "USER_REGISTERED_GOOGLE",
-                                                "Google ile bireysel kayıt: " + email,
-                                                ipAddress);
-                        } else {
-                                company = companyRepository.findById(user.getCompanyId()).orElse(null);
-                                if (fullName != null && !fullName.isBlank()
-                                                && !fullName.equals(user.getFullName())) {
-                                        user.setFullName(fullName);
-                                        userRepository.save(user);
-                                }
-                        }
-
-                        String jwtToken = jwtService.generateToken(user);
-                        auditLogService.logAuth(
-                                        user.getCompanyId(),
-                                        user.getId(),
-                                        user.getFullName(),
-                                        "LOGIN_SUCCESS_GOOGLE",
-                                        "Google ile giriş başarılı: " + email,
-                                        ipAddress);
-
-                        return buildAuthResponse(jwtToken, user, company);
-                } catch (BadCredentialsException e) {
-                        throw e;
-                } catch (Exception e) {
-                        throw new BadCredentialsException("Google ile giriş başarısız");
-                }
-        }
 
         /**
          * Deletes the currently authenticated user's account.
          * Used to comply with App Store account deletion guidelines.
          */
+        @org.springframework.transaction.annotation.Transactional
         public void deleteAccount() {
                 User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                socialAccountDeletion.revokeAndRemove(currentUser.getId());
                 
                 // Log deletion
                 auditLogService.logAuth(
@@ -380,24 +272,10 @@ public class AuthenticationService {
                                 ? featureService.getFeatureFlags(company.getPlanType())
                                 : Collections.emptyMap();
 
-                Integer trialDays = null;
-                boolean isReadOnly = false;
+                Integer trialDays = CompanyAccessPolicy.trialDaysRemaining(company);
+                boolean isReadOnly = CompanyAccessPolicy.isReadOnly(company);
 
-                if (company != null) {
-                        // Calculate trial days remaining
-                        if (company.getTrialEndsAt() != null) {
-                                long days = ChronoUnit.DAYS.between(LocalDateTime.now(), company.getTrialEndsAt());
-                                trialDays = days > 0 ? (int) days : 0;
-                                if (days <= 0 && "TRIAL".equals(company.getSubscriptionStatus())) {
-                                        isReadOnly = true;
-                                }
-                        }
-                        if ("SUSPENDED".equals(company.getSubscriptionStatus())) {
-                                isReadOnly = true;
-                        }
-                }
-
-                return AuthResponse.builder()
+                AuthResponse response = AuthResponse.builder()
                                 .token(token)
                                 .role(user.getRole())
                                 .fullName(user.getFullName())
@@ -410,6 +288,28 @@ public class AuthenticationService {
                                 .trialDaysRemaining(trialDays)
                                 .onboardingVersion(user.getMobileOnboardingVersion())
                                 .build();
+                response.setRequiresPasswordSetup(!user.isLocalPasswordEnabled());
+                response.setLoginUsername(user.getUsername());
+                return response;
+        }
+
+        @org.springframework.transaction.annotation.Transactional
+        public void setInitialSocialPassword(String password) {
+                com.pusula.backend.util.PasswordPolicy.requireStrong(password);
+                if (password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+                        throw new IllegalArgumentException("Şifre UTF-8 olarak en fazla 72 bayt olabilir.");
+                }
+                var principal = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                var user = userRepository.findByIdAndCompanyId(principal.getId(), principal.getCompanyId())
+                                .orElseThrow(() -> new BadCredentialsException("Kullanıcı bulunamadı."));
+                if (user.isLocalPasswordEnabled()) {
+                        throw new IllegalStateException("Şifreniz zaten tanımlı. Mevcut şifre sıfırlama akışını kullanın.");
+                }
+                user.setPasswordHash(passwordEncoder.encode(password));
+                user.setLocalPasswordEnabled(true);
+                userRepository.save(user);
+                auditLogService.logAuth(user.getCompanyId(), user.getId(), user.getFullName(),
+                                "SOCIAL_PASSWORD_INITIALIZED", "Yönetici işlem şifresi tanımlandı", getClientIpAddress());
         }
 
         public int updateMobileOnboardingVersion(User user, Integer requestedVersion) {

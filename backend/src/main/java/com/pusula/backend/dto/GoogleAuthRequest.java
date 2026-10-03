@@ -1,7 +1,10 @@
 package com.pusula.backend.dto;
 
 public class GoogleAuthRequest {
+    @jakarta.validation.constraints.NotBlank
+    @jakarta.validation.constraints.Size(max = 8192)
     private String idToken;
+    @jakarta.validation.constraints.Size(max = 255)
     private String preferredUsername;
 
     public GoogleAuthRequest() {

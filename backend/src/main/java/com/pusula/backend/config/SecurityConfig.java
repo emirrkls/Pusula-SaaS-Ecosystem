@@ -34,6 +34,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/authenticate", "/api/auth/register-individual", "/api/auth/google",
+                                "/api/auth/apple", "/api/auth/apple/challenge",
                                 "/api/public/**", "/api/subscription/plans", "/api/payment/webhook/**",
                                 "/h2-console/**", "/uploads/**", "/downloads/**").permitAll()
                         .requestMatchers("/api/auth/register").hasAnyRole("COMPANY_ADMIN", "SUPER_ADMIN")

@@ -117,7 +117,7 @@ public class ServiceNetworkService {
         if(request.password().getBytes(java.nio.charset.StandardCharsets.UTF_8).length>72) throw new IllegalArgumentException("Şifre en fazla 72 UTF-8 bayt olabilir.");
         Company child=new Company(); child.setName(request.name().trim());
         child.setOrgCode("SN"+UUID.randomUUID().toString().replace("-","").substring(0,16).toUpperCase(Locale.ROOT));
-        child.setPlanType(PlanType.CIRAK); child.setSubscriptionStatus("TRIAL"); child.setTrialEndsAt(now().plusDays(14));
+        com.pusula.backend.service.CompanyAccessPolicy.initializeFreePlan(child);
         companies.saveAndFlush(child);
         User manager=User.builder().companyId(child.getId()).username(request.username().trim())
                 .fullName(request.adminName().trim()).passwordHash(passwords.encode(request.password())).role("COMPANY_ADMIN").build();
@@ -285,8 +285,8 @@ public class ServiceNetworkService {
     private NetworkOrder visibleOrder(Long id,Long own) { return orders.findById(id).filter(o->o.getParentCompanyId().equals(own)||o.getChildCompanyId().equals(own)).orElseThrow(ServiceNetworkService::denied); }
     private static AccessDeniedException denied() { return new AccessDeniedException("Servis ağı kaydına erişim yetkiniz yok."); }
     private boolean writable(Company c) {
-        if(Boolean.TRUE.equals(c.getIsReadOnly()) || "SUSPENDED".equals(c.getSubscriptionStatus())) return false;
-        if("TRIAL".equals(c.getSubscriptionStatus()) && c.getTrialEndsAt()!=null && c.getTrialEndsAt().isBefore(now())) return false;
+        if(com.pusula.backend.service.CompanyAccessPolicy.isReadOnly(c)) return false;
+        if(c.getPlanType()==PlanType.CIRAK) return true;
         return c.getSubscriptionExpiresAt()==null || !c.getSubscriptionExpiresAt().isBefore(now());
     }
     private void requireWritable(Company c) { if(!writable(c)) throw new IllegalStateException("İşletme hesabı salt okunur; işlem yapılamaz."); }

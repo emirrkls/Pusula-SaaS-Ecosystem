@@ -30,6 +30,7 @@ ehthumbs.db
 Desktop.ini
 
 # Environment / Secrets
+.local-secrets/
 .env
 .env.*
 *.env.local
@@ -119,3 +120,4 @@ pusula-web/
 
 # Local editor workspace files
 *.code-workspace
+frontend-appstore/Config/OAuth.local.xcconfig

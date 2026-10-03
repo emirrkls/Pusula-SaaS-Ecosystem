@@ -12,6 +12,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
 
     List<User> findAllByUsername(String username);
+    List<User> findAllByUsernameIgnoreCase(String username);
 
     /**
      * Company-scoped user lookup — prevents cross-tenant username collisions.

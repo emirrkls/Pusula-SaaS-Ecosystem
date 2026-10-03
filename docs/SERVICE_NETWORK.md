@@ -36,7 +36,7 @@ SUPER_ADMIN genel yönetici rolü, ağ işlerinde sınırsız tenant dolaşımı
 - Var olan ana firma fişini alt servise devretme veya iki tarafta finansal fiş eşleme bu sürümde yoktur; ağ ekranından yeni operasyon gönderilir.
 - Usta/Patron/Çırak limitleri ve fiyatları değiştirilmez. `service_network_policies` tek merkezi kaynak olur: `enabled`, `maxMembers`, `maxMonthlyOrders`. Varsayılan herkes için kapalıdır. Ağ yetkisini SUPER_ADMIN masaüstü ekranından veya yetkili API'den tanımlar.
 - Bekleyen davetler alt servis limitine dahildir. Reddedilen/kapanan bağlantılar kapasiteden çıkar. Gönderilen işler, reddedilse/geri çekilse de gönderildiği ayın kotasında kalır; tekrar denemeler ikinci kez sayılmaz. Kota ayı Türkiye saatine göre hesaplanır; geçmiş/gelecek randevu tarihi kotayı başka aya taşımaz.
-- Yeni oluşturulan alt servis bağımsız Çırak/14 günlük deneme hesabıdır. Ana firmanın Patron paketi alt servise otomatik kopyalanmaz. 400 servislik ticari sözleşmede deneme sonrası lisanslama/merkezi ödeme kararı verilmelidir.
+- Yeni oluşturulan alt servis bağımsız ve süresiz ücretsiz Çırak hesabıdır. Ana firmanın Patron paketi alt servise otomatik kopyalanmaz. 400 servislik ticari sözleşmede paket limitleri ve merkezi ödeme modeli ayrıca planlanmalıdır.
 
 ## Masaüstü ve iOS
 

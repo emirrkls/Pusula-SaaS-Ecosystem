@@ -223,15 +223,10 @@ public class FeatureService {
     }
 
     private boolean isReadOnly(Company company) {
-        if ("SUSPENDED".equals(company.getSubscriptionStatus())) return true;
-        return "TRIAL".equals(company.getSubscriptionStatus())
-                && company.getTrialEndsAt() != null
-                && company.getTrialEndsAt().isBefore(LocalDateTime.now());
+        return CompanyAccessPolicy.isReadOnly(company);
     }
 
     private Integer calculateTrialDays(Company company) {
-        if (company.getTrialEndsAt() == null) return null;
-        long days = ChronoUnit.DAYS.between(LocalDateTime.now(), company.getTrialEndsAt());
-        return days > 0 ? (int) days : 0;
+        return CompanyAccessPolicy.trialDaysRemaining(company);
     }
 }
