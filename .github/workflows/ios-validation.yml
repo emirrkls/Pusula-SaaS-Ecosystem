@@ -49,3 +49,23 @@ jobs:
             fi
           done < /tmp/pusula-ios-build.log
           exit 1
+      - name: Smoke-test cold launch and foreground login on iPhone Simulator
+        run: |
+          set -o pipefail
+          simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(d["udid"] for group in devices.values() for d in group if d.get("isAvailable") and d["name"].startswith("iPhone")))')
+          if xcodebuild -project frontend-appstore/PusulaService.xcodeproj \
+            -scheme PusulaService -configuration Debug -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,id=$simulator_id" \
+            -derivedDataPath /tmp/pusula-derived CODE_SIGNING_ALLOWED=NO \
+            -only-testing:PusulaServiceScreenshots/StartupSmokeTests \
+            test-without-building 2>&1 | tee /tmp/pusula-ios-smoke.log; then
+            exit 0
+          fi
+          while IFS= read -r diagnostic; do
+            if [[ "$diagnostic" == *"error:"* || "$diagnostic" == *" failed"* ]]; then
+              diagnostic="${diagnostic//%/%25}"
+              diagnostic="${diagnostic//$'\r'/%0D}"
+              printf '::error::%s\n' "$diagnostic"
+            fi
+          done < /tmp/pusula-ios-smoke.log
+          exit 1

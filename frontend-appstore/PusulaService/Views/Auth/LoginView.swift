@@ -68,6 +68,7 @@ struct LoginView: View {
             VStack(alignment: .leading, spacing: 7) {
                 Text("Tekrar hoş geldiniz")
                     .font(.largeTitle.weight(.bold))
+                    .accessibilityIdentifier("auth.login.ready")
                 Text(isCorporate ? "Şirket hesabınızla devam edin." : "Hesabınızla devam edin.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
