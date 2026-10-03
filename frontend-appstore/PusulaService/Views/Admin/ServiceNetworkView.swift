@@ -208,7 +208,7 @@ private struct NetworkMemberForm: View {
             } else {
                 Section {
                     if create {
-                        Text("Yeni işletme kendi Çırak planında 14 günlük deneme hesabı olarak açılır. Stok, finans ve aboneliği ana firmadan ayrıdır.").font(.caption)
+                        Text("Yeni işletme süresiz ücretsiz Çırak planında açılır. Stok, finans ve aboneliği ana firmadan ayrıdır.").font(.caption)
                         TextField("İşletme adı", text: $name)
                         TextField("Yönetici adı soyadı", text: $admin)
                         TextField("Kullanıcı adı", text: $username).textInputAutocapitalization(.never).autocorrectionDisabled()

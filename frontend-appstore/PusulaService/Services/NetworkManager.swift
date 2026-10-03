@@ -12,6 +12,19 @@ actor NetworkManager {
     func setToken(_ token: String?) {
         self.authToken = token
     }
+
+    func clearToken(ifMatching expectedToken: String?) -> Bool {
+        guard authToken == expectedToken else { return false }
+        authToken = nil
+        return true
+    }
+
+    private func reportUnauthorized(requestToken: String?) async {
+        guard let requestToken else { return }
+        await MainActor.run {
+            SessionManager.shared.handleUnauthorized(expectedToken: requestToken)
+        }
+    }
     
     // MARK: - Generic Request
     
@@ -19,7 +32,8 @@ actor NetworkManager {
         _ method: HTTPMethod,
         path: String,
         body: (any Encodable)? = nil,
-        requiresAuth: Bool = true
+        requiresAuth: Bool = true,
+        authTokenOverride: String? = nil
     ) async throws -> T {
         guard let url = URL(string: baseURL + path) else {
             throw NetworkError.invalidURL
@@ -32,7 +46,8 @@ actor NetworkManager {
         request.timeoutInterval = 30
         
         // Attach JWT if authenticated
-        if requiresAuth, let token = authToken {
+        let requestToken = requiresAuth ? (authTokenOverride ?? authToken) : nil
+        if let token = requestToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         
@@ -56,9 +71,10 @@ actor NetworkManager {
         case 400, 422:
             throw NetworkError.badRequest(apiErrorMessage(from: data) ?? "Gönderilen bilgiler geçersiz. Lütfen alanları kontrol edin.")
         case 401:
-            await MainActor.run {
-                SessionManager.shared.handleUnauthorized()
+            if !requiresAuth {
+                throw NetworkError.badRequest(apiErrorMessage(from: data) ?? "Giriş bilgileri doğrulanamadı.")
             }
+            await reportUnauthorized(requestToken: requestToken)
             throw NetworkError.unauthorized
         case 403:
             // Check for feature gate or quota error
@@ -119,7 +135,8 @@ actor NetworkManager {
         request.httpMethod = HTTPMethod.GET.rawValue
         request.timeoutInterval = 60
         
-        if requiresAuth, let token = authToken {
+        let requestToken = requiresAuth ? authToken : nil
+        if let token = requestToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         
@@ -130,9 +147,7 @@ actor NetworkManager {
         }
         
         if httpResponse.statusCode == 401 {
-            await MainActor.run {
-                SessionManager.shared.handleUnauthorized()
-            }
+            await reportUnauthorized(requestToken: requestToken)
             throw NetworkError.unauthorized
         }
 
@@ -207,7 +222,8 @@ actor NetworkManager {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 120
         
-        if let token = authToken {
+        let requestToken = authToken
+        if let token = requestToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         
@@ -237,9 +253,7 @@ actor NetworkManager {
         case 400, 422:
             throw NetworkError.badRequest(apiErrorMessage(from: data) ?? "Gönderilen bilgiler geçersiz. Lütfen alanları kontrol edin.")
         case 401:
-            await MainActor.run {
-                SessionManager.shared.handleUnauthorized()
-            }
+            await reportUnauthorized(requestToken: requestToken)
             throw NetworkError.unauthorized
         case 403:
             if let errorBody = try? JSONDecoder().decode(ErrorResponse.self, from: data) {

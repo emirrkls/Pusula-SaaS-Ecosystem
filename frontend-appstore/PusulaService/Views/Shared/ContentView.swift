@@ -4,7 +4,9 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var session = SessionManager.shared
     @StateObject private var onboarding = OnboardingManager.shared
+    @ObservedObject private var navigation = AppNavigation.shared
     @State private var showPlanUpgrade = false
+    @State private var isRootSheetPresented = false
     @State private var onboardingTargetFrames: [OnboardingTarget: CGRect] = [:]
     
     var body: some View {
@@ -19,11 +21,13 @@ struct ContentView: View {
         }
         .tint(PusulaTheme.accent)
         .animation(.easeInOut(duration: 0.3), value: session.isAuthenticated)
-        .sheet(isPresented: $showPlanUpgrade) {
+        .sheet(isPresented: $showPlanUpgrade, onDismiss: { isRootSheetPresented = false }) {
             NavigationStack { PlanUpgradeView() }
+                .onAppear { isRootSheetPresented = true }
         }
-        .fullScreenCover(isPresented: $onboarding.isShowingIntro) {
+        .fullScreenCover(isPresented: $onboarding.isShowingIntro, onDismiss: { isRootSheetPresented = false }) {
             WelcomeOnboardingView(onboarding: onboarding)
+                .onAppear { isRootSheetPresented = true }
         }
         .overlay {
             if session.isAuthenticated && onboarding.isTourActive {
@@ -39,6 +43,12 @@ struct ContentView: View {
         }
         .onAppear {
             startOnboardingIfNeeded()
+            updateNavigationReadiness()
+        }
+        .task { session.tryRestoreSession() }
+        .onChange(of: rootReadiness) { _, _ in updateNavigationReadiness() }
+        .onDisappear {
+            navigation.updateReadiness(authenticated: false, restoring: true, blocked: true)
         }
         .onChange(of: session.isAuthenticated) { _, isAuthenticated in
             if isAuthenticated {
@@ -52,6 +62,25 @@ struct ContentView: View {
                 startOnboardingIfNeeded()
             }
         }
+    }
+
+    private var rootReadiness: TicketPresentationReadiness {
+        TicketPresentationReadiness(
+            isAuthenticated: session.isAuthenticated,
+            isRestoringSession: session.isRestoringSession,
+            isSceneActive: navigation.isSceneActive,
+            isScreenVisible: true,
+            isPresentationBlocked: onboarding.isShowingIntro || onboarding.isTourActive
+                || showPlanUpgrade || isRootSheetPresented
+        )
+    }
+
+    private func updateNavigationReadiness() {
+        navigation.updateReadiness(
+            authenticated: rootReadiness.isAuthenticated,
+            restoring: rootReadiness.isRestoringSession,
+            blocked: rootReadiness.isPresentationBlocked
+        )
     }
     
     @ViewBuilder
@@ -160,6 +189,7 @@ struct ContentView: View {
 
 struct TechnicianTabView: View {
     @ObservedObject var onboarding: OnboardingManager
+    @ObservedObject private var navigation = AppNavigation.shared
     @State private var selectedTab: TechnicianTab = .jobs
 
     var body: some View {
@@ -181,9 +211,21 @@ struct TechnicianTabView: View {
             .tag(TechnicianTab.account)
         }
         .tint(PusulaTheme.accent)
-        .onAppear { routeOnboardingStep() }
+        .onAppear { routePendingTicketOrOnboarding() }
+        .onChange(of: ticketRouteSignal) { _, request in
+            if request != nil { selectedTab = .jobs }
+        }
         .onChange(of: onboarding.currentStepIndex) { _, _ in routeOnboardingStep() }
         .onChange(of: onboarding.activeRole) { _, _ in routeOnboardingStep() }
+    }
+
+    private var ticketRouteSignal: UUID? {
+        navigation.canNavigate ? navigation.pendingTicketRequest?.id : nil
+    }
+
+    private func routePendingTicketOrOnboarding() {
+        if ticketRouteSignal != nil { selectedTab = .jobs }
+        else { routeOnboardingStep() }
     }
 
     private func routeOnboardingStep() {
@@ -203,6 +245,7 @@ struct AdminTabView: View {
     @State private var lastRealTab: AdminTab = .overview
     @State private var showQuickActions = false
     @State private var quickActionDestination: QuickAction?
+    @State private var isQuickActionSheetPresented = false
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -215,7 +258,8 @@ struct AdminTabView: View {
             NavigationStack {
                 TicketListView(
                     requestedFilter: navigation.operationFilter,
-                    onRequestedFilterApplied: { navigation.operationFilter = nil }
+                    onRequestedFilterApplied: { navigation.operationFilter = nil },
+                    isNavigationBlocked: showQuickActions || quickActionDestination != nil || isQuickActionSheetPresented
                 )
             }
             .tabItem { Label("Operasyon", systemImage: "list.clipboard") }
@@ -262,7 +306,7 @@ struct AdminTabView: View {
             Button("Servis Görselleri") { quickActionDestination = .serviceQuality }
             Button("İptal", role: .cancel) { }
         }
-        .sheet(item: $quickActionDestination) { destination in
+        .sheet(item: $quickActionDestination, onDismiss: { isQuickActionSheetPresented = false }) { destination in
             NavigationStack {
                 quickActionView(for: destination)
                     .toolbar {
@@ -271,10 +315,21 @@ struct AdminTabView: View {
                         }
                     }
             }
+            .onAppear { isQuickActionSheetPresented = true }
         }
-        .onAppear { routeOnboardingStep() }
+        .onAppear {
+            if ticketRouteSignal != nil { selectedTab = .operations }
+            else { routeOnboardingStep() }
+        }
+        .onChange(of: ticketRouteSignal) { _, request in
+            if request != nil { selectedTab = .operations }
+        }
         .onChange(of: onboarding.currentStepIndex) { _, _ in routeOnboardingStep() }
         .onChange(of: onboarding.activeRole) { _, _ in routeOnboardingStep() }
+    }
+
+    private var ticketRouteSignal: UUID? {
+        navigation.canNavigate ? navigation.pendingTicketRequest?.id : nil
     }
     
     @ViewBuilder

@@ -42,8 +42,8 @@ final class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate 
 #endif
     }
 
-    func unregisterCurrentDevice() async {
-        guard isEnabled, let token = storedToken else { return }
+    func unregisterCurrentDevice(authToken: String?) async {
+        guard isEnabled, let token = storedToken, let authToken else { return }
         let request = PushDeviceRequest(
             token: token,
             platform: "IOS",
@@ -51,9 +51,9 @@ final class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate 
             bundleId: Bundle.main.bundleIdentifier ?? "com.pusula.service"
         )
         do {
-            let _: EmptyResponse = try await NetworkManager.shared.post(
-                "/api/push-devices/unregister",
-                body: request
+            let _: EmptyResponse = try await NetworkManager.shared.request(
+                .POST, path: "/api/push-devices/unregister",
+                body: request, authTokenOverride: authToken
             )
         } catch {
 #if DEBUG
@@ -64,31 +64,27 @@ final class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate 
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        await MainActor.run {
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        DispatchQueue.main.async {
             NotificationCenter.default.post(name: .pusulaAdminNotificationReceived, object: nil)
+            completionHandler([.banner, .sound, .badge])
         }
-        return [.banner, .sound, .badge]
     }
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
-        let userInfo = response.notification.request.content.userInfo
-        if let reference = userInfo["referenceType"] as? String, reference.hasPrefix("NETWORK_") {
-            let id = (userInfo["referenceId"] as? Int) ?? (userInfo["referenceId"] as? String).flatMap(Int.init)
-            if let id { await MainActor.run { AppNavigation.shared.openNetwork(referenceType: reference, referenceId: id) } }
-            return
-        }
-        let ticketValue = userInfo["ticketId"] ?? userInfo["referenceId"]
-        let ticketId = (ticketValue as? Int)
-            ?? (ticketValue as? NSNumber)?.intValue
-            ?? (ticketValue as? String).flatMap(Int.init)
-        guard let ticketId else { return }
-        await MainActor.run {
-            AppNavigation.shared.openTicket(id: ticketId)
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        // Avoid the async delegate bridge's background UIKit completion. Do not
+        // wait for login/network loading before completing the system callback.
+        let destination = response.actionIdentifier == UNNotificationDefaultActionIdentifier
+            ? PushNavigationDestination.parse(response.notification.request.content.userInfo) : nil
+        DispatchQueue.main.async {
+            if let destination { AppNavigation.shared.receive(destination) }
+            completionHandler()
         }
     }
 

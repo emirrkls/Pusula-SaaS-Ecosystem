@@ -1,0 +1,8 @@
+// OAuth client IDs are public identifiers, never client secrets.
+// The server audience matches the existing Android/backend web client.
+GOOGLE_WEB_CLIENT_ID = 13892598501-51ks90qhkqke0qndtl2mdlinprr3njto.apps.googleusercontent.com
+// iOS client for com.pusula.service, team DDV3HCZRP6 (Pusula Android App project).
+GOOGLE_IOS_CLIENT_ID = 13892598501-2bin926mtrbbbr9uo08el9ku13ubchqi.apps.googleusercontent.com
+GOOGLE_REVERSED_CLIENT_ID = com.googleusercontent.apps.13892598501-2bin926mtrbbbr9uo08el9ku13ubchqi
+// A local/CI override can supply IDs without changing other build settings.
+#include? "OAuth.local.xcconfig"

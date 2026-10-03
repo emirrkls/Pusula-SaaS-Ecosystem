@@ -1,10 +1,12 @@
 import SwiftUI
 
+@MainActor
 struct TicketListView: View {
     var requestedFilter: String? = nil
     var onRequestedFilterApplied: (() -> Void)? = nil
+    var isNavigationBlocked = false
     
-    private let session = SessionManager.shared
+    @ObservedObject private var session = SessionManager.shared
     @StateObject private var navigation = AppNavigation.shared
     @State private var tickets: [FieldTicketDTO] = []
     @State private var technicians: [TechnicianDTO] = []
@@ -17,7 +19,9 @@ struct TicketListView: View {
     @State private var dateFilterEnd: Date?
     @State private var showDateFilter = false
     @State private var selectedTicket: FieldTicketDTO?
-    @State private var openingPendingTicketId: Int?
+    @State private var presentingNotificationRequest: TicketNavigationRequest?
+    @State private var isScreenVisible = false
+    @State private var isSheetPresented = false
     @State private var showCreateTicket = false
     @State private var showBulkAssign = false
     @State private var errorMessage: String?
@@ -91,28 +95,37 @@ struct TicketListView: View {
         .background(PusulaTheme.page)
         .navigationTitle(isAdmin ? "Operasyon" : "İşlerim")
         .task { await loadTickets() }
-        .onChange(of: navigation.pendingTicketId) { _, ticketId in
-            guard ticketId != nil else { return }
-            Task { await openPendingTicket(in: tickets) }
-        }
+        .task(id: pendingTicketTrigger) { await openPendingTicket() }
         .onAppear {
+            isScreenVisible = true
             if let filter = requestedFilter ?? AppNavigation.shared.consumeOperationFilter(),
                availableFilters.contains(filter) {
                 selectedFilter = filter
                 onRequestedFilterApplied?()
             }
         }
+        .onDisappear { isScreenVisible = false }
         .onChange(of: session.isAdmin) { _, _ in
             selectedFilter = TicketFilters.defaultFilter(isAdmin: session.isAdmin)
         }
-        .sheet(item: $selectedTicket) { ticket in
+        .sheet(item: $selectedTicket, onDismiss: {
+            isSheetPresented = false
+            presentingNotificationRequest = nil
+        }) { ticket in
             NavigationStack {
                 TicketDetailView(ticket: ticket, isAdmin: isAdmin, technicians: technicians) {
                     await loadTickets(refresh: true)
                 }
             }
+            .onAppear {
+                isSheetPresented = true
+                guard let request = presentingNotificationRequest,
+                      request.ticketId == ticket.id else { return }
+                navigation.acknowledgeTicket(request)
+                presentingNotificationRequest = nil
+            }
         }
-        .sheet(isPresented: $showCreateTicket) {
+        .sheet(isPresented: $showCreateTicket, onDismiss: { isSheetPresented = false }) {
             CreateTicketSheet(
                 customers: customers,
                 technicians: technicians,
@@ -125,6 +138,7 @@ struct TicketListView: View {
                 },
                 onCreated: { await loadTickets(refresh: true) }
             )
+            .onAppear { isSheetPresented = true }
             .task {
                 if customers.isEmpty {
                     do {
@@ -135,12 +149,13 @@ struct TicketListView: View {
                 }
             }
         }
-        .sheet(isPresented: $showBulkAssign) {
+        .sheet(isPresented: $showBulkAssign, onDismiss: { isSheetPresented = false }) {
             BulkAssignSheet(tickets: pendingUnassigned, technicians: technicians) { ticketIds, techId in
                 await bulkAssign(ticketIds: ticketIds, technicianId: techId)
             }
+            .onAppear { isSheetPresented = true }
         }
-        .sheet(isPresented: $showDateFilter) {
+        .sheet(isPresented: $showDateFilter, onDismiss: { isSheetPresented = false }) {
             TicketDateFilterSheet(
                 initialStartDate: dateFilterStart,
                 initialEndDate: dateFilterEnd,
@@ -153,12 +168,29 @@ struct TicketListView: View {
                     dateFilterEnd = nil
                 }
             )
+            .onAppear { isSheetPresented = true }
         }
         .alert("Hata", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Tamam", role: .cancel) { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
         }
+    }
+
+    private var pendingTicketTrigger: PendingTicketTrigger {
+        PendingTicketTrigger(
+            request: navigation.pendingTicketRequest,
+            readiness: TicketPresentationReadiness(
+                isAuthenticated: session.isAuthenticated,
+                isRestoringSession: session.isRestoringSession,
+                isSceneActive: navigation.isSceneActive,
+                isScreenVisible: isScreenVisible,
+                isPresentationBlocked: navigation.isRootPresentationBlocked || isNavigationBlocked
+                    || selectedTicket != nil || isSheetPresented || showCreateTicket || showBulkAssign || showDateFilter
+                    || errorMessage != nil
+            ),
+            selectedTicketId: selectedTicket?.id
+        )
     }
     
     private var headerSection: some View {
@@ -327,7 +359,6 @@ struct TicketListView: View {
                     isLoading = false
                     isRefreshing = false
                 }
-                await openPendingTicket(in: loadedTickets)
             } else {
                 let loaded = try await TicketService.getMyAssignedTickets()
                 await MainActor.run {
@@ -335,7 +366,6 @@ struct TicketListView: View {
                     isLoading = false
                     isRefreshing = false
                 }
-                await openPendingTicket(in: loaded)
             }
         } catch {
             await MainActor.run {
@@ -347,24 +377,35 @@ struct TicketListView: View {
     }
 
     @MainActor
-    private func openPendingTicket(in loadedTickets: [FieldTicketDTO]) async {
-        guard let ticketId = navigation.pendingTicketId,
-              openingPendingTicketId != ticketId else { return }
-
-        openingPendingTicketId = ticketId
-        defer { openingPendingTicketId = nil }
+    private func openPendingTicket() async {
+        guard let request = navigation.pendingTicketRequest else { return }
+        // A repeat tap for an already visible ticket does not stack another sheet.
+        if navigation.canNavigate, selectedTicket?.id == request.ticketId,
+           presentingNotificationRequest == nil {
+            navigation.acknowledgeTicket(request)
+            return
+        }
+        guard pendingTicketTrigger.readiness.canPresent,
+              navigation.ticketQueue.matches(request, companyId: session.companyId),
+              let requestToken = session.token else { return }
 
         do {
-            let ticket: FieldTicketDTO
-            if let loadedTicket = loadedTickets.first(where: { $0.id == ticketId }) {
-                ticket = loadedTicket
-            } else {
-                ticket = try await TicketService.getTicket(id: ticketId)
-            }
+            // Always re-authorize the ticket on the server; a stale list can
+            // contain a job that was reassigned after the notification arrived.
+            let ticket = try await TicketService.getTicket(id: request.ticketId)
+            try Task.checkCancellation()
+            guard pendingTicketTrigger.readiness.canPresent,
+                  navigation.ticketQueue.matches(request, companyId: session.companyId),
+                  SessionResponsePolicy.belongsToCurrentSession(requestToken: requestToken, currentToken: session.token)
+            else { return }
+            presentingNotificationRequest = request
             selectedTicket = ticket
-            navigation.clearPendingTicket(id: ticketId)
         } catch {
-            navigation.clearPendingTicket(id: ticketId)
+            guard !Task.isCancelled,
+                  navigation.ticketQueue.matches(request, companyId: session.companyId),
+                  SessionResponsePolicy.belongsToCurrentSession(requestToken: requestToken, currentToken: session.token)
+            else { return }
+            navigation.acknowledgeTicket(request)
             errorMessage = "İş emri açılamadı: \(error.localizedDescription)"
         }
     }
@@ -548,8 +589,9 @@ struct TicketCardView: View {
             }
             
             HStack {
-                if let phone = ticket.customerPhone {
-                    Link(destination: URL(string: "tel:\(phone)")!) {
+                if let phone = ticket.customerPhone, !phone.isEmpty,
+                   let phoneURL = URL(string: "tel:\(phone)") {
+                    Link(destination: phoneURL) {
                         HStack(spacing: 4) {
                             Image(systemName: "phone.fill")
                             Text(phone)

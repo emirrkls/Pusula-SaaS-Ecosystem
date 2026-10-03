@@ -21,7 +21,7 @@ struct ProfileView: View {
                 
                 sectionCard("Şirket") {
                     infoRow("Firma", value: session.companyName ?? "-")
-                    if let days = session.trialDaysRemaining {
+                    if session.planType != "CIRAK", let days = session.trialDaysRemaining {
                         infoRow("Deneme Süresi", value: "\(days) gün kaldı")
                     }
                 }

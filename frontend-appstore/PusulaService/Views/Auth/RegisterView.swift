@@ -18,7 +18,10 @@ struct RegisterView: View {
     private var isFormValid: Bool {
         !fullName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && email.contains("@")
-            && password.count >= 6
+            && password.count >= 8
+            && password.utf8.count <= 72
+            && password.contains(where: \.isLetter)
+            && password.contains(where: \.isNumber)
             && passwordsMatch
     }
 
@@ -27,8 +30,12 @@ struct RegisterView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 26) {
                     header
+                    SocialAuthButtons(isLoading: $isLoading, errorMessage: $errorMessage) { response in
+                        session.configure(from: response)
+                        dismiss()
+                    }
                     form
-                    trialNote
+                    freePlanNote
                     legalNote
                 }
                 .frame(maxWidth: 520, alignment: .leading)
@@ -47,6 +54,7 @@ struct RegisterView: View {
                         Image(systemName: "xmark")
                     }
                     .accessibilityLabel("Kapat")
+                    .disabled(isLoading)
                 }
             }
         }
@@ -104,6 +112,10 @@ struct RegisterView: View {
                 onSubmit: { if isFormValid { handleRegister() } }
             )
 
+            Text("Şifreniz en az 8 karakter olmalı, harf ve rakam içermelidir.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             if !confirmPassword.isEmpty && !passwordsMatch {
                 PusulaInlineMessage(text: "Şifreler eşleşmiyor.")
             }
@@ -116,20 +128,20 @@ struct RegisterView: View {
                 title: "Hesap Oluştur",
                 icon: "arrow.right",
                 isLoading: isLoading,
-                isDisabled: !isFormValid,
+                isDisabled: !isFormValid || isLoading,
                 action: handleRegister
             )
         }
     }
 
-    private var trialNote: some View {
+    private var freePlanNote: some View {
         HStack(spacing: 12) {
-            Image(systemName: "calendar.badge.clock")
+            Image(systemName: "checkmark.seal")
                 .foregroundStyle(PusulaTheme.amber)
             VStack(alignment: .leading, spacing: 2) {
-                Text("14 gün ücretsiz")
+                Text("Süresiz ücretsiz")
                     .font(.subheadline.weight(.semibold))
-                Text("Çırak planı")
+                Text("Çırak planı · Kart bilgisi gerekmez")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -153,7 +165,7 @@ struct RegisterView: View {
     }
 
     private func handleRegister() {
-        guard isFormValid else { return }
+        guard isFormValid, !isLoading else { return }
         isLoading = true
         errorMessage = nil
 

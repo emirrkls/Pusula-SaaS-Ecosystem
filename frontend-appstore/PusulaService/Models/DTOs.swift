@@ -28,6 +28,8 @@ struct AuthResponse: Codable {
     let isReadOnly: Bool?
     let trialDaysRemaining: Int?
     let onboardingVersion: Int?
+    var requiresPasswordSetup: Bool? = nil
+    var loginUsername: String? = nil
 }
 
 /// Partial response returned by GET /api/auth/feature-context.

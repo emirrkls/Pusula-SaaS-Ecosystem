@@ -6,7 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CC0000000000000000000001 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = CC0000000000000000000003 /* GoogleSignIn */; };
+		CC0000000000000000000002 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = CC0000000000000000000004 /* GoogleSignInSwift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		CC0000000000000000000006 /* OAuth.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/OAuth.xcconfig; sourceTree = SOURCE_ROOT; };
 		AA0000000000000000000005 /* PusulaService.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PusulaService.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB0000000000000000000005 /* PusulaServiceScreenshots.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PusulaServiceScreenshots.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -42,6 +48,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CC0000000000000000000001 /* GoogleSignIn in Frameworks */,
+				CC0000000000000000000002 /* GoogleSignInSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -58,6 +66,7 @@
 		AA0000000000000000000003 = {
 			isa = PBXGroup;
 			children = (
+				CC0000000000000000000006 /* OAuth.xcconfig */,
 				AA0000000000000000000001 /* PusulaService */,
 				BB0000000000000000000001 /* PusulaServiceScreenshots */,
 				AA0000000000000000000004 /* Products */,
@@ -93,6 +102,8 @@
 			);
 			name = PusulaService;
 			packageProductDependencies = (
+				CC0000000000000000000003 /* GoogleSignIn */,
+				CC0000000000000000000004 /* GoogleSignInSwift */,
 			);
 			productName = PusulaService;
 			productReference = AA0000000000000000000005 /* PusulaService.app */;
@@ -152,6 +163,7 @@
 					AA0000000000000000000006 = {
 						CreatedOnToolsVersion = 26.4.1;
 						SystemCapabilities = {
+							com.apple.SignInWithApple = { enabled = 1; };
 							com.apple.Push = {
 								enabled = 1;
 							};
@@ -176,6 +188,9 @@
 			productRefGroup = AA0000000000000000000004 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
+			packageReferences = (
+				CC0000000000000000000005 /* GoogleSignIn-iOS */,
+			);
 			targets = (
 				AA0000000000000000000006 /* PusulaService */,
 				BB0000000000000000000006 /* PusulaServiceScreenshots */,
@@ -337,6 +352,7 @@
 		};
 		AA000000000000000000000E /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = CC0000000000000000000006 /* OAuth.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -363,6 +379,7 @@
 		};
 		AA000000000000000000000F /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = CC0000000000000000000006 /* OAuth.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -462,6 +479,18 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CC0000000000000000000005 /* GoogleSignIn-iOS */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = { kind = exactVersion; version = 9.0.0; };
+		};
+/* End XCRemoteSwiftPackageReference section */
+/* Begin XCSwiftPackageProductDependency section */
+		CC0000000000000000000003 /* GoogleSignIn */ = {isa = XCSwiftPackageProductDependency; package = CC0000000000000000000005; productName = GoogleSignIn; };
+		CC0000000000000000000004 /* GoogleSignInSwift */ = {isa = XCSwiftPackageProductDependency; package = CC0000000000000000000005; productName = GoogleSignInSwift; };
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AA000000000000000000000A /* Project object */;
 }

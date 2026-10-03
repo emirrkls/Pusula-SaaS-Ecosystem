@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct TicketDetailView: View {
     let ticket: FieldTicketDTO
     var isAdmin: Bool = false
@@ -7,6 +8,7 @@ struct TicketDetailView: View {
     let onComplete: () async -> Void
     
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var navigation = AppNavigation.shared
     @State private var usedParts: [UsedPartDTO] = []
     @State private var timeline: [AuditLogDTO] = []
     @State private var technicianNotes: [TechnicianNoteDTO] = []
@@ -127,6 +129,8 @@ struct TicketDetailView: View {
             }
         }
         .task { await loadDetailData() }
+        .onAppear { acknowledgeRepeatNotification() }
+        .onChange(of: navigation.pendingTicketRequest) { _, _ in acknowledgeRepeatNotification() }
         .sheet(isPresented: $showScanner) {
             BarcodeScannerView { item, quantity, unitPrice in
                 Task { await addPart(from: item, quantity: quantity, unitPrice: unitPrice) }
@@ -209,6 +213,14 @@ struct TicketDetailView: View {
             Text("\(part.partName) kaydı kaldırılacak ve kullanılan miktar stoğa geri eklenecek.")
         }
     }
+
+    private func acknowledgeRepeatNotification() {
+        guard let request = navigation.pendingTicketRequest,
+              request.ticketId == ticket.id,
+              navigation.ticketQueue.matches(request, companyId: SessionManager.shared.companyId)
+        else { return }
+        navigation.acknowledgeTicket(request)
+    }
     
     private var heroCard: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -245,10 +257,12 @@ struct TicketDetailView: View {
                     Label(phone, systemImage: "phone.fill")
                         .font(.subheadline)
                     Spacer()
-                    Link(destination: URL(string: "tel:\(phone)")!) {
-                        Image(systemName: "phone.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.green)
+                    if let phoneURL = URL(string: "tel:\(phone)") {
+                        Link(destination: phoneURL) {
+                            Image(systemName: "phone.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.green)
+                        }
                     }
                 }
             }

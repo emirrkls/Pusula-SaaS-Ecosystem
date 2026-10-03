@@ -63,6 +63,7 @@ node_modules/
 .next/
 dist/
 build/
+/frontend-appstore/.build/
 *.tsbuildinfo
 
 # Custom project output and logs

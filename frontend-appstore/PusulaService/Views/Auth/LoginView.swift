@@ -25,6 +25,11 @@ struct LoginView: View {
                     brandHeader
                     loginMode
                     loginForm
+                    if !isCorporate {
+                        SocialAuthButtons(isLoading: $isLoading, errorMessage: $errorMessage) { response in
+                            session.configure(from: response)
+                        }
+                    }
                     accountActions
                 }
                 .frame(maxWidth: 520, alignment: .leading)
@@ -76,6 +81,7 @@ struct LoginView: View {
             Text("Kurumsal").tag(1)
         }
         .pickerStyle(.segmented)
+        .disabled(isLoading)
         .onChange(of: selectedTab) { _, _ in
             errorMessage = nil
         }
@@ -122,7 +128,7 @@ struct LoginView: View {
                 title: "Giriş Yap",
                 icon: "arrow.right",
                 isLoading: isLoading,
-                isDisabled: !isFormValid,
+                isDisabled: !isFormValid || isLoading,
                 action: handleLogin
             )
         }
@@ -135,6 +141,7 @@ struct LoginView: View {
                 Text("Yeni misiniz?")
                     .foregroundStyle(.secondary)
                 Button("Hesap Oluştur") { showRegister = true }
+                    .disabled(isLoading)
                     .fontWeight(.semibold)
                     .foregroundStyle(PusulaTheme.accent)
             }
@@ -144,7 +151,7 @@ struct LoginView: View {
     }
 
     private func handleLogin() {
-        guard isFormValid else { return }
+        guard isFormValid, !isLoading else { return }
         isLoading = true
         errorMessage = nil
 
