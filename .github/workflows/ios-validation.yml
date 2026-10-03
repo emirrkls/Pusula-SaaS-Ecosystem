@@ -30,9 +30,22 @@ jobs:
       - name: Test notification routing and session-response policies
         run: swift test --package-path frontend-appstore
       - name: Compile app and UI test target for iOS Simulator
-        run: >-
-          xcodebuild -project frontend-appstore/PusulaService.xcodeproj
-          -scheme PusulaService -configuration Debug -sdk iphonesimulator
-          -destination 'generic/platform=iOS Simulator'
-          -derivedDataPath /tmp/pusula-derived CODE_SIGNING_ALLOWED=NO
-          build-for-testing
+        run: |
+          set -o pipefail
+          if xcodebuild -project frontend-appstore/PusulaService.xcodeproj \
+            -scheme PusulaService -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath /tmp/pusula-derived CODE_SIGNING_ALLOWED=NO \
+            build-for-testing 2>&1 | tee /tmp/pusula-ios-build.log; then
+            exit 0
+          fi
+          # Surface compiler diagnostics on the run summary, without requiring
+          # credentials or downloading the full build log for troubleshooting.
+          while IFS= read -r diagnostic; do
+            if [[ "$diagnostic" == *"error:"* ]]; then
+              diagnostic="${diagnostic//%/%25}"
+              diagnostic="${diagnostic//$'\r'/%0D}"
+              printf '::error::%s\n' "$diagnostic"
+            fi
+          done < /tmp/pusula-ios-build.log
+          exit 1
