@@ -52,3 +52,4 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      - run: node --test scripts/references.test.mjs scripts/references-build.test.mjs

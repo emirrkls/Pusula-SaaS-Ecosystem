@@ -1,0 +1,421 @@
+.references-page {
+    padding: 152px 24px 72px;
+    background: #f8fafb;
+    color: #15212b;
+}
+
+.references-container {
+    max-width: 1152px;
+    margin: 0 auto;
+}
+
+.references-intro {
+    max-width: 720px;
+    margin: 0 auto 42px;
+    text-align: center;
+}
+
+.references-eyebrow {
+    margin-bottom: 18px;
+    color: #087fa2;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+}
+
+.references-intro h1 {
+    font-size: clamp(38px, 5vw, 62px);
+    font-weight: 600;
+    line-height: 1.08;
+    letter-spacing: -.045em;
+}
+
+.references-intro h1 span {
+    color: #58717e;
+}
+
+.references-description {
+    max-width: 600px;
+    margin: 24px auto 0;
+    color: #60717b;
+    font-size: 16px;
+    line-height: 1.8;
+    text-wrap: pretty;
+}
+
+.references-showcase {
+    position: relative;
+}
+
+.references-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 0;
+    border-top: 1px solid #e2e9ed;
+}
+
+.references-toolbar > p {
+    color: #657580;
+    font-size: 13px;
+}
+
+.references-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.references-controls button,
+.references-see-all {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 12px;
+    border: 1px solid #dae4e9;
+    border-radius: 10px;
+    background: #fff;
+    color: #425b69;
+    font-size: 12px;
+    white-space: nowrap;
+    transition: border-color .2s, background-color .2s;
+}
+
+.references-controls button:hover,
+.references-see-all:hover {
+    background: #f0f9fc;
+    border-color: #77bdcf;
+}
+
+.references-controls button:disabled {
+    cursor: default;
+    opacity: .65;
+}
+
+.references-controls svg,
+.references-see-all svg {
+    width: 14px;
+    height: 14px;
+}
+
+.references-page button:focus-visible,
+.references-page a:focus-visible {
+    outline: 3px solid #00b6eb;
+    outline-offset: 4px;
+}
+
+.reference-orbit {
+    position: relative;
+    width: 1056px;
+    height: 1056px;
+    margin: 0 auto;
+    overflow: clip;
+    background: radial-gradient(circle, #e9f5f9 0%, #f0f7fa 25%, transparent 65%);
+}
+
+.reference-orbit-track {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    border: 1px solid #d7e6ec;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.reference-orbit-track--outer {
+    width: 900px;
+    height: 900px;
+}
+
+.reference-orbit-track--inner {
+    width: 500px;
+    height: 500px;
+}
+
+.reference-orbit-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 170px;
+    height: 170px;
+    transform: translate(-50%, -50%);
+    border: 1px solid #d2e7ee;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 12px 60px #2d718710;
+}
+
+.reference-orbit-center img {
+    width: 128px;
+    height: 58px;
+    object-fit: contain;
+}
+
+.reference-orbit-center span {
+    color: #6a838e;
+    font-size: 11px;
+}
+
+.reference-orbit-ring {
+    --orbit-radius: 450px;
+    --orbit-duration: 180s;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    animation: reference-orbit-turn var(--orbit-duration) linear infinite;
+}
+
+.reference-orbit-ring--inner {
+    --orbit-radius: 250px;
+    --orbit-duration: 210s;
+    animation-direction: reverse;
+}
+
+.reference-orbit-position {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    transform: rotate(var(--reference-angle)) translateX(var(--orbit-radius));
+}
+
+.reference-orbit-align {
+    width: 0;
+    height: 0;
+    transform: rotate(calc(-1 * var(--reference-angle)));
+}
+
+.reference-orbit-counter {
+    position: absolute;
+    top: -68px;
+    left: -64px;
+    width: 128px;
+    height: 136px;
+    animation: reference-orbit-counterturn var(--orbit-duration) linear infinite;
+}
+
+.reference-orbit-ring--inner .reference-orbit-counter {
+    animation-direction: reverse;
+}
+
+.reference-orbit[data-paused='true'] .reference-orbit-ring,
+.reference-orbit[data-paused='true'] .reference-orbit-counter,
+.reference-orbit:hover .reference-orbit-ring,
+.reference-orbit:hover .reference-orbit-counter,
+.reference-orbit:focus-within .reference-orbit-ring,
+.reference-orbit:focus-within .reference-orbit-counter {
+    animation-play-state: paused;
+}
+
+.reference-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    width: 100%;
+    height: 136px;
+    padding: 10px;
+    border: 1px solid #e1e8ec;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 4px 18px #15212b04;
+}
+
+.reference-card-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 72px;
+    flex-shrink: 0;
+}
+
+.reference-card-logo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.reference-card-placeholder {
+    width: 36px;
+    height: 36px;
+    color: #a7bdc8;
+    stroke-width: 1.2;
+}
+
+.reference-card figcaption {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    color: #334853;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.45;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.references-grid {
+    display: none;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin: 20px 0 44px;
+    list-style: none;
+}
+
+.references-grid--selected {
+    display: grid;
+}
+
+.references-grid .reference-card {
+    height: 184px;
+    padding: 22px 16px;
+    gap: 16px;
+}
+
+.references-grid .reference-card-logo {
+    height: 92px;
+    max-width: 168px;
+}
+
+.references-grid .reference-card figcaption {
+    font-size: 14px;
+}
+
+.references-see-all {
+    display: flex;
+    margin: 0 auto 24px;
+}
+
+.references-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding: 32px 0;
+    border-top: 1px solid #e2e9ed;
+}
+
+.references-bottom p {
+    color: #405663;
+    font-size: 16px;
+}
+
+.references-bottom a {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #087fa2;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.references-bottom a:hover {
+    color: #03596f;
+}
+
+.references-bottom svg {
+    width: 17px;
+    height: 17px;
+}
+
+.references-brand-note {
+    color: #7b8a93;
+    font-size: 11px;
+}
+
+@keyframes reference-orbit-turn {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes reference-orbit-counterturn {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(-360deg); }
+}
+
+@media (max-width: 1199px) {
+    .reference-orbit,
+    .references-controls,
+    .references-see-all {
+        display: none;
+    }
+
+    .references-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 639px) {
+    .references-page {
+        padding: 130px 20px 44px;
+    }
+
+    .references-intro {
+        margin-bottom: 32px;
+    }
+
+    .references-description {
+        font-size: 14px;
+        line-height: 1.75;
+    }
+
+    .references-toolbar {
+        padding: 16px 0;
+    }
+
+    .references-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 8px;
+    }
+
+    .references-grid .reference-card {
+        height: 168px;
+        padding: 14px 10px;
+        gap: 12px;
+    }
+
+    .references-grid .reference-card-logo {
+        height: 80px;
+    }
+
+    .references-grid .reference-card figcaption {
+        font-size: 12px;
+    }
+
+    .references-bottom {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reference-orbit-ring,
+    .reference-orbit-counter {
+        animation: none;
+    }
+
+    .references-page button {
+        transition: none;
+    }
+}

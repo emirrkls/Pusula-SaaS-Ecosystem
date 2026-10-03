@@ -7,7 +7,7 @@ const Footer = () => {
     return (
         <footer className="bg-brand-dark text-white pt-16 pb-8">
             <div className="container mx-auto px-4 md:px-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-12 mb-12">
                     <div className="space-y-4">
                         <div className="flex items-center">
                             <img
@@ -94,7 +94,7 @@ const Footer = () => {
                             </li>
                             <li className="flex items-center gap-3">
                                 <Mail className="w-5 h-5 text-brand-cyan shrink-0" />
-                                <a href="mailto:pusulaiklimlendirme.didim@gmail.com" className="text-sm hover:text-brand-cyan transition-colors">pusulaiklimlendirme.didim@gmail.com</a>
+                                <a href="mailto:pusulaiklimlendirme.didim@gmail.com" className="min-w-0 text-sm [overflow-wrap:anywhere] hover:text-brand-cyan transition-colors">pusulaiklimlendirme.didim@gmail.com</a>
                             </li>
                         </ul>
                     </div>

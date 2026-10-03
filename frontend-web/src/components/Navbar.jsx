@@ -63,7 +63,7 @@ const Navbar = () => {
                 </Link>
 
                 {/* Desktop Nav */}
-                <div className="hidden md:flex items-center gap-8">
+                <div className="hidden lg:flex items-center gap-5 xl:gap-8">
                     <Link
                         to="/"
                         className="text-white/90 hover:text-brand-cyan font-medium transition-colors text-sm uppercase tracking-wide"
@@ -130,7 +130,8 @@ const Navbar = () => {
                         <Link
                             key={link.name}
                             to={link.path}
-                            className="text-white/90 hover:text-brand-cyan font-medium transition-colors text-sm uppercase tracking-wide"
+                            aria-current={location.pathname === link.path ? 'page' : undefined}
+                            className={`${location.pathname === link.path ? 'text-brand-cyan' : 'text-white/90 hover:text-brand-cyan'} font-medium transition-colors text-sm uppercase tracking-wide`}
                         >
                             {link.name}
                         </Link>
@@ -147,7 +148,7 @@ const Navbar = () => {
 
                 <button
                     type="button"
-                    className="md:hidden text-white"
+                    className="lg:hidden text-white"
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     aria-label={isMobileMenuOpen ? 'Menüyü kapat' : 'Menüyü aç'}
                 >
@@ -162,7 +163,7 @@ const Navbar = () => {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="md:hidden bg-brand-dark border-t border-white/10 overflow-hidden"
+                        className="lg:hidden bg-brand-dark border-t border-white/10 overflow-hidden"
                     >
                         <div className="flex flex-col p-4 gap-1">
                             <Link

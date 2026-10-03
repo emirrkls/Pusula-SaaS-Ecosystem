@@ -14,5 +14,6 @@ export const PRERENDER_ROUTES = [
     '/didim-soguk-hava-deposu-servisi',
     '/didim-klima-gaz-dolumu',
     '/hakkimizda',
+    '/referanslarimiz',
     '/iletisim',
 ];

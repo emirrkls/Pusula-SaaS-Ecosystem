@@ -39,12 +39,14 @@ export const serviceMenuGroups = [
 export const mainNavLinks = [
     { name: 'Ana Sayfa', path: '/' },
     { name: 'Hakkımızda', path: '/hakkimizda' },
+    { name: 'Referanslarımız', path: '/referanslarimiz' },
     { name: 'İletişim', path: '/iletisim' },
 ];
 
 export const footerQuickLinks = [
     { name: 'Ana Sayfa', path: '/' },
     { name: 'Hakkımızda', path: '/hakkimizda' },
+    { name: 'Referanslarımız', path: '/referanslarimiz' },
     allServicesLink,
     { name: 'İletişim', path: '/iletisim' },
     { name: 'Destek', path: '/destek' },

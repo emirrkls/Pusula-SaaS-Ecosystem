@@ -32,6 +32,45 @@ npm run build
 
 Both commands run in CI for pushes to `main` and pull requests.
 
+## References page
+
+`/referanslarimiz` is a prerendered public page, linked from the header and footer.
+`src/data/references.js` contains the owner-supplied reference list and the official
+website/profile used to verify each logo. Logos are downloaded locally under
+`public/assets/img/references/`; the page does not hotlink third-party CDN images.
+
+- Desktop: two slow circular orbits with upright logos/captions, pause control,
+  hover pause and a full-list alternative.
+- Below 1200px: a readable, static grid. Reduced-motion preferences disable the
+  desktop animation as well.
+- The orbit showcases up to 19 references (11 outer / 8 inner); future additions remain visible in the
+  full list/mobile grid. Adjust the geometry deliberately rather than crowding it.
+- Unconfirmed logos use a neutral building icon, not a fabricated brand mark.
+  **Subaşı İnşaat**, **Can Serhat Yapı** and **CS Can Yapı** still need the owner's
+  exact business link/logo. CS Can Yapı has a matching Didim company-directory
+  entry, but no official logo was verified.
+- Verified spelling: **Espressolab**, **TRYP by Wyndham Didim**,
+  **Akbük Palace Hotel & Residence**, **Gür Life Yapı İnşaat**,
+  **Pilot Garage Didim** and **D’Fit Didim** (D’Fit Fitness & Fight Club).
+  Sapphire's official profile uses **Safir Mimarlık**,
+  while its logo reads **SAPPHIRE**; the owner-supplied display name is retained.
+- The current list contains 19 businesses, including **Özsoy Yapı Mühendislik**,
+  **CS Can Yapı**, **Pilot Garage Didim**, **Emin Oto**, **EG Garaj** and **D’Fit Didim**.
+  Has Karaarslan was removed at the owner's request.
+- Social-profile logo files are the publicly available originals (150px); replace
+  them with owner-provided SVG/high-resolution artwork when available.
+
+Names/logos belong to their respective owners. The list does not imply authorized
+servicing, a brand-wide partnership or an endorsement. Before public release,
+confirm the reference locations and permission to display the marks.
+
+Run the reference data/asset regression checks with:
+
+```bash
+npm run build
+node --test scripts/references.test.mjs scripts/references-build.test.mjs
+```
+
 ## WhatsApp Embedded Signup
 
 `/whatsapp-connect` does not contain or read Meta App ID / Configuration ID from

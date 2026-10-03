@@ -6,6 +6,7 @@ import FloatingContactButtons from './components/FloatingContactButtons';
 import Home from './pages/Home';
 import Services from './pages/Services';
 import About from './pages/About';
+import References from './pages/References';
 import Contact from './pages/Contact';
 import Support from './pages/Support';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -49,6 +50,7 @@ function App() {
             <Route path="/didim-soguk-hava-deposu-servisi" element={<ServiceLandingPage pageKey="sogukHava" />} />
             <Route path="/didim-klima-gaz-dolumu" element={<ServiceLandingPage pageKey="gazDolumu" />} />
             <Route path="/hakkimizda" element={<About />} />
+            <Route path="/referanslarimiz" element={<References />} />
             <Route path="/iletisim" element={<Contact />} />
             <Route path="/destek" element={<Support />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
