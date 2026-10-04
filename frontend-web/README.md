@@ -81,14 +81,49 @@ npm run build
 node --test scripts/references.test.mjs scripts/references-build.test.mjs
 ```
 
-## Business partners
+## Authorized dealerships, service brands and project partners
 
-`BUSINESS_PARTNERS` in `src/data/authorizedBrands.js` lists **Midea VRF**, **Daikin
-VRV / VRF**, **Quatech Klima** and **Termodinamik Isıtma Sistemleri**. Original
-logos are stored under `public/assets/img/brands/` with official-source links in
-the data. `BusinessPartnersSection` displays them wherever the existing authorized
-brand section is used. Partner cards are separate from authorized dealer/service
-cards and do not imply an unverified brand authorization.
+`AUTHORIZED_BRANDS` in `src/data/authorizedBrands.js` is the single source for the
+eleven displayed brands: **Hisense**, **Üntes**, **Nibe**, **LG Monoblok**,
+**Solimpeks**, **Midea**, **Daikin**, **Quatech**, **Termodinamik**, **Baymak**
+and **Varmeks**. Each card
+shows its product scope; relationship roles remain in the data and service copy,
+but are not displayed as card badges. On 4 October 2026 the owner
+clarified that **Daikin VRV / VRF is a project-focused partnership**, not an
+authorized dealership/service. The other additions are Midea **VRF**,
+Quatech **climate systems** and Termodinamik **heating systems**. Do not
+expand authorizations to other product groups without owner confirmation.
+Baymak is included for **split air conditioning, heat pumps and pool heat pumps**;
+Varmeks is included for **pool heat pumps only**. The owner confirmed working
+with these brands, not authorized dealer/service status, so that status is not
+inferred. Their official-source URLs and original logo URLs are recorded in the
+data. The Baymak SVG uses its original artwork and aspect ratio; Varmeks uses
+the original transparent PNG wordmark from its official website.
+
+`AuthorizedBrandsSection` uses one centered logo-card grid, with three columns
+on desktop, two on tablet and one on mobile. All cards show the relevant product
+scope, with subtle pointer-only hover effects and reduced-motion support.
+Home, About and Services use the same light surface. The former separate
+business-partner block is removed, avoiding duplicated or inconsistent status.
+Original logo artwork remains under `public/assets/img/brands/`; Üntes and Nibe
+SVG viewports are fitted to the visible artwork, with a 2% edge margin, without
+altering their vector paths. Hisense and LG SVGs inherit the artwork aspect ratio
+instead of unrelated fixed canvas dimensions. New brand assets retain their official-source
+links. Logo provenance alone does not prove
+dealer/service authorization. FAQs and the VRF landing page use the same scope.
+
+`/didim-split-klima-servisi` and `/didim-ticari-klima-servisi` are distinct,
+prerendered service pages linked from the desktop/mobile services menu and the
+overview. The existing Hisense page stays available. Every service landing
+page includes a short, visible summary of current brands and partnership scopes;
+VRF copy and metadata distinguish Üntes/Midea authorization from Daikin project
+work, and heat-pump content keeps Termodinamik's heating-system scope separate.
+
+`/didim-havuz-isi-pompasi` is a distinct child service of the heat-pump page,
+with Baymak/Varmeks scope, capacity-selection context, FAQs and a parent breadcrumb.
+The desktop/mobile menu groups it under **Isı Pompaları**, not air conditioning.
+Home, the services overview and the parent heat-pump page link to it. It is
+included in prerendering, the sitemap, service structured data and `llms.txt`.
 
 ## WhatsApp Embedded Signup
 

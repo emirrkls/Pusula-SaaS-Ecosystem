@@ -37,20 +37,27 @@ const Home = () => {
         {
             title: "Split Klima",
             image: "/assets/img/service-1.jpg",
-            desc: "Didim'de ev ve ofisler için split klima montajı, tamiri ve gaz dolumu.",
-            path: "/didim-hisense-klima-servisi"
+            desc: "Hisense ve Quatech yetkili bayi ve servis desteği, Baymak split klima çözümleri; ev ve ofisler için satış, montaj ve bakım.",
+            path: "/didim-split-klima-servisi"
+        },
+        {
+            title: "Ticari Klima",
+            image: "/assets/img/service-2.jpg",
+            desc: "Mağaza, restoran ve işletmeler için salon, kaset ve kanallı klima; keşif, cihaz seçimi, montaj ve bakım.",
+            path: "/didim-ticari-klima-servisi"
         },
         {
             title: "VRF Sistemleri",
             image: "/assets/img/service-2.jpg",
-            desc: "Üntes yetkili bayi ve servis; otel ve plaza VRF kurulumu ve bakımı.",
+            desc: "Üntes ve Midea VRF yetkili bayi ve servis desteği; Daikin VRV / VRF sistemlerinde proje odaklı iş ortaklığı.",
             path: "/didim-vrf-servisi"
         },
         {
             title: "Isı Pompası",
             image: "/assets/img/service-3.jpg",
-            desc: "Üntes, Nibe, LG monoblok ve Solimpeks ısı pompası montajı ve servisi.",
-            path: "/didim-isi-pompasi-servisi"
+            desc: "Üntes, Nibe, LG monoblok, Solimpeks ve Baymak ısı pompası çözümleri; keşif, montaj ve bakım.",
+            path: "/didim-isi-pompasi-servisi",
+            subService: { title: "Havuz Isı Pompası · Baymak & Varmeks", path: "/didim-havuz-isi-pompasi" }
         },
         {
             title: "Montaj & Keşif",
@@ -98,8 +105,8 @@ const Home = () => {
                         Konforunuzun Yönü <span className="text-brand-cyan">Pusula</span>
                     </h1>
                     <p className="text-xl md:text-2xl text-gray-200 mb-10 max-w-3xl mx-auto font-light">
-                        Didim ve Aydın'da klima tamiri, bakım ve montaj.
-                        Hisense klima; Üntes VRF ve ısı pompası; Nibe, LG ve Solimpeks yetkili bayi & servis — 7/24 teknik destek.
+                        Didim ve Aydın'da klima, VRF, ısı pompası ve ısıtma çözümleri.
+                        Yetkili bayi ve servis güvencesi, 7/24 teknik destek.
                     </p>
                     <div>
                         <Link
@@ -167,6 +174,12 @@ const Home = () => {
                                     <Link to={service.path} className="text-brand-cyan font-semibold flex items-center gap-1 hover:gap-2 transition-all">
                                         Detaylı Bilgi <ChevronRight className="w-4 h-4" />
                                     </Link>
+                                    {service.subService && (
+                                        <Link to={service.subService.path} className="mt-4 flex items-center gap-2 border-t border-white/20 pt-4 text-sm font-medium text-white/90 transition-colors hover:text-brand-cyan">
+                                            {service.subService.title}
+                                            <ChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                        </Link>
+                                    )}
                                 </div>
                             </Motion.div>
                         ))}

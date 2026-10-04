@@ -1,84 +1,62 @@
-import React from 'react';
-import { Award } from 'lucide-react';
-import { AUTHORIZED_BRANDS, AUTHORIZED_BRANDS_SUMMARY, OTHER_BRANDS_SERVICE_NOTE } from '../data/authorizedBrands';
-import { BusinessPartnersSection } from './BusinessPartnersSection';
+import { AUTHORIZED_BRANDS, BRAND_NETWORK_TITLE, BRAND_NETWORK_LIST_LABEL, OTHER_BRANDS_SERVICE_NOTE } from '../data/authorizedBrands';
+import './AuthorizedBrandsSection.css';
 
 export function AuthorizedBrandsSection({ variant = 'light' }) {
     const isDark = variant === 'dark';
 
     return (
-        <section className={isDark ? 'bg-brand-dark text-white py-20' : 'bg-gray-50 py-20'}>
+        <section
+            aria-labelledby="authorized-brands-heading"
+            className={isDark ? 'bg-brand-dark text-white py-16 md:py-20' : 'bg-gray-50 py-16 md:py-20'}
+        >
             <div className="container mx-auto px-4">
-                <div className="text-center mb-12 max-w-3xl mx-auto">
-                    <div className="inline-flex items-center gap-2 text-brand-cyan font-bold tracking-wider uppercase text-sm mb-3">
-                        <Award className="w-4 h-4" />
-                        Yetkili Bayi & Servis
-                    </div>
-                    <h2 className={`text-3xl md:text-4xl font-bold mb-4 ${isDark ? 'text-white' : 'text-brand-dark'}`}>
-                        Marka Yetkili Satış ve Servis
+                <div className="mx-auto mb-10 max-w-3xl text-center">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-brand-cyan">
+                        Güçlü markalarla, doğru çözümler.
+                    </p>
+                    <h2 id="authorized-brands-heading" className={`mb-4 text-2xl font-semibold md:text-3xl ${isDark ? 'text-white' : 'text-brand-dark'}`}>
+                        {BRAND_NETWORK_TITLE}
                     </h2>
-                    <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>
-                        {AUTHORIZED_BRANDS_SUMMARY} Satış, montaj, periyodik bakım ve arıza onarımında
-                        üretici garantisi ve orijinal yedek parça desteği sunuyoruz.
+                    <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                        Didim, Akbük ve Altınkum’da klima, VRF, ısı pompası, havuz ısıtma ve ısıtma çözümleri sunuyoruz.
+                        Yetkili bayilik ve servisliklerimizi, çalıştığımız markalar ve proje odaklı iş ortaklarımızla birlikte
+                        aşağıda görebilirsiniz.
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                <ul className="mx-auto grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label={BRAND_NETWORK_LIST_LABEL}>
                     {AUTHORIZED_BRANDS.map((brand) => (
-                        <div
-                            key={brand.name}
-                            className={`rounded-xl border p-5 ${
-                                isDark
-                                    ? 'border-white/10 bg-white/5'
-                                    : 'border-gray-200 bg-white shadow-xs'
+                        <li
+                            key={brand.id}
+                            data-brand-id={brand.id}
+                            className={`authorized-brand-card flex min-w-0 flex-col items-center rounded-xl border px-5 py-6 text-center ${
+                                isDark ? 'authorized-brand-card--dark border-white/10 bg-white/5' : 'border-gray-200 bg-white'
                             }`}
                         >
-                            <p className={`text-xs font-semibold uppercase tracking-wide mb-3 ${isDark ? 'text-brand-cyan' : 'text-brand-cyan'}`}>
-                                {brand.category}
-                            </p>
-                            <div
-                                className={`flex items-center justify-center h-14 mb-4 rounded-lg px-3 ${
-                                    isDark ? 'bg-white' : 'bg-gray-50'
-                                }`}
-                            >
+                            <div className="mb-5 flex h-20 w-full items-center justify-center rounded-lg bg-white px-3">
                                 <img
                                     src={brand.logo}
-                                    alt={`${brand.name} yetkili bayi ve servis logosu`}
-                                    className="max-h-10 max-w-full object-contain"
+                                    alt=""
+                                    width="180"
+                                    height="64"
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="authorized-brand-logo h-16 w-[180px] max-w-full object-contain"
                                 />
                             </div>
-                            <h3 className={`text-lg font-bold mb-1 ${isDark ? 'text-white' : 'text-brand-dark'}`}>
+                            <h3 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-brand-dark'}`}>
                                 {brand.name}
                             </h3>
-                            {brand.detail && (
-                                <p className={`text-sm mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                                    {brand.detail}
-                                </p>
-                            )}
-                            <div className="flex flex-wrap gap-2">
-                                {brand.roles.map((role) => (
-                                    <span
-                                        key={role}
-                                        className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                                            isDark
-                                                ? 'bg-brand-cyan/20 text-brand-cyan'
-                                                : 'bg-brand-cyan/10 text-brand-dark'
-                                        }`}
-                                    >
-                                        {role}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
+                            <p className={`mt-2 text-xs leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{brand.category}</p>
+                        </li>
                     ))}
-                </div>
+                </ul>
 
                 <p className={`mt-10 max-w-3xl mx-auto text-center text-sm leading-relaxed ${
                     isDark ? 'text-gray-300' : 'text-gray-600'
                 }`}>
                     {OTHER_BRANDS_SERVICE_NOTE}
                 </p>
-                <BusinessPartnersSection variant={variant} />
             </div>
         </section>
     );

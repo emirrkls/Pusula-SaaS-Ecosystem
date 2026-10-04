@@ -4,7 +4,7 @@ import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, CheckCircle } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
 import { AuthorizedBrandsSection } from '../components/AuthorizedBrandsSection';
-import { AUTHORIZED_BRANDS_FAQ_ANSWER, SOLAR_ENERGY_SUMMARY } from '../data/authorizedBrands';
+import { AUTHORIZED_BRANDS_FAQ_ANSWER, SOLAR_ENERGY_SUMMARY, POOL_HEAT_PUMP_SUMMARY } from '../data/authorizedBrands';
 
 const Services = () => {
     const location = useLocation();
@@ -29,26 +29,35 @@ const Services = () => {
         {
             id: "split-klima",
             title: "Split Klima Sistemleri",
-            desc: "Ev ve küçük ofisler için split klima satışı, montajı ve bakımı. Hisense yetkili bayi ve servis olarak orijinal yedek parça ve garanti kapsamında hizmet veriyoruz.",
-            features: ["Hisense Yetkili Bayi & Servis", "Montaj ve Periyodik Bakım", "Gaz Dolumu", "Tüm Marka Arıza Servisi"],
+            desc: "Ev ve küçük ofisler için split klima satışı, montajı ve bakımı. Hisense ve Quatech klima sistemlerinde yetkili bayi ve servis desteği sunuyor; Baymak split klima çözümleriyle de çalışıyoruz.",
+            features: ["Hisense & Quatech Yetkili Destek", "Baymak Split Klima Çözümleri", "Montaj, Bakım ve Gaz Dolumu", "Tüm Marka Arıza Servisi"],
             image: "/assets/img/service-1.jpg",
-            path: "/didim-hisense-klima-servisi"
+            path: "/didim-split-klima-servisi"
+        },
+        {
+            id: "ticari-klima",
+            title: "Ticari Klima Sistemleri",
+            desc: "Mağaza, restoran, ofis ve diğer ticari alanlar için salon, kaset ve kanallı klima çözümleri. Hisense ve Quatech klima sistemlerinde yetkili bayi ve servis kapsamımızla, ihtiyaca uygun cihaz seçimi, montaj ve bakım planlıyoruz. Merkezi sistem gereken projelerde Üntes ve Midea VRF desteği ile Daikin VRV / VRF proje odaklı iş ortaklığımızı değerlendiriyoruz.",
+            features: ["Salon, Kaset ve Kanallı Klima", "Hisense & Quatech", "Kapasite ve Altyapı Keşfi", "Montaj ve Periyodik Bakım"],
+            image: "/assets/img/service-2.jpg",
+            path: "/didim-ticari-klima-servisi"
         },
         {
             id: "vrf",
             title: "VRF Sistemleri",
-            desc: "Oteller, plazalar ve büyük binalar için merkezi iklimlendirme. Üntes Grubu VRF sistemlerinde yetkili bayi ve servis; satış, montaj, bakım ve arıza onarımı.",
-            features: ["Üntes VRF Yetkili Bayi & Servis", "Merkezi Kontrol", "Bölgesel İklimlendirme", "Tüm Marka VRF Servisi"],
+            desc: "Oteller, plazalar ve büyük binalar için merkezi iklimlendirme. Üntes ve Midea VRF sistemlerinde yetkili bayi ve servis desteği sağlıyor; Daikin VRV / VRF sistemlerinde proje odaklı iş ortaklığı yürütüyoruz.",
+            features: ["Üntes & Midea Yetkili Bayi ve Servis", "Daikin Proje Odaklı İş Ortaklığı", "Merkezi Kontrol", "Proje, Montaj ve Bakım"],
             image: "/assets/img/service-2.jpg",
             path: "/didim-vrf-servisi"
         },
         {
             id: "isi-pompasi",
             title: "Isı Pompası Sistemleri",
-            desc: "Üntes Grubu, Nibe, LG monoblok (LG Grubu) ve Solimpeks Grubu ısı pompalarında yetkili bayi ve servis. Satış, montaj, bakım ve arıza onarımında üretici standartlarında çözüm sunuyoruz.",
-            features: ["Üntes Isı Pompası", "Nibe Yetkili Bayi & Servis", "LG Monoblok", "Solimpeks Grubu"],
+            desc: "Üntes Grubu, Nibe, LG monoblok (LG Grubu) ve Solimpeks Grubu ısı pompalarında yetkili bayi ve servis desteği. Baymak ısı pompası çözümleriyle de çalışıyor; keşif, cihaz seçimi, montaj ve bakım süreçlerini ihtiyaca göre planlıyoruz.",
+            features: ["Üntes & Nibe", "LG Monoblok & Solimpeks", "Baymak Isı Pompası Çözümleri", "Keşif, Montaj ve Bakım"],
             image: "/assets/img/service-3.jpg",
-            path: "/didim-isi-pompasi-servisi"
+            path: "/didim-isi-pompasi-servisi",
+            subService: { title: "Havuz Isı Pompası", desc: POOL_HEAT_PUMP_SUMMARY, path: "/didim-havuz-isi-pompasi" }
         },
         {
             id: "montaj",
@@ -93,7 +102,7 @@ const Services = () => {
             a: "Kullandığımız orijinal yedek parçalar ve işçilik hizmetleri 1 yıl firmamız garantisi altındadır."
         },
         {
-            q: "Hangi markalarda yetkili bayi veya servissiniz?",
+            q: "Yetkili olduğunuz markalar ve iş ortaklarınız hangileri?",
             a: AUTHORIZED_BRANDS_FAQ_ANSWER
         }
     ];
@@ -104,7 +113,7 @@ const Services = () => {
         <>
             <PageSeo
                 title="Hizmetlerimiz - Klima, VRF, Isı Pompası, Güneş Enerjisi | Pusula İklimlendirme Didim"
-                description="Didim'de split klima, VRF, ısı pompası ve montaj. Hisense klima; Üntes VRF ve ısı pompası; Nibe, LG monoblok ve Solimpeks yetkili servis — Pusula İklimlendirme."
+                description="Didim'de klima, VRF, ısı pompası ve ısıtma sistemleri. Pusula İklimlendirme ile yetkili satış, projeli montaj, bakım ve teknik servis."
                 path="/hizmetler"
                 breadcrumbs={[
                     { name: 'Ana Sayfa', path: '/' },
@@ -160,6 +169,16 @@ const Services = () => {
                             >
                                 Detaylı Bilgi
                             </Link>
+                            {service.subService && (
+                                <div className="rounded-xl border border-cyan-100 bg-cyan-50/50 p-5">
+                                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Isı pompalarında özel çözümler</p>
+                                    <h3 className="mb-2 text-lg font-semibold text-brand-dark">{service.subService.title}</h3>
+                                    <p className="text-sm leading-relaxed text-gray-600">{service.subService.desc}</p>
+                                    <Link to={service.subService.path} className="mt-3 inline-flex text-sm font-semibold text-brand-dark underline decoration-brand-cyan underline-offset-4 hover:text-brand-cyan">
+                                        Havuz ısı pompası çözümlerini inceleyin
+                                    </Link>
+                                </div>
+                            )}
                         </div>
                     </Motion.div>
                 ))}

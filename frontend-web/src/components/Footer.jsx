@@ -18,7 +18,7 @@ const Footer = () => {
                         </div>
                         <p className="text-gray-400 text-sm leading-relaxed">
                             Konforunuz için profesyonel iklimlendirme çözümleri.
-                            Hisense klima; Üntes VRF ve ısı pompası; Nibe, LG monoblok ve Solimpeks yetkili bayi & servis.
+                            Klima, VRF, ısı pompası ve ısıtma sistemlerinde yetkili satış, montaj ve teknik servis.
                         </p>
                         <div className="flex gap-4 pt-2">
                             <a

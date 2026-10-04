@@ -6,7 +6,7 @@ import test from 'node:test';
 import { REFERENCE_CLIENTS, REFERENCE_ORBITS, REFERENCE_ORBIT_CAPACITY } from '../src/data/references.js';
 import { mainNavLinks, footerQuickLinks } from '../src/data/navigation.js';
 import { PRERENDER_ROUTES } from '../src/seo/prerender-routes.js';
-import { BUSINESS_PARTNERS } from '../src/data/authorizedBrands.js';
+import { AUTHORIZED_BRANDS, AUTHORIZED_BRANDS_SUMMARY } from '../src/data/authorizedBrands.js';
 
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -59,17 +59,65 @@ test('requested additions are present and Has Karaarslan is removed', () => {
     assert.equal(ids.has('has-karaarslan-insaat'), false);
 });
 
-test('business partners have verified local logos without assumed authorization', () => {
-    assert.deepEqual(BUSINESS_PARTNERS.map(({ id }) => id), ['midea-vrf', 'daikin-vrf', 'quatech', 'termodinamik']);
-    for (const partner of BUSINESS_PARTNERS) {
-        assert.equal(partner.roles, undefined);
-        assert.equal(new URL(partner.source).protocol, 'https:');
-        assert.match(partner.logo, /^\/assets\/img\/brands\/[a-z0-9-]+\.(svg|png|webp)$/);
-        const asset = path.join(webRoot, 'public', partner.logo);
+test('brand network has unique IDs, accurate relationship roles and safe local logos', () => {
+    assert.deepEqual(AUTHORIZED_BRANDS.map(({ id }) => id), [
+        'hisense', 'untes', 'nibe', 'lg-monoblok', 'solimpeks',
+        'midea-vrf', 'daikin-vrf', 'quatech', 'termodinamik',
+        'baymak', 'varmeks',
+    ]);
+    assert.equal(new Set(AUTHORIZED_BRANDS.map(({ id }) => id)).size, AUTHORIZED_BRANDS.length);
+    for (const brand of AUTHORIZED_BRANDS) {
+        assert.deepEqual(brand.roles, brand.id === 'daikin-vrf'
+            ? ['Proje odaklı iş ortaklığı']
+            : ['baymak', 'varmeks'].includes(brand.id) ? ['Çalıştığımız marka']
+            : ['Yetkili bayi', 'Yetkili servis']);
+        if (brand.source) assert.equal(new URL(brand.source).protocol, 'https:');
+        assert.match(brand.logo, /^\/assets\/img\/brands\/[a-z0-9-]+\.(svg|png|webp)$/);
+        const asset = path.join(webRoot, 'public', brand.logo);
         assert.ok(fs.statSync(asset).size > 100);
         if (asset.endsWith('.svg')) {
             assert.doesNotMatch(fs.readFileSync(asset, 'utf8'), /<script\b|<foreignObject\b|javascript:|\bon\w+\s*=/i);
         }
+    }
+});
+
+test('Baymak and Varmeks keep the requested product scope without inferred authorization', () => {
+    const brands = Object.fromEntries(AUTHORIZED_BRANDS.map((brand) => [brand.id, brand]));
+    assert.equal(brands.baymak.category, 'Split klima, ısı pompası ve havuz ısı pompası');
+    assert.equal(brands.varmeks.category, 'Havuz ısı pompası sistemleri');
+    assert.ok(AUTHORIZED_BRANDS_SUMMARY.includes('Split klima ve ısı pompasında Baymak; havuz ısı pompalarında Baymak ve Varmeks'));
+    for (const id of ['baymak', 'varmeks']) {
+        assert.equal(new URL(brands[id].source).protocol, 'https:');
+        assert.equal(new URL(brands[id].logoSource).protocol, 'https:');
+        assert.ok(!brands[id].roles.some((role) => role.includes('Yetkili')));
+    }
+    const png = fs.readFileSync(path.join(webRoot, 'public', brands.varmeks.logo));
+    assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+    assert.ok(png.readUInt32BE(16) >= 400, 'official Varmeks wordmark has sufficient resolution');
+});
+
+test('new authorizations and project partnership keep the owner-confirmed scope', () => {
+    const brands = Object.fromEntries(AUTHORIZED_BRANDS.map((brand) => [brand.id, brand]));
+    assert.equal(brands['midea-vrf'].category, 'VRF sistemleri');
+    assert.equal(brands['daikin-vrf'].category, 'VRV / VRF sistemleri');
+    assert.equal(brands.quatech.category, 'Klima sistemleri');
+    assert.equal(brands.termodinamik.category, 'Isıtma sistemleri');
+    for (const id of ['midea-vrf', 'daikin-vrf', 'quatech', 'termodinamik']) {
+        assert.equal(new URL(brands[id].source).protocol, 'https:');
+        assert.ok(AUTHORIZED_BRANDS_SUMMARY.includes(brands[id].name), id);
+    }
+});
+
+test('vector wordmarks follow their artwork proportions without fixed canvas dimensions', () => {
+    for (const file of ['untes.svg', 'nibe.svg', 'hisense.svg', 'lg-monoblok.svg', 'baymak.svg']) {
+        const svg = fs.readFileSync(path.join(webRoot, 'public/assets/img/brands', file), 'utf8');
+        const [opening] = svg.match(/<svg\b[^>]*>/);
+        assert.doesNotMatch(opening, /\s(?:width|height)="/, file);
+        const [, viewBox] = svg.match(/<svg\b[^>]*viewBox="([^"]+)"/);
+        const [, , width, height] = viewBox.split(/\s+/).map(Number);
+        assert.ok(width > 0 && height > 0, file);
+        assert.ok(width / height > 1.5, `${file}: logo viewport must follow its wordmark aspect ratio`);
+        if (['untes.svg', 'nibe.svg'].includes(file)) assert.ok(width / height > 3, file);
     }
 });
 

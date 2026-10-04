@@ -44,8 +44,11 @@ function App() {
             <Route path="/akbuk-klima-servisi" element={<ServiceLandingPage pageKey="akbuk" />} />
             <Route path="/bozbuk-klima-servisi" element={<ServiceLandingPage pageKey="bozbuk" />} />
             <Route path="/didim-hisense-klima-servisi" element={<ServiceLandingPage pageKey="hisense" />} />
+            <Route path="/didim-split-klima-servisi" element={<ServiceLandingPage pageKey="split" />} />
+            <Route path="/didim-ticari-klima-servisi" element={<ServiceLandingPage pageKey="ticari" />} />
             <Route path="/didim-vrf-servisi" element={<ServiceLandingPage pageKey="vrf" />} />
             <Route path="/didim-isi-pompasi-servisi" element={<ServiceLandingPage pageKey="isiPompasi" />} />
+            <Route path="/didim-havuz-isi-pompasi" element={<ServiceLandingPage pageKey="havuzIsiPompasi" />} />
             <Route path="/didim-gunes-enerjisi-sistemleri" element={<ServiceLandingPage pageKey="gunesEnerjisi" />} />
             <Route path="/didim-soguk-hava-deposu-servisi" element={<ServiceLandingPage pageKey="sogukHava" />} />
             <Route path="/didim-klima-gaz-dolumu" element={<ServiceLandingPage pageKey="gazDolumu" />} />

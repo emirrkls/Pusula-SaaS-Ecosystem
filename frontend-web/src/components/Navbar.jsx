@@ -38,9 +38,9 @@ const Navbar = () => {
     }, []);
 
     const isHome = location.pathname === '/';
-    const isServicesActive =
-        location.pathname === '/hizmetler' ||
-        location.pathname.startsWith('/didim-klima-');
+    const isServicesActive = serviceMenuGroups.some(({ links }) =>
+        links.some(({ path }) => location.pathname === path)
+    );
 
     const closeMobile = () => {
         setIsMobileMenuOpen(false);
@@ -94,7 +94,7 @@ const Navbar = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: 8 }}
                                     transition={{ duration: 0.15 }}
-                                    className="absolute top-full left-0 mt-3 w-64 bg-brand-dark border border-white/10 rounded-xl shadow-xl overflow-hidden"
+                                    className="absolute top-full left-0 mt-3 w-64 max-h-[calc(100dvh-8rem)] overflow-x-hidden overflow-y-auto overscroll-contain bg-brand-dark border border-white/10 rounded-xl shadow-xl"
                                 >
                                     {serviceMenuGroups.map((group, groupIndex) => (
                                         <div
@@ -163,7 +163,7 @@ const Navbar = () => {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="lg:hidden bg-brand-dark border-t border-white/10 overflow-hidden"
+                        className="lg:hidden max-h-[calc(100dvh-6rem)] overflow-x-hidden overflow-y-auto overscroll-contain bg-brand-dark border-t border-white/10"
                     >
                         <div className="flex flex-col p-4 gap-1">
                             <Link

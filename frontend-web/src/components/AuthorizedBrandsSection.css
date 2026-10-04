@@ -1,0 +1,39 @@
+.authorized-brand-card {
+    --brand-card-hover-shadow: 0 12px 28px -12px rgb(15 23 42 / 22%),
+        0 4px 12px -6px rgb(0 182 235 / 18%);
+    transition: transform 240ms ease, border-color 240ms ease, box-shadow 240ms ease;
+}
+
+.authorized-brand-card--dark {
+    --brand-card-hover-shadow: 0 12px 28px -12px rgb(0 0 0 / 50%),
+        0 0 24px -10px rgb(0 182 235 / 28%);
+}
+
+.authorized-brand-logo {
+    transition: transform 240ms ease;
+}
+
+/* Touch screens keep their stable layout instead of a sticky hover state. */
+@media (hover: hover) and (pointer: fine) {
+    .authorized-brand-card:hover {
+        transform: translateY(-4px);
+        border-color: rgb(0 182 235 / 65%);
+        box-shadow: var(--brand-card-hover-shadow);
+    }
+
+    .authorized-brand-card:hover .authorized-brand-logo {
+        transform: scale(1.025);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .authorized-brand-card,
+    .authorized-brand-logo {
+        transition: none;
+    }
+
+    .authorized-brand-card:hover,
+    .authorized-brand-card:hover .authorized-brand-logo {
+        transform: none;
+    }
+}

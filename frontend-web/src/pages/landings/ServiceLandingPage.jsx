@@ -5,9 +5,11 @@ import { CheckCircle, Plus, Minus, Phone, ArrowRight } from 'lucide-react';
 import { landingPages } from './landingPages';
 import { PageSeo } from '../../seo/PageSeo';
 import { SITE_URL } from '../../seo/constants';
+import { AUTHORIZED_BRANDS_SUMMARY } from '../../data/authorizedBrands';
 
 const ServiceLandingPage = ({ pageKey }) => {
     const page = landingPages[pageKey];
+    const parentPage = page?.parent ? landingPages[page.parent] : null;
     const [activeAccordion, setActiveAccordion] = useState(null);
 
     if (!page) {
@@ -55,6 +57,7 @@ const ServiceLandingPage = ({ pageKey }) => {
                 faqs={page.faqs}
                 breadcrumbs={[
                     { name: 'Ana Sayfa', path: '/' },
+                    ...(parentPage ? [{ name: parentPage.h1, path: `/${parentPage.slug}` }] : []),
                     { name: page.h1, path: `/${page.slug}` },
                 ]}
                 structuredData={serviceSchema}
@@ -90,6 +93,15 @@ const ServiceLandingPage = ({ pageKey }) => {
 
             {/* Intro */}
             <div className="container mx-auto px-4 py-16 max-w-4xl">
+                {parentPage && (
+                    <nav aria-label="Hizmet konumu" className="mb-8 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-500">
+                        <Link to="/hizmetler" className="hover:text-brand-cyan">Hizmetler</Link>
+                        <span aria-hidden="true">/</span>
+                        <Link to={`/${parentPage.slug}`} className="hover:text-brand-cyan">Isı Pompaları</Link>
+                        <span aria-hidden="true">/</span>
+                        <span aria-current="page" className="text-brand-dark">{page.h1}</span>
+                    </nav>
+                )}
                 {page.answerBox && (
                     <div className="mb-8 rounded-xl border-l-4 border-brand-cyan bg-white p-6 shadow-xs">
                         <p className="text-lg font-semibold leading-relaxed text-brand-dark">
@@ -102,6 +114,34 @@ const ServiceLandingPage = ({ pageKey }) => {
                         <p key={index}>{paragraph}</p>
                     ))}
                 </div>
+                {page.childServices?.length > 0 && (
+                    <aside aria-labelledby="child-services-heading" className="mt-8 rounded-xl border border-cyan-100 bg-cyan-50/50 p-6">
+                        <h2 id="child-services-heading" className="mb-4 text-lg font-semibold text-brand-dark">Isı Pompalarında Özel Çözümler</h2>
+                        {page.childServices.map((key) => {
+                            const child = landingPages[key];
+                            return (
+                                <div key={key}>
+                                    <h3 className="mb-2 text-base font-semibold text-brand-dark">{child.h1}</h3>
+                                    <p className="text-sm leading-relaxed text-gray-600">{child.description}</p>
+                                    <Link to={`/${child.slug}`} className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-brand-dark underline decoration-brand-cyan underline-offset-4 hover:text-brand-cyan">
+                                        Havuz ısı pompası çözümlerini inceleyin
+                                        <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                    </Link>
+                                </div>
+                            );
+                        })}
+                    </aside>
+                )}
+                <aside aria-labelledby="service-brands-heading" className="mt-8 rounded-xl border border-gray-200 bg-white p-6">
+                    <h2 id="service-brands-heading" className="mb-3 text-base font-semibold text-brand-dark">
+                        Markalarımız ve Çözüm Ortaklarımız
+                    </h2>
+                    <p className="text-sm leading-relaxed text-gray-600">{AUTHORIZED_BRANDS_SUMMARY}</p>
+                    <Link to="/hizmetler" className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-brand-dark underline decoration-brand-cyan underline-offset-4 hover:text-brand-cyan">
+                        Tüm hizmetleri ve marka kapsamlarını inceleyin
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                </aside>
             </div>
 
             {/* Features */}
