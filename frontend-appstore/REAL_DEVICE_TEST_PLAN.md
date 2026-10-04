@@ -9,7 +9,7 @@ Bu plan, App Store Connect ayarlari tamamlandiktan sonra iPhone ve iPad uzerinde
 - Roller: `COMPANY_ADMIN`, `TECHNICIAN`
 - Tenantlar: birbirinden bagimsiz A ve B sirketi
 - Apple: Sandbox tester hesabi
-- Urunler: `com.pusula.usta`, `com.pusula.patron`
+- Urunler: `com.pusula.usta`, `com.pusula.usta.yearly`, `com.pusula.patron`, `com.pusula.patron.yearly`
 - Donanim: kamerali bir iPhone ve destek devam edecekse bir iPad
 
 Gercek musteri verisi kullanmayin. Test kayitlarini `IOS-QA-` on ekiyle olusturun ve test sonunda yalniz bu kayitlari temizleyin.
@@ -276,6 +276,18 @@ Beklenen:
 - Fiyat ve para birimi yalniz StoreKit'ten gelir; sabit/fallback fiyat yoktur.
 - Uygun kullanicida Apple'in introductory offer metni gorunur.
 - Iptal hata gibi plan degisikligi yaratmaz.
+
+#### Product availability regressions (2026-10-04)
+
+- Run `swift test --package-path frontend-appstore`: routing/session policies plus six real product-catalog policy tests.
+- Run `AuthPresentationTests` and `StartupSmokeTests` on a clean simulator, then a Release simulator build. Confirm the bundled font resolves as `GoogleSans-TextMedium` and both provider buttons have the same width/height. The Turkish system Apple button must localize without replacing its official artwork.
+- Real device/TestFlight: after confirming Active agreements/bank/tax and the four exact product IDs in App Store Connect, open Packages. Prices must come from StoreKit, not a screenshot fixture or hardcoded fallback.
+- Empty Apple response: all three plan cards and the server's limits remain visible. Paid CTAs are disabled, the free plan reads perpetual/free, and the notice must not blame Wi-Fi.
+- Partial response: available paid options work; missing monthly/yearly options remain disabled. Switch billing periods to verify both states.
+- Offline/failed refresh: preserve already received Apple prices; show a separate connection/request notice. No product-loading failure may open a purchase-error alert.
+- Use the notice's Technical Information to inspect bundle/version/build, actual storefront, requested/returned count, missing IDs and error domain/code. It contains no identity, token, receipt or signed transaction.
+- Repeat Retry while loading: only one product request may run. Close and reopen Packages during a request; the loading flag must recover. Purchase/restore/backend verification remain unchanged.
+- StoreKit/simulator UI validation still requires a Mac. These source changes do not repair an Apple-side catalog problem by themselves and do not establish that product loading has been verified on a real device.
 
 ### IOS-IAP-02 USTA satin alma
 

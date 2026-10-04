@@ -30,7 +30,8 @@ struct RegisterView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 26) {
                     header
-                    SocialAuthButtons(isLoading: $isLoading, errorMessage: $errorMessage) { response in
+                    SocialAuthButtons(isLoading: $isLoading, errorMessage: $errorMessage,
+                                      placement: .registration) { response in
                         session.configure(from: response)
                         dismiss()
                     }

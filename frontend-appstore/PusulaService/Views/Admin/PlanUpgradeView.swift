@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Subscription plan comparison and upgrade view with payment integration.
 struct PlanUpgradeView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var storeManager = StoreKitManager.shared
     @StateObject private var session = SessionManager.shared
     @State private var selectedPlan: PlanTier = .usta
@@ -9,6 +10,7 @@ struct PlanUpgradeView: View {
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var planDefinitions: [String: PlanSummaryDTO] = [:]
+    @State private var planLoadFailed = false
     
     var body: some View {
         ScrollView {
@@ -35,23 +37,34 @@ struct PlanUpgradeView: View {
                 .pickerStyle(.segmented)
 
                 if storeManager.isLoadingProducts {
-                    ProgressView("Paketler Yükleniyor...")
-                        .padding(40)
-                } else if storeManager.products.isEmpty {
-                    ContentUnavailableView {
-                        Label("Paketler Yüklenemedi", systemImage: "wifi.exclamationmark")
-                    } description: {
-                        Text("App Store bağlantısını kontrol edip tekrar deneyin.")
-                    } actions: {
-                        Button("Tekrar Dene") {
-                            Task { await storeManager.loadProducts() }
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("App Store fiyatları alınıyor…")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else if let issue = storeManager.productLoadIssue {
+                    productAvailabilityNotice(issue)
+                }
+
+                if planLoadFailed {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Paket içerikleri sunucudan alınamadı.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Button("İçerikleri Tekrar Yükle") {
+                            Task { await loadPlanDefinitions() }
                         }
-                        .buttonStyle(.borderedProminent)
                     }
-                } else {
-                    ForEach(PlanTier.allCases, id: \.self) { plan in
-                        planCard(plan)
-                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .pusulaCard(padding: 14)
+                }
+
+                // Apple product availability must not hide the free plan or the
+                // server's real feature comparison. Never invent fallback prices.
+                ForEach(PlanTier.allCases, id: \.self) { plan in
+                    planCard(plan)
                 }
                 
                 subscriptionDisclosure
@@ -80,20 +93,27 @@ struct PlanUpgradeView: View {
         }
         .background(PusulaTheme.page)
         .navigationTitle("Paketler")
+        .refreshable {
+            guard session.isAdmin else { return }
+            async let products: Void = storeManager.loadProducts()
+            await loadPlanDefinitions()
+            await products
+        }
         .task {
             guard session.isAdmin else {
                 alertMessage = "Paket değişikliklerini yalnızca şirket yöneticisi yapabilir."
                 showAlert = true
                 return
             }
-            await storeManager.loadProducts()
-            do {
-                let definitions = try await AuthService.getPlans()
-                planDefinitions = Dictionary(uniqueKeysWithValues: definitions.map { ($0.name, $0) })
-            } catch {
-                alertMessage = "Paket limitleri sunucudan alınamadı. Lütfen tekrar deneyin."
-                showAlert = true
-            }
+            async let products: Void = storeManager.loadProducts()
+            await loadPlanDefinitions()
+            await products
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, session.isAdmin,
+                  !storeManager.isPurchasing, !storeManager.isRestoring,
+                  storeManager.products.isEmpty || storeManager.productLoadIssue != nil else { return }
+            Task { await storeManager.loadProducts() }
         }
         .onChange(of: storeManager.purchaseError) { _, error in
             if let error = error {
@@ -112,6 +132,52 @@ struct PlanUpgradeView: View {
         } message: {
             Text(alertMessage)
         }
+    }
+
+    private func loadPlanDefinitions() async {
+        planLoadFailed = false
+        do {
+            let definitions = try await AuthService.getPlans()
+            guard !Task.isCancelled else { return }
+            planDefinitions = Dictionary(definitions.map { ($0.name, $0) }, uniquingKeysWith: { _, latest in latest })
+        } catch {
+            guard !Task.isCancelled else { return }
+            planLoadFailed = true
+        }
+    }
+
+    private func productAvailabilityNotice(_ issue: StoreProductLoadIssue) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(issue.title, systemImage: issue.systemImage)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(PusulaTheme.accentStrong)
+            Text(issue.message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button {
+                Task { await storeManager.loadProducts() }
+            } label: {
+                Label("Tekrar Dene", systemImage: "arrow.clockwise")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .disabled(storeManager.isLoadingProducts || storeManager.isPurchasing || storeManager.isRestoring)
+
+            if !storeManager.productDiagnostics.isEmpty {
+                DisclosureGroup("Teknik Bilgi") {
+                    Text(storeManager.productDiagnostics)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                        .padding(.top, 8)
+                }
+                .font(.caption)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .pusulaCard(padding: 16)
+        .accessibilityIdentifier("plans.store_issue")
     }
     
     private func planCard(_ plan: PlanTier) -> some View {
@@ -146,7 +212,7 @@ struct PlanUpgradeView: View {
                 Spacer()
                 VStack(alignment: .trailing) {
                     if plan == .cirak {
-                        Text("Başlangıç")
+                        Text("Ücretsiz")
                             .font(.headline.weight(.bold))
                             .foregroundColor(plan.color)
                     } else {
@@ -156,7 +222,7 @@ struct PlanUpgradeView: View {
                                     .font(.title.weight(.bold))
                                     .foregroundColor(plan.color)
                             } else {
-                                Text("Hazırlanıyor")
+                                Text(storeManager.isLoadingProducts ? "Yükleniyor…" : "Fiyat alınamadı")
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(.secondary)
                             }
@@ -169,6 +235,11 @@ struct PlanUpgradeView: View {
                         Text(offer)
                             .font(.caption)
                             .foregroundStyle(.green)
+                    }
+                    if plan == .cirak {
+                        Text("Süresiz")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -213,7 +284,7 @@ struct PlanUpgradeView: View {
                             ProgressView()
                                 .tint(.white)
                         }
-                        Text(actionTitle(from: currentPlan, to: plan))
+                        Text(isAvailable ? actionTitle(from: currentPlan, to: plan) : "Satın alma şu an kullanılamıyor")
                             .font(.subheadline.weight(.bold))
                     }
                     .frame(maxWidth: .infinity)
@@ -222,9 +293,10 @@ struct PlanUpgradeView: View {
                 .background(plan.color)
                 .foregroundColor(.white)
                 .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
-                .disabled(storeManager.isPurchasing || !session.isAdmin || !isAvailable)
+                .disabled(storeManager.isPurchasing || storeManager.isRestoring || !session.isAdmin || !isAvailable)
             }
         }
+        .accessibilityIdentifier("plans.card.\(plan.rawValue)")
         .padding()
         .background(PusulaTheme.raisedSurface)
         .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))

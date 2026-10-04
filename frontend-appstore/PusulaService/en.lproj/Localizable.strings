@@ -1,0 +1,4 @@
+"auth.social.google_continue" = "Continue with Google";
+"auth.social.separator" = "or";
+"auth.social.email_separator" = "or with email";
+"auth.social.loading" = "Signing in";

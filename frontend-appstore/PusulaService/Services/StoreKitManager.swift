@@ -1,6 +1,7 @@
 import Foundation
 import StoreKit
 import UIKit
+import OSLog
 
 @MainActor
 class StoreKitManager: ObservableObject {
@@ -14,20 +15,23 @@ class StoreKitManager: ObservableObject {
     @Published var purchaseError: String?
     @Published var statusMessage: String?
     @Published var eligibleIntroOffers: [String: String] = [:]
+    @Published private(set) var productLoadIssue: StoreProductLoadIssue?
+    @Published private(set) var productDiagnostics = ""
     
     // Product IDs must match exactly what is configured in App Store Connect
     private let productDict: [PlanTier: [SubscriptionBillingCycle: String]] = [
         .usta: [
-            .monthly: "com.pusula.usta",
-            .yearly: "com.pusula.usta.yearly"
+            .monthly: SubscriptionProductCatalog.ustaMonthly,
+            .yearly: SubscriptionProductCatalog.ustaYearly
         ],
         .patron: [
-            .monthly: "com.pusula.patron",
-            .yearly: "com.pusula.patron.yearly"
+            .monthly: SubscriptionProductCatalog.patronMonthly,
+            .yearly: SubscriptionProductCatalog.patronYearly
         ]
     ]
     
     private var transactionUpdates: Task<Void, Never>?
+    private let logger = Logger(subsystem: "com.pusula.service", category: "StoreKitCatalog")
     
     private init() {
         transactionUpdates = listenForTransactions()
@@ -39,27 +43,63 @@ class StoreKitManager: ObservableObject {
     
     /// Load products from App Store
     func loadProducts() async {
+        guard !isLoadingProducts, !isPurchasing, !isRestoring else { return }
         isLoadingProducts = true
-        purchaseError = nil
-        eligibleIntroOffers = [:]
+        productLoadIssue = nil
+        defer { isLoadingProducts = false }
+        let productIDs = SubscriptionProductCatalog.identifiers.sorted()
+        var responseIDs: [String] = []
+        var errorCode: String?
         do {
-            let productIDs = productDict.values.flatMap { $0.values }
-            let storeProducts = try await Product.products(for: productIDs)
+            let response = try await Product.products(for: productIDs)
+            try Task.checkCancellation()
+            let storeProducts = response.filter {
+                SubscriptionProductCatalog.identifiers.contains($0.id) && $0.type == .autoRenewable
+            }
+            responseIDs = storeProducts.map(\.id).sorted()
             
             // Sort products by price
             self.products = storeProducts.sorted(by: { $0.price < $1.price })
+            switch SubscriptionProductCatalog.availability(returnedIDs: Set(responseIDs)) {
+            case .empty: productLoadIssue = .unavailable
+            case .partial: productLoadIssue = .incomplete
+            case .complete: productLoadIssue = nil
+            }
             await updateIntroductoryOffers(for: storeProducts)
             
             // Check active entitlements
             await updatePurchasedStatus()
         } catch {
-            purchaseError = "App Store paketleri yüklenemedi. Lütfen tekrar deneyin."
+            guard !Task.isCancelled else { return }
+            let storeError = error as NSError
+            errorCode = "\(storeError.domain) (\(storeError.code))"
+            productLoadIssue = storeError.domain == NSURLErrorDomain ? .connection : .requestFailed
+            // Keep previously retrieved Apple products on a transient refresh failure.
         }
-        isLoadingProducts = false
+        guard !Task.isCancelled else { return }
+        let storefront = await Storefront.current
+        let info = Bundle.main.infoDictionary ?? [:]
+        let version = info["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info["CFBundleVersion"] as? String ?? "?"
+        let missing = SubscriptionProductCatalog.identifiers.subtracting(responseIDs).sorted()
+        productDiagnostics = [
+            "Bundle: \(Bundle.main.bundleIdentifier ?? "?")",
+            "Version: \(version) (\(build))",
+            "Storefront: \(storefront?.countryCode ?? "unknown")",
+            "Requested: \(productIDs.count) · Returned: \(responseIDs.count)",
+            "Missing: \(missing.isEmpty ? "none" : missing.joined(separator: ", "))",
+            errorCode.map { "Error: \($0)" }
+        ].compactMap { $0 }.joined(separator: "\n")
+        // No account details, tokens, signed transactions or receipts in diagnostics.
+        if productLoadIssue != nil {
+            let diagnosticSummary = productDiagnostics
+            logger.error("Product catalog unavailable: \(diagnosticSummary, privacy: .public)")
+        }
     }
     
     /// Purchase a specific plan tier
     func purchase(_ plan: PlanTier, billingCycle: SubscriptionBillingCycle) async {
+        guard !isPurchasing, !isRestoring else { return }
         guard let productID = productDict[plan]?[billingCycle],
               let product = products.first(where: { $0.id == productID }) else {
             self.purchaseError = "Paket bulunamadı."
@@ -182,7 +222,7 @@ class StoreKitManager: ObservableObject {
     }
 
     func restorePurchases() async {
-        guard !isRestoring else { return }
+        guard !isRestoring, !isPurchasing else { return }
         isRestoring = true
         purchaseError = nil
         statusMessage = nil
@@ -236,6 +276,42 @@ class StoreKitManager: ObservableObject {
 
     private func plan(for productID: String) -> PlanTier? {
         productDict.first(where: { $0.value.values.contains(productID) })?.key
+    }
+}
+
+enum StoreProductLoadIssue {
+    case unavailable
+    case incomplete
+    case connection
+    case requestFailed
+
+    var title: String {
+        switch self {
+        case .unavailable: return "Satın alma seçenekleri alınamadı"
+        case .incomplete: return "Bazı satın alma seçenekleri alınamadı"
+        case .connection: return "App Store’a bağlanılamadı"
+        case .requestFailed: return "App Store isteği tamamlanamadı"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .unavailable:
+            return "App Store bu uygulama için abonelik ürünü döndürmedi. Paket içeriklerini inceleyebilirsiniz; fiyat ve satın alma seçenekleri Apple’dan geldiğinde etkinleşir."
+        case .incomplete:
+            return "Apple bazı abonelik ürünlerini döndürmedi. Mevcut seçenekleri kullanabilir veya tekrar deneyebilirsiniz."
+        case .connection:
+            return "İnternet bağlantınızı kontrol edip tekrar deneyin. Paket içerikleri aşağıda görünmeye devam eder."
+        case .requestFailed:
+            return "Apple’ın abonelik bilgileri şu anda alınamıyor. Tekrar deneyin; sorun sürerse aşağıdaki teknik bilgiyi destek ekibine iletin."
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .connection: return "wifi.exclamationmark"
+        default: return "info.circle"
+        }
     }
 }
 

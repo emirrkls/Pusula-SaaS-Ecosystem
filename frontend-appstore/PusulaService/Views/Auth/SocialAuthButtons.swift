@@ -1,40 +1,34 @@
 import AuthenticationServices
-import GoogleSignInSwift
 import SwiftUI
 
 /// Shared by sign-in and registration; both providers use the same existing account.
 struct SocialAuthButtons: View {
-    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var manager = SocialAuthManager()
     @State private var pendingResponse: AuthResponse?
     @State private var showPasswordSetup = false
     @Binding var isLoading: Bool
     @Binding var errorMessage: String?
+    var placement: SocialAuthPlacement = .signIn
     var onSuccess: (AuthResponse) -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                Rectangle().frame(height: 1)
-                Text("veya").font(.caption)
-                Rectangle().frame(height: 1)
+        VStack(spacing: 18) {
+            if placement == .signIn {
+                separator
             }
-            .foregroundStyle(.secondary.opacity(0.5))
 
-            GoogleSignInButton(scheme: colorScheme == .dark ? .dark : .light, style: .wide,
-                               state: isLoading ? .disabled : .normal) {
-                signIn(apple: false)
+            SocialAuthProviderControls(
+                isLoading: isLoading,
+                googleAction: { signIn(apple: false) },
+                appleAction: { signIn(apple: true) }
+            )
+
+            if isLoading {
+                ProgressView().accessibilityLabel(Text("auth.social.loading"))
             }
-            .frame(maxWidth: .infinity, minHeight: 48)
-            .accessibilityIdentifier("auth.google")
-
-            NativeAppleSignInButton(darkMode: colorScheme == .dark, isEnabled: !isLoading) {
-                signIn(apple: true)
+            if placement == .registration {
+                separator
             }
-            .frame(height: 48)
-            .accessibilityIdentifier("auth.apple")
-
-            if isLoading { ProgressView().accessibilityLabel("Giriş yapılıyor") }
         }
         .disabled(isLoading)
         .sheet(isPresented: $showPasswordSetup) {
@@ -49,6 +43,19 @@ struct SocialAuthButtons: View {
                 Task { await AuthService.logout(expectedToken: previousToken) }
             })
             .interactiveDismissDisabled()
+        }
+    }
+
+    private var separator: some View {
+        HStack(spacing: 14) {
+            Rectangle().fill(PusulaTheme.border).frame(height: 1)
+            Text(placement == .registration
+                 ? LocalizedStringKey("auth.social.email_separator")
+                 : LocalizedStringKey("auth.social.separator"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize()
+            Rectangle().fill(PusulaTheme.border).frame(height: 1)
         }
     }
 
@@ -75,26 +82,122 @@ struct SocialAuthButtons: View {
     }
 }
 
+enum SocialAuthPlacement: Equatable {
+    case signIn
+    case registration
+}
+
+/// Equal prominence, shared geometry and official provider artwork.
+/// Authentication still goes through SocialAuthManager; this is presentation only.
+private struct SocialAuthProviderControls: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @ScaledMetric(relativeTo: .body) private var controlHeight = PusulaTheme.controlHeight
+    let isLoading: Bool
+    let googleAction: () -> Void
+    let appleAction: () -> Void
+
+    private let cornerRadius = PusulaTheme.radius
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Button(action: googleAction) {
+                HStack(spacing: 12) {
+                    Image("GoogleSignInLogo")
+                        .renderingMode(.original)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
+                        .accessibilityHidden(true)
+                    Text("auth.social.google_continue")
+                        .font(.custom("GoogleSans-TextMedium", size: 16, relativeTo: .body))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
+                }
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity, minHeight: controlHeight)
+                .foregroundStyle(Color(red: 31 / 255, green: 31 / 255, blue: 31 / 255))
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(Color(red: 116 / 255, green: 119 / 255, blue: 117 / 255), lineWidth: 1)
+                }
+                .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            }
+            .buttonStyle(SocialAuthPressStyle())
+            .accessibilityIdentifier("auth.google")
+
+            NativeAppleSignInButton(darkMode: colorScheme == .dark,
+                                    isEnabled: !isLoading,
+                                    cornerRadius: cornerRadius,
+                                    action: appleAction)
+                .id(colorScheme)
+                .frame(maxWidth: .infinity)
+                .frame(height: controlHeight)
+                .accessibilityIdentifier("auth.apple")
+        }
+        .disabled(isLoading)
+        .opacity(isLoading ? 0.65 : 1)
+    }
+}
+
+private struct SocialAuthPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
 /// Apple's official button, with asynchronous server challenge before showing its authorization sheet.
 private struct NativeAppleSignInButton: UIViewRepresentable {
     let darkMode: Bool
     let isEnabled: Bool
+    let cornerRadius: CGFloat
     let action: () -> Void
 
-    func makeUIView(context: Context) -> UIView { UIView() }
-    func updateUIView(_ view: UIView, context: Context) {
-        view.subviews.forEach { $0.removeFromSuperview() }
+    func makeCoordinator() -> Coordinator { Coordinator(action: action) }
+
+    func makeUIView(context: Context) -> ASAuthorizationAppleIDButton {
         let button = ASAuthorizationAppleIDButton(type: .continue, style: darkMode ? .white : .black)
-        button.cornerRadius = 10
-        button.isEnabled = isEnabled
-        button.addAction(UIAction { _ in action() }, for: .touchUpInside)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(button)
-        NSLayoutConstraint.activate([
-            button.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            button.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            button.topAnchor.constraint(equalTo: view.topAnchor),
-            button.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ])
+        button.cornerRadius = cornerRadius
+        button.accessibilityIdentifier = "auth.apple"
+        button.addTarget(context.coordinator, action: #selector(Coordinator.performAction), for: .touchUpInside)
+        return button
     }
+
+    func updateUIView(_ button: ASAuthorizationAppleIDButton, context: Context) {
+        button.isEnabled = isEnabled
+        button.cornerRadius = cornerRadius
+        context.coordinator.action = action
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: ASAuthorizationAppleIDButton,
+                      context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? uiView.intrinsicContentSize.width,
+               height: proposal.height ?? PusulaTheme.controlHeight)
+    }
+
+    final class Coordinator: NSObject {
+        var action: () -> Void
+        init(action: @escaping () -> Void) { self.action = action }
+        @objc func performAction() { action() }
+    }
+}
+
+#Preview("Sosyal giriş · Koyu") {
+    SocialAuthProviderControls(isLoading: false, googleAction: {}, appleAction: {})
+        .padding(20)
+        .background(PusulaTheme.page)
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Sosyal giriş · Açık") {
+    SocialAuthProviderControls(isLoading: false, googleAction: {}, appleAction: {})
+        .padding(20)
+        .background(PusulaTheme.page)
+        .preferredColorScheme(.light)
 }
