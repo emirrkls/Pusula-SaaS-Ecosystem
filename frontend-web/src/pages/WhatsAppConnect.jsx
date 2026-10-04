@@ -1,33 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { initialOnboardingState } from '../lib/whatsappOnboarding';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.pusulaiklimlendirme.com';
 const META_GRAPH_VERSION = 'v26.0';
-const META_ID_PATTERN = /^[0-9]{5,32}$/;
-const STATE_PATTERN = /^[A-Za-z0-9_-]{40,80}$/;
-
-function parseOnboardingContext() {
-    const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-    const state = params.get('state') || '';
-    const appId = params.get('app_id') || '';
-    const configurationId = params.get('configuration_id') || '';
-    const expiresAt = params.get('expires_at') || '';
-    const expiresAtMs = Date.parse(expiresAt);
-
-    if (!STATE_PATTERN.test(state)) {
-        throw new Error('Bağlantı geçersiz. Pusula Ayarlar ekranından yeni bir bağlantı oluşturun.');
-    }
-    if (!META_ID_PATTERN.test(appId) || !META_ID_PATTERN.test(configurationId)) {
-        throw new Error('Meta bağlantı ayarları eksik. Pusula Ayarlar ekranından bağlantıyı yeniden başlatın.');
-    }
-    if (!Number.isFinite(expiresAtMs)) {
-        throw new Error('Bağlantı süresi doğrulanamadı. Pusula Ayarlar ekranından yeni bir bağlantı oluşturun.');
-    }
-    if (expiresAtMs <= Date.now()) {
-        throw new Error('Bu bağlantının süresi dolmuş. Pusula Ayarlar ekranından yeni bir bağlantı oluşturun.');
-    }
-
-    return { state, appId, configurationId, expiresAtMs };
-}
 
 function completionError(response, payload) {
     const serverMessage = payload.message || payload.error;
@@ -44,11 +19,15 @@ function completionError(response, payload) {
 }
 
 function WhatsAppConnect() {
-    const [stateToken, setStateToken] = useState('');
-    const [metaConfig, setMetaConfig] = useState(null);
+    const [onboarding] = useState(() => initialOnboardingState(
+        typeof window === 'undefined' ? '' : window.location.hash,
+        Date.now(),
+    ));
+    const metaConfig = onboarding.context;
+    const stateToken = metaConfig?.state || '';
     const [sdkReady, setSdkReady] = useState(false);
-    const [phase, setPhase] = useState('loading');
-    const [message, setMessage] = useState('Güvenli bağlantı hazırlanıyor…');
+    const [phase, setPhase] = useState(onboarding.phase);
+    const [message, setMessage] = useState(onboarding.message);
     const authCode = useRef('');
     const accountData = useRef(null);
     const completing = useRef(false);
@@ -83,17 +62,8 @@ function WhatsAppConnect() {
     }, [stateToken]);
 
     useEffect(() => {
-        let context;
-        try {
-            context = parseOnboardingContext();
-        } catch (error) {
-            setPhase(/süresi dolmuş/i.test(error.message) ? 'expired' : 'error');
-            setMessage(error.message);
-            return undefined;
-        }
-
-        setStateToken(context.state);
-        setMetaConfig(context);
+        const context = metaConfig;
+        if (!context) return undefined;
 
         const expiresInMs = context.expiresAtMs - Date.now();
         const expiryTimer = window.setTimeout(() => {
@@ -159,9 +129,7 @@ function WhatsAppConnect() {
             window.clearTimeout(expiryTimer);
             window.removeEventListener('message', messageListener);
         };
-    }, [complete]);
-
-    useEffect(() => { complete(); }, [complete]);
+    }, [complete, metaConfig]);
 
     const launch = () => {
         if (!sdkReady || !window.FB || !stateToken || !metaConfig) return;

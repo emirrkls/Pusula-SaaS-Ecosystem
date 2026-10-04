@@ -122,13 +122,27 @@ export const REFERENCE_CLIENTS = [
         source: 'https://www.instagram.com/dfitdidim/',
         verificationNote: 'The official Didim profile is named D’Fit Fitness & Fight Club.',
     },
+    {
+        id: 'gigis-coffee-didim',
+        name: 'Gigi’s Coffee Didim',
+        logo: `${logoRoot}/gigis-coffee-didim.jpg`,
+        source: 'https://www.instagram.com/gigis.coffees/',
+        verificationNote: 'The official profile is named The Gigi’s Coffee & More and links to its Didim website.',
+    },
+    {
+        id: 'kartal-ceyiz-evi',
+        name: 'Kartal Çeyiz Evi',
+        logo: `${logoRoot}/kartal-ceyiz-evi.jpg`,
+        source: 'https://www.instagram.com/karacadidim/',
+        verificationNote: 'The Didim store uses the Karaca Didim Bayi logo on its official profile.',
+    },
 ];
 
 // Keep each orbit spacious. Any future additions beyond the showcase are still
 // available in the full list/mobile layout, without packing extra logos into it.
-export const REFERENCE_ORBIT_CAPACITY = 19;
+export const REFERENCE_ORBIT_CAPACITY = 21;
 
 export const REFERENCE_ORBITS = [
-    { id: 'outer', references: REFERENCE_CLIENTS.slice(0, 11), offset: -90 },
-    { id: 'inner', references: REFERENCE_CLIENTS.slice(11, REFERENCE_ORBIT_CAPACITY), offset: -60 },
+    { id: 'outer', references: REFERENCE_CLIENTS.slice(0, 13), offset: -90 },
+    { id: 'inner', references: REFERENCE_CLIENTS.slice(13, REFERENCE_ORBIT_CAPACITY), offset: -60 },
 ];

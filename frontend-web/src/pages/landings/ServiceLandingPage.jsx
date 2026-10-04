@@ -91,7 +91,7 @@ const ServiceLandingPage = ({ pageKey }) => {
             {/* Intro */}
             <div className="container mx-auto px-4 py-16 max-w-4xl">
                 {page.answerBox && (
-                    <div className="mb-8 rounded-xl border-l-4 border-brand-cyan bg-white p-6 shadow-sm">
+                    <div className="mb-8 rounded-xl border-l-4 border-brand-cyan bg-white p-6 shadow-xs">
                         <p className="text-lg font-semibold leading-relaxed text-brand-dark">
                             {page.answerBox}
                         </p>

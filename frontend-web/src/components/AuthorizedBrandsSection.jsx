@@ -1,6 +1,7 @@
 import React from 'react';
 import { Award } from 'lucide-react';
 import { AUTHORIZED_BRANDS, AUTHORIZED_BRANDS_SUMMARY, OTHER_BRANDS_SERVICE_NOTE } from '../data/authorizedBrands';
+import { BusinessPartnersSection } from './BusinessPartnersSection';
 
 export function AuthorizedBrandsSection({ variant = 'light' }) {
     const isDark = variant === 'dark';
@@ -29,7 +30,7 @@ export function AuthorizedBrandsSection({ variant = 'light' }) {
                             className={`rounded-xl border p-5 ${
                                 isDark
                                     ? 'border-white/10 bg-white/5'
-                                    : 'border-gray-200 bg-white shadow-sm'
+                                    : 'border-gray-200 bg-white shadow-xs'
                             }`}
                         >
                             <p className={`text-xs font-semibold uppercase tracking-wide mb-3 ${isDark ? 'text-brand-cyan' : 'text-brand-cyan'}`}>
@@ -77,6 +78,7 @@ export function AuthorizedBrandsSection({ variant = 'light' }) {
                 }`}>
                     {OTHER_BRANDS_SERVICE_NOTE}
                 </p>
+                <BusinessPartnersSection variant={variant} />
             </div>
         </section>
     );

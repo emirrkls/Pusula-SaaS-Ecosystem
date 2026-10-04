@@ -431,12 +431,12 @@ const Contact = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-4">
-                                    <div className="bg-brand-cyan/10 p-3 rounded-full">
+                                    <div className="shrink-0 bg-brand-cyan/10 p-3 rounded-full">
                                         <Mail className="w-6 h-6 text-brand-cyan" />
                                     </div>
-                                    <div>
+                                    <div className="min-w-0 flex-1">
                                         <h3 className="font-semibold text-gray-900">{i18n.email}</h3>
-                                        <a href="mailto:pusulaiklimlendirme.didim@gmail.com" className="text-gray-600 hover:text-brand-cyan transition-colors">{i18n.emailValue}</a>
+                                        <a href="mailto:pusulaiklimlendirme.didim@gmail.com" className="text-gray-600 hover:text-brand-cyan transition-colors [overflow-wrap:anywhere]">{i18n.emailValue}</a>
                                     </div>
                                 </div>
                             </div>
@@ -456,7 +456,7 @@ const Contact = () => {
                                 className="absolute inset-0"
                             ></iframe>
                             {/* Map overlay on hover */}
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-brand-dark/80 to-transparent p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                            <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-brand-dark/80 to-transparent p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
                                 <div className="flex items-center gap-2 text-white text-sm">
                                     <MapPin className="w-4 h-4 text-brand-cyan" />
                                     <span>{i18n.mapLabel}</span>
@@ -487,7 +487,7 @@ const Contact = () => {
                                         disabled={isSubmitting}
                                         className={`w-full px-4 py-3 rounded-lg border ${
                                             fieldErrors.name ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-300'
-                                        } focus:ring-2 focus:ring-brand-cyan focus:border-transparent outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed`}
+                                        } focus:ring-2 focus:ring-brand-cyan focus:border-transparent outline-hidden transition-all disabled:opacity-60 disabled:cursor-not-allowed`}
                                         placeholder={i18n.placeholderName}
                                     />
                                     {fieldErrors.name && (
@@ -512,7 +512,7 @@ const Contact = () => {
                                         disabled={isSubmitting}
                                         className={`w-full px-4 py-3 rounded-lg border ${
                                             fieldErrors.phone ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-300'
-                                        } focus:ring-2 focus:ring-brand-cyan focus:border-transparent outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed`}
+                                        } focus:ring-2 focus:ring-brand-cyan focus:border-transparent outline-hidden transition-all disabled:opacity-60 disabled:cursor-not-allowed`}
                                         placeholder={i18n.placeholderPhone}
                                     />
                                     {fieldErrors.phone && (
@@ -532,7 +532,7 @@ const Contact = () => {
                                     value={formData.deviceType}
                                     onChange={handleChange}
                                     disabled={isSubmitting}
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-cyan focus:border-transparent outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-cyan focus:border-transparent outline-hidden transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     {Object.entries(i18n.deviceOptions).map(([value, label]) => (
                                         <option key={value} value={value}>{label}</option>
@@ -555,7 +555,7 @@ const Contact = () => {
                                     rows="3"
                                     className={`w-full px-4 py-3 rounded-lg border ${
                                         fieldErrors.address ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-300'
-                                    } focus:ring-2 focus:ring-brand-cyan focus:border-transparent outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed`}
+                                    } focus:ring-2 focus:ring-brand-cyan focus:border-transparent outline-hidden transition-all disabled:opacity-60 disabled:cursor-not-allowed`}
                                     placeholder={i18n.placeholderAddress}
                                 ></textarea>
                                 {fieldErrors.address && (
@@ -575,7 +575,7 @@ const Contact = () => {
                                     onChange={handleChange}
                                     disabled={isSubmitting}
                                     rows="2"
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-cyan focus:border-transparent outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-cyan focus:border-transparent outline-hidden transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                                     placeholder={i18n.placeholderNote}
                                 ></textarea>
                             </div>

@@ -159,7 +159,7 @@ const Home = () => {
                                     alt={service.title}
                                     className="w-full h-[120%] object-cover object-top absolute top-0 left-0 group-hover:scale-110 transition-transform duration-500"
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/90 via-brand-dark/20 to-transparent flex flex-col justify-end p-6">
+                                <div className="absolute inset-0 bg-linear-to-t from-brand-dark/90 via-brand-dark/20 to-transparent flex flex-col justify-end p-6">
                                     <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>
                                     <p className="text-gray-300 text-sm mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-4 group-hover:translate-y-0">
                                         {service.desc}

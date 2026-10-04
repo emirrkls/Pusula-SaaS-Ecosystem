@@ -27,10 +27,19 @@ This runs the Vite client build, an SSR build, then `scripts/prerender.mjs` to p
 
 ```bash
 npm run lint
+npm audit --audit-level=high
 npm run build
+node --test scripts/*.test.mjs
 ```
 
-Both commands run in CI for pushes to `main` and pull requests.
+These checks run in CI for pushes to `main` and pull requests.
+
+Tailwind 4 uses `@tailwindcss/postcss`; imports and vendor prefixing are handled
+by that plugin rather than a separate Autoprefixer step. The existing brand
+configuration is explicitly loaded by `@config` in `src/index.css`, and source
+scanning is limited to `src/` and `index.html`. Small-shadow, gradient and form
+outline utilities retain their pre-migration appearance. Browser baseline:
+Safari 16.4+, Chrome 111+, Firefox 128+.
 
 ## References page
 
@@ -43,7 +52,7 @@ website/profile used to verify each logo. Logos are downloaded locally under
   hover pause and a full-list alternative.
 - Below 1200px: a readable, static grid. Reduced-motion preferences disable the
   desktop animation as well.
-- The orbit showcases up to 19 references (11 outer / 8 inner); future additions remain visible in the
+- The orbit showcases up to 21 references (13 outer / 8 inner); future additions remain visible in the
   full list/mobile grid. Adjust the geometry deliberately rather than crowding it.
 - Unconfirmed logos use a neutral building icon, not a fabricated brand mark.
   **Subaşı İnşaat**, **Can Serhat Yapı** and **CS Can Yapı** still need the owner's
@@ -54,8 +63,9 @@ website/profile used to verify each logo. Logos are downloaded locally under
   **Pilot Garage Didim** and **D’Fit Didim** (D’Fit Fitness & Fight Club).
   Sapphire's official profile uses **Safir Mimarlık**,
   while its logo reads **SAPPHIRE**; the owner-supplied display name is retained.
-- The current list contains 19 businesses, including **Özsoy Yapı Mühendislik**,
-  **CS Can Yapı**, **Pilot Garage Didim**, **Emin Oto**, **EG Garaj** and **D’Fit Didim**.
+- The current list contains 21 businesses, including **Özsoy Yapı Mühendislik**,
+  **CS Can Yapı**, **Pilot Garage Didim**, **Emin Oto**, **EG Garaj**, **D’Fit Didim**,
+  **Gigi’s Coffee Didim** and **Kartal Çeyiz Evi** (Karaca Didim Bayi).
   Has Karaarslan was removed at the owner's request.
 - Social-profile logo files are the publicly available originals (150px); replace
   them with owner-provided SVG/high-resolution artwork when available.
@@ -70,6 +80,15 @@ Run the reference data/asset regression checks with:
 npm run build
 node --test scripts/references.test.mjs scripts/references-build.test.mjs
 ```
+
+## Business partners
+
+`BUSINESS_PARTNERS` in `src/data/authorizedBrands.js` lists **Midea VRF**, **Daikin
+VRV / VRF**, **Quatech Klima** and **Termodinamik Isıtma Sistemleri**. Original
+logos are stored under `public/assets/img/brands/` with official-source links in
+the data. `BusinessPartnersSection` displays them wherever the existing authorized
+brand section is used. Partner cards are separate from authorized dealer/service
+cards and do not imply an unverified brand authorization.
 
 ## WhatsApp Embedded Signup
 

@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -38,11 +39,12 @@ public class CompanyDebtService {
     private final ExpenseRepository expenseRepository;
     private final AuditLogService auditLogService;
     private final FinanceService financeService;
-    private final ZoneId businessZone;
+    private final Clock businessClock;
 
     @Autowired(required = false)
     private AccountPartyService accountPartyService;
 
+    @Autowired
     public CompanyDebtService(CompanyDebtRepository debtRepository,
             CompanyDebtPaymentRepository paymentRepository,
             CompanyDebtAdditionRepository additionRepository,
@@ -50,13 +52,24 @@ public class CompanyDebtService {
             AuditLogService auditLogService,
             FinanceService financeService,
             @Value("${app.business.timezone:Europe/Istanbul}") String businessTimezone) {
+        this(debtRepository, paymentRepository, additionRepository, expenseRepository,
+                auditLogService, financeService, businessTimezone, Clock.systemUTC());
+    }
+
+    CompanyDebtService(CompanyDebtRepository debtRepository,
+            CompanyDebtPaymentRepository paymentRepository,
+            CompanyDebtAdditionRepository additionRepository,
+            ExpenseRepository expenseRepository,
+            AuditLogService auditLogService,
+            FinanceService financeService,
+            String businessTimezone, Clock clock) {
         this.debtRepository = debtRepository;
         this.paymentRepository = paymentRepository;
         this.additionRepository = additionRepository;
         this.expenseRepository = expenseRepository;
         this.auditLogService = auditLogService;
         this.financeService = financeService;
-        this.businessZone = ZoneId.of(businessTimezone);
+        this.businessClock = clock.withZone(ZoneId.of(businessTimezone));
     }
 
     public List<CompanyDebtDTO> getAllDebts(Long companyId) {
@@ -121,9 +134,9 @@ public class CompanyDebtService {
     public PayablePartySummaryDTO payParty(Long companyId, Long partyId, DebtPaymentRequestDTO request) {
         BigDecimal requestedAmount = request != null ? request.getAmount() : null;
         LocalDate paymentDate = request != null && request.getPaymentDate() != null
-                ? request.getPaymentDate() : LocalDate.now(businessZone);
+                ? request.getPaymentDate() : LocalDate.now(businessClock);
         validatePositive(requestedAmount, "Ödeme tutarı");
-        if (paymentDate.isAfter(LocalDate.now(businessZone))) {
+        if (paymentDate.isAfter(LocalDate.now(businessClock))) {
             throw new IllegalArgumentException("Ödeme tarihi gelecekte olamaz!");
         }
         List<CompanyDebt> partyDebts = debtRepository
@@ -206,14 +219,14 @@ public class CompanyDebtService {
                 .originalAmount(dto.getOriginalAmount())
                 .remainingAmount(dto.getOriginalAmount())
                 .expenseCategory(parseExpenseCategory(dto.getExpenseCategory()))
-                .debtDate(dto.getDebtDate() != null ? dto.getDebtDate() : LocalDate.now(businessZone))
+                .debtDate(dto.getDebtDate() != null ? dto.getDebtDate() : LocalDate.now(businessClock))
                 .dueDate(dto.getDueDate())
                 .creditorPhone(dto.getCreditorPhone())
                 .status(CompanyDebt.DebtStatus.UNPAID)
                 .notes(dto.getNotes())
                 .build();
 
-        if (debt.getDebtDate().isAfter(LocalDate.now(businessZone))) {
+        if (debt.getDebtDate().isAfter(LocalDate.now(businessClock))) {
             throw new IllegalArgumentException("Borç tarihi gelecekte olamaz.");
         }
 
@@ -245,9 +258,10 @@ public class CompanyDebtService {
     public CompanyDebtDTO payDebt(Long id, Long companyId, DebtPaymentRequestDTO request) {
         CompanyDebt debt = findDebt(id, companyId);
         BigDecimal paymentAmount = request != null ? request.getAmount() : null;
+        LocalDate businessToday = LocalDate.now(businessClock);
         LocalDate paymentDate = request != null && request.getPaymentDate() != null
                 ? request.getPaymentDate()
-                : LocalDate.now(businessZone);
+                : businessToday;
 
         validatePositive(paymentAmount, "Ödeme tutarı");
         if (paymentAmount.compareTo(debt.getRemainingAmount()) > 0) {
@@ -256,7 +270,7 @@ public class CompanyDebtService {
         if (paymentDate.isBefore(debt.getDebtDate())) {
             throw new IllegalArgumentException("Ödeme tarihi borç tarihinden önce olamaz!");
         }
-        if (paymentDate.isAfter(LocalDate.now(businessZone))) {
+        if (paymentDate.isAfter(businessToday)) {
             throw new IllegalArgumentException("Ödeme tarihi gelecekte olamaz!");
         }
 
@@ -335,13 +349,13 @@ public class CompanyDebtService {
         BigDecimal amountToAdd = request != null ? request.getAmount() : null;
         LocalDate additionDate = request != null && request.getAdditionDate() != null
                 ? request.getAdditionDate()
-                : LocalDate.now(businessZone);
+                : LocalDate.now(businessClock);
         String notes = request != null ? request.getNotes() : null;
         validatePositive(amountToAdd, "Eklenecek tutar");
         if (additionDate.isBefore(debt.getDebtDate())) {
             throw new IllegalArgumentException("İlave tarihi borç tarihinden önce olamaz.");
         }
-        if (additionDate.isAfter(LocalDate.now(businessZone))) {
+        if (additionDate.isAfter(LocalDate.now(businessClock))) {
             throw new IllegalArgumentException("İlave tarihi gelecekte olamaz.");
         }
 

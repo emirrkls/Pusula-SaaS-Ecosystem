@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { REFERENCE_CLIENTS } from '../src/data/references.js';
+import { BUSINESS_PARTNERS } from '../src/data/authorizedBrands.js';
 
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(webRoot, 'dist/referanslarimiz/index.html'), 'utf8');
@@ -25,7 +26,7 @@ test('production metadata uses the canonical references URL', () => {
 });
 
 test('production assets are identical to the locally verified originals', () => {
-    for (const { logo } of REFERENCE_CLIENTS.filter(({ logo }) => logo)) {
+    for (const { logo } of [...REFERENCE_CLIENTS.filter(({ logo }) => logo), ...BUSINESS_PARTNERS]) {
         assert.deepEqual(
             fs.readFileSync(path.join(webRoot, 'dist', logo)),
             fs.readFileSync(path.join(webRoot, 'public', logo)),
@@ -33,6 +34,15 @@ test('production assets are identical to the locally verified originals', () => 
         );
     }
     assert.equal(fs.existsSync(path.join(webRoot, 'dist/assets/img/references/has-karaarslan-insaat.png')), false);
+});
+
+test('business partner cards are prerendered on the home page separately from authorized brands', () => {
+    const home = fs.readFileSync(path.join(webRoot, 'dist/index.html'), 'utf8');
+    assert.ok(home.includes('İş ortaklarımız'));
+    for (const { id, name } of BUSINESS_PARTNERS) {
+        assert.ok(home.includes(`data-partner-id="${id}"`), id);
+        assert.ok(home.includes(escapeHtml(name)), name);
+    }
 });
 
 test('motion styles counter-rotate captions and respect reduced motion', () => {

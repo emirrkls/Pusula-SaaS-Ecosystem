@@ -52,6 +52,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -82,6 +83,7 @@ public class ServiceTicketService {
 
     private static final Logger log = LoggerFactory.getLogger(ServiceTicketService.class);
     private final ZoneId businessZone;
+    private final Clock businessClock;
     private final ZoneId serverZone = ZoneId.systemDefault();
 
     private final ServiceTicketRepository repository;
@@ -112,6 +114,7 @@ public class ServiceTicketService {
     @Autowired(required = false)
     private AccountPartyRepository accountPartyRepository;
 
+    @Autowired
     public ServiceTicketService(ServiceTicketRepository repository,
             ServiceTicketRescheduleRepository rescheduleRepository,
             CustomerRepository customerRepository,
@@ -130,6 +133,31 @@ public class ServiceTicketService {
             CurrentAccountLedgerService currentAccountLedgerService,
             AdminNotificationService adminNotificationService,
             @Value("${app.business.timezone:Europe/Istanbul}") String businessTimezone) {
+        this(repository, rescheduleRepository, customerRepository, userRepository, inventoryRepository,
+                serviceUsedPartRepository, auditLogService, currentAccountRepository, vehicleStockRepository,
+                whatsAppNotificationService, featureService, servicePhotoRepository, fileUploadService,
+                eventPublisher, financeService, uploadUrlSigner, currentAccountLedgerService,
+                adminNotificationService, businessTimezone, Clock.systemUTC());
+    }
+
+    ServiceTicketService(ServiceTicketRepository repository,
+            ServiceTicketRescheduleRepository rescheduleRepository,
+            CustomerRepository customerRepository,
+            UserRepository userRepository,
+            InventoryRepository inventoryRepository,
+            ServiceUsedPartRepository serviceUsedPartRepository,
+            AuditLogService auditLogService,
+            CurrentAccountRepository currentAccountRepository,
+            VehicleStockRepository vehicleStockRepository,
+            WhatsAppNotificationService whatsAppNotificationService,
+            FeatureService featureService,
+            ServicePhotoRepository servicePhotoRepository,
+            FileUploadService fileUploadService,
+            ApplicationEventPublisher eventPublisher,
+            FinanceService financeService, UploadUrlSigner uploadUrlSigner,
+            CurrentAccountLedgerService currentAccountLedgerService,
+            AdminNotificationService adminNotificationService,
+            String businessTimezone, Clock clock) {
         this.repository = repository;
         this.rescheduleRepository = rescheduleRepository;
         this.customerRepository = customerRepository;
@@ -149,6 +177,7 @@ public class ServiceTicketService {
         this.currentAccountLedgerService = currentAccountLedgerService;
         this.adminNotificationService = adminNotificationService;
         this.businessZone = ZoneId.of(businessTimezone);
+        this.businessClock = clock.withZone(businessZone);
     }
 
     private User getCurrentUser() {
@@ -1264,7 +1293,9 @@ public class ServiceTicketService {
                         ? ServiceTicket.BillingResponsibility.ORGANIZATION
                         : ServiceTicket.BillingResponsibility.SPLIT);
 
-        LocalDate businessToday = LocalDate.now(businessZone);
+        // Capture once so a midnight rollover cannot split the date and time.
+        LocalDateTime businessNow = LocalDateTime.now(businessClock);
+        LocalDate businessToday = businessNow.toLocalDate();
         if (requestedCompletionDate != null && !isAdmin(currentUser)) {
             throw new AccessDeniedException("Geçmiş kapanış tarihi yalnızca yöneticiler tarafından seçilebilir.");
         }
@@ -1273,7 +1304,7 @@ public class ServiceTicketService {
             throw new IllegalArgumentException("Servis kapanış tarihi gelecekte olamaz.");
         }
         LocalTime completionTime = completionDate.equals(businessToday)
-                ? LocalTime.now(businessZone)
+                ? businessNow.toLocalTime()
                 : LocalTime.NOON;
 
         String previousStatus = getStatusInTurkish(ticket.getStatus());
@@ -1330,7 +1361,7 @@ public class ServiceTicketService {
         if (!completionDate.equals(businessToday)) {
             auditLogService.log("BACKDATED_COMPLETE", "TICKET", saved.getId(),
                     "Servis geçmiş iş tarihiyle kapatıldı: " + completionDate
-                            + " | Gerçek işlem zamanı: " + LocalDateTime.now(businessZone));
+                            + " | Gerçek işlem zamanı: " + businessNow);
         }
 
         auditLogService.log(

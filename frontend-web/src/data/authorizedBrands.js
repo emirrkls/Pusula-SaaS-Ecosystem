@@ -37,6 +37,39 @@ export const AUTHORIZED_BRANDS = [
     },
 ];
 
+// Owner-supplied business relationships. Logo sources verify the brand, not an
+// authorization to call Pusula an authorized dealer/service for these brands.
+export const BUSINESS_PARTNERS = [
+    {
+        id: 'midea-vrf',
+        name: 'Midea VRF Grubu',
+        logo: `${AUTHORIZED_BRAND_LOGOS}/midea.webp`,
+        category: 'VRF sistemleri',
+        source: 'https://www.midea.com/global',
+    },
+    {
+        id: 'daikin-vrf',
+        name: 'Daikin VRV / VRF Grubu',
+        logo: `${AUTHORIZED_BRAND_LOGOS}/daikin.svg`,
+        category: 'VRV / VRF sistemleri',
+        source: 'https://www.daikin.com.tr/vrv-sistem-klimalar',
+    },
+    {
+        id: 'quatech',
+        name: 'Quatech Klima',
+        logo: `${AUTHORIZED_BRAND_LOGOS}/quatech.png`,
+        category: 'Klima sistemleri',
+        source: 'https://quatech.com.tr/',
+    },
+    {
+        id: 'termodinamik',
+        name: 'Termodinamik Isıtma Sistemleri',
+        logo: `${AUTHORIZED_BRAND_LOGOS}/termodinamik.svg`,
+        category: 'Isıtma sistemleri',
+        source: 'https://tdheating.com.tr/',
+    },
+];
+
 export const SOLAR_ENERGY_BRANDS = {
     panels: ['Solimpeks Grubu', 'Panasonic Grubu'],
     inverters: ['Kopp Grubu'],

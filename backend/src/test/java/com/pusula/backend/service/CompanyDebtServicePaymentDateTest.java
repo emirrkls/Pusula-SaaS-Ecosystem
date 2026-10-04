@@ -16,12 +16,17 @@ import com.pusula.backend.repository.ExpenseRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -33,6 +38,8 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CompanyDebtServicePaymentDateTest {
+    private static final Clock FIXED_CLOCK = Clock.fixed(Instant.parse("2026-10-03T23:35:30Z"), ZoneOffset.UTC);
+    private static final LocalDate BUSINESS_TODAY = LocalDate.of(2026, 10, 4);
 
     @Mock CompanyDebtRepository debtRepository;
     @Mock CompanyDebtPaymentRepository paymentRepository;
@@ -46,7 +53,7 @@ class CompanyDebtServicePaymentDateTest {
     @BeforeEach
     void setUp() {
         service = new CompanyDebtService(debtRepository, paymentRepository, additionRepository, expenseRepository,
-                auditLogService, financeService, "Europe/Istanbul");
+                auditLogService, financeService, "Europe/Istanbul", FIXED_CLOCK);
     }
 
     @Test
@@ -119,10 +126,38 @@ class CompanyDebtServicePaymentDateTest {
         assertThrows(IllegalArgumentException.class, () -> service.payDebt(20L, 7L,
                 DebtPaymentRequestDTO.builder()
                         .amount(new BigDecimal("1000.00"))
-                        .paymentDate(LocalDate.now().plusDays(1))
+                        .paymentDate(BUSINESS_TODAY.plusDays(1))
                         .build()));
 
         verify(expenseRepository, never()).save(any());
+        verify(paymentRepository, never()).save(any());
+        verify(debtRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "2026-10-03T20:59:59Z, 2026-10-03",
+            "2026-10-03T21:00:00Z, 2026-10-04",
+            "2026-10-03T23:35:30Z, 2026-10-04",
+            "2026-10-04T00:00:00Z, 2026-10-04"
+    })
+    void omittedPaymentDateUsesBusinessDayAcrossMidnight(String instant, LocalDate expectedDate) {
+        service = new CompanyDebtService(debtRepository, paymentRepository, additionRepository, expenseRepository,
+                auditLogService, financeService, "Europe/Istanbul", Clock.fixed(Instant.parse(instant), ZoneOffset.UTC));
+        CompanyDebt debt = debt(new BigDecimal("100000.00"));
+        when(debtRepository.findByIdAndCompanyIdAndDeletedFalse(20L, 7L)).thenReturn(Optional.of(debt));
+        when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> {
+            Expense expense = invocation.getArgument(0);
+            expense.setId(800L);
+            return expense;
+        });
+        when(debtRepository.save(any(CompanyDebt.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.payDebt(20L, 7L, DebtPaymentRequestDTO.builder().amount(BigDecimal.TEN).build());
+
+        verify(expenseRepository).save(argThat(expense -> expectedDate.equals(expense.getDate())));
+        verify(paymentRepository).save(argThat(payment -> expectedDate.equals(payment.getPaymentDate())));
+        verify(financeService).reconcileClosedDay(7L, expectedDate);
     }
 
     @Test

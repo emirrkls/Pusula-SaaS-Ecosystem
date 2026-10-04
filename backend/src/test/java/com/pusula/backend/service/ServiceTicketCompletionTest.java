@@ -14,6 +14,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -23,8 +25,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.List;
 
@@ -34,6 +41,9 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ServiceTicketCompletionTest {
+    // Reproduce the CI failure window: UTC is Oct 3, Istanbul is Oct 4.
+    private static final Clock FIXED_CLOCK = Clock.fixed(Instant.parse("2026-10-03T23:35:30Z"), ZoneOffset.UTC);
+    private static final LocalDate BUSINESS_TODAY = LocalDate.of(2026, 10, 4);
     @Mock ServiceTicketRepository ticketRepository;
     @Mock ServiceTicketRescheduleRepository rescheduleRepository;
     @Mock CustomerRepository customerRepository;
@@ -58,12 +68,17 @@ class ServiceTicketCompletionTest {
 
     @BeforeEach
     void setUp() {
-        service = new ServiceTicketService(ticketRepository, rescheduleRepository, customerRepository, userRepository,
+        service = createService(FIXED_CLOCK);
+    }
+
+    private ServiceTicketService createService(Clock clock) {
+        ServiceTicketService result = new ServiceTicketService(ticketRepository, rescheduleRepository, customerRepository, userRepository,
                 inventoryRepository, usedPartRepository, auditLogService, currentAccountRepository,
                 vehicleStockRepository, whatsAppNotificationService, featureService, photoRepository,
                 fileUploadService, publisher, financeService, uploadUrlSigner,
-                currentAccountLedgerService, adminNotificationService, "Europe/Istanbul");
-        ReflectionTestUtils.setField(service, "accountPartyService", accountPartyService);
+                currentAccountLedgerService, adminNotificationService, "Europe/Istanbul", clock);
+        ReflectionTestUtils.setField(result, "accountPartyService", accountPartyService);
+        return result;
     }
 
     @AfterEach
@@ -75,7 +90,7 @@ class ServiceTicketCompletionTest {
     void adminCanBackdateCompletionAndLiquidCollection() {
         authenticate(1L, 10L, "COMPANY_ADMIN");
         ServiceTicket ticket = openTicket(100L, 10L, null);
-        LocalDate historicalDate = LocalDate.now().minusDays(4);
+        LocalDate historicalDate = BUSINESS_TODAY.minusDays(4);
         when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
         when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -98,7 +113,7 @@ class ServiceTicketCompletionTest {
         when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
 
         assertThrows(AccessDeniedException.class,
-                () -> service.completeService(100L, BigDecimal.TEN, PaymentMethod.CASH, LocalDate.now()));
+                () -> service.completeService(100L, BigDecimal.TEN, PaymentMethod.CASH, BUSINESS_TODAY));
         verify(ticketRepository, never()).save(any());
     }
 
@@ -122,9 +137,9 @@ class ServiceTicketCompletionTest {
 
         service.completeService(100L, BigDecimal.TEN, PaymentMethod.CASH, null);
 
-        assertEquals(LocalDate.now(), ticket.getCollectionDate());
-        assertEquals(LocalDate.now(), ticket.getCompletedAt().toLocalDate());
-        verify(financeService).reconcileClosedDay(10L, LocalDate.now());
+        assertEquals(BUSINESS_TODAY, ticket.getCollectionDate());
+        assertEquals(BUSINESS_TODAY, ticket.getCompletedAt().toLocalDate());
+        verify(financeService).reconcileClosedDay(10L, BUSINESS_TODAY);
     }
 
     @Test
@@ -135,7 +150,7 @@ class ServiceTicketCompletionTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.completeService(100L, BigDecimal.TEN, PaymentMethod.CASH,
-                        LocalDate.now().plusDays(1)));
+                        BUSINESS_TODAY.plusDays(1)));
         verify(ticketRepository, never()).save(any());
     }
 
@@ -155,7 +170,7 @@ class ServiceTicketCompletionTest {
         assertEquals(new BigDecimal("500.00"), ticket.getInvoiceTotal());
         assertEquals(new BigDecimal("500.00"), ticket.getCollectedAmount());
         assertEquals(new BigDecimal("0.00"), ticket.getOutstandingAmount());
-        assertEquals(LocalDate.now(), ticket.getCollectionDate());
+        assertEquals(BUSINESS_TODAY, ticket.getCollectionDate());
         verify(currentAccountRepository, never()).save(any());
     }
 
@@ -295,7 +310,7 @@ class ServiceTicketCompletionTest {
         assertEquals(new BigDecimal("300.00"), ticket.getCollectedAmount());
         assertEquals(new BigDecimal("200.00"), ticket.getOutstandingAmount());
         assertEquals(new BigDecimal("200.00"), account.getBalance());
-        assertEquals(LocalDate.now(), ticket.getCollectionDate());
+        assertEquals(BUSINESS_TODAY, ticket.getCollectionDate());
     }
 
     @Test
@@ -372,7 +387,7 @@ class ServiceTicketCompletionTest {
     @Test
     void adminCanSafelyReopenCompletedTicketAndReverseItsOutstandingBalance() {
         authenticate(1L, 10L, "COMPANY_ADMIN");
-        LocalDate completedDate = LocalDate.now().minusDays(8);
+        LocalDate completedDate = BUSINESS_TODAY.minusDays(8);
         ServiceTicket ticket = openTicket(100L, 10L, null);
         ticket.setCustomerId(20L);
         ticket.setStatus(ServiceTicket.TicketStatus.COMPLETED);
@@ -440,12 +455,33 @@ class ServiceTicketCompletionTest {
     void reopenedTicketCannotBeCancelledAndLoseItsHistoricalCollection() {
         authenticate(1L, 10L, "COMPANY_ADMIN");
         ServiceTicket ticket = openTicket(100L, 10L, null);
-        ticket.setReopenedAt(LocalDateTime.now().minusMinutes(5));
+        ticket.setReopenedAt(LocalDateTime.now(FIXED_CLOCK.withZone(ZoneId.of("Europe/Istanbul"))).minusMinutes(5));
         when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
 
         assertThrows(IllegalStateException.class, () -> service.cancelService(100L));
         verify(ticketRepository, never()).save(any());
         verify(usedPartRepository, never()).findByServiceTicketId(anyLong());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "2026-10-03T20:59:59Z, 2026-10-03, 23:59:59",
+            "2026-10-03T21:00:00Z, 2026-10-04, 00:00:00",
+            "2026-10-03T23:35:30Z, 2026-10-04, 02:35:30",
+            "2026-10-04T00:00:00Z, 2026-10-04, 03:00:00"
+    })
+    void completionUsesBusinessDateAndTimeAcrossMidnight(String instant, LocalDate expectedDate, LocalTime expectedTime) {
+        service = createService(Clock.fixed(Instant.parse(instant), ZoneOffset.UTC));
+        authenticate(7L, 10L, "TECHNICIAN");
+        ServiceTicket ticket = openTicket(100L, 10L, 7L);
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.completeService(100L, BigDecimal.TEN, PaymentMethod.CASH, null);
+
+        assertEquals(expectedDate, ticket.getCollectionDate());
+        assertEquals(expectedDate.atTime(expectedTime), ticket.getCompletedAt());
+        verify(financeService).reconcileClosedDay(10L, expectedDate);
     }
 
     private ServiceTicket openTicket(Long id, Long companyId, Long technicianId) {

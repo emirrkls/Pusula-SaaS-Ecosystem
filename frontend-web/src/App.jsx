@@ -33,7 +33,7 @@ function App() {
       <ScrollToTop />
       <div className="flex flex-col min-h-screen font-sans text-gray-800 antialiased selection:bg-brand-cyan selection:text-white">
         <Navbar />
-        <main className="flex-grow">
+        <main className="grow">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/hizmetler" element={<Services />} />

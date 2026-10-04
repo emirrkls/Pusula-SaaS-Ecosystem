@@ -23,6 +23,12 @@ jobs:
           cache: maven
       - run: mvn --batch-mode --no-transfer-progress verify
 
+      - name: Date regressions in different host timezones
+        run: |
+          for zone in UTC Europe/Istanbul America/Los_Angeles; do
+            mvn --batch-mode --no-transfer-progress -Dtest=CompanyDebtServicePaymentDateTest,ServiceTicketCompletionTest "-Duser.timezone=$zone" test
+          done
+
   desktop:
     runs-on: windows-latest
     defaults:
@@ -50,6 +56,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend-web/package-lock.json
       - run: npm ci
+      - run: npm audit --audit-level=high
       - run: npm run lint
       - run: npm run build
-      - run: node --test scripts/references.test.mjs scripts/references-build.test.mjs
+      - run: node --test scripts/*.test.mjs

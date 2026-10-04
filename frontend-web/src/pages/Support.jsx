@@ -5,7 +5,7 @@ const Support = () => {
   return (
     <section className="pt-36 pb-20 bg-gray-50 min-h-screen">
       <div className="container mx-auto px-4 md:px-8 max-w-4xl">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-10">
+        <div className="bg-white rounded-2xl shadow-xs border border-gray-100 p-6 md:p-10">
           <h1 className="text-3xl md:text-4xl font-bold text-brand-dark mb-4">Destek</h1>
           <p className="text-gray-600 mb-8">
             Pusula Service urunu ile ilgili teknik sorunlar, hesap islemleri ve genel destek

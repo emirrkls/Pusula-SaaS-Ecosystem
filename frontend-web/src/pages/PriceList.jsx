@@ -64,12 +64,12 @@ const PriceList = () => {
                             alt=""
                             className="h-full w-full object-cover opacity-25"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-r from-brand-dark via-brand-dark/90 to-brand-dark/70" />
+                        <div className="absolute inset-0 bg-linear-to-r from-brand-dark via-brand-dark/90 to-brand-dark/70" />
                     </div>
 
                     <div className="container relative mx-auto px-4 py-12 md:px-8 md:py-16">
                         <div className="max-w-4xl">
-                            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white/90 backdrop-blur">
+                            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white/90 backdrop-blur-sm">
                                 <Snowflake className="h-4 w-4 text-brand-cyan" />
                                 Klima katalog fiyat listesi
                             </div>
@@ -98,9 +98,9 @@ const PriceList = () => {
                         {priceGroups.map((group) => (
                             <article
                                 key={group.brand}
-                                className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+                                className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs"
                             >
-                                <div className={`h-2 bg-gradient-to-r ${group.accent}`} />
+                                <div className={`h-2 bg-linear-to-r ${group.accent}`} />
                                 {group.image && (
                                     <div className="aspect-[4/3] overflow-hidden bg-slate-100">
                                         <img
