@@ -1,7 +1,7 @@
 # App Store subscription lifecycle and account erasure
 
 Deployed on 7 October 2026. **Both App Store Connect notification URLs are saved;
-genuine signed sandbox V2 delivery is verified. Production API testing is still blocked by Apple HTTP 401.**
+genuine signed sandbox V2 delivery is verified. Production API testing remains a first-release gate.**
 Do not call the entire subscription lifecycle production-validated: a sandbox `TEST` is not a
 purchase/renewal/refund test and does not prove production API authorization.
 
@@ -100,9 +100,21 @@ Production verification on 7 October 2026:
   The official Apple Java SDK 5.2.0 independently confirmed `SUCCESS`. No plan changed.
 - Production TEST requests returned HTTP 401 before a test token was issued, including a request
   using the official Apple Java SDK 5.2.0. Server NTP is synchronized; the same key/issuer/bundle
-  works in sandbox. The production-side cause is not established. Do not rotate keys or weaken
-  signature verification to conceal this result; recheck authorization after Apple account/app
-  state changes or raise an Apple support case with sanitized diagnostics if it persists.
+  works in sandbox. A fresh retry still returned 401. An Apple App Store Commerce Engineer
+  [explains that production API access is unavailable before a production release](https://developer.apple.com/forums/thread/806452).
+  This matches this app's first version still waiting for review and its functioning sandbox API;
+  it is not evidence of an invalid signing key or a failed public receiver. Keep production delivery
+  explicitly unverified until a post-release TEST succeeds. Do not rotate keys, weaken signature
+  verification or publish/cancel review merely to make this pre-release diagnostic pass. If 401
+  persists after production release, raise a support case with sanitized diagnostics.
+- The focused Apple verification/lifecycle suite was rerun: 49 tests, zero failures/errors/skips.
+  These are automated verifier/policy tests, not proof of a real device renewal, cancellation or refund.
+- Read-only Apple sandbox notification history for the preceding 24 hours returned HTTP 200:
+  one V2 TEST, one SUCCESS delivery, no ordinary lifecycle events. The backend likewise had one
+  verified TEST and one previously processed device purchase. The only existing Apple-bound company
+  predates V44; no test entitlement was rewritten directly in the database.
+- The existing sandbox tester is in Türkiye and has monthly renewals every five minutes; no
+  tester settings, purchase history, identity, production contract or app review state were changed.
 
 1. Run `mvn --batch-mode --no-transfer-progress verify` and web lint/build/test checks.
 2. Test V44/V45 and the ownership uniqueness rule on an isolated PostgreSQL database.
@@ -113,7 +125,7 @@ Production verification on 7 October 2026:
    if available. If not, verify ordinary V2 lifecycle delivery rather than inferring it from `TEST`.
 6. Signed sandbox TEST/204/durable event verification is complete. Still test renewal, auto-renew off,
    grace/expiry, refund/reversal and restore with a disposable sandbox account; production TEST
-   authorization remains unverified because of Apple's 401 response.
+   authorization remains unverified until production release (Apple's pre-release 401 restriction).
 7. Test self-deletion only with a designated disposable account, never the review demo or real tenants.
 
 The App Store Server API test request needs an **In-App Purchase API key**, its issuer ID and key ID.
