@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, Plus, Minus, Phone, ArrowRight } from 'lucide-react';
+import { CheckCircle, Plus, Minus, Phone, ArrowRight, MessageCircle } from 'lucide-react';
 import { landingPages } from './landingPages';
 import { PageSeo } from '../../seo/PageSeo';
 import { SITE_URL } from '../../seo/constants';
@@ -15,6 +15,10 @@ const ServiceLandingPage = ({ pageKey }) => {
     if (!page) {
         return null;
     }
+    const contactPath = page.contactPath || '/iletisim';
+    const whatsappUrl = page.whatsappMessage
+        ? `https://wa.me/905400250925?text=${encodeURIComponent(page.whatsappMessage)}`
+        : null;
 
     const serviceSchema = page.serviceName
         ? {
@@ -36,7 +40,7 @@ const ServiceLandingPage = ({ pageKey }) => {
                     addressCountry: 'TR',
                 },
             },
-            areaServed: [
+            areaServed: page.areaServed || [
                 { '@type': 'City', name: 'Didim' },
                 { '@type': 'AdministrativeArea', name: 'Aydın' },
                 { '@type': 'Place', name: 'Altınkum' },
@@ -54,9 +58,11 @@ const ServiceLandingPage = ({ pageKey }) => {
                 title={page.title}
                 description={page.description}
                 path={`/${page.slug}`}
+                ogImage={page.heroImage ? `${SITE_URL}${page.heroImage}` : undefined}
                 faqs={page.faqs}
                 breadcrumbs={[
                     { name: 'Ana Sayfa', path: '/' },
+                    ...(page.categoryBreadcrumb ? [{ name: 'Hizmetler', path: '/hizmetler' }] : []),
                     ...(parentPage ? [{ name: parentPage.h1, path: `/${parentPage.slug}` }] : []),
                     { name: page.h1, path: `/${page.slug}` },
                 ]}
@@ -65,29 +71,42 @@ const ServiceLandingPage = ({ pageKey }) => {
         <div className="pt-20 bg-gray-50 min-h-screen">
             {/* Hero */}
             <div className="bg-brand-dark text-white py-16 md:py-20">
-                <div className="container mx-auto px-4 text-center max-w-3xl">
+                <div className={`container mx-auto px-4 ${page.heroImage ? 'grid max-w-6xl items-center gap-10 lg:grid-cols-2' : 'text-center max-w-3xl'}`}>
+                  <div>
+                    {page.eyebrow && <p className="mb-4 text-sm font-semibold tracking-wide text-brand-cyan">{page.eyebrow}</p>}
                     <h1 className="text-4xl md:text-5xl font-bold mb-4">
                         {page.h1}
                     </h1>
                     <p className="text-lg md:text-xl text-gray-300">
                         {page.subtitle}
                     </p>
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+                    <div className={`flex flex-col sm:flex-row gap-4 mt-8 ${page.heroImage ? '' : 'justify-center'}`}>
                         <Link
-                            to="/iletisim"
+                            to={contactPath}
                             className="bg-brand-cyan hover:bg-cyan-400 text-white px-8 py-3 rounded-full font-bold transition-all inline-flex items-center justify-center gap-2"
                         >
                             Servis Talebi Oluştur
                             <ArrowRight className="w-5 h-5" />
                         </Link>
-                        <a
+                        {whatsappUrl ? <a
+                            href={whatsappUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="border border-white/30 hover:border-brand-cyan text-white px-6 py-3 rounded-full font-bold transition-all inline-flex items-center justify-center gap-2"
+                        >
+                            <MessageCircle className="w-5 h-5 shrink-0" />
+                            WhatsApp’tan Yazın
+                        </a> : <a
                             href="tel:+905400250925"
                             className="border border-white/30 hover:border-brand-cyan text-white px-8 py-3 rounded-full font-bold transition-all inline-flex items-center justify-center gap-2"
                         >
                             <Phone className="w-5 h-5" />
                             0540 025 09 25
-                        </a>
+                        </a>}
                     </div>
+                    {whatsappUrl && <a href="tel:+905400250925" className="mt-6 inline-flex items-center gap-2 text-sm text-gray-300 hover:text-brand-cyan"><Phone className="h-4 w-4" />0540 025 09 25</a>}
+                  </div>
+                  {page.heroImage && <img src={page.heroImage} alt={page.heroImageAlt} width="1600" height="1222" fetchPriority="high" className="aspect-[4/3] w-full rounded-2xl object-cover object-[center_70%] shadow-xl" />}
                 </div>
             </div>
 
@@ -132,7 +151,7 @@ const ServiceLandingPage = ({ pageKey }) => {
                         })}
                     </aside>
                 )}
-                <aside aria-labelledby="service-brands-heading" className="mt-8 rounded-xl border border-gray-200 bg-white p-6">
+                {!page.hideBrandSummary && <aside aria-labelledby="service-brands-heading" className="mt-8 rounded-xl border border-gray-200 bg-white p-6">
                     <h2 id="service-brands-heading" className="mb-3 text-base font-semibold text-brand-dark">
                         Markalarımız ve Çözüm Ortaklarımız
                     </h2>
@@ -141,8 +160,20 @@ const ServiceLandingPage = ({ pageKey }) => {
                         Tüm hizmetleri ve marka kapsamlarını inceleyin
                         <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </Link>
-                </aside>
+                </aside>}
             </div>
+
+            {page.serviceHighlights && <section aria-labelledby="marine-services-heading" className="bg-white py-16">
+                <div className="container mx-auto max-w-6xl px-4">
+                    <h2 id="marine-services-heading" className="mb-8 text-center text-3xl font-bold text-brand-dark">Teknenizin İhtiyacına Uygun Servis</h2>
+                    <div className="grid gap-6 md:grid-cols-3">
+                        {page.serviceHighlights.map(({ title, desc }) => <article key={title} className="rounded-2xl border border-gray-200 border-t-4 border-t-brand-cyan p-6">
+                            <h3 className="mb-3 text-xl font-bold text-brand-dark">{title}</h3>
+                            <p className="leading-relaxed text-gray-600">{desc}</p>
+                        </article>)}
+                    </div>
+                </div>
+            </section>}
 
             {/* Features */}
             <div className="bg-white py-16">
@@ -160,6 +191,19 @@ const ServiceLandingPage = ({ pageKey }) => {
                     </ul>
                 </div>
             </div>
+
+            {page.symptoms && <section aria-labelledby="marine-symptoms-heading" className="bg-gray-50 py-16">
+                <div className="container mx-auto max-w-4xl px-4">
+                    <h2 id="marine-symptoms-heading" className="mb-8 text-center text-3xl font-bold text-brand-dark">Bu Sorunları mı Yaşıyorsunuz?</h2>
+                    <div className="grid gap-6 sm:grid-cols-2">
+                        {page.symptoms.map(({ title, desc }) => <article key={title} className="rounded-xl bg-white p-6 shadow-xs">
+                            <h3 className="mb-2 text-lg font-semibold text-brand-dark">{title}</h3>
+                            <p className="text-gray-600">{desc}</p>
+                        </article>)}
+                    </div>
+                    <p className="mt-6 text-center text-gray-600">Cihaz etiketi veya hata ekranının fotoğrafını WhatsApp’tan paylaşarak ön değerlendirmeyi kolaylaştırabilirsiniz.</p>
+                </div>
+            </section>}
 
             {/* Process */}
             <div className="container mx-auto px-4 py-16 max-w-4xl">
@@ -188,6 +232,8 @@ const ServiceLandingPage = ({ pageKey }) => {
                             <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
                                 <button
                                     onClick={() => setActiveAccordion(activeAccordion === index ? null : index)}
+                                    aria-expanded={activeAccordion === index}
+                                    aria-controls={`service-faq-${index}`}
                                     className="w-full flex items-center justify-between p-6 bg-white hover:bg-gray-50 transition-colors text-left"
                                 >
                                     <span className="font-semibold text-brand-dark">{faq.q}</span>
@@ -200,6 +246,7 @@ const ServiceLandingPage = ({ pageKey }) => {
                                 <AnimatePresence>
                                     {activeAccordion === index && (
                                         <Motion.div
+                                            id={`service-faq-${index}`}
                                             initial={{ height: 0, opacity: 0 }}
                                             animate={{ height: 'auto', opacity: 1 }}
                                             exit={{ height: 0, opacity: 0 }}
@@ -224,7 +271,7 @@ const ServiceLandingPage = ({ pageKey }) => {
                         {page.ctaHeading || "Didim'de Klimanız İçin Yanınızdayız"}
                     </h2>
                     <p className="text-white/90 mb-6 max-w-xl mx-auto">
-                        Diğer hizmetlerimizi de inceleyin veya hemen randevu oluşturun.
+                        {page.ctaDescription || 'Diğer hizmetlerimizi de inceleyin veya hemen randevu oluşturun.'}
                     </p>
                     <div className="flex flex-wrap justify-center gap-4 mb-8">
                         {page.related.map((key) => {
@@ -247,7 +294,7 @@ const ServiceLandingPage = ({ pageKey }) => {
                         </Link>
                     </div>
                     <Link
-                        to="/iletisim"
+                        to={contactPath}
                         className="bg-white text-brand-cyan px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition-colors inline-flex items-center gap-2"
                     >
                         Hemen Randevu Al

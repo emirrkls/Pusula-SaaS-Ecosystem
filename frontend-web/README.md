@@ -125,6 +125,27 @@ The desktop/mobile menu groups it under **Isı Pompaları**, not air conditionin
 Home, the services overview and the parent heat-pump page link to it. It is
 included in prerendering, the sitemap, service structured data and `llms.txt`.
 
+## Yacht and boat climate service
+
+`/didim-yat-tekne-klima-servisi` is a prerendered service page for **maintenance and
+fault repair of yacht/boat air-conditioning systems and refrigerators only**, linked from Home, Services, desktop/mobile service navigation
+and the footer. It includes seasonal maintenance, symptoms, service steps and FAQs.
+Marine brands and specific marina coverage have not been supplied by the owner;
+the page does not inherit the land-based authorized-brand summary. Its service
+structured data uses Didim as the service area and does not promise authorization,
+free surveys or round-the-clock marine response.
+
+The service CTA opens `/iletisim?hizmet=yat-tekne#service-request-form`, preselecting
+**Yat / Tekne Klima ve Buzdolabı**. The form asks for marina/berth location and optional boat
+name and device brand/model. Marine details are included in the existing public
+API description field; switching to another service omits those details. Device
+selection is retained after successful submission. Photos can be sent through
+the existing WhatsApp contact rather than uploaded through the form.
+
+The illustrative yacht photo is by **Francisco Gomes**, freely usable commercially
+under the **Unsplash License**. Provenance is recorded in
+`public/assets/img/service-yat-tekne-license.txt`. It is not an owner project photo.
+
 ## WhatsApp Embedded Signup
 
 `/whatsapp-connect` does not contain or read Meta App ID / Configuration ID from

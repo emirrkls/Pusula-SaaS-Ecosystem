@@ -60,6 +60,15 @@ const Services = () => {
             subService: { title: "Havuz Isı Pompası", desc: POOL_HEAT_PUMP_SUMMARY, path: "/didim-havuz-isi-pompasi" }
         },
         {
+            id: "yat-tekne",
+            title: "Yat ve Tekne İklimlendirme",
+            desc: "Yat ve teknelerin klima sistemleri ve buzdolapları için bakım, arıza tespiti ve onarım hizmeti sunuyoruz. Cihazların durumuna ve ihtiyacınıza göre sezon öncesi bakım ile servis randevusunu birlikte planlıyoruz.",
+            features: ["Klima Sistemleri", "Buzdolabı Bakım ve Onarımı", "Sezon Öncesi Bakım", "Arıza Tespiti ve Onarım"],
+            image: "/assets/img/service-yat-tekne.jpg",
+            objectPosition: "center 70%",
+            path: "/didim-yat-tekne-klima-servisi"
+        },
+        {
             id: "montaj",
             title: "Profesyonel Montaj & Keşif",
             desc: "Klimanızın performansını doğrudan etkileyen en önemli faktör doğru montajdır. Uzman ekiplerimizle estetik ve güvenli montaj hizmeti sunuyoruz.",
@@ -112,8 +121,8 @@ const Services = () => {
     return (
         <>
             <PageSeo
-                title="Hizmetlerimiz - Klima, VRF, Isı Pompası, Güneş Enerjisi | Pusula İklimlendirme Didim"
-                description="Didim'de klima, VRF, ısı pompası ve ısıtma sistemleri. Pusula İklimlendirme ile yetkili satış, projeli montaj, bakım ve teknik servis."
+                title="Hizmetlerimiz - Klima, Yat ve Tekne, Isı Pompası | Pusula Didim"
+                description="Didim'de klima, VRF, ısı pompası ve güneş enerjisi çözümleri; yat ve teknelerin klima ve buzdolaplarında bakım ve arıza servisi. Pusula İklimlendirme."
                 path="/hizmetler"
                 breadcrumbs={[
                     { name: 'Ana Sayfa', path: '/' },

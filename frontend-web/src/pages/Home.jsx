@@ -53,6 +53,13 @@ const Home = () => {
             path: "/didim-vrf-servisi"
         },
         {
+            title: "Yat ve Tekne İklimlendirme",
+            image: "/assets/img/service-yat-tekne.jpg",
+            objectPosition: "center 70%",
+            desc: "Yat ve teknelerin klima sistemleri ve buzdolapları için bakım, arıza tespiti ve onarım. Didim’de ihtiyacınıza uygun servis planlaması.",
+            path: "/didim-yat-tekne-klima-servisi"
+        },
+        {
             title: "Isı Pompası",
             image: "/assets/img/service-3.jpg",
             desc: "Üntes, Nibe, LG monoblok, Solimpeks ve Baymak ısı pompası çözümleri; keşif, montaj ve bakım.",
@@ -165,6 +172,7 @@ const Home = () => {
                                     src={service.image}
                                     alt={service.title}
                                     className="w-full h-[120%] object-cover object-top absolute top-0 left-0 group-hover:scale-110 transition-transform duration-500"
+                                    style={service.objectPosition ? { objectPosition: service.objectPosition } : undefined}
                                 />
                                 <div className="absolute inset-0 bg-linear-to-t from-brand-dark/90 via-brand-dark/20 to-transparent flex flex-col justify-end p-6">
                                     <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>

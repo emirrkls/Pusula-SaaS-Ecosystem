@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Phone, Mail, Send, CheckCircle, AlertCircle, Loader2, XCircle } from 'lucide-react';
 import { PageSeo } from '../seo/PageSeo';
+import { MARINE_DEVICE_TYPE, initialDeviceType, createServiceRequestForm, serviceRequestDescription, buildServiceRequestPayload } from '../lib/serviceRequest';
 
 // ===== i18n — Türkçe UI Metinleri =====
 const i18n = {
@@ -32,6 +34,7 @@ const i18n = {
         Klima: 'Split Klima',
         VRF: 'VRF Sistem',
         Kombi: 'Kombi',
+        [MARINE_DEVICE_TYPE]: MARINE_DEVICE_TYPE,
         Diger: 'Diğer',
     },
     submitButton: 'Talebi Gönder',
@@ -136,16 +139,7 @@ function formatPhoneDisplay(raw) {
  * @throws {Object} Hata durumunda { status, data } fırlatır
  */
 async function submitServiceRequest(formData) {
-    const payload = {
-        companyId: parseInt(COMPANY_ID, 10),
-        customerName: formData.name.trim(),
-        customerPhone: formData.phone.trim(),
-        customerAddress: formData.address.trim(),
-        deviceType: formData.deviceType,
-        description: formData.note?.trim() || null,
-        // Honeypot alanı — gerçek kullanıcılar bunu görmez
-        website: formData.website || '',
-    };
+    const payload = buildServiceRequestPayload(formData, COMPANY_ID);
 
     const response = await fetch(`${API_BASE_URL}/api/public/service-request`, {
         method: 'POST',
@@ -222,15 +216,20 @@ const Toast = ({ type, title, message, onClose }) => {
 
 // ===== Ana Contact Bileşeni =====
 const Contact = () => {
+    const [searchParams] = useSearchParams();
+    const { hash } = useLocation();
+    const defaultDeviceType = initialDeviceType(searchParams.get('hizmet'));
     // Form durumu
-    const [formData, setFormData] = useState({
-        name: '',
-        phone: '',
-        deviceType: 'Klima',
-        address: '',
-        note: '',
-        website: '', // Honeypot — CSS ile gizli
-    });
+    const [formData, setFormData] = useState(() => createServiceRequestForm(defaultDeviceType));
+    const isMarineRequest = formData.deviceType === MARINE_DEVICE_TYPE;
+
+    useEffect(() => {
+        if (hash !== '#service-request-form') return;
+        const frame = window.requestAnimationFrame(() => {
+            document.getElementById('service-request-form')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [hash]);
 
     // UI durumları
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -293,6 +292,12 @@ const Contact = () => {
             phone: cleanedPhone, // '5538638566' formatında backend'e gider
         };
 
+        if ((serviceRequestDescription(submissionData)?.length || 0) > 1000) {
+            setFieldErrors({ note: 'Tekne, cihaz ve açıklama bilgilerinin toplamı en fazla 1000 karakter olabilir. Lütfen açıklamayı kısaltın.' });
+            setIsSubmitting(false);
+            return;
+        }
+
         try {
             await submitServiceRequest(submissionData);
 
@@ -303,14 +308,7 @@ const Contact = () => {
                 message: i18n.successMessage,
             });
 
-            setFormData({
-                name: '',
-                phone: '',
-                deviceType: 'Klima',
-                address: '',
-                note: '',
-                website: '',
-            });
+            setFormData(createServiceRequestForm(formData.deviceType));
 
             // Toast'u 6 saniye sonra otomatik kapat
             setTimeout(() => setToast(null), 6000);
@@ -466,11 +464,11 @@ const Contact = () => {
                     </div>
 
                     {/* Service Request Form */}
-                    <div className="bg-white p-8 rounded-2xl shadow-xl border-t-4 border-brand-cyan">
+                    <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl border-t-4 border-brand-cyan">
                         <h2 className="text-2xl font-bold text-brand-dark mb-2">{i18n.formTitle}</h2>
                         <p className="text-gray-600 mb-8">{i18n.formSubtitle}</p>
 
-                        <form onSubmit={handleSubmit} className="space-y-6" id="service-request-form">
+                        <form onSubmit={handleSubmit} className="space-y-6 scroll-mt-28" id="service-request-form">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* Ad Soyad */}
                                 <div>
@@ -540,15 +538,32 @@ const Contact = () => {
                                 </select>
                             </div>
 
+                            {isMarineRequest && <fieldset className="rounded-xl border border-cyan-100 bg-cyan-50/50 p-4">
+                                <legend className="px-1 text-sm font-semibold text-brand-dark">Tekne ve Cihaz Bilgileri</legend>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label htmlFor="contact-boat-name" className="mb-2 block text-sm font-medium text-gray-700">Tekne adı (Opsiyonel)</label>
+                                        <input id="contact-boat-name" name="boatName" type="text" value={formData.boatName} onChange={handleChange} maxLength={80} disabled={isSubmitting} placeholder="Teknenizin adı" className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-hidden focus:border-transparent focus:ring-2 focus:ring-brand-cyan disabled:opacity-60" />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="contact-device-model" className="mb-2 block text-sm font-medium text-gray-700">Cihaz marka / model (Opsiyonel)</label>
+                                        <input id="contact-device-model" name="deviceModel" type="text" value={formData.deviceModel} onChange={handleChange} maxLength={80} disabled={isSubmitting} placeholder="Etiketteki marka ve model" className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-hidden focus:border-transparent focus:ring-2 focus:ring-brand-cyan disabled:opacity-60" />
+                                    </div>
+                                </div>
+                                <p className="mt-3 text-sm leading-relaxed text-gray-600">Cihaz etiketi veya hata ekranı fotoğrafını <a href="https://wa.me/905400250925?text=Merhaba%2C%20yat%20%2F%20tekne%20klimam%C4%B1n%20foto%C4%9Fraf%C4%B1n%C4%B1%20payla%C5%9Fmak%20istiyorum." target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-dark underline decoration-brand-cyan underline-offset-4">WhatsApp’tan paylaşabilirsiniz.</a></p>
+                            </fieldset>}
+
                             {/* Adres */}
                             <div>
                                 <label htmlFor="contact-address" className="block text-sm font-medium text-gray-700 mb-2">
-                                    {i18n.labelAddress}
+                                    {isMarineRequest ? 'Marina / Bağlama Yeri' : i18n.labelAddress}
                                 </label>
                                 <textarea
                                     id="contact-address"
                                     name="address"
                                     required
+                                    minLength={10}
+                                    maxLength={500}
                                     value={formData.address}
                                     onChange={handleChange}
                                     disabled={isSubmitting}
@@ -556,7 +571,7 @@ const Contact = () => {
                                     className={`w-full px-4 py-3 rounded-lg border ${
                                         fieldErrors.address ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-300'
                                     } focus:ring-2 focus:ring-brand-cyan focus:border-transparent outline-hidden transition-all disabled:opacity-60 disabled:cursor-not-allowed`}
-                                    placeholder={i18n.placeholderAddress}
+                                    placeholder={isMarineRequest ? 'Marina veya liman adı, ponton / iskele ve bağlama yeri bilgisi...' : i18n.placeholderAddress}
                                 ></textarea>
                                 {fieldErrors.address && (
                                     <p className="text-red-500 text-xs mt-1">{fieldErrors.address}</p>
@@ -566,7 +581,7 @@ const Contact = () => {
                             {/* Not */}
                             <div>
                                 <label htmlFor="contact-note" className="block text-sm font-medium text-gray-700 mb-2">
-                                    {i18n.labelNote}
+                                    {isMarineRequest ? 'Bakım / Arıza Açıklaması (Opsiyonel)' : i18n.labelNote}
                                 </label>
                                 <textarea
                                     id="contact-note"
@@ -575,9 +590,13 @@ const Contact = () => {
                                     onChange={handleChange}
                                     disabled={isSubmitting}
                                     rows="2"
+                                    maxLength={isMarineRequest ? 700 : 1000}
+                                    aria-invalid={Boolean(fieldErrors.note)}
+                                    aria-describedby={fieldErrors.note ? 'contact-note-error' : undefined}
                                     className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-cyan focus:border-transparent outline-hidden transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                                    placeholder={i18n.placeholderNote}
+                                    placeholder={isMarineRequest ? 'Klima veya buzdolabınızın bakım ihtiyacını ya da yaşadığınız arızayı yazın...' : i18n.placeholderNote}
                                 ></textarea>
+                                {fieldErrors.note && <p id="contact-note-error" className="mt-1 text-xs text-red-500">{fieldErrors.note}</p>}
                             </div>
 
                             {/* Honeypot — Bot Tuzağı (CSS ile gizli) */}

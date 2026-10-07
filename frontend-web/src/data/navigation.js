@@ -13,6 +13,7 @@ export const klimaLandingLinks = [
 export const serviceSectionLinks = [
     { name: 'Split Klima', path: '/didim-split-klima-servisi' },
     { name: 'Ticari Klima', path: '/didim-ticari-klima-servisi' },
+    { name: 'Yat ve Tekne İklimlendirme', path: '/didim-yat-tekne-klima-servisi' },
     { name: 'VRF Sistemleri', path: '/didim-vrf-servisi' },
     { name: 'Isı Pompası', path: '/didim-isi-pompasi-servisi' },
     { name: 'Havuz Isı Pompası', path: '/didim-havuz-isi-pompasi' },
@@ -37,6 +38,7 @@ export const serviceMenuGroups = [
             [
                 '/didim-split-klima-servisi',
                 '/didim-ticari-klima-servisi',
+                '/didim-yat-tekne-klima-servisi',
                 '/didim-vrf-servisi',
                 '/didim-gunes-enerjisi-sistemleri',
                 '/didim-soguk-hava-deposu-servisi',
@@ -57,6 +59,7 @@ export const footerQuickLinks = [
     { name: 'Hakkımızda', path: '/hakkimizda' },
     { name: 'Referanslarımız', path: '/referanslarimiz' },
     allServicesLink,
+    { name: 'Yat ve Tekne İklimlendirme', path: '/didim-yat-tekne-klima-servisi' },
     { name: 'İletişim', path: '/iletisim' },
     { name: 'Destek', path: '/destek' },
 ];

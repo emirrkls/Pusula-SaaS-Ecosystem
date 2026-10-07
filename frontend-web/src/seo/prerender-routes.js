@@ -10,6 +10,7 @@ export const PRERENDER_ROUTES = [
     '/didim-hisense-klima-servisi',
     '/didim-split-klima-servisi',
     '/didim-ticari-klima-servisi',
+    '/didim-yat-tekne-klima-servisi',
     '/didim-vrf-servisi',
     '/didim-isi-pompasi-servisi',
     '/didim-havuz-isi-pompasi',

@@ -1,0 +1,9 @@
+Asset: service-yat-tekne.jpg
+Photographer: Francisco Gomes (@franciscosantosgomes)
+Title: White ship on dock during daytime / Yacht in the Marina in Barcelona
+Source: https://unsplash.com/photos/white-ship-on-dock-during-daytime-nSmCeE_0ioU
+Download: https://images.unsplash.com/photo-1587230049060-c3de8f7327fa?auto=format&fit=crop&fm=jpg&q=82&w=1600
+License: Unsplash License — free commercial and non-commercial use; attribution appreciated, not required.
+License URL: https://unsplash.com/license
+Verified/downloaded: 2026-10-07
+Use: illustrative yacht image for the marine climate service category. This is not a Pusula project or a photo of a Didim marina.

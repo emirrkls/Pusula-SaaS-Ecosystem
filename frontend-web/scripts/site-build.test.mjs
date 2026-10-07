@@ -103,13 +103,41 @@ test('the About brand section uses the same light surface as the other pages', (
     assert.ok(!html.includes('authorized-brand-card--dark'));
 });
 
-test('every service landing page visibly describes the current brands and their scopes', () => {
+test('service landing pages show brand scopes only when applicable to the service', () => {
     for (const page of Object.values(landingPages)) {
         const html = readRoute(`/${page.slug}`);
+        if (page.hideBrandSummary) {
+            assert.ok(!html.includes('id="service-brands-heading"'), page.slug);
+            assert.ok(!html.includes(AUTHORIZED_BRANDS_SUMMARY), page.slug);
+            continue;
+        }
         assert.ok(html.includes('id="service-brands-heading"'), page.slug);
         assert.ok(html.includes(`>${AUTHORIZED_BRANDS_SUMMARY}</p>`), page.slug);
         assert.doesNotMatch(html, /Daikin[^.!?<>\n]*yetkili(?: bayi| servis)/i, page.slug);
     }
+});
+
+test('marine service is discoverable, has local metadata and routes to its own request context', () => {
+    const page = landingPages.yatTekne;
+    const route = `/${page.slug}`;
+    const html = readRoute(route);
+    for (const source of ['/', '/hizmetler']) assert.ok(readRoute(source).includes(`href="${route}"`), source);
+    assert.ok(html.includes('src="/assets/img/service-yat-tekne.jpg"'));
+    assert.ok(html.includes('href="/iletisim?hizmet=yat-tekne#service-request-form"'));
+    assert.ok(html.includes('https://wa.me/905400250925?text='));
+    assert.ok(html.includes('id="marine-services-heading"'));
+    assert.ok(html.includes('id="marine-symptoms-heading"'));
+    assert.match(html, /<meta property="og:image" content="https:\/\/www.pusulaiklimlendirme.com\/assets\/img\/service-yat-tekne.jpg"/);
+    const mainContent = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/)[1];
+    assert.doesNotMatch(mainContent, /yetkili|ücretsiz keşif|7\/24|tüm marka/i);
+    const schemas = [...html.matchAll(/<script\b[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)]
+        .flatMap(([, json]) => JSON.parse(json));
+    const service = schemas.find((schema) => schema['@type'] === 'Service');
+    assert.equal(service.name, page.serviceName);
+    assert.deepEqual(service.areaServed, [{ '@type': 'City', name: 'Didim' }]);
+    const breadcrumb = schemas.find((schema) => schema['@type'] === 'BreadcrumbList');
+    assert.equal(breadcrumb.itemListElement[1].item, 'https://www.pusulaiklimlendirme.com/hizmetler');
+    assert.ok(fs.existsSync(path.join(dist, 'assets/img/service-yat-tekne.jpg')));
 });
 
 test('Baymak is visible in split and heat-pump pages, and pool heating is a discoverable child service', () => {
