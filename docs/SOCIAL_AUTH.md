@@ -32,7 +32,7 @@ Provider setup status (2026-10-03): the `Pusula iOS` Google OAuth client has bee
 | `POST /api/auth/apple/challenge` | Public, rate-limited | Create server nonce with a five-minute lifetime |
 | `POST /api/auth/apple` | Public, rate-limited | Verify Apple assertion, nonce, authorization-code exchange and stable identity |
 | `POST /api/auth/initial-password` | JWT required | Set a new social account's local password once |
-| `DELETE /api/auth/delete-account` | JWT required | Revoke Apple token, erase personal login/provider/push data and queue signature erasure; retain a non-personal business-history tombstone (new implementation pending deployment) |
+| `DELETE /api/auth/delete-account` | JWT required | Revoke Apple token, erase personal login/provider/push data and queue signature erasure; retain a non-personal business-history tombstone (deployed 2026-10-07; V44/V45) |
 
 Google uses the existing web/server audience. Apple's native client audience is `com.pusula.service`; issuer, signature, allowed algorithm, audience, subject, timestamps and nonce are verified. The Apple challenge is row-locked and consumed with the login transaction. The code-exchanged ID token must have the same subject and nonce. Refresh tokens are stored only as AES-256-GCM ciphertext, never in mobile storage, logs or repository files. On account deletion, revocation failure aborts deletion so retry remains possible. Apple's authorization code is short-lived and exchanged only on the server.
 
