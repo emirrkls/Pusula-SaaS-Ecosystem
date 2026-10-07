@@ -38,7 +38,7 @@ class AuthenticationServicePasswordVerificationTest {
     @BeforeEach
     void setUp() {
         service = new AuthenticationService(userRepository, companyRepository, passwordEncoder,
-                jwtService, authenticationManager, auditLogService, featureService, org.mockito.Mockito.mock(SocialAccountDeletionService.class));
+                jwtService, authenticationManager, auditLogService, featureService, org.mockito.Mockito.mock(UserAccountDeletionService.class));
     }
 
     @AfterEach

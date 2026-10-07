@@ -58,6 +58,24 @@ public class Company extends BaseEntity {
     @Column(name = "external_subscription_id", length = 255)
     private String externalSubscriptionId;
 
+    @Column(name = "app_store_transaction_hash", length = 64)
+    private String appStoreTransactionHash;
+    @Column(name = "app_store_purchase_date")
+    private LocalDateTime appStorePurchaseDate;
+    @Column(name = "app_store_signed_date")
+    private Long appStoreSignedDate;
+    @Column(name = "app_store_environment", length = 16)
+    private String appStoreEnvironment;
+
+    public String getAppStoreTransactionHash() { return appStoreTransactionHash; }
+    public void setAppStoreTransactionHash(String value) { appStoreTransactionHash = value; }
+    public LocalDateTime getAppStorePurchaseDate() { return appStorePurchaseDate; }
+    public void setAppStorePurchaseDate(LocalDateTime value) { appStorePurchaseDate = value; }
+    public Long getAppStoreSignedDate() { return appStoreSignedDate; }
+    public void setAppStoreSignedDate(Long value) { appStoreSignedDate = value; }
+    public String getAppStoreEnvironment() { return appStoreEnvironment; }
+    public void setAppStoreEnvironment(String value) { appStoreEnvironment = value; }
+
     // ─────────────────────────────────────────────────────────────
 
     @Column(name = "logo_path")

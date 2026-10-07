@@ -36,6 +36,20 @@ public class AppleTransactionPayloadValidator {
     public AppleAppStoreVerificationService.AppleVerificationResult validate(
             JWSTransactionDecodedPayload payload,
             Environment verifierEnvironment) {
+        var result = validateIdentity(payload, verifierEnvironment);
+        if (payload.getRevocationDate() != null) {
+            throw failure(AppStoreVerificationException.Reason.REVOKED, "Apple transaction revoke edilmis");
+        }
+        if (!result.expiresDate().isAfter(LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC))) {
+            throw failure(AppStoreVerificationException.Reason.EXPIRED, "Apple aboneligin suresi dolmus");
+        }
+        return result;
+    }
+
+    // Notifications must also accept cryptographically verified historical/revoked
+    // transactions. This does NOT relax the active-purchase verification endpoint.
+    AppleAppStoreVerificationService.AppleVerificationResult validateIdentity(
+            JWSTransactionDecodedPayload payload, Environment verifierEnvironment) {
         if (payload == null) {
             throw failure(AppStoreVerificationException.Reason.VERIFICATION_FAILED, "Apple transaction okunamadi");
         }
@@ -48,13 +62,9 @@ public class AppleTransactionPayloadValidator {
         if (payload.getType() != Type.AUTO_RENEWABLE_SUBSCRIPTION) {
             throw failure(AppStoreVerificationException.Reason.NOT_SUBSCRIPTION, "Apple transaction abonelik degil");
         }
-        if (payload.getRevocationDate() != null) {
-            throw failure(AppStoreVerificationException.Reason.REVOKED, "Apple transaction revoke edilmis");
-        }
-
         LocalDateTime expiresAt = millisToUtc(payload.getExpiresDate());
-        if (expiresAt == null || !expiresAt.isAfter(LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC))) {
-            throw failure(AppStoreVerificationException.Reason.EXPIRED, "Apple aboneligin suresi dolmus");
+        if (expiresAt == null || payload.getPurchaseDate() == null) {
+            throw failure(AppStoreVerificationException.Reason.MALFORMED, "Apple transaction tarihleri eksik");
         }
 
         PlanType planType = PRODUCT_PLANS.get(payload.getProductId());
@@ -75,7 +85,8 @@ public class AppleTransactionPayloadValidator {
                         ? payload.getEnvironment().getValue()
                         : verifierEnvironment.getValue(),
                 millisToUtc(payload.getPurchaseDate()),
-                expiresAt);
+                expiresAt,
+                payload.getSignedDate());
     }
 
     private boolean isBlank(String value) {

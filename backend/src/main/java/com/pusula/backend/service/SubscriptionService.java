@@ -248,11 +248,7 @@ public class SubscriptionService {
 
         try {
             paymentEventRepository.saveAndFlush(paymentEvent);
-            Company updated = upgradePlanFromAppStore(
-                    companyId,
-                    verification.planType(),
-                    originalTransactionHash,
-                    verification.expiresDate());
+            Company updated = upgradePlanFromAppStore(companyId, verification, originalTransactionHash);
 
             paymentEvent.setStatus(PaymentEventStatus.PROCESSED);
             paymentEventRepository.save(paymentEvent);
@@ -286,25 +282,34 @@ public class SubscriptionService {
     }
 
     @Transactional
-    public Company upgradePlanFromAppStore(
-            Long companyId,
-            PlanType newPlan,
-            String originalTransactionHash,
-            LocalDateTime expiresAt) {
-        Company company = companyRepository.findById(companyId)
+    public Company upgradePlanFromAppStore(Long companyId,
+            AppleAppStoreVerificationService.AppleVerificationResult verification, String originalTransactionHash) {
+        Company company = companyRepository.lockById(companyId)
                 .orElseThrow(() -> new RuntimeException("Company not found: " + companyId));
 
+        String subscriptionId = "appstore:" + originalTransactionHash;
+        if (subscriptionId.equals(company.getExternalSubscriptionId())
+                && AppStoreEntitlementPolicy.isStale(company, verification.purchaseDate(), verification.expiresDate(),
+                        verification.signedDate(), verification.environment())) return company;
+        boolean manualRestriction = AppStoreEntitlementPolicy.manuallyRestricted(company);
+
         PlanType oldPlan = company.getPlanType();
-        company.setPlanType(newPlan);
-        company.setIsReadOnly(false);
-        company.setSubscriptionStatus("ACTIVE");
+        company.setPlanType(verification.planType());
+        if (!manualRestriction) {
+            company.setIsReadOnly(false);
+            company.setSubscriptionStatus("ACTIVE");
+        }
         company.setSubscriptionProvider("APP_STORE");
-        company.setExternalSubscriptionId("appstore:" + originalTransactionHash);
-        company.setSubscriptionExpiresAt(expiresAt);
+        company.setExternalSubscriptionId(subscriptionId);
+        company.setSubscriptionExpiresAt(verification.expiresDate());
+        company.setAppStoreTransactionHash(sha256(verification.transactionId()));
+        company.setAppStorePurchaseDate(verification.purchaseDate());
+        company.setAppStoreSignedDate(verification.signedDate());
+        company.setAppStoreEnvironment(verification.environment());
 
         Company saved = companyRepository.saveAndFlush(company);
         log.info("App Store plan upgraded: companyId={}, {} -> {}, expiresAt={}",
-                companyId, oldPlan, newPlan, expiresAt);
+                companyId, oldPlan, verification.planType(), verification.expiresDate());
         return saved;
     }
 
@@ -408,10 +413,14 @@ public class SubscriptionService {
 
             // Paid subscriptions remain writable for seven full days after
             // their billing expiry. Only then is read-only mode enforced.
+            long graceDays = APP_STORE_PROVIDER.equals(company.getSubscriptionProvider())
+                    ? 0 : SUBSCRIPTION_GRACE_PERIOD_DAYS;
+            LocalDateTime now = APP_STORE_PROVIDER.equals(company.getSubscriptionProvider())
+                    ? LocalDateTime.now(java.time.ZoneOffset.UTC) : LocalDateTime.now();
             if (company.getSubscriptionExpiresAt() != null
                     && company.getSubscriptionExpiresAt()
-                            .plusDays(SUBSCRIPTION_GRACE_PERIOD_DAYS)
-                            .isBefore(LocalDateTime.now())) {
+                            .plusDays(graceDays)
+                            .isBefore(now)) {
 
                 company.setIsReadOnly(true);
                 company.setSubscriptionStatus("EXPIRED");

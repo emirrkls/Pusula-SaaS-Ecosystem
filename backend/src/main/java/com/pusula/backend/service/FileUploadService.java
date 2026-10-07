@@ -74,6 +74,23 @@ public class FileUploadService {
         return "signatures/" + userId + "/" + fileName;
     }
 
+    public void deleteUserSignature(Long userId, String storedPath) throws IOException {
+        Path expectedDirectory = uploadRoot.resolve("signatures").resolve(userId.toString()).normalize();
+        Path target = resolveStoredPath(storedPath);
+        if (target == null || !expectedDirectory.equals(target.getParent())) {
+            throw new IllegalArgumentException("Signature path does not belong to the deleted user");
+        }
+        // Reject symbolic-link escapes. Only one explicit file is deleted; no recursion.
+        if (Files.exists(target)) {
+            Path expectedRealDirectory = uploadRoot.toRealPath().resolve("signatures").resolve(userId.toString());
+            if (!expectedDirectory.toRealPath().equals(expectedRealDirectory)
+                    || !target.toRealPath().getParent().equals(expectedRealDirectory)) {
+                throw new IllegalArgumentException("Signature path is outside the user's storage");
+            }
+        }
+        Files.deleteIfExists(target);
+    }
+
     public String uploadServicePhoto(Long companyId, Long ticketId, String type, MultipartFile file) throws IOException {
         ValidatedImage image = validateImage(file);
         featureService.checkStorageQuota(companyId, image.bytes().length);

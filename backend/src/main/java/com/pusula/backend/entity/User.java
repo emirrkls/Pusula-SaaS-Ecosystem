@@ -162,7 +162,7 @@ public class User extends BaseEntity implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return !isDeleted();
     }
 
     public static class UserBuilder {

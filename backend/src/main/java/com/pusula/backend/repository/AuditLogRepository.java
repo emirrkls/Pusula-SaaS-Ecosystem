@@ -14,6 +14,19 @@ import java.util.List;
 @Repository
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
+        @org.springframework.data.jpa.repository.Modifying
+        @Query(value="DELETE FROM audit_logs WHERE user_id=:userId AND entity_type='AUTH'", nativeQuery=true)
+        void deletePersonalAuthenticationHistory(@Param("userId") Long userId);
+
+        @org.springframework.data.jpa.repository.Modifying
+        @Query(value="UPDATE audit_logs SET user_name='Silinen kullanıcı', ip_address=NULL WHERE user_id=:userId", nativeQuery=true)
+        void anonymizeActor(@Param("userId") Long userId);
+
+        @org.springframework.data.jpa.repository.Modifying
+        @Query(value="UPDATE audit_logs SET old_value=NULL, new_value=NULL, "
+                + "description='Silinen kullanıcı profiline ait işlem' WHERE entity_type='USER' AND entity_id=:userId", nativeQuery=true)
+        void eraseUserProfileSnapshots(@Param("userId") Long userId);
+
         // Legacy Google registrations stored the verified provider email only in the auth audit.
         // Exact email matching, never a company-name/email heuristic or client-supplied username.
         @Query("SELECT a FROM AuditLog a WHERE a.actionType = 'USER_REGISTERED_GOOGLE' " +

@@ -9,6 +9,11 @@ import java.util.List;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select u from User u where u.id=:id and "
+            + "(u.companyId=:companyId or (:companyId is null and u.companyId is null))")
+    Optional<User> lockByIdAndCompanyId(@org.springframework.data.repository.query.Param("id") Long id,
+            @org.springframework.data.repository.query.Param("companyId") Long companyId);
     Optional<User> findByUsername(String username);
 
     List<User> findAllByUsername(String username);

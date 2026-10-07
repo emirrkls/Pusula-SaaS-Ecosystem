@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PushDeviceRepository extends JpaRepository<PushDevice, Long> {
+    void deleteByCompanyIdAndUserId(Long companyId, Long userId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<PushDevice> findByTokenHash(String tokenHash);
 

@@ -17,6 +17,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -69,6 +73,62 @@ public class AppleAppStoreVerificationServiceImpl implements AppleAppStoreVerifi
         throw lastFailure != null
                 ? lastFailure
                 : configurationFailure("Apple environment konfigurasyonu eksik");
+    }
+
+    @Override
+    public AppleNotificationResult verifyNotification(String signedPayload) {
+        if (signedPayload == null || signedPayload.isBlank()) {
+            throw malformedNotification();
+        }
+        for (Environment environment : parseEnabledEnvironments()) {
+            try {
+                SignedDataVerifier verifier = verifier(environment);
+                var payload = verifier.verifyAndDecodeNotification(signedPayload);
+                if (!"2.0".equals(payload.getVersion()) || payload.getSignedDate() == null
+                        || payload.getSignedDate() <= 0 || payload.getRawNotificationType() == null) {
+                    throw malformedNotification();
+                }
+                try { UUID.fromString(payload.getNotificationUUID()); }
+                catch (IllegalArgumentException | NullPointerException ex) { throw malformedNotification(); }
+                var data = payload.getData();
+                if ("TEST".equals(payload.getRawNotificationType())) {
+                    return new AppleNotificationResult(payload.getNotificationUUID(), "TEST", null,
+                            environment.getValue(), payload.getSignedDate(), null, false, null, null);
+                }
+                if (data == null || data.getSignedTransactionInfo() == null) {
+                    // Summary/non-subscription events are acknowledged without changing access.
+                    return new AppleNotificationResult(payload.getNotificationUUID(),
+                            payload.getRawNotificationType(), payload.getRawSubtype(), environment.getValue(),
+                            payload.getSignedDate(), null, false, null, null);
+                }
+                var transaction = verifier.verifyAndDecodeTransaction(data.getSignedTransactionInfo());
+                var verified = payloadValidator.validateIdentity(transaction, environment);
+                LocalDateTime graceExpiry = null;
+                if (data.getSignedRenewalInfo() != null) {
+                    var renewal = verifier.verifyAndDecodeRenewalInfo(data.getSignedRenewalInfo());
+                    if (!verified.originalTransactionId().equals(renewal.getOriginalTransactionId())) {
+                        throw malformedNotification();
+                    }
+                    if (renewal.getGracePeriodExpiresDate() != null) {
+                        graceExpiry = LocalDateTime.ofInstant(
+                                Instant.ofEpochMilli(renewal.getGracePeriodExpiresDate()), ZoneOffset.UTC);
+                    }
+                }
+                return new AppleNotificationResult(payload.getNotificationUUID(), payload.getRawNotificationType(),
+                        payload.getRawSubtype(), environment.getValue(), payload.getSignedDate(), verified,
+                        transaction.getRevocationDate() != null,
+                        data.getStatus() == null ? null : data.getStatus().name(), graceExpiry);
+            } catch (VerificationException ex) {
+                // Try the other configured environment; never decode unverified claims.
+            }
+        }
+        throw new AppStoreVerificationException(AppStoreVerificationException.Reason.VERIFICATION_FAILED,
+                "Apple notification imza dogrulamasi basarisiz");
+    }
+
+    private AppStoreVerificationException malformedNotification() {
+        return new AppStoreVerificationException(AppStoreVerificationException.Reason.MALFORMED,
+                "Apple notification formati gecersiz");
     }
 
     private SignedDataVerifier verifier(Environment environment) {

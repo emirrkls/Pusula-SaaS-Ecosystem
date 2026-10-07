@@ -63,4 +63,18 @@ class SecurityResponseContractTest {
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("SOCIAL_AUTH_UNAVAILABLE"));
     }
+
+    @Test
+    void appleNotificationIsPublicButRejectsEmptyPayloadWithoutChangingPlans() throws Exception {
+        mockMvc.perform(post("/api/public/apple/app-store-notifications").contentType("application/json")
+                        .content("{\"signedPayload\":\"\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void appleNotificationCannotWorkAroundMissingSignatureConfiguration() throws Exception {
+        mockMvc.perform(post("/api/public/apple/app-store-notifications").contentType("application/json")
+                        .content("{\"signedPayload\":\"fake-jws\"}"))
+                .andExpect(status().isServiceUnavailable());
+    }
 }

@@ -64,7 +64,7 @@ class SubscriptionServiceAppleVerifyTest {
         stubAppleVerification("com.pusula.usta", PlanType.USTA, "tx-1", "orig-1", expiresAt);
         stubNoExistingEvent();
         Company company = company(10L, PlanType.CIRAK);
-        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+        when(companyRepository.lockById(10L)).thenReturn(Optional.of(company));
         when(companyRepository.saveAndFlush(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(paymentEventRepository.saveAndFlush(any(PaymentEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(paymentEventRepository.save(any(PaymentEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -89,7 +89,7 @@ class SubscriptionServiceAppleVerifyTest {
         stubAppleVerification("com.pusula.patron", PlanType.PATRON, "tx-2", "orig-2", expiresAt);
         stubNoExistingEvent();
         Company company = company(10L, PlanType.USTA);
-        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+        when(companyRepository.lockById(10L)).thenReturn(Optional.of(company));
         when(companyRepository.saveAndFlush(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(paymentEventRepository.saveAndFlush(any(PaymentEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(paymentEventRepository.save(any(PaymentEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -106,7 +106,7 @@ class SubscriptionServiceAppleVerifyTest {
         stubAppleVerification("com.pusula.patron", PlanType.PATRON, "tx-3", "orig-3", expiresAt);
         stubNoExistingEvent();
         Company company = company(10L, PlanType.CIRAK);
-        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+        when(companyRepository.lockById(10L)).thenReturn(Optional.of(company));
         when(companyRepository.saveAndFlush(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(paymentEventRepository.saveAndFlush(any(PaymentEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(paymentEventRepository.save(any(PaymentEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -256,7 +256,7 @@ class SubscriptionServiceAppleVerifyTest {
         stubAppleVerification("com.pusula.usta", PlanType.USTA, "tx-race", "orig-race",
                 LocalDateTime.now().plusDays(20));
         stubNoExistingEvent();
-        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+        when(companyRepository.lockById(10L)).thenReturn(Optional.of(company));
         when(paymentEventRepository.saveAndFlush(any(PaymentEvent.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(companyRepository.saveAndFlush(any(Company.class)))
@@ -300,7 +300,7 @@ class SubscriptionServiceAppleVerifyTest {
         stubAppleVerification("com.pusula.usta", PlanType.USTA, "tx-1", "orig-1", LocalDateTime.now().plusDays(20));
         stubNoExistingEvent();
         Company company = company(10L, PlanType.CIRAK);
-        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+        when(companyRepository.lockById(10L)).thenReturn(Optional.of(company));
         when(companyRepository.saveAndFlush(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(paymentEventRepository.saveAndFlush(any(PaymentEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(paymentEventRepository.save(any(PaymentEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -365,7 +365,7 @@ class SubscriptionServiceAppleVerifyTest {
     }
 
     private void stubSuccessfulPersistence(Company company) {
-        when(companyRepository.findById(company.getId())).thenReturn(Optional.of(company));
+        when(companyRepository.lockById(company.getId())).thenReturn(Optional.of(company));
         when(companyRepository.saveAndFlush(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(paymentEventRepository.saveAndFlush(any(PaymentEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(paymentEventRepository.save(any(PaymentEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -384,7 +384,7 @@ class SubscriptionServiceAppleVerifyTest {
         Company company = new Company();
         company.setId(id);
         company.setName("Pusula");
-        company.setSubscriptionStatus("ACTIVE");
+        company.setSubscriptionStatus("EXPIRED");
         company.setPlanType(planType);
         company.setIsReadOnly(true);
         return company;

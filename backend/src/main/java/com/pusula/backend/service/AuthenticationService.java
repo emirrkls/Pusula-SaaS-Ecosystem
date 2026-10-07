@@ -38,7 +38,7 @@ public class AuthenticationService {
         private final AuditLogService auditLogService;
         private final FeatureService featureService;
 
-        private final SocialAccountDeletionService socialAccountDeletion;
+        private final UserAccountDeletionService accountDeletion;
 
         public AuthenticationService(UserRepository userRepository,
                         CompanyRepository companyRepository,
@@ -47,7 +47,7 @@ public class AuthenticationService {
                         AuthenticationManager authenticationManager,
                         AuditLogService auditLogService,
                         FeatureService featureService,
-                        SocialAccountDeletionService socialAccountDeletion) {
+                        UserAccountDeletionService accountDeletion) {
                 this.userRepository = userRepository;
                 this.companyRepository = companyRepository;
                 this.passwordEncoder = passwordEncoder;
@@ -55,7 +55,7 @@ public class AuthenticationService {
                 this.authenticationManager = authenticationManager;
                 this.auditLogService = auditLogService;
                 this.featureService = featureService;
-                this.socialAccountDeletion = socialAccountDeletion;
+                this.accountDeletion = accountDeletion;
         }
 
         /**
@@ -250,19 +250,15 @@ public class AuthenticationService {
         @org.springframework.transaction.annotation.Transactional
         public void deleteAccount() {
                 User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-                socialAccountDeletion.revokeAndRemove(currentUser.getId());
-                
-                // Log deletion
+                accountDeletion.delete(currentUser);
+                // Record only a non-personal deletion marker, not the former name/login/IP.
                 auditLogService.logAuth(
                         currentUser.getCompanyId(),
                         currentUser.getId(),
-                        currentUser.getFullName(),
+                        "Silinen kullanıcı",
                         "ACCOUNT_DELETED",
-                        "Kullanıcı hesabını sildi: " + currentUser.getUsername(),
-                        getClientIpAddress());
-                        
-                // Delete user (soft delete handled by @SQLDelete in User entity)
-                userRepository.delete(currentUser);
+                        "Kullanıcı hesabı ve kişisel giriş verileri silindi",
+                        null);
         }
 
         // ── Helper Methods ──────────────────────────────────────────────
