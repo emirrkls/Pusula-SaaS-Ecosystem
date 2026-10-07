@@ -19,4 +19,5 @@ export const PRERENDER_ROUTES = [
     '/hakkimizda',
     '/referanslarimiz',
     '/iletisim',
+    '/privacy',
 ];
