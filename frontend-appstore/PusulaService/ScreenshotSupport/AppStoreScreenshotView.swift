@@ -34,7 +34,20 @@ enum AppStoreScreenshotMode {
 struct AppStoreScreenshotView: View {
     let scene: AppStoreScreenshotScene
 
+    @ViewBuilder
     var body: some View {
+#if DEBUG
+        if let count = TicketListStressFixture.requestedCount {
+            TicketListStressHarness(count: count)
+        } else {
+            gallery
+        }
+#else
+        gallery
+#endif
+    }
+
+    private var gallery: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {

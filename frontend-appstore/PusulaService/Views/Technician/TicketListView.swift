@@ -5,10 +5,19 @@ struct TicketListView: View {
     var requestedFilter: String? = nil
     var onRequestedFilterApplied: (() -> Void)? = nil
     var isNavigationBlocked = false
+#if DEBUG
+    var performanceFixtureCount: Int? = nil
+#endif
     
     @ObservedObject private var session = SessionManager.shared
     @StateObject private var navigation = AppNavigation.shared
     @State private var tickets: [FieldTicketDTO] = []
+    @State private var ticketRevision = UUID()
+    @State private var processor = TicketListProcessor<FieldTicketDTO>()
+    @State private var filteredTickets: [TicketListRow<FieldTicketDTO>] = []
+    @State private var pendingUnassigned: [FieldTicketDTO] = []
+    @State private var isProcessingTickets = false
+    @State private var activeProjectionID: UUID?
     @State private var technicians: [TechnicianDTO] = []
     @State private var customers: [CustomerDTO] = []
     @State private var isLoading = true
@@ -26,24 +35,42 @@ struct TicketListView: View {
     @State private var showBulkAssign = false
     @State private var errorMessage: String?
     
-    private var isAdmin: Bool { session.isAdmin }
+    private var isAdmin: Bool {
+#if DEBUG
+        if performanceFixtureCount != nil { return true }
+#endif
+        return session.isAdmin
+    }
+    private var isSyntheticTicketList: Bool {
+#if DEBUG
+        performanceFixtureCount != nil
+#else
+        false
+#endif
+    }
     private var availableFilters: [String] {
         isAdmin ? TicketFilters.adminFilters : TicketFilters.technicianFilters
     }
     
-    private var filteredTickets: [FieldTicketDTO] {
-        TicketFilters.sorted(tickets.filter {
-            TicketFilters.matches($0, filter: selectedFilter, isAdmin: isAdmin) &&
-            TicketFilters.matchesSearch($0, query: searchText) &&
-            TicketFilters.matchesDateRange($0, startDate: dateFilterStart, endDate: dateFilterEnd)
-        }, filter: selectedFilter)
+    private var listProjectionRequest: TicketProjectionRequest {
+        TicketProjectionRequest(
+            revision: ticketRevision, companyID: session.companyId,
+            query: TicketListQuery(filter: selectedFilter, isAdmin: isAdmin, search: searchText,
+                                   startDate: dateFilterStart, endDate: dateFilterEnd,
+                                   businessDay: BusinessDateParser.startOfDay(Date())),
+            isActive: isScreenVisible && navigation.isSceneActive && canProjectTickets
+        )
     }
-    
-    private var pendingUnassigned: [FieldTicketDTO] {
-        TicketFilters.pendingUnassigned(tickets)
+
+    private var canProjectTickets: Bool {
+#if DEBUG
+        if performanceFixtureCount != nil { return true }
+#endif
+        return session.isAuthenticated && !session.isRestoringSession
     }
     
     var body: some View {
+        let projectionRequest = listProjectionRequest
         VStack(spacing: 0) {
             headerSection
             
@@ -57,6 +84,7 @@ struct TicketListView: View {
                 .padding(.vertical, 12)
             }
             .background(PusulaTheme.page)
+            .accessibilityIdentifier("ticket.filters")
             .onboardingTarget(.ticketFilters)
 
             ticketSearchAndDateFilter
@@ -65,9 +93,10 @@ struct TicketListView: View {
                 adminActionBar
                     .padding(.horizontal)
                     .padding(.bottom, 8)
+                    .disabled(isSyntheticTicketList)
             }
             
-            if isLoading && tickets.isEmpty {
+            if (isLoading || isProcessingTickets) && filteredTickets.isEmpty {
                 Spacer()
                 ProgressView("İş emirleri yükleniyor...")
                 Spacer()
@@ -80,13 +109,18 @@ struct TicketListView: View {
                 )
                 Spacer()
             } else {
-                List(filteredTickets) { ticket in
-                    TicketCardView(ticket: ticket, isAdmin: isAdmin, technicians: technicians) { techId in
-                        Task { await assignTechnician(ticketId: ticket.id, technicianId: techId) }
+                List(filteredTickets) { row in
+                    TicketCardView(ticket: row.ticket, scheduleLabel: row.scheduleLabel,
+                                   isOverdue: row.isOverdue(on: projectionRequest.query.businessDay),
+                                   isAdmin: isAdmin, technicians: technicians) { techId in
+                        Task { await assignTechnician(ticketId: row.id, technicianId: techId) }
                     }
                     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                     .listRowSeparator(.hidden)
-                    .onTapGesture { selectedTicket = ticket }
+                    .accessibilityIdentifier("ticket.row.\(row.id)")
+                    .onTapGesture {
+                        if !isSyntheticTicketList { selectedTicket = row.ticket }
+                    }
                 }
                 .listStyle(.plain)
                 .refreshable { await loadTickets(refresh: true) }
@@ -95,6 +129,7 @@ struct TicketListView: View {
         .background(PusulaTheme.page)
         .navigationTitle(isAdmin ? "Operasyon" : "İşlerim")
         .task { await loadTickets() }
+        .task(id: projectionRequest) { await projectTickets(request: projectionRequest) }
         .task(id: pendingTicketTrigger) { await openPendingTicket() }
         .onAppear {
             isScreenVisible = true
@@ -248,6 +283,7 @@ struct TicketListView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
             TextField("Fiş no, müşteri, telefon, iş veya teknisyen ara", text: $searchText)
+                .accessibilityIdentifier("ticket.search")
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
             if !searchText.isEmpty {
@@ -312,19 +348,19 @@ struct TicketListView: View {
     }
 
     private var dateFilterLabel: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "tr_TR")
-        formatter.timeZone = TimeZone(identifier: "Europe/Istanbul")
-        formatter.dateFormat = "dd.MM.yyyy"
+        func label(_ date: Date) -> String {
+            let parts = BusinessDateParser.calendar.dateComponents([.day, .month, .year], from: date)
+            return String(format: "%02d.%02d.%04d", parts.day ?? 0, parts.month ?? 0, parts.year ?? 0)
+        }
         switch (dateFilterStart, dateFilterEnd) {
-        case let (start?, end?) where Calendar.current.isDate(start, inSameDayAs: end):
-            return formatter.string(from: start)
+        case let (start?, end?) where BusinessDateParser.startOfDay(start) == BusinessDateParser.startOfDay(end):
+            return label(start)
         case let (start?, end?):
-            return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
+            return "\(label(start)) – \(label(end))"
         case let (start?, nil):
-            return "\(formatter.string(from: start)) tarihinden itibaren"
+            return "\(label(start)) tarihinden itibaren"
         case let (nil, end?):
-            return "\(formatter.string(from: end)) tarihine kadar"
+            return "\(label(end)) tarihine kadar"
         default:
             return "Tüm tarihler"
         }
@@ -348,31 +384,88 @@ struct TicketListView: View {
     
     private func loadTickets(refresh: Bool = false) async {
         if refresh { isRefreshing = true } else { isLoading = true }
+#if DEBUG
+        if let count = performanceFixtureCount {
+            do {
+                let values = try await TicketListStressFixture.makeTickets(count: count)
+                try Task.checkCancellation()
+                replaceTickets(values)
+                isLoading = false
+                isRefreshing = false
+            } catch {
+                if !Task.isCancelled { errorMessage = error.localizedDescription }
+            }
+            return
+        }
+#endif
+        guard let requestToken = session.token else {
+            isLoading = false
+            isRefreshing = false
+            return
+        }
         do {
             if isAdmin {
                 async let ticketsTask = TicketService.getAllTickets()
                 async let techTask = TicketService.getTechnicians()
                 let (loadedTickets, loadedTechs) = try await (ticketsTask, techTask)
+                try Task.checkCancellation()
                 await MainActor.run {
-                    tickets = loadedTickets
+                    guard SessionResponsePolicy.belongsToCurrentSession(requestToken: requestToken, currentToken: session.token) else { return }
+                    replaceTickets(loadedTickets)
                     technicians = loadedTechs
                     isLoading = false
                     isRefreshing = false
                 }
             } else {
                 let loaded = try await TicketService.getMyAssignedTickets()
+                try Task.checkCancellation()
                 await MainActor.run {
-                    tickets = loaded
+                    guard SessionResponsePolicy.belongsToCurrentSession(requestToken: requestToken, currentToken: session.token) else { return }
+                    replaceTickets(loaded)
                     isLoading = false
                     isRefreshing = false
                 }
             }
         } catch {
+            guard !Task.isCancelled else { return }
             await MainActor.run {
+                guard SessionResponsePolicy.belongsToCurrentSession(requestToken: requestToken, currentToken: session.token) else { return }
                 errorMessage = error.localizedDescription
                 isLoading = false
                 isRefreshing = false
             }
+        }
+    }
+
+    private func replaceTickets(_ values: [FieldTicketDTO]) {
+        tickets = values
+        ticketRevision = UUID()
+    }
+
+    private func projectTickets(request: TicketProjectionRequest) async {
+        guard !Task.isCancelled, request == listProjectionRequest else { return }
+        let projectionID = UUID()
+        activeProjectionID = projectionID
+        guard request.isActive else {
+            isProcessingTickets = false
+            return
+        }
+        isProcessingTickets = true
+        defer {
+            if activeProjectionID == projectionID { isProcessingTickets = false }
+        }
+        do {
+            // Actor work stays off MainActor and cooperatively observes this
+            // SwiftUI task's cancellation on disappear/query/tenant changes.
+            let snapshot = try await processor.project(records: tickets, request: request)
+            guard listProjectionRequest.accepts(request, isCancelled: Task.isCancelled) else { return }
+            filteredTickets = snapshot.rows
+            pendingUnassigned = snapshot.pendingUnassigned
+        } catch is CancellationError {
+            // Never display an alert for a superseded search or backgrounding.
+        } catch {
+            guard listProjectionRequest.accepts(request, isCancelled: Task.isCancelled) else { return }
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -414,7 +507,7 @@ struct TicketListView: View {
         do {
             let updated = try await TicketService.assignTechnician(ticketId: ticketId, technicianId: technicianId)
             await MainActor.run {
-                tickets = tickets.map { $0.id == ticketId ? updated : $0 }
+                replaceTickets(tickets.map { $0.id == ticketId ? updated : $0 })
             }
         } catch {
             await MainActor.run { errorMessage = error.localizedDescription }
@@ -426,7 +519,7 @@ struct TicketListView: View {
             let updated = try await TicketService.assignTechnicianBulk(ticketIds: ticketIds, technicianId: technicianId)
             let map = Dictionary(uniqueKeysWithValues: updated.map { ($0.id, $0) })
             await MainActor.run {
-                tickets = tickets.map { map[$0.id] ?? $0 }
+                replaceTickets(tickets.map { map[$0.id] ?? $0 })
                 showBulkAssign = false
             }
         } catch {
@@ -528,6 +621,8 @@ private struct TicketDateFilterSheet: View {
 
 struct TicketCardView: View {
     let ticket: FieldTicketDTO
+    var scheduleLabel: String? = nil
+    var isOverdue: Bool = false
     var isAdmin: Bool = false
     var technicians: [TechnicianDTO] = []
     var onAssignTechnician: ((Int) -> Void)? = nil
@@ -553,8 +648,8 @@ struct TicketCardView: View {
                         .foregroundColor(.orange)
                 }
 
-                if let date = ticket.scheduledDate {
-                    Text(formatSchedule(start: date, end: ticket.scheduledEndDate))
+                if let scheduleLabel {
+                    Text(scheduleLabel)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -668,27 +763,6 @@ struct TicketCardView: View {
         }
     }
     
-    private func formatSchedule(start: String, end: String?) -> String {
-        guard let startDate = TicketFilters.parseBusinessDate(start) else { return start }
-        let display = DateFormatter()
-        display.locale = Locale(identifier: "tr_TR")
-        display.timeZone = TimeZone(identifier: "Europe/Istanbul")
-        display.dateFormat = "d MMM HH:mm"
-        var value = display.string(from: startDate)
-        if let endDate = TicketFilters.parseBusinessDate(end) {
-            display.dateFormat = "HH:mm"
-            value += "–\(display.string(from: endDate))"
-        }
-        return value
-    }
-
-    private var isOverdue: Bool {
-        guard ticket.statusEnum == .assigned || ticket.statusEnum == .inProgress,
-              let scheduled = TicketFilters.parseBusinessDate(ticket.scheduledDate) else { return false }
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Europe/Istanbul") ?? .current
-        return calendar.startOfDay(for: scheduled) < calendar.startOfDay(for: Date())
-    }
 }
 
 // MARK: - Create Ticket Sheet

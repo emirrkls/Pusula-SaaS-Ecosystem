@@ -27,8 +27,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Show Xcode version
         run: xcodebuild -version
-      - name: Test notification routing and session-response policies
+      - name: Test routing, session, billing and ticket projection policies
         run: swift test --package-path frontend-appstore
+      - name: Ticket dates and filters must not depend on host timezone
+        run: |
+          set -e
+          for zone in UTC Europe/Istanbul America/Los_Angeles; do
+            TZ="$zone" swift test --package-path frontend-appstore --filter 'BusinessDateParserTests|TicketListTests'
+          done
       - name: Compile app and UI test target for iOS Simulator
         run: |
           set -o pipefail
@@ -49,7 +55,7 @@ jobs:
             fi
           done < /tmp/pusula-ios-build.log
           exit 1
-      - name: Smoke-test cold launch and foreground login on iPhone Simulator
+      - name: Smoke-test login and 10000-ticket foreground responsiveness
         run: |
           set -o pipefail
           simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(d["udid"] for group in devices.values() for d in group if d.get("isAvailable") and d["name"].startswith("iPhone")))')
@@ -58,6 +64,8 @@ jobs:
             -destination "platform=iOS Simulator,id=$simulator_id" \
             -derivedDataPath /tmp/pusula-derived CODE_SIGNING_ALLOWED=NO \
             -only-testing:PusulaServiceScreenshots/StartupSmokeTests \
+            -only-testing:PusulaServiceScreenshots/AuthPresentationTests \
+            -only-testing:PusulaServiceScreenshots/TicketListPerformanceTests \
             test-without-building 2>&1 | tee /tmp/pusula-ios-smoke.log; then
             exit 0
           fi

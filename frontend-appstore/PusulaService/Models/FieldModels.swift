@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Enriched Ticket DTO (matching backend ServiceTicketDTO)
 
-struct FieldTicketDTO: Codable, Identifiable {
+struct FieldTicketDTO: Codable, Identifiable, Sendable {
     let id: Int
     let customerId: Int?
     let customerName: String?

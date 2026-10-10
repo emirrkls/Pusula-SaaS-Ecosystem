@@ -137,3 +137,85 @@ Sources: [Apple Java library](https://github.com/apple/app-store-server-library-
 [notification setup](https://developer.apple.com/help/app-store-connect/configure-in-app-purchase-settings/enter-server-urls-for-app-store-server-notifications),
 [signed snapshot ordering](https://developer.apple.com/documentation/appstoreservernotifications/signeddate),
 [account deletion](https://developer.apple.com/help/app-review/guideline-reference/5-1-1-account-deletion/).
+
+## iOS responsiveness gate — 10 October 2026
+
+The supplied build 53 report (`PusulaService-2026-10-10-122132.ips`) records a
+FRONTBOARD `0x8BADF00D` watchdog, `process-exit` in the background, and failure to
+terminate gracefully within five seconds. The main-thread sample contains ICU /
+NSDateFormatter parsing during a SwiftUI body update. It is not a memory-access
+exception, and a sampled date-parser frame alone does not establish the entire
+root cause. The user reports termination after tapping the app icon and other
+users report UI freezes. Foreground restoration must be tested as well as launch.
+Do not commit the original device report or its private identifiers.
+
+Changes prepared for the next build (not present in uploaded build 53):
+
+- `Core/Tickets` provides bounded, strict ISO/Gregorian parsing, with Istanbul
+  wall-time semantics for zone-less backend dates and explicit offset support.
+- An independent `TicketListProcessor` actor builds parsed/searchable rows and
+  both sort orders once per data revision. Query changes reuse that index;
+  SwiftUI bodies and sort comparators do not parse dates or build formatters.
+- Card schedule labels are prepared in the worker. Background/disappearing
+  screens cancel projection; cancelled, old-query/data/tenant results are rejected.
+  Date boundaries refresh on returning to the foreground. Cancellation is not an alert.
+- A DEBUG-only offline fixture exercises the actual list with 10,000 synthetic
+  tickets. It cannot enable production demo authentication or make ticket mutations;
+  Release builds omit the fixture and the existing screenshot mode stays disabled.
+- Foundation regressions test strict dates, offsets/fractions, date boundaries,
+  filtering/sorting, Turkish search, linear parse counts, actor execution/index reuse,
+  cancellation and stale results. Simulator regressions cover large-list search,
+  foreground restoration and backgrounding during initial projection.
+
+### Local verification — 10 October 2026
+
+- Swift 6.0.3 on Linux, official `swift:6.0` image pinned to
+  `sha256:fc2fe3b78e138702f0d69fcf1420372eb044194450c8eb6ba778ab1c87ff7b1b`:
+  **39 tests passed, zero failures** (16 routing/session, 6 billing, 17 ticket/date).
+  The temporary container had no network access and mounted app sources read-only;
+  tests did not use the VPS, real customer data or production credentials.
+- The 17 ticket/date tests passed separately in each of `UTC`, `Europe/Istanbul`
+  and `America/Los_Angeles`. Turkish search lowercases before accent folding, so
+  `İKLİMLENDİRME` matches `iklimlendirme` consistently across ICU implementations.
+- The 10,000-record regression confirms exactly 30,000 date-parser calls for its
+  three indexed fields and no additional calls across 40 subsequent queries.
+  This is an algorithmic regression check, not a real-iPhone frame-time benchmark.
+- Swift syntax parsing passed for application/UI-test sources with and without
+  `DEBUG`. Linux cannot type-check SwiftUI/UIKit, run Xcode simulator tests, sign
+  an archive or validate device performance. These remain explicit Mac gates.
+- `git diff --check` passed for the iOS, workflow and lifecycle-document changes.
+
+### Evening Mac handoff
+
+1. Preserve dirty/old Mac working copies; fetch the repository and use a clean,
+   fast-forwarded `main` only after these changes have been pushed. Do not use an
+   old source tree/archive. Record the source SHA and clean/ahead-behind status.
+2. First symbolicate the **old build 53** report with its original archive/dSYM,
+   not the new build's symbols. The expected arm64 UUID is
+   `72D4427E-E8EF-322B-BFDF-9F99BE471702`. Verify with `xcrun dwarfdump --uuid`.
+   Known old archive: `~/Library/Developer/Xcode/Archives/2026-10-04/PusulaService-1.0-53-2bea0e7.xcarchive`.
+   Load address: `0x1045dc000`. App frame addresses:
+   `0x1048d5420 0x1048d269c 0x1048b35b0 0x1048b5764 0x1048b38f8 0x1048e2da0`.
+   Use `xcrun atos -arch arm64 -o <matching-DWARF-file> -l 0x1045dc000 <addresses>`.
+   If the UUID differs or dSYM is unavailable, report that limitation; do not invent symbols.
+3. Run `swift test --package-path frontend-appstore`, then the ticket/date suite
+   with `TZ=UTC`, `TZ=Europe/Istanbul`, and `TZ=America/Los_Angeles`.
+4. Build the simulator Debug app/UI tests and run `StartupSmokeTests`,
+   `AuthPresentationTests`, and `TicketListPerformanceTests`. Save xcresult files
+   outside Git and inspect failures instead of loosening responsiveness checks.
+5. Complete a clean Release simulator build, then choose the next unused App Store
+   build number (54 only if still unused). Keep marketing version 1.0, bundle
+   `com.pusula.service`, team `DDV3HCZRP6`, app ID `6801256557`, and account
+   `emirrkeles@gmail.com`. Do not create/revoke certificates or change capabilities.
+6. Archive fresh source, validate, export and upload using the existing approved
+   account/signing workflow. Retain the new archive/dSYM and confirm Apple processing.
+   Do not change the review submission, selected review build or publication status
+   without separate approval. Xcode Cloud is not required.
+7. Finally verify the new TestFlight build on a real device: cold launch, saved
+   session/admin/technician loading, repeated foreground restoration, a populated
+   ticket list, search/filter/scroll, and cold/warm push-to-ticket navigation.
+   Passing a synthetic fixture is not proof that the reported device crash is resolved.
+
+The Windows preparation does not include a new iOS archive or App Store upload.
+The existing App Review submission is unchanged. This client-side change does not
+require a backend deployment or database rewrite.

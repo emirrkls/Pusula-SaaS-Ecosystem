@@ -2,152 +2,23 @@ import Foundation
 import PDFKit
 import SwiftUI
 
+extension FieldTicketDTO: TicketListRecord {
+    var ticketSearchValues: [String] {
+        [String(id), customerName, customerPhone, customerAddress, description,
+         notes, assignedTechnicianName, scheduledDate].compactMap { $0 }
+    }
+}
+
 enum TicketFilters {
-    static let adminFilters = ["Atama Bekleyen", "Bugün Açılan", "Atanan", "İşlemde", "Tamamlanan", "İptal Edilen", "Tümü"]
-    static let technicianFilters = ["Bugünkü İşler", "İleri Tarihli İşler", "Tamamlanan", "İptal Edilen"]
-    
+    static let adminFilters = TicketListQuery.adminFilters
+    static let technicianFilters = TicketListQuery.technicianFilters
+
     static func defaultFilter(isAdmin: Bool) -> String {
         isAdmin ? "Atama Bekleyen" : "Bugünkü İşler"
     }
-    
-    static func matches(_ ticket: FieldTicketDTO, filter: String, isAdmin: Bool) -> Bool {
-        if filter == "Tümü" { return true }
-        let status = ticket.status?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() ?? ""
-        
-        switch filter {
-        case "Atama Bekleyen":
-            return ticket.assignedTechnicianId == nil && status == "PENDING"
-        case "Bugün Açılan":
-            return isTodayInBusinessZone(ticket.createdAt)
-        case "Atanan":
-            if isAdmin {
-                return status == "ASSIGNED"
-            }
-            return status == "ASSIGNED" || status == "IN_PROGRESS"
-        case "Bugünkü İşler", "Bugünün Çağrıları":
-            guard status == "ASSIGNED" || status == "IN_PROGRESS" else { return false }
-            guard let scheduled = parseBusinessDate(ticket.scheduledDate) else { return true }
-            return businessCalendar().startOfDay(for: scheduled) <= businessDayStart()
-        case "İleri Tarihli İşler", "İleri Tarihli":
-            guard status == "ASSIGNED" || status == "IN_PROGRESS",
-                  let scheduled = parseBusinessDate(ticket.scheduledDate) else { return false }
-            return businessCalendar().startOfDay(for: scheduled) > businessDayStart()
-        case "İşlemde", "Devam Eden":
-            return status == "IN_PROGRESS"
-        case "Tamamlanan", "Kapanan":
-            return status == "COMPLETED"
-        case "İptal Edilen":
-            return status == "CANCELLED"
-        default:
-            return status == filter.uppercased()
-        }
-    }
-    
-    static func pendingUnassigned(_ tickets: [FieldTicketDTO]) -> [FieldTicketDTO] {
-        tickets.filter {
-            let status = $0.status?.uppercased() ?? ""
-            return $0.assignedTechnicianId == nil && status == "PENDING"
-        }
-    }
-    
-    private static func isTodayInBusinessZone(_ dateRaw: String?) -> Bool {
-        guard let dateRaw, !dateRaw.isEmpty else { return false }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "Europe/Istanbul")
-        formatter.dateFormat = "yyyy-MM-dd"
-        let today = formatter.string(from: Date())
-        return dateRaw.hasPrefix(today) || dateRaw.contains(today)
-    }
-
-    static func matchesSearch(_ ticket: FieldTicketDTO, query: String) -> Bool {
-        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !term.isEmpty else { return true }
-
-        let values: [String?] = [
-            String(ticket.id),
-            ticket.customerName,
-            ticket.customerPhone,
-            ticket.customerAddress,
-            ticket.description,
-            ticket.notes,
-            ticket.assignedTechnicianName,
-            ticket.scheduledDate
-        ]
-        return values.compactMap { $0 }.contains {
-            $0.localizedCaseInsensitiveContains(term)
-        }
-    }
-
-    static func matchesDateRange(_ ticket: FieldTicketDTO, startDate: Date?, endDate: Date?) -> Bool {
-        guard startDate != nil || endDate != nil else { return true }
-        guard let ticketDate = relevantDate(ticket) else { return false }
-
-        let calendar = businessCalendar()
-        let ticketDay = calendar.startOfDay(for: ticketDate)
-        if let startDate, ticketDay < calendar.startOfDay(for: startDate) { return false }
-        if let endDate, ticketDay > calendar.startOfDay(for: endDate) { return false }
-        return true
-    }
-
-    static func sorted(_ tickets: [FieldTicketDTO], filter: String) -> [FieldTicketDTO] {
-        let ascending = ["Bugünkü İşler", "Bugünün Çağrıları", "İleri Tarihli İşler", "İleri Tarihli"].contains(filter)
-        return tickets.sorted { left, right in
-            let leftDate = sortDate(left)
-            let rightDate = sortDate(right)
-            switch (leftDate, rightDate) {
-            case let (lhs?, rhs?) where lhs != rhs:
-                return ascending ? lhs < rhs : lhs > rhs
-            case (_?, nil):
-                return true
-            case (nil, _?):
-                return false
-            default:
-                return left.id > right.id
-            }
-        }
-    }
-
-    private static func sortDate(_ ticket: FieldTicketDTO) -> Date? {
-        relevantDate(ticket)
-    }
-
-    private static func relevantDate(_ ticket: FieldTicketDTO) -> Date? {
-        switch ticket.status?.uppercased() {
-        case "COMPLETED":
-            return parseBusinessDate(ticket.completedAt)
-                ?? parseBusinessDate(ticket.scheduledDate)
-                ?? parseBusinessDate(ticket.createdAt)
-        case "CANCELLED":
-            return parseBusinessDate(ticket.updatedAt)
-                ?? parseBusinessDate(ticket.scheduledDate)
-                ?? parseBusinessDate(ticket.createdAt)
-        default:
-            return parseBusinessDate(ticket.scheduledDate)
-                ?? parseBusinessDate(ticket.createdAt)
-        }
-    }
 
     static func parseBusinessDate(_ raw: String?) -> Date? {
-        guard let raw, !raw.isEmpty else { return nil }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "Europe/Istanbul")
-        for format in ["yyyy-MM-dd'T'HH:mm:ss.SSSSSS", "yyyy-MM-dd'T'HH:mm:ss.SSS", "yyyy-MM-dd'T'HH:mm:ss"] {
-            formatter.dateFormat = format
-            if let date = formatter.date(from: raw) { return date }
-        }
-        return ISO8601DateFormatter().date(from: raw)
-    }
-
-    private static func businessDayStart() -> Date {
-        businessCalendar().startOfDay(for: Date())
-    }
-
-    private static func businessCalendar() -> Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Europe/Istanbul") ?? .current
-        return calendar
+        BusinessDateParser.parse(raw)
     }
 }
 
