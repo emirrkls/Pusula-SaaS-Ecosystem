@@ -2,3 +2,13 @@
 "auth.social.separator" = "veya";
 "auth.social.email_separator" = "veya e-posta ile";
 "auth.social.loading" = "Giriş yapılıyor";
+"auth.desktop_password.action" = "Masaüstü şifresi belirle (isteğe bağlı)";
+"auth.desktop_password.title" = "Masaüstü Girişi";
+"auth.desktop_password.heading" = "İsteğe bağlı masaüstü şifresi";
+"auth.desktop_password.explanation" = "Apple veya Google ile mobil uygulamaya şifresiz giriş yapabilirsiniz. Yalnızca masaüstünde kullanıcı adı ve şifreyle giriş yapmak isterseniz burada ayrıca şifre belirleyebilirsiniz. Bu adım zorunlu değildir; vazgeçmeniz mobil hesabınızı veya oturumunuzu etkilemez.";
+"auth.desktop_password.username" = "Masaüstü kullanıcı adınız";
+"auth.desktop_password.password" = "Şifre";
+"auth.desktop_password.confirmation" = "Şifre tekrar";
+"auth.desktop_password.requirements" = "En az 8 karakter, harf ve rakam içermelidir; en fazla 72 UTF-8 bayt olabilir.";
+"auth.desktop_password.save" = "Şifreyi Kaydet";
+"auth.desktop_password.cancel" = "Vazgeç";

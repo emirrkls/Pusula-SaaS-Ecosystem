@@ -19,6 +19,10 @@ final class SessionManager: ObservableObject {
     @Published var fullName: String = ""
     @Published var companyId: Int?
     @Published var companyName: String?
+    @Published private(set) var desktopLoginOptions: DesktopLoginOptions = .unavailable
+
+    var canSetDesktopPassword: Bool { desktopLoginOptions.canSetPassword }
+    var desktopLoginUsername: String? { desktopLoginOptions.loginUsername }
     
     // MARK: - SaaS State
     @Published var planType: String = "CIRAK"
@@ -74,6 +78,7 @@ final class SessionManager: ObservableObject {
         self.fullName = response.fullName ?? ""
         self.companyId = response.companyId
         self.companyName = response.companyName
+        self.desktopLoginOptions = response.desktopLoginOptions
         self.planType = response.planType ?? "CIRAK"
         self.features = response.features ?? [:]
         self.quota = response.quota
@@ -120,6 +125,7 @@ final class SessionManager: ObservableObject {
         fullName = ""
         companyId = nil
         companyName = nil
+        desktopLoginOptions = .unavailable
         planType = "CIRAK"
         features = [:]
         quota = nil
@@ -184,6 +190,7 @@ final class SessionManager: ObservableObject {
             fullName = profile.fullName ?? ""
             companyId = profile.companyId
             companyName = profile.companyName
+            desktopLoginOptions = profile.desktopLoginOptions
             onboardingVersion = profile.onboardingVersion ?? 0
             KeychainHelper.save(key: "user_role", value: restoredRole)
             applySubscriptionContext(context)
@@ -229,6 +236,19 @@ final class SessionManager: ObservableObject {
         if let currentQuota = context.quota { quota = currentQuota }
         if let readOnly = context.isReadOnly { isReadOnly = readOnly }
         trialDaysRemaining = planType == "CIRAK" ? nil : context.trialDaysRemaining
+    }
+
+    /// Explicit account-setting action, independent of Apple/Google sign-in.
+    func setDesktopPassword(_ password: String) async throws {
+        guard isAuthenticated, canSetDesktopPassword, let requestToken = token else {
+            throw NetworkError.unauthorized
+        }
+        let revision = sessionRevision
+        try await AuthService.setInitialSocialPassword(password, authToken: requestToken)
+        guard !Task.isCancelled, revision == sessionRevision,
+              SessionResponsePolicy.belongsToCurrentSession(requestToken: requestToken, currentToken: token)
+        else { throw CancellationError() }
+        desktopLoginOptions = desktopLoginOptions.afterSettingPassword
     }
 }
 

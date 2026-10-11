@@ -4,9 +4,10 @@ import GoogleSignIn
 /// Auth service — handles login, registration, and token lifecycle.
 /// Stores token securely and works with SessionManager for state.
 enum AuthService {
-    static func setInitialSocialPassword(_ password: String) async throws {
-        let _: EmptyResponse = try await NetworkManager.shared.post(
-            "/api/auth/initial-password", body: InitialPasswordBody(password: password))
+    static func setInitialSocialPassword(_ password: String, authToken: String) async throws {
+        let _: EmptyResponse = try await NetworkManager.shared.request(
+            .POST, path: "/api/auth/initial-password", body: InitialPasswordBody(password: password),
+            authTokenOverride: authToken)
     }
     static func loginGoogle(idToken: String) async throws -> AuthResponse {
         let response: AuthResponse = try await NetworkManager.shared.post(

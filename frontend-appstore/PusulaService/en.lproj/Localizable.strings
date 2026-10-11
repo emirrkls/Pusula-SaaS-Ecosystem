@@ -2,3 +2,13 @@
 "auth.social.separator" = "or";
 "auth.social.email_separator" = "or with email";
 "auth.social.loading" = "Signing in";
+"auth.desktop_password.action" = "Set desktop password (optional)";
+"auth.desktop_password.title" = "Desktop Sign-In";
+"auth.desktop_password.heading" = "Optional desktop password";
+"auth.desktop_password.explanation" = "You can sign in to the mobile app with Apple or Google without a password. Only set a separate password here if you want to sign in on desktop with a username and password. This step is optional; cancelling does not affect your mobile account or session.";
+"auth.desktop_password.username" = "Your desktop username";
+"auth.desktop_password.password" = "Password";
+"auth.desktop_password.confirmation" = "Confirm password";
+"auth.desktop_password.requirements" = "At least 8 characters, including a letter and a number; at most 72 UTF-8 bytes.";
+"auth.desktop_password.save" = "Save Password";
+"auth.desktop_password.cancel" = "Cancel";

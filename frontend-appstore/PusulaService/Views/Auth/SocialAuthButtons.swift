@@ -4,11 +4,15 @@ import SwiftUI
 /// Shared by sign-in and registration; both providers use the same existing account.
 struct SocialAuthButtons: View {
     @StateObject private var manager = SocialAuthManager()
-    @State private var pendingResponse: AuthResponse?
-    @State private var showPasswordSetup = false
     @Binding var isLoading: Bool
     @Binding var errorMessage: String?
     var placement: SocialAuthPlacement = .signIn
+#if DEBUG
+    // Offline UI tests exercise this same completion path, never a real session.
+    var testAuthenticate: (@MainActor (Bool) async throws -> AuthResponse)? = nil
+#endif
+    // Keep the production completion last so login/registration trailing
+    // closures cannot bind to the optional DEBUG authentication fixture.
     var onSuccess: (AuthResponse) -> Void
 
     var body: some View {
@@ -31,19 +35,6 @@ struct SocialAuthButtons: View {
             }
         }
         .disabled(isLoading)
-        .sheet(isPresented: $showPasswordSetup) {
-            SocialPasswordSetupView(username: pendingResponse?.loginUsername, onComplete: {
-                if let response = pendingResponse { onSuccess(response) }
-                pendingResponse = nil
-                showPasswordSetup = false
-            }, onCancel: {
-                let previousToken = pendingResponse?.token
-                pendingResponse = nil
-                showPasswordSetup = false
-                Task { await AuthService.logout(expectedToken: previousToken) }
-            })
-            .interactiveDismissDisabled()
-        }
     }
 
     private var separator: some View {
@@ -67,18 +58,28 @@ struct SocialAuthButtons: View {
             defer { isLoading = false }
             do {
                 let response: AuthResponse
-                if apple { response = try await manager.signInWithApple() }
-                else { response = try await manager.signInWithGoogle() }
-                if response.requiresPasswordSetup == true {
-                    pendingResponse = response
-                    showPasswordSetup = true
+#if DEBUG
+                if let testAuthenticate {
+                    response = try await testAuthenticate(apple)
                 } else {
-                    onSuccess(response)
+                    response = try await authenticate(apple: apple)
                 }
+#else
+                response = try await authenticate(apple: apple)
+#endif
+                // Provider authentication is complete. The legacy server flag
+                // describes local-password availability, not a sign-in gate.
+                onSuccess(response)
             } catch {
                 if !SocialAuthManager.isCancellation(error) { errorMessage = error.localizedDescription }
             }
         }
+    }
+
+    @MainActor
+    private func authenticate(apple: Bool) async throws -> AuthResponse {
+        if apple { return try await manager.signInWithApple() }
+        return try await manager.signInWithGoogle()
     }
 }
 

@@ -22,7 +22,27 @@ Provider setup status (2026-10-03): the `Pusula iOS` Google OAuth client has bee
 - Social login is available on the individual sign-in/register screens; corporate users retain organization-code/password login.
 - Social identities are bound by verified `(provider, subject)`, not by a requested username. Returning identities do not need a repeated Apple full name or email. A name is collected only for creating the account and never overwrites an existing user's name or role.
 - Initial binding to an existing username/email requires a single match and an authoritative verified provider email. Multiple-company matches, super administrators and a different existing subject for that provider are rejected. Legacy Google custom usernames are resolved only through the exact server registration audit and its recorded user/company; no company-email heuristic is used.
-- New social accounts must set an initial local password for financial confirmations and desktop login. The JWT-authenticated `/initial-password` endpoint only accepts the current user's tenant and cannot overwrite an already enabled password. Apple private-relay usernames are shown to the user. Existing password accounts keep their credentials.
+- iOS Apple/Google sign-in completes immediately after server verification; it never requires a local password, even when the existing backend returns `requiresPasswordSetup: true`. That legacy flag now controls only an optional **Set desktop password** action in Account. Cancelling or dismissing this user-initiated form does not log out or restrict mobile usage. Existing local credentials cannot be overwritten through initial setup.
+- The JWT-authenticated `/initial-password` endpoint still accepts only the current user's tenant. Passwords remain optional for iOS social users; no random/empty password is accepted as an authentication bypass, and financial role/tenant/password checks are not removed. Older Android clients may still interpret the legacy flag as a setup gate; this iOS correction does not silently change their server contract.
+
+## App Review correction — 11 October 2026
+
+Apple reviewed build **1.0 (53)** on **iPad Air 11-inch (M3)** and identified the mandatory post-Apple-sign-in password sheet under Guideline 4. The next combined build removes this sheet from both individual login and registration (Apple and Google). The desktop credential form is available only through an explicit Account action; its Turkish/English strings explain that it is optional and independent of mobile authentication.
+
+`AuthProfileResponse` now reads the already deployed optional-password metadata so a restored session behaves consistently with a newly authenticated one. Initial password saving captures the current JWT explicitly; an in-flight response from an older session cannot update another session's UI. No backend deploy, schema migration, key/profile change or build-number change is required for this correction at preparation time.
+
+Verification gates:
+
+- `node --test scripts/test-ios-auth-contract.cjs` checks the passwordless completion contract, explicit Account entry, session-bound initial-password request, translations and fixture/CI isolation on Windows or macOS; source checks do not type-check SwiftUI or replace device tests.
+- `swift test --package-path frontend-appstore` includes six `DesktopLoginOptionsTests` for legacy/partial/malformed responses, private-relay usernames and one-time setup availability, alongside the existing routing/billing/date/performance regressions.
+- `SocialSignInFlowTests` exercises the actual social-button completion path for login/registration, Apple/Google, existing credentials, cancellation/error and cancelling optional desktop setup. The offline fixture requires DEBUG + simulator + the existing screenshot launch argument and an explicit environment flag. It never configures a real session, writes Keychain or contacts a provider/API; it is excluded from Release. A passing fixture is not an end-to-end Apple login test.
+- CI runs these UI tests on iPhone and iPad. Run the same tests on the Mac before archiving; also run `AuthPresentationTests`, `StartupSmokeTests` and `TicketListPerformanceTests` plus a clean Release simulator build.
+- On an actual device/TestFlight, validate first Apple registration including Hide My Email, subsequent Apple sign-in without repeated name/email, cancellation, session restoration, optional desktop password save/cancel and unchanged financial role/tenant restrictions. No password may be requested as a condition of using the mobile account.
+- Include the already prepared crash/performance source in this same new archive; build 53 contains neither correction. Do not claim crash resolution, upload or App Review resubmission until separately verified/performed.
+
+Design reference: [Sign in with Apple — Apple Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple).
+
+Local preparation verification on 11 October: **22 existing backend authentication/security tests passed**, **8 source-contract checks passed**, and scoped `git diff --check` passed. The local Docker/Swift environment failed to start, so the updated Swift package (including six new credential-policy tests) and the seven new simulator UI tests are **not recorded as run/passed** here. Xcode type-checking, iPhone/iPad UI tests, Release build, archive validation and real provider/device flows remain Mac/device gates. No push, backend deploy, upload or App Review reply/submission was performed in this preparation step.
 
 ## Security and endpoints
 

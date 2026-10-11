@@ -8,7 +8,8 @@ let package = Package(
     products: [
         .library(name: "PusulaRouting", targets: ["PusulaRouting"]),
         .library(name: "PusulaBilling", targets: ["PusulaBilling"]),
-        .library(name: "PusulaTickets", targets: ["PusulaTickets"])
+        .library(name: "PusulaTickets", targets: ["PusulaTickets"]),
+        .library(name: "PusulaAuth", targets: ["PusulaAuth"])
     ],
     targets: [
         .target(name: "PusulaRouting", path: "PusulaService/Core/Routing"),
@@ -16,6 +17,8 @@ let package = Package(
         .target(name: "PusulaBilling", path: "PusulaService/Core/Billing"),
         .testTarget(name: "PusulaBillingTests", dependencies: ["PusulaBilling"], path: "BillingTests"),
         .target(name: "PusulaTickets", path: "PusulaService/Core/Tickets"),
-        .testTarget(name: "PusulaTicketTests", dependencies: ["PusulaTickets"], path: "TicketTests")
+        .testTarget(name: "PusulaTicketTests", dependencies: ["PusulaTickets"], path: "TicketTests"),
+        .target(name: "PusulaAuth", path: "PusulaService/Core/Auth"),
+        .testTarget(name: "PusulaAuthTests", dependencies: ["PusulaAuth"], path: "AuthTests")
     ]
 )

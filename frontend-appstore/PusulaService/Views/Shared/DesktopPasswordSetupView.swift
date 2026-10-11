@@ -1,12 +1,13 @@
 import SwiftUI
 
-/// Social sign-up must not leave a random, unknown password for financial confirmations.
-struct SocialPasswordSetupView: View {
+/// User-initiated alternative for desktop sign-in; never part of social login.
+struct DesktopPasswordSetupView: View {
     @State private var password = ""
     @State private var confirmation = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
     let username: String?
+    let savePassword: (String) async throws -> Void
     let onComplete: () -> Void
     let onCancel: () -> Void
 
@@ -18,41 +19,49 @@ struct SocialPasswordSetupView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("İşlem şifrenizi belirleyin").font(.title2.weight(.semibold))
-                    Text("Google veya Apple ile giriş yapmaya devam edebilirsiniz. Bu şifreyi finansal işlemleri onaylarken ve masaüstü uygulamasında giriş yaparken kullanacaksınız.")
+                    Text("auth.desktop_password.heading").font(.title2.weight(.semibold))
+                    Text("auth.desktop_password.explanation")
                         .foregroundStyle(.secondary)
                     if let username {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Masaüstü kullanıcı adınız").font(.caption).foregroundStyle(.secondary)
+                            Text("auth.desktop_password.username").font(.caption).foregroundStyle(.secondary)
                             Text(username).textSelection(.enabled)
                         }
                         .pusulaCard()
                     }
-                    PusulaTextField(title: "Şifre", icon: "lock", text: $password,
+                    PusulaTextField(title: String(localized: "auth.desktop_password.password"), icon: "lock", text: $password,
                                     contentType: .newPassword, textInputAutocapitalization: .never, isSecure: true)
-                    PusulaTextField(title: "Şifre tekrar", icon: "lock.rotation", text: $confirmation,
+                    PusulaTextField(title: String(localized: "auth.desktop_password.confirmation"), icon: "lock.rotation", text: $confirmation,
                                     contentType: .newPassword, textInputAutocapitalization: .never, isSecure: true)
-                    Text("En az 8 karakter, harf ve rakam içermelidir.").font(.caption).foregroundStyle(.secondary)
+                    Text("auth.desktop_password.requirements").font(.caption).foregroundStyle(.secondary)
                     if let errorMessage { PusulaInlineMessage(text: errorMessage) }
-                    PusulaPrimaryButton(title: "Kaydet ve Devam Et", icon: "checkmark", isLoading: isSaving,
+                    PusulaPrimaryButton(title: String(localized: "auth.desktop_password.save"), icon: "checkmark", isLoading: isSaving,
                                         isDisabled: !isValid || isSaving, action: save)
+                        .accessibilityIdentifier("account.desktop-password.save")
                 }
                 .padding(PusulaTheme.pagePadding)
                 .frame(maxWidth: 520)
                 .frame(maxWidth: .infinity)
             }
             .background(PusulaTheme.page.ignoresSafeArea())
-            .navigationTitle("Hesap Güvenliği")
+            .navigationTitle("auth.desktop_password.title")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Vazgeç", action: onCancel).disabled(isSaving) } }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("auth.desktop_password.cancel", action: onCancel)
+                        .disabled(isSaving)
+                        .accessibilityIdentifier("account.desktop-password.cancel")
+                }
+            }
         }
+        .interactiveDismissDisabled(isSaving)
     }
     private func save() {
         guard isValid, !isSaving else { return }
         isSaving = true
         Task { @MainActor in
             defer { isSaving = false }
-            do { try await AuthService.setInitialSocialPassword(password); onComplete() }
+            do { try await savePassword(password); onComplete() }
             catch { errorMessage = error.localizedDescription }
         }
     }

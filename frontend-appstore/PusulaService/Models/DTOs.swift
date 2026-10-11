@@ -28,8 +28,13 @@ struct AuthResponse: Codable {
     let isReadOnly: Bool?
     let trialDaysRemaining: Int?
     let onboardingVersion: Int?
+    // Backward-compatible server metadata. Never blocks iOS social sign-in.
     var requiresPasswordSetup: Bool? = nil
     var loginUsername: String? = nil
+
+    var desktopLoginOptions: DesktopLoginOptions {
+        DesktopLoginOptions(requiresPasswordSetup: requiresPasswordSetup, loginUsername: loginUsername)
+    }
 }
 
 /// Partial response returned by GET /api/auth/feature-context.
@@ -39,6 +44,12 @@ struct AuthProfileResponse: Codable {
     let companyId: Int?
     let companyName: String?
     let onboardingVersion: Int?
+    var requiresPasswordSetup: Bool? = nil
+    var loginUsername: String? = nil
+
+    var desktopLoginOptions: DesktopLoginOptions {
+        DesktopLoginOptions(requiresPasswordSetup: requiresPasswordSetup, loginUsername: loginUsername)
+    }
 }
 
 struct QuotaDTO: Codable {

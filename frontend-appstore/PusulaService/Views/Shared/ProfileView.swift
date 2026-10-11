@@ -1,11 +1,12 @@
 import SwiftUI
 
 struct ProfileView: View {
-    let session = SessionManager.shared
+    @ObservedObject private var session = SessionManager.shared
     @State private var showDeleteAlert = false
     @State private var showPlanUpgrade = false
     @State private var isDeletingAccount = false
     @State private var deleteError: String?
+    @State private var showDesktopPasswordSetup = false
     
     var body: some View {
         ScrollView {
@@ -17,6 +18,16 @@ struct ProfileView: View {
                     infoRow("Ad Soyad", value: session.fullName)
                     infoRow("Rol", value: roleLabel(session.role))
                     infoRow("Paket", value: session.planType)
+                }
+
+                if session.canSetDesktopPassword {
+                    Button(action: { showDesktopPasswordSetup = true }) {
+                        Label("auth.desktop_password.action", systemImage: "desktopcomputer")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("account.desktop-password.open")
                 }
                 
                 sectionCard("Şirket") {
@@ -90,6 +101,14 @@ struct ProfileView: View {
         .navigationTitle("Hesap")
         .sheet(isPresented: $showPlanUpgrade) {
             NavigationStack { PlanUpgradeView() }
+        }
+        .sheet(isPresented: $showDesktopPasswordSetup) {
+            DesktopPasswordSetupView(
+                username: session.desktopLoginUsername,
+                savePassword: { password in try await session.setDesktopPassword(password) },
+                onComplete: { showDesktopPasswordSetup = false },
+                onCancel: { showDesktopPasswordSetup = false }
+            )
         }
         .alert("Hesabı Sil", isPresented: $showDeleteAlert) {
             Button("İptal", role: .cancel) { }

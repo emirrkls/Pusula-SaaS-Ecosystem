@@ -198,10 +198,12 @@ Changes prepared for the next build (not present in uploaded build 53):
    `0x1048d5420 0x1048d269c 0x1048b35b0 0x1048b5764 0x1048b38f8 0x1048e2da0`.
    Use `xcrun atos -arch arm64 -o <matching-DWARF-file> -l 0x1045dc000 <addresses>`.
    If the UUID differs or dSYM is unavailable, report that limitation; do not invent symbols.
-3. Run `swift test --package-path frontend-appstore`, then the ticket/date suite
+3. Run `node --test scripts/test-ios-auth-contract.cjs` and
+   `swift test --package-path frontend-appstore`, then the ticket/date suite
    with `TZ=UTC`, `TZ=Europe/Istanbul`, and `TZ=America/Los_Angeles`.
 4. Build the simulator Debug app/UI tests and run `StartupSmokeTests`,
-   `AuthPresentationTests`, and `TicketListPerformanceTests`. Save xcresult files
+   `AuthPresentationTests`, `SocialSignInFlowTests` (iPhone and iPad), and
+   `TicketListPerformanceTests`. Save xcresult files
    outside Git and inspect failures instead of loosening responsiveness checks.
 5. Complete a clean Release simulator build, then choose the next unused App Store
    build number (54 only if still unused). Keep marketing version 1.0, bundle
@@ -219,3 +221,22 @@ Changes prepared for the next build (not present in uploaded build 53):
 The Windows preparation does not include a new iOS archive or App Store upload.
 The existing App Review submission is unchanged. This client-side change does not
 require a backend deployment or database rewrite.
+
+### Guideline 4 — combined-build addition (11 October 2026)
+
+The reviewer of 1.0 (53), on iPad Air 11-inch (M3), reported that Sign in with
+Apple requires creating another password. The shared iOS social flow now invokes
+its successful-session callback immediately after verified Apple/Google login,
+without a password sheet. Desktop password creation is a separate, optional
+Account action, with Turkish/English translations and unchanged server-side
+one-time, authenticated-user/tenant checks. Restored sessions read the same
+capability metadata. No backend deploy is needed; the legacy response field is
+retained for existing Android compatibility.
+
+Run the new credential policy tests and `SocialSignInFlowTests` alongside the
+crash/launch/list tests in the same source tree/archive. In addition to simulator
+tests, verify real first/returning Apple sign-in (including Hide My Email),
+optional desktop setup cancellation/save and unchanged access restrictions on
+iPhone and iPad. No new archive, upload, selected-build change, reviewer reply
+or resubmission is implied by these source changes. Choose the next unused
+build number on the Mac only after inspecting App Store Connect.

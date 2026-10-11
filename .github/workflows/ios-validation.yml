@@ -6,10 +6,12 @@ on:
     paths:
       - 'frontend-appstore/**'
       - '.github/workflows/ios-validation.yml'
+      - 'scripts/test-ios-auth-contract.cjs'
   pull_request:
     paths:
       - 'frontend-appstore/**'
       - '.github/workflows/ios-validation.yml'
+      - 'scripts/test-ios-auth-contract.cjs'
   workflow_dispatch:
 
 permissions:
@@ -25,9 +27,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Guard the passwordless social sign-in contract
+        run: node --test scripts/test-ios-auth-contract.cjs
       - name: Show Xcode version
         run: xcodebuild -version
-      - name: Test routing, session, billing and ticket projection policies
+      - name: Test routing, session, billing, optional credentials and ticket projection policies
         run: swift test --package-path frontend-appstore
       - name: Ticket dates and filters must not depend on host timezone
         run: |
@@ -65,6 +69,7 @@ jobs:
             -derivedDataPath /tmp/pusula-derived CODE_SIGNING_ALLOWED=NO \
             -only-testing:PusulaServiceScreenshots/StartupSmokeTests \
             -only-testing:PusulaServiceScreenshots/AuthPresentationTests \
+            -only-testing:PusulaServiceScreenshots/SocialSignInFlowTests \
             -only-testing:PusulaServiceScreenshots/TicketListPerformanceTests \
             test-without-building 2>&1 | tee /tmp/pusula-ios-smoke.log; then
             exit 0
@@ -77,3 +82,13 @@ jobs:
             fi
           done < /tmp/pusula-ios-smoke.log
           exit 1
+      - name: Regress Apple sign-in and optional desktop credentials on iPad
+        run: |
+          set -o pipefail
+          simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(d["udid"] for group in devices.values() for d in group if d.get("isAvailable") and d["name"].startswith("iPad")))')
+          xcodebuild -project frontend-appstore/PusulaService.xcodeproj \
+            -scheme PusulaService -configuration Debug -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,id=$simulator_id" \
+            -derivedDataPath /tmp/pusula-derived CODE_SIGNING_ALLOWED=NO \
+            -only-testing:PusulaServiceScreenshots/SocialSignInFlowTests \
+            test-without-building 2>&1 | tee /tmp/pusula-ios-social-ipad.log

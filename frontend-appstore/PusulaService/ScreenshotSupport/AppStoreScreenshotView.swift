@@ -37,7 +37,9 @@ struct AppStoreScreenshotView: View {
     @ViewBuilder
     var body: some View {
 #if DEBUG
-        if let count = TicketListStressFixture.requestedCount {
+        if SocialAuthFlowFixture.isEnabled {
+            SocialAuthFlowHarness()
+        } else if let count = TicketListStressFixture.requestedCount {
             TicketListStressHarness(count: count)
         } else {
             gallery

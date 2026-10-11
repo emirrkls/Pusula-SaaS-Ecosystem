@@ -72,6 +72,25 @@ Beklenen:
 - Dogru hesap dogru tenant ve rolle acilir.
 - Hatali bilgiler hassas sunucu ayrintisi gostermeyen anlasilir hata verir.
 
+### IOS-AUTH-05 Apple/Google ile sifresiz kayit ve giris (11 October 2026)
+
+1. iPhone ve iPad'de hem bireysel giris hem hesap olusturma ekranindan Apple ile devam edin.
+2. Yeni test hesabinda E-postami Gizle'yi, mevcut hesapta tekrar girisi deneyin; Apple ikinci giriste ad/e-posta vermeyebilir.
+3. Apple penceresini iptal edin; sonra tekrar deneyin. Google akisinda da basari/iptal senaryolarini kontrol edin.
+4. Giristen sonra uygulamayi tamamen kapatip tekrar acin.
+5. Hesap bolumunden **Masaustu sifresi belirle (istege bagli)** islemini kendiniz acin; once vazgecin veya sheet'i kapatin, sonra yeniden acip guclu bir sifre kaydedin.
+6. Yalniz kayitli sifreyi kullanarak masaustu girisini ve mevcut finansal onaylari kontrol edin. Eski sifreli hesaplarin sifresinin degismedigini teyit edin.
+
+Beklenen:
+
+- Apple/Google kimligi sunucuda dogrulandiktan sonra mobil oturum acilir; zorunlu sifre formu yoktur. Backend'in eski `requiresPasswordSetup: true` alani bu akisi engellemez.
+- E-postami Gizle ve sonraki giris ayni hesap/tenant ile devam eder; yeni sirket olusturulmaz.
+- Opsiyonel masaustu formundan vazgecmek cikis yaptirmaz veya mobil fonksiyonlari kisitlamaz. Klavye acikken iPad dahil kaydet/vazgec butonlari erisilebilirdir.
+- Sifre kaydedilince ilk sifre belirleme secenegi kaybolur; mevcut sifre bu yolla uzerine yazilamaz. Yeniden acilista sunucudan dogru durum gelir.
+- Yetkisiz rol, baska tenant ve gecersiz parola denemeleri reddedilir; bos parola veya istemci bayragi finansal yetki acmaz.
+
+Otomatik Mac kapilari: `swift test --package-path frontend-appstore` ve `SocialSignInFlowTests` (iPhone + iPad), `AuthPresentationTests`, `StartupSmokeTests`, `TicketListPerformanceTests`. DEBUG-only offline fixture gercek Apple/Google girisinin veya cihaz testinin yerine gecmez.
+
 ## 2. Rol ve Tenant Izolasyonu
 
 ### IOS-ROLE-01 Teknisyen sinirlari
