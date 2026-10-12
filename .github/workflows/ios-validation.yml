@@ -71,6 +71,7 @@ jobs:
             -scheme PusulaService -configuration Debug -sdk iphonesimulator \
             -destination "platform=iOS Simulator,id=$simulator_id" \
             -derivedDataPath /tmp/pusula-derived CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath /tmp/pusula-ios-smoke.xcresult \
             -only-testing:PusulaServiceScreenshots/StartupSmokeTests \
             -only-testing:PusulaServiceScreenshots/AuthPresentationTests \
             -only-testing:PusulaServiceScreenshots/SocialSignInFlowTests \
@@ -94,5 +95,16 @@ jobs:
             -scheme PusulaService -configuration Debug -sdk iphonesimulator \
             -destination "platform=iOS Simulator,id=$simulator_id" \
             -derivedDataPath /tmp/pusula-derived CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath /tmp/pusula-ios-social-ipad.xcresult \
             -only-testing:PusulaServiceScreenshots/SocialSignInFlowTests \
             test-without-building 2>&1 | tee /tmp/pusula-ios-social-ipad.log
+      - name: Retain simulator diagnostics when a gate fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-failure-${{ github.run_id }}
+          path: |
+            /tmp/pusula-ios-*.log
+            /tmp/pusula-ios-*.xcresult
+          retention-days: 7
+          if-no-files-found: ignore

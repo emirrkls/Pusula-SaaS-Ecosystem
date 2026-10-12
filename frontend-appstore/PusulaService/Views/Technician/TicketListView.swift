@@ -236,6 +236,8 @@ struct TicketListView: View {
                     .foregroundStyle(.secondary)
                 Text("\(filteredTickets.count) iş emri")
                     .font(.title3.weight(.bold))
+                    .accessibilityIdentifier("ticket.summary.count")
+                    .accessibilityValue(Text(verbatim: String(filteredTickets.count)))
                 if !isAdmin {
                     Text(selectedFilter)
                         .font(.caption)

@@ -9,6 +9,21 @@ const app = 'frontend-appstore/PusulaService/';
 const store = read(app + 'Services/StoreKitManager.swift');
 const session = read(app + 'Core/SessionManager.swift');
 
+test('large-list UI gates assert the projected count independently of localized number grouping', () => {
+  const list = read(app + 'Views/Technician/TicketListView.swift');
+  const ui = read('frontend-appstore/PusulaServiceScreenshots/TicketListPerformanceTests.swift');
+  assert.match(list, /accessibilityIdentifier\("ticket\.summary\.count"\)/);
+  assert.match(list, /accessibilityValue\(Text\(verbatim: String\(filteredTickets\.count\)\)\)/);
+  assert.match(ui, /app\.staticTexts\["ticket\.summary\.count"\]/);
+  assert.match(ui, /exists == true AND value == %@/);
+  assert.equal((ui.match(/assertTicketCount\(10_000, in: app, timeout: 30\)/g) || []).length, 2);
+  assert.match(ui, /assertTicketCount\(10_000, in: app, timeout: 10\)/);
+  assert.match(ui, /assertTicketCount\(1, in: app, timeout: 10\)/);
+  assert.match(ui, /search\.typeText\("9999"\)/);
+  assert.match(ui, /for _ in 0\.\.<3/);
+  assert.doesNotMatch(ui, /staticTexts\["10000 iş emri"\]/);
+});
+
 test('purchases use the server account UUID and pinned session token', () => {
   assert.match(store, /product\.purchase\(options: \[\.appAccountToken\(accountToken\)\]\)/);
   assert.match(store, /authTokenOverride: snapshot\.token/);
