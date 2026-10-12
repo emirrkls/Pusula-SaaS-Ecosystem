@@ -150,7 +150,7 @@ Pusula-SaaS-Ecosystem/
 └── README.tr.md                # Turkish documentation
 ```
 
-> The product-marketing website and super-admin panel are maintained as separate repositories and are intentionally ignored by this repository when checked out beside it. CI is split into four workflows: core backend/desktop/web checks, Android validation, iOS compile validation, and PostgreSQL service-network integration tests.
+> The product-marketing website and super-admin panel are maintained as separate repositories and are intentionally ignored by this repository when checked out beside it. Four validation workflows cover core backend/desktop/web checks, Android, iOS, and PostgreSQL service-network integration tests. A separate manual workflow handles iOS signing and TestFlight uploads.
 
 ---
 
@@ -394,7 +394,7 @@ Coverage includes:
 - Service-network tenant isolation, idempotency, concurrency, quotas, and ticket lifecycle (PostgreSQL integration suite)
 - WhatsApp onboarding, credential encryption, consent, outbox idempotency/retry, webhook verification/signatures, and delivery-status processing
 
-GitHub Actions runs backend verification on Java 17, desktop verification on Java 21, and web lint/build on Node 22. Separate workflows run Android unit tests/debug compilation, iOS unsigned simulator compilation, and PostgreSQL 17 service-network integration tests. App Store/TestFlight distribution remains a separate manual release action.
+GitHub Actions runs backend verification on Java 17, desktop verification on Java 21, and web lint/build on Node 22. Separate workflows run Android unit tests/debug compilation, iOS unsigned simulator compilation and iPhone/iPad UI gates, and PostgreSQL 17 service-network integration tests. The main-only **iOS TestFlight (manual)** workflow checks existing Apple access, archives, signs, uploads and verifies processing without submitting for App Review. See the [release and encrypted-backup guide](docs/IOS_GITHUB_TESTFLIGHT.md).
 
 ---
 
@@ -471,6 +471,7 @@ For post-deploy smoke tests, see **[`RUNBOOK.md`](RUNBOOK.md)**.
 - [`docs/SOCIAL_AUTH.md`](docs/SOCIAL_AUTH.md) — Social identity rules, provider configuration, and combined-release gates
 - [`README.tr.md`](README.tr.md) — Turkish documentation
 - [`frontend-appstore/REAL_DEVICE_TEST_PLAN.md`](frontend-appstore/REAL_DEVICE_TEST_PLAN.md) — iOS real-device test plan
+- [`docs/IOS_GITHUB_TESTFLIGHT.md`](docs/IOS_GITHUB_TESTFLIGHT.md) — Manual GitHub signing/upload workflow and private archive recovery
 - [`scripts/`](scripts/) — Play Store asset generation helpers
 
 ---
