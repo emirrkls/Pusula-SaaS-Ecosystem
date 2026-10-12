@@ -28,6 +28,7 @@ iPhone/iPad validation run; never bypass that gate.
 
 1. Open **Actions → iOS TestFlight (manual) → Run workflow**, branch `main`.
 2. Choose `preflight` first. Enter an unused numeric build number, minimum `54`.
+   The field deliberately has no reusable default; after build 54, start at 55.
    This mode verifies existing access only; it does not archive, upload, create
    signing assets or change an Apple record.
 3. After preflight succeeds, run again with `upload` and the same still-unused

@@ -12,7 +12,6 @@ on:
         description: Unused Apple build number (minimum 54; verified against Apple)
         type: string
         required: true
-        default: '54'
 
 permissions:
   contents: read
