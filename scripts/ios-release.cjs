@@ -63,7 +63,11 @@ async function preflight() {
   const highest = Math.max(53, ...builds.map(b => Number(b.attributes.version)).filter(Number.isInteger));
   if (Number(number) <= highest) throw new Error(`Requested build must be higher than the existing maximum (${highest})`);
   console.log(`Apple API authenticated. App: ${APP.bundle}; highest recent build: ${highest}; requested: ${APP.version} (${number}).`);
-  const bundleIds = (await client.get(query('/v1/bundleIds', { 'filter[identifier]': APP.bundle }))).data;
+  const bundleIds = (await client.get(query('/v1/bundleIds', { 'filter[identifier]': APP.bundle,
+    'fields[bundleIds]': 'identifier,seedId,platform' }))).data.filter(b =>
+    b.attributes.identifier === APP.bundle && ['IOS', 'UNIVERSAL'].includes(b.attributes.platform));
+  console.log(`Current bundle metadata: ${JSON.stringify(bundleIds.map(b => ({ id: b.id,
+    identifier: b.attributes.identifier, prefix: b.attributes.seedId, platform: b.attributes.platform })))}`);
   if (bundleIds.length !== 1 || bundleIds[0].attributes.seedId !== APP.team) throw new Error('Unexpected bundle identifier/team');
   const capabilities = (await client.get(`/v1/bundleIds/${bundleIds[0].id}/bundleIdCapabilities`)).data;
   const types = new Set(capabilities.map(c => c.attributes.capabilityType));
