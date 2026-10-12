@@ -5,6 +5,9 @@ import PackageDescription
 // on macOS/Linux without an iOS simulator or production credentials.
 let package = Package(
     name: "PusulaRouting",
+    // The host-side regression suite uses Swift concurrency. This does not
+    // change the iOS application's deployment target in the Xcode project.
+    platforms: [.macOS(.v12)],
     products: [
         .library(name: "PusulaRouting", targets: ["PusulaRouting"]),
         .library(name: "PusulaBilling", targets: ["PusulaBilling"]),
