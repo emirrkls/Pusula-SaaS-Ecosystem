@@ -150,7 +150,7 @@ async function encryptBackup() {
   if (!fs.existsSync(path.join(dir, 'PusulaService.xcarchive'))) return;
   const key = privateKey(process.env.APP_STORE_CONNECT_PRIVATE_KEY);
   const files = ['PusulaService.xcarchive', 'manifest.json'];
-  for (const name of ['export', 'archive.log', 'export.log', 'upload.log', 'upload-result.json'])
+  for (const name of ['export', 'archive.log', 'export.log', 'upload.log', 'upload-result.json', 'export-verification.json'])
     if (fs.existsSync(path.join(dir, name))) files.push(name);
   const tarPath = path.join(dir, 'backup.tar.gz');
   execFileSync('tar', ['-czf', tarPath, '-C', dir, ...files]);

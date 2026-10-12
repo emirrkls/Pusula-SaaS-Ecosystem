@@ -346,3 +346,25 @@ data is used by the list fixture. These simulator checks do not replace the
 real-device crash, push, sign-in and Sandbox purchase checks before distribution.
 No iOS archive, upload, App Review change or backend deployment is part of this
 test correction.
+
+### GitHub signed release and upload (13 October 2026)
+
+The owner authorized a manual GitHub-hosted Mac build and TestFlight upload using
+existing access. The new main-only `iOS TestFlight (manual)` workflow verified the
+existing API key, current app/team/capabilities, unused build number and passing
+iPhone/iPad gate. After source guards and 51 Swift regressions, it created a fresh
+Release archive, automatically signed/exported it, verified the actual IPA and
+matching dSYMs, and uploaded **1.0 (54)** from
+`fdf8dd5e243455e82529389394642f517f888470`.
+
+[Release run 38314633688](https://github.com/emirrkls/Pusula-SaaS-Ecosystem/actions/runs/38314633688)
+completed successfully. Apple's API confirmed processing **VALID**, and the
+App Store Connect UI independently displayed **Build 54 — Ready to Submit**.
+This resolves the Mac archive/upload gate without using Xcode Cloud. The archive
+and symbols are retained only as an encrypted recovery artifact, with an
+encrypted local copy. See [release identity, UUID, backup and operating guide](IOS_GITHUB_TESTFLIGHT.md).
+
+App Review submission, publication, the store-selected build, tester groups,
+backend and retired app were not changed. The passwordless Apple sign-in,
+startup/foreground, push routing and Sandbox purchase/restore real-device checks
+still apply before the separately authorized review resubmission.

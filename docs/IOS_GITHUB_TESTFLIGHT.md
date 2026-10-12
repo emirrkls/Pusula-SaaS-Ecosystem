@@ -83,3 +83,29 @@ foreground responsiveness, push → work order routing, purchase/restore and
 account deletion. Select the new build and submit for review only as a separately
 authorized store operation. Old build-53 crash reports still require build-53's
 own matching dSYMs, not this new archive's symbols.
+
+## Verified first upload — 13 October 2026 (Türkiye)
+
+- [Read-only credential preflight](https://github.com/emirrkls/Pusula-SaaS-Ecosystem/actions/runs/38313750699): **passed** using the three existing repository secrets. Apple returned the correct app, current bundle record `SFR2AS2592` (`UNIVERSAL`), team prefix, required capabilities and highest uploaded build `53`.
+- [Signed release/upload run](https://github.com/emirrkls/Pusula-SaaS-Ecosystem/actions/runs/38314633688): **success**.
+- Fresh archive source: `fdf8dd5e243455e82529389394642f517f888470`, version **1.0 (54)**. Xcode **26.6 (17F113)** on the GitHub-hosted Mac; **Xcode Cloud was not used**.
+- The run passed 10 release-tooling guards, 15 auth/release source guards and 51 Swift package tests. It verified the previous successful iPhone/iPad gate against unchanged iOS source before archiving.
+- Archive, automatic provisioning, App Store cloud-managed export, actual-IPA checks and upload passed. Checks included Apple Distribution, team/bundle/build, production APNs, Sign in with Apple, production API, absence of DEBUG fixture hooks, the Google font, and matching dSYMs.
+- Upload accepted at **01:11:17 Türkiye time**; Apple processing API returned **VALID** at **01:12:49**. App Store Connect independently showed **Build 54 — Ready to Submit**.
+- Apple build ID: `f044fe34-86c2-4e39-b659-8a0ee47848d3`.
+- App/dSYM UUID: `A6CCFC72-7770-32B7-948D-912BDC92DEC8`.
+- Encrypted recovery artifact: `ios-encrypted-archive-54-38314633688`, artifact ID `11775829195`. SHA-256 of `backup.pusula.enc`: `6638d9a55da7ee9a675dcee4782a8422217c94abbb0cba3e9d15b38e09c774ac`. An encrypted copy was downloaded to the owner's ignored local outputs directory before handoff.
+
+The earlier run `38313891613` archived/exported successfully but stopped before
+upload because the verifier expected XML while codesign's default output is
+human-readable DER diagnostics. The verifier now explicitly requests XML, parses
+only a complete plist, and retains all entitlement assertions. A portable parser
+regression was added after the successful upload. Do **not** use the earlier,
+never-uploaded archive's symbols to diagnose the uploaded build 54.
+
+No App Review submission/publication, store-selected-build change, tester-group
+change, old-app deletion, new ASC API key or certificate revocation was requested.
+Xcode automatic provisioning did create the development signing assets needed
+by the new runner. Real-device checks and explicitly authorized review submission
+remain separate. Future uploads must select a fresh number, starting at `55`,
+and pass preflight again; certificate/provisioning limits are not bypassed.

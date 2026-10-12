@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const { APP, buildNumber, privateKey, jwt, query, encryptionKey, decryptBackup } = require('./ios-release.cjs');
 const read = name => fs.readFileSync(path.join(__dirname, '..', name), 'utf8');
 const workflow = read('.github/workflows/ios-testflight.yml');
@@ -98,4 +99,28 @@ test('processing verification cannot mutate review, groups, app metadata or cert
   assert.doesNotMatch(workflow, /submit_for_review|distribute_external|betaGroups|appStoreVersions/);
   assert.match(workflow, /python3 scripts\/verify-ios-export\.py/);
   assert.ok(workflow.indexOf('python3 scripts/verify-ios-export.py') < workflow.indexOf('xcrun altool --upload-app'));
+});
+test('codesign parser accepts complete XML/blob output and rejects human-readable or truncated data', () => {
+  // Load just the pure parser: the rest of the verifier requires a real signed
+  // IPA and macOS commands. This regression also runs on Windows/Linux.
+  execFileSync(process.platform === 'win32' ? 'python' : 'python3', ['-c', String.raw`
+import ast, pathlib, plistlib
+tree = ast.parse(pathlib.Path('scripts/verify-ios-export.py').read_text())
+function = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'entitlement_plist')
+namespace = {'plistlib': plistlib}
+exec(compile(ast.Module(body=[function], type_ignores=[]), '<entitlement-parser>', 'exec'), namespace)
+parse = namespace['entitlement_plist']
+expected = {'aps-environment': 'production', 'get-task-allow': False}
+xml = plistlib.dumps(expected)
+assert parse(xml) == expected
+assert parse(b'\xfa\xde\x71\x71\x00\x00\x00\x08' + xml) == expected
+assert parse(xml[xml.index(b'<plist'):]) == expected
+for invalid in [b'', b'[Dict] aps-environment production', xml[:-9]]:
+    try:
+        parse(invalid)
+    except (RuntimeError, plistlib.InvalidFileException):
+        pass
+    else:
+        raise AssertionError('Incomplete entitlements must fail closed')
+`], { cwd: path.join(__dirname, '..'), stdio: 'pipe' });
 });
