@@ -93,7 +93,7 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
         HttpStatus status = switch (ex.getReason()) {
             case CONFIGURATION -> HttpStatus.SERVICE_UNAVAILABLE;
-            case OWNERSHIP_CONFLICT -> HttpStatus.CONFLICT;
+            case OWNERSHIP_CONFLICT, ACCOUNT_BINDING_REQUIRED -> HttpStatus.CONFLICT;
             case MALFORMED -> HttpStatus.BAD_REQUEST;
             case VERIFICATION_FAILED, PRODUCT_NOT_ALLOWED, BUNDLE_MISMATCH, ENVIRONMENT_NOT_ALLOWED,
                     NOT_SUBSCRIPTION, REVOKED, EXPIRED -> HttpStatus.UNPROCESSABLE_ENTITY;

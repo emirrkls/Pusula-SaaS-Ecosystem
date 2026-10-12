@@ -59,16 +59,16 @@ enum AuthService {
     }
     
     /// Refresh feature context (called on app foreground / session restore)
-    static func refreshFeatureContext() async throws -> SubscriptionContextDTO {
-        try await NetworkManager.shared.get("/api/subscription/my-context")
+    static func refreshFeatureContext(authToken: String? = nil) async throws -> SubscriptionContextDTO {
+        try await NetworkManager.shared.request(.GET, path: "/api/subscription/my-context", authTokenOverride: authToken)
     }
 
     static func getPlans() async throws -> [PlanSummaryDTO] {
         try await NetworkManager.shared.get("/api/subscription/plans", requiresAuth: false)
     }
 
-    static func fetchAuthProfile() async throws -> AuthProfileResponse {
-        try await NetworkManager.shared.get("/api/auth/feature-context")
+    static func fetchAuthProfile(authToken: String? = nil) async throws -> AuthProfileResponse {
+        try await NetworkManager.shared.request(.GET, path: "/api/auth/feature-context", authTokenOverride: authToken)
     }
 
     static func updateOnboardingVersion(_ version: Int) async throws -> Int {
@@ -89,9 +89,9 @@ enum AuthService {
     }
     
     /// Delete Account — call backend endpoint
-    static func deleteAccount() async throws {
+    static func deleteAccount(authToken: String) async throws {
         // Backend endpoint to trigger account deletion
-        let _: EmptyResponse = try await NetworkManager.shared.request(.DELETE, path: "/api/auth/delete-account")
+        let _: EmptyResponse = try await NetworkManager.shared.request(.DELETE, path: "/api/auth/delete-account", authTokenOverride: authToken)
     }
 }
 

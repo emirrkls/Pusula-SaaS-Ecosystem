@@ -11,6 +11,7 @@ struct PlanUpgradeView: View {
     @State private var alertMessage = ""
     @State private var planDefinitions: [String: PlanSummaryDTO] = [:]
     @State private var planLoadFailed = false
+    @State private var isLoadingPlanDefinitions = false
     
     var body: some View {
         ScrollView {
@@ -20,16 +21,16 @@ struct PlanUpgradeView: View {
                     Image(systemName: "crown.fill")
                         .font(.system(size: 40))
                         .foregroundStyle(PusulaTheme.amber)
-                    Text("Paketinizi Yönetin")
+                    Text("billing.manage_title")
                         .font(.title2.weight(.bold))
-                    Text("İşletmenize uygun hizmet seviyesini seçin")
+                    Text("billing.manage_subtitle")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.top, 10)
                 
                 // Plan cards
-                Picker("Ödeme dönemi", selection: $billingCycle) {
+                Picker("billing.cycle", selection: $billingCycle) {
                     ForEach(SubscriptionBillingCycle.allCases, id: \.self) { cycle in
                         Text(cycle.displayName).tag(cycle)
                     }
@@ -39,7 +40,7 @@ struct PlanUpgradeView: View {
                 if storeManager.isLoadingProducts {
                     HStack(spacing: 10) {
                         ProgressView()
-                        Text("App Store fiyatları alınıyor…")
+                        Text("billing.prices_loading")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -50,10 +51,10 @@ struct PlanUpgradeView: View {
 
                 if planLoadFailed {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Paket içerikleri sunucudan alınamadı.")
+                        Text("billing.content_unavailable")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Button("İçerikleri Tekrar Yükle") {
+                        Button("billing.content_retry") {
                             Task { await loadPlanDefinitions() }
                         }
                     }
@@ -76,14 +77,14 @@ struct PlanUpgradeView: View {
                         if storeManager.isRestoring {
                             ProgressView()
                         } else {
-                            Label("Satın Alımları Geri Yükle", systemImage: "arrow.clockwise")
+                            Label("billing.restore", systemImage: "arrow.clockwise")
                         }
                     }
                     .disabled(storeManager.isRestoring || storeManager.isPurchasing)
 
                     Spacer()
 
-                    Button("Aboneliği Yönet") {
+                    Button("account.manage_apple_subscription") {
                         storeManager.manageSubscriptions()
                     }
                 }
@@ -92,7 +93,7 @@ struct PlanUpgradeView: View {
             .padding()
         }
         .background(PusulaTheme.page)
-        .navigationTitle("Paketler")
+        .navigationTitle("billing.plans_title")
         .refreshable {
             guard session.isAdmin else { return }
             async let products: Void = storeManager.loadProducts()
@@ -101,7 +102,7 @@ struct PlanUpgradeView: View {
         }
         .task {
             guard session.isAdmin else {
-                alertMessage = "Paket değişikliklerini yalnızca şirket yöneticisi yapabilir."
+                alertMessage = String(localized: "billing.admin_only")
                 showAlert = true
                 return
             }
@@ -127,14 +128,17 @@ struct PlanUpgradeView: View {
                 showAlert = true
             }
         }
-        .alert("Ödeme", isPresented: $showAlert) {
-            Button("Tamam", role: .cancel) {}
+        .alert("billing.payment", isPresented: $showAlert) {
+            Button("billing.ok", role: .cancel) {}
         } message: {
             Text(alertMessage)
         }
     }
 
     private func loadPlanDefinitions() async {
+        guard !isLoadingPlanDefinitions else { return }
+        isLoadingPlanDefinitions = true
+        defer { isLoadingPlanDefinitions = false }
         planLoadFailed = false
         do {
             let definitions = try await AuthService.getPlans()
@@ -158,13 +162,13 @@ struct PlanUpgradeView: View {
             Button {
                 Task { await storeManager.loadProducts() }
             } label: {
-                Label("Tekrar Dene", systemImage: "arrow.clockwise")
+                Label("session.retry", systemImage: "arrow.clockwise")
                     .font(.subheadline.weight(.semibold))
             }
             .disabled(storeManager.isLoadingProducts || storeManager.isPurchasing || storeManager.isRestoring)
 
             if !storeManager.productDiagnostics.isEmpty {
-                DisclosureGroup("Teknik Bilgi") {
+                DisclosureGroup("billing.technical_info") {
                     Text(storeManager.productDiagnostics)
                         .font(.caption2.monospaced())
                         .foregroundStyle(.secondary)
@@ -186,12 +190,13 @@ struct PlanUpgradeView: View {
         let isCurrentTier = currentPlan == plan
         let hasAppStorePurchase = !storeManager.purchasedProductIDs.isEmpty
         let isCurrent = isCurrentTier && (!hasAppStorePurchase || storeManager.isPurchased(plan, billingCycle: billingCycle))
-        let isAvailable = plan == .cirak || storeManager.isAvailable(plan, billingCycle: billingCycle)
+        let isAvailable = plan == .cirak || (!planLoadFailed && !isLoadingPlanDefinitions && planDefinitions[plan.rawValue] != nil
+            && storeManager.isAvailable(plan, billingCycle: billingCycle))
         
         return VStack(spacing: 14) {
             // Header ribbon
             if isPopular {
-                Text("EN POPÜLER")
+                Text("billing.popular")
                     .font(.caption2.weight(.bold))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
@@ -212,7 +217,7 @@ struct PlanUpgradeView: View {
                 Spacer()
                 VStack(alignment: .trailing) {
                     if plan == .cirak {
-                        Text("Ücretsiz")
+                        Text("billing.free")
                             .font(.headline.weight(.bold))
                             .foregroundColor(plan.color)
                     } else {
@@ -222,7 +227,7 @@ struct PlanUpgradeView: View {
                                     .font(.title.weight(.bold))
                                     .foregroundColor(plan.color)
                             } else {
-                                Text(storeManager.isLoadingProducts ? "Yükleniyor…" : "Fiyat alınamadı")
+                                Text(String(localized: storeManager.isLoadingProducts ? "billing.loading" : "billing.price_unavailable"))
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(.secondary)
                             }
@@ -237,7 +242,7 @@ struct PlanUpgradeView: View {
                             .foregroundStyle(.green)
                     }
                     if plan == .cirak {
-                        Text("Süresiz")
+                        Text("billing.unlimited_duration")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -262,7 +267,7 @@ struct PlanUpgradeView: View {
             
             // CTA button
             if isCurrent {
-                Text("Mevcut Paketiniz")
+                Text("billing.current_plan")
                     .font(.subheadline.weight(.medium))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -270,7 +275,7 @@ struct PlanUpgradeView: View {
                     .foregroundColor(.secondary)
                     .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
             } else if plan == .cirak {
-                Text("Ücretsiz başlangıç paketi")
+                Text("billing.free_starter")
                     .font(.subheadline.weight(.medium))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -284,7 +289,7 @@ struct PlanUpgradeView: View {
                             ProgressView()
                                 .tint(.white)
                         }
-                        Text(isAvailable ? actionTitle(from: currentPlan, to: plan) : "Satın alma şu an kullanılamıyor")
+                        Text(isAvailable ? actionTitle(from: currentPlan, to: plan) : String(localized: "billing.purchase_unavailable"))
                             .font(.subheadline.weight(.bold))
                     }
                     .frame(maxWidth: .infinity)
@@ -307,8 +312,9 @@ struct PlanUpgradeView: View {
     }
     
     private func handleUpgrade(_ plan: PlanTier) {
+        guard !planLoadFailed, !isLoadingPlanDefinitions, planDefinitions[plan.rawValue] != nil else { return }
         guard session.isAdmin else {
-            alertMessage = "Paket değişikliklerini yalnızca şirket yöneticisi yapabilir."
+            alertMessage = String(localized: "billing.admin_only")
             showAlert = true
             return
         }
@@ -319,20 +325,22 @@ struct PlanUpgradeView: View {
     }
 
     private func actionTitle(from current: PlanTier, to target: PlanTier) -> String {
-        if target.rank > current.rank { return "\(target.transitionName) Yükselt" }
-        return "\(target.transitionName) Düşür"
+        if target == current {
+            return String(localized: billingCycle == .monthly ? "billing.switch_monthly" : "billing.switch_yearly")
+        }
+        return String(format: String(localized: target.rank > current.rank ? "billing.upgrade" : "billing.downgrade"), target.displayName)
     }
 
     private var subscriptionDisclosure: some View {
         VStack(spacing: 10) {
-            Text("Ödeme Apple Kimliğinize yansıtılır. Abonelik, dönem bitiminden en az 24 saat önce iptal edilmediği sürece otomatik yenilenir. Fiyat ve dönem satın alma onay ekranında gösterilir.")
+            Text("billing.disclosure")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 16) {
-                Link("Gizlilik Politikası", destination: AppLinks.privacyPolicy)
-                Link("Kullanım Koşulları", destination: AppLinks.termsOfUse)
+                Link("billing.privacy", destination: AppLinks.privacyPolicy)
+                Link("billing.terms", destination: AppLinks.termsOfUse)
             }
             .font(.caption.weight(.medium))
         }
@@ -357,9 +365,9 @@ enum PlanTier: String, CaseIterable {
     
     var subtitle: String {
         switch self {
-        case .cirak: return "Bireysel ustalar için"
-        case .usta: return "Büyüyen ekipler için"
-        case .patron: return "Kurumsal firmalar için"
+        case .cirak: return String(localized: "billing.cirak_subtitle")
+        case .usta: return String(localized: "billing.usta_subtitle")
+        case .patron: return String(localized: "billing.patron_subtitle")
         }
     }
     
@@ -388,16 +396,16 @@ enum PlanTier: String, CaseIterable {
     }
     
     func features(using plan: PlanSummaryDTO?) -> [String] {
-        guard let plan else { return ["Paket bilgileri yükleniyor"] }
+        guard let plan else { return [String(localized: "billing.features_loading")] }
         var result: [String] = []
-        if let value = plan.maxCompanyAdmins { result.append("\(value) şirket yöneticisi") }
-        if let value = plan.maxTechnicians { result.append("\(value) aktif teknisyen") }
-        if let value = plan.maxCustomers { result.append("\(value) müşteri") }
-        if let value = plan.maxMonthlyTickets { result.append("Ayda \(value) servis fişi") }
-        if let value = plan.maxMonthlyProposals, value > 0 { result.append("Ayda \(value) teklif") }
-        if let value = plan.maxInventoryItems { result.append("\(value) envanter kalemi") }
+        if let value = plan.maxCompanyAdmins { result.append(String(format: String(localized: "billing.limit_admins"), value)) }
+        if let value = plan.maxTechnicians { result.append(String(format: String(localized: "billing.limit_technicians"), value)) }
+        if let value = plan.maxCustomers { result.append(String(format: String(localized: "billing.limit_customers"), value)) }
+        if let value = plan.maxMonthlyTickets { result.append(String(format: String(localized: "billing.limit_tickets"), value)) }
+        if let value = plan.maxMonthlyProposals, value > 0 { result.append(String(format: String(localized: "billing.limit_proposals"), value)) }
+        if let value = plan.maxInventoryItems { result.append(String(format: String(localized: "billing.limit_inventory"), value)) }
         if let value = plan.storageLimitMb {
-            result.append(value >= 1024 ? "\(value / 1024) GB depolama" : "\(value) MB depolama")
+            result.append(String(format: String(localized: value >= 1024 ? "billing.storage_gb" : "billing.storage_mb"), value >= 1024 ? value / 1024 : value))
         }
         return result
     }

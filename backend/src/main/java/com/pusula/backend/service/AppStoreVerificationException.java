@@ -23,6 +23,7 @@ public class AppStoreVerificationException extends RuntimeException {
         NOT_SUBSCRIPTION,
         REVOKED,
         EXPIRED,
-        OWNERSHIP_CONFLICT
+        OWNERSHIP_CONFLICT,
+        ACCOUNT_BINDING_REQUIRED
     }
 }

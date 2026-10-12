@@ -6,12 +6,15 @@ final class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate 
     static let shared = PushNotificationManager()
 
     private let tokenDefaultsKey = "pusula.apns.device-token"
+    private var currentDeviceToken: String?
 
     private var isEnabled: Bool {
         Bundle.main.object(forInfoDictionaryKey: "PusulaPushNotificationsEnabled") as? Bool ?? false
     }
 
     func configure() {
+        // Remove the legacy cache. APNs supplies the current token on every launch.
+        UserDefaults.standard.removeObject(forKey: tokenDefaultsKey)
         UNUserNotificationCenter.current().delegate = self
     }
 
@@ -22,16 +25,12 @@ final class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate 
 
     func appDidBecomeActive() {
         guard isEnabled, SessionManager.shared.isAuthenticated else { return }
-        if let token = storedToken {
-            Task { await registerWithBackend(token: token) }
-        } else {
-            UIApplication.shared.registerForRemoteNotifications()
-        }
+        UIApplication.shared.registerForRemoteNotifications()
     }
 
     func didRegisterForRemoteNotifications(deviceToken: Data) {
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
-        UserDefaults.standard.set(token, forKey: tokenDefaultsKey)
+        currentDeviceToken = token
         guard SessionManager.shared.isAuthenticated else { return }
         Task { await registerWithBackend(token: token) }
     }
@@ -89,7 +88,7 @@ final class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate 
     }
 
     private var storedToken: String? {
-        UserDefaults.standard.string(forKey: tokenDefaultsKey)
+        currentDeviceToken
     }
 
     private var pushEnvironment: String {
@@ -114,6 +113,8 @@ final class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate 
     }
 
     private func registerWithBackend(token: String) async {
+        let session = SessionManager.shared
+        guard let snapshot = session.authenticatedSnapshot else { return }
         let request = PushDeviceRequest(
             token: token,
             platform: "IOS",
@@ -121,9 +122,9 @@ final class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate 
             bundleId: Bundle.main.bundleIdentifier ?? "com.pusula.service"
         )
         do {
-            let _: EmptyResponse = try await NetworkManager.shared.post(
-                "/api/push-devices/register",
-                body: request
+            let _: EmptyResponse = try await NetworkManager.shared.request(
+                .POST, path: "/api/push-devices/register",
+                body: request, authTokenOverride: snapshot.token
             )
         } catch {
 #if DEBUG

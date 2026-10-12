@@ -3,6 +3,7 @@ package com.pusula.backend.service;
 import com.pusula.backend.entity.PlanType;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public interface AppleAppStoreVerificationService {
 
@@ -24,8 +25,15 @@ public interface AppleAppStoreVerificationService {
             String environment,
             LocalDateTime purchaseDate,
             LocalDateTime expiresDate,
-            Long signedDate
+            Long signedDate,
+            UUID appAccountToken
     ) {
+        public AppleVerificationResult(String transactionId, String originalTransactionId,
+                String productId, PlanType planType, String bundleId, String environment,
+                LocalDateTime purchaseDate, LocalDateTime expiresDate, Long signedDate) {
+            this(transactionId, originalTransactionId, productId, planType, bundleId,
+                    environment, purchaseDate, expiresDate, signedDate, null);
+        }
         public AppleVerificationResult(String transactionId, String originalTransactionId,
                 String productId, PlanType planType, String bundleId, String environment,
                 LocalDateTime purchaseDate, LocalDateTime expiresDate) {

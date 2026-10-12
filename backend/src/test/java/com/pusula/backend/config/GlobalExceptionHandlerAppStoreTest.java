@@ -26,6 +26,20 @@ class GlobalExceptionHandlerAppStoreTest {
     }
 
     @Test
+    void unclaimedLegacyPurchaseReturns409InsteadOfSuccess() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/subscription/apple-verify");
+        AppStoreVerificationException exception = new AppStoreVerificationException(
+                AppStoreVerificationException.Reason.ACCOUNT_BINDING_REQUIRED,
+                "Do not pay again; contact support to resolve this legacy purchase.");
+
+        var response = handler.handleAppStoreVerificationException(exception, request);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals("APP_STORE_VERIFY_FAILED", response.getBody().get("code"));
+    }
+
+    @Test
     void paymentOwnershipConflictReturns409WithoutPlanOrSubscriptionData() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler();
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/subscription/google-verify");

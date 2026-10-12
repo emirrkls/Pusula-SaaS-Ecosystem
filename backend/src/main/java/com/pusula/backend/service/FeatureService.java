@@ -76,6 +76,7 @@ public class FeatureService {
         context.put("quota", getQuota(companyId));
         context.put("isReadOnly", isReadOnly(company));
         context.put("trialDaysRemaining", calculateTrialDays(company));
+        context.put("appAccountToken", company.getAppStoreAccountToken().toString());
         return context;
     }
 

@@ -31,6 +31,7 @@ class StoreKitManager: ObservableObject {
     ]
     
     private var transactionUpdates: Task<Void, Never>?
+    private var transactionProcessing: [UInt64: Task<Void, Error>] = [:]
     private let logger = Logger(subsystem: "com.pusula.service", category: "StoreKitCatalog")
     
     private init() {
@@ -100,48 +101,85 @@ class StoreKitManager: ObservableObject {
     /// Purchase a specific plan tier
     func purchase(_ plan: PlanTier, billingCycle: SubscriptionBillingCycle) async {
         guard !isPurchasing, !isRestoring else { return }
+        let session = SessionManager.shared
+        guard session.isAdmin, let snapshot = session.authenticatedSnapshot else { return }
         guard let productID = productDict[plan]?[billingCycle],
               let product = products.first(where: { $0.id == productID }) else {
-            self.purchaseError = "Paket bulunamadı."
+            self.purchaseError = String(localized: "billing.product_missing")
             return
         }
         
         isPurchasing = true
         purchaseError = nil
+        statusMessage = nil
+        defer { isPurchasing = false }
         
         do {
-            let result = try await product.purchase()
+            guard await session.refreshSubscriptionContext(expectedSession: snapshot),
+                  session.isCurrent(snapshot), let accountToken = session.appAccountToken else {
+                throw PurchaseProcessingError.accountUnavailable
+            }
+            let result = try await product.purchase(options: [.appAccountToken(accountToken)])
+            guard session.isCurrent(snapshot) else { return }
             switch result {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
-                try await verifyWithBackend(
+                try await processTransaction(
                     transaction: transaction,
                     signedPayload: verification.jwsRepresentation,
-                    plan: plan
+                    plan: plan, snapshot: snapshot, accountToken: accountToken
                 )
-                await transaction.finish()
                 await updatePurchasedStatus()
-                await SessionManager.shared.refreshSubscriptionContext()
-                statusMessage = "Satın alma doğrulandı ve paketiniz güncellendi."
+                let refreshed = await session.refreshSubscriptionContext(expectedSession: snapshot)
+                guard session.isCurrent(snapshot) else { return }
+                statusMessage = String(localized: refreshed ? "billing.verified" : "billing.verified_refresh_pending")
                 
             case .userCancelled:
-                statusMessage = "Satın alma iptal edildi."
+                statusMessage = String(localized: "billing.cancelled")
             case .pending:
-                statusMessage = "Satın alma onay bekliyor. Tamamlandığında otomatik işlenecek."
+                statusMessage = String(localized: "billing.pending")
             @unknown default:
                 break
             }
         } catch {
+            guard session.isCurrent(snapshot), !(error is CancellationError) else { return }
             self.purchaseError = error.localizedDescription
         }
-        
-        isPurchasing = false
+    }
+
+    private func processTransaction(transaction: Transaction, signedPayload: String, plan: PlanTier,
+                                    snapshot: AuthenticatedSessionSnapshot, accountToken: UUID,
+                                    explicitRestore: Bool = false) async throws {
+        let session = SessionManager.shared
+        guard session.isCurrent(snapshot) else { throw CancellationError() }
+        guard PurchaseAccountPolicy.canProcess(transactionAccount: transaction.appAccountToken,
+                currentAccount: accountToken, explicitRestore: explicitRestore) else {
+            throw PurchaseProcessingError.accountMismatch
+        }
+        // StoreKit can deliver the purchase result and an update concurrently.
+        if let pending = transactionProcessing[transaction.id] {
+            try await pending.value
+            guard session.isCurrent(snapshot) else { throw CancellationError() }
+            return
+        }
+        let work = Task { @MainActor in
+            guard session.isCurrent(snapshot) else { throw CancellationError() }
+            try await self.verifyWithBackend(transaction: transaction, signedPayload: signedPayload,
+                                             plan: plan, snapshot: snapshot)
+            guard session.isCurrent(snapshot) else { throw CancellationError() }
+            // Unverified/failed transactions remain unfinished for a later retry.
+            await transaction.finish()
+        }
+        transactionProcessing[transaction.id] = work
+        defer { transactionProcessing[transaction.id] = nil }
+        try await work.value
     }
     
     private func verifyWithBackend(
         transaction: Transaction,
         signedPayload: String,
-        plan: PlanTier
+        plan: PlanTier,
+        snapshot: AuthenticatedSessionSnapshot
     ) async throws {
         let body = AppleSubscriptionVerificationRequest(
             transactionId: String(transaction.id),
@@ -149,38 +187,68 @@ class StoreKitManager: ObservableObject {
             plan: plan.rawValue,
             signedTransactionInfo: signedPayload
         )
-        let _: EmptyResponse = try await NetworkManager.shared.post("/api/subscription/apple-verify", body: body)
+        let _: EmptyResponse = try await NetworkManager.shared.request(.POST,
+            path: "/api/subscription/apple-verify", body: body, authTokenOverride: snapshot.token)
     }
     
     private func updatePurchasedStatus() async {
+        let session = SessionManager.shared
+        guard let snapshot = session.authenticatedSnapshot, let accountToken = session.appAccountToken else {
+            purchasedProductIDs = []
+            return
+        }
         var activePurchases: Set<String> = []
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
-            if transaction.revocationDate == nil {
+            if transaction.revocationDate == nil,
+               SubscriptionProductCatalog.identifiers.contains(transaction.productID),
+               transaction.appAccountToken == accountToken {
                 activePurchases.insert(transaction.productID)
             }
         }
+        guard session.isCurrent(snapshot) else { return }
         self.purchasedProductIDs = activePurchases
     }
     
     private func listenForTransactions() -> Task<Void, Never> {
         return Task {
             for await result in Transaction.updates {
-                do {
-                    let transaction = try self.checkVerified(result)
-                    guard let plan = self.plan(for: transaction.productID) else { continue }
-                    try await self.verifyWithBackend(
-                        transaction: transaction,
-                        signedPayload: result.jwsRepresentation,
-                        plan: plan
-                    )
-                    await transaction.finish()
-                    await self.updatePurchasedStatus()
-                    await SessionManager.shared.refreshSubscriptionContext()
-                } catch {
-                    self.purchaseError = "Bekleyen satın alma sunucuda doğrulanamadı. Daha sonra tekrar denenecek."
-                }
+                await self.handlePendingTransaction(result)
             }
+        }
+    }
+
+    func sessionDidChange() {
+        purchasedProductIDs = []
+        purchaseError = nil
+        statusMessage = nil
+    }
+
+    func sessionDidAuthenticate() async {
+        let session = SessionManager.shared
+        guard let snapshot = session.authenticatedSnapshot,
+              await session.refreshSubscriptionContext(expectedSession: snapshot), session.isCurrent(snapshot) else { return }
+        for await result in Transaction.unfinished {
+            guard session.isCurrent(snapshot) else { return }
+            await handlePendingTransaction(result)
+        }
+        await updatePurchasedStatus()
+    }
+
+    private func handlePendingTransaction(_ result: VerificationResult<Transaction>) async {
+        let session = SessionManager.shared
+        guard session.isAdmin, let snapshot = session.authenticatedSnapshot, let accountToken = session.appAccountToken,
+              case .verified(let transaction) = result, let plan = plan(for: transaction.productID),
+              PurchaseAccountPolicy.canProcess(transactionAccount: transaction.appAccountToken,
+                currentAccount: accountToken, explicitRestore: false) else { return }
+        do {
+            try await processTransaction(transaction: transaction, signedPayload: result.jwsRepresentation,
+                plan: plan, snapshot: snapshot, accountToken: accountToken)
+            await updatePurchasedStatus()
+            await session.refreshSubscriptionContext(expectedSession: snapshot)
+        } catch {
+            guard session.isCurrent(snapshot), !(error is CancellationError) else { return }
+            purchaseError = String(localized: "billing.verification_pending")
         }
     }
     
@@ -223,33 +291,40 @@ class StoreKitManager: ObservableObject {
 
     func restorePurchases() async {
         guard !isRestoring, !isPurchasing else { return }
+        let session = SessionManager.shared
+        guard session.isAdmin, let snapshot = session.authenticatedSnapshot else { return }
         isRestoring = true
         purchaseError = nil
         statusMessage = nil
         defer { isRestoring = false }
 
         do {
+            guard await session.refreshSubscriptionContext(expectedSession: snapshot),
+                  session.isCurrent(snapshot), let accountToken = session.appAccountToken else {
+                throw PurchaseProcessingError.accountUnavailable
+            }
             try await AppStore.sync()
+            guard session.isCurrent(snapshot) else { return }
             var restoredCount = 0
             for await result in Transaction.currentEntitlements {
                 let transaction = try checkVerified(result)
                 guard transaction.revocationDate == nil,
                       let plan = plan(for: transaction.productID) else { continue }
-                try await verifyWithBackend(
+                try await processTransaction(
                     transaction: transaction,
                     signedPayload: result.jwsRepresentation,
-                    plan: plan
+                    plan: plan, snapshot: snapshot, accountToken: accountToken, explicitRestore: true
                 )
-                await transaction.finish()
                 restoredCount += 1
             }
             await updatePurchasedStatus()
-            await SessionManager.shared.refreshSubscriptionContext()
-            statusMessage = restoredCount > 0
-                ? "Satın alımlarınız geri yüklendi."
-                : "Geri yüklenecek aktif abonelik bulunamadı."
+            let refreshed = await session.refreshSubscriptionContext(expectedSession: snapshot)
+            guard session.isCurrent(snapshot) else { return }
+            statusMessage = String(localized: restoredCount == 0 ? "billing.restore_empty"
+                : refreshed ? "billing.restored" : "billing.verified_refresh_pending")
         } catch {
-            purchaseError = "Satın alımlar geri yüklenemedi: \(error.localizedDescription)"
+            guard session.isCurrent(snapshot), !(error is CancellationError) else { return }
+            purchaseError = error.localizedDescription
         }
     }
 
@@ -269,13 +344,24 @@ class StoreKitManager: ObservableObject {
                   let offer = subscription.introductoryOffer,
                   offer.paymentMode == .freeTrial,
                   await subscription.isEligibleForIntroOffer else { continue }
-            offers[product.id] = "\(offer.period.localizedDescription) ücretsiz deneme"
+            offers[product.id] = String(format: String(localized: "billing.free_trial"), offer.period.localizedDescription)
         }
         eligibleIntroOffers = offers
     }
 
     private func plan(for productID: String) -> PlanTier? {
         productDict.first(where: { $0.value.values.contains(productID) })?.key
+    }
+}
+
+private enum PurchaseProcessingError: LocalizedError {
+    case accountUnavailable, accountMismatch
+
+    var errorDescription: String? {
+        switch self {
+        case .accountUnavailable: return String(localized: "billing.account_unavailable")
+        case .accountMismatch: return String(localized: "billing.account_mismatch")
+        }
     }
 }
 
@@ -287,23 +373,23 @@ enum StoreProductLoadIssue {
 
     var title: String {
         switch self {
-        case .unavailable: return "Satın alma seçenekleri alınamadı"
-        case .incomplete: return "Bazı satın alma seçenekleri alınamadı"
-        case .connection: return "App Store’a bağlanılamadı"
-        case .requestFailed: return "App Store isteği tamamlanamadı"
+        case .unavailable: return String(localized: "billing.catalog_empty_title")
+        case .incomplete: return String(localized: "billing.catalog_partial_title")
+        case .connection: return String(localized: "billing.catalog_connection_title")
+        case .requestFailed: return String(localized: "billing.catalog_failed_title")
         }
     }
 
     var message: String {
         switch self {
         case .unavailable:
-            return "App Store bu uygulama için abonelik ürünü döndürmedi. Paket içeriklerini inceleyebilirsiniz; fiyat ve satın alma seçenekleri Apple’dan geldiğinde etkinleşir."
+            return String(localized: "billing.catalog_empty_message")
         case .incomplete:
-            return "Apple bazı abonelik ürünlerini döndürmedi. Mevcut seçenekleri kullanabilir veya tekrar deneyebilirsiniz."
+            return String(localized: "billing.catalog_partial_message")
         case .connection:
-            return "İnternet bağlantınızı kontrol edip tekrar deneyin. Paket içerikleri aşağıda görünmeye devam eder."
+            return String(localized: "billing.catalog_connection_message")
         case .requestFailed:
-            return "Apple’ın abonelik bilgileri şu anda alınamıyor. Tekrar deneyin; sorun sürerse aşağıdaki teknik bilgiyi destek ekibine iletin."
+            return String(localized: "billing.catalog_failed_message")
         }
     }
 
@@ -321,33 +407,29 @@ enum SubscriptionBillingCycle: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .monthly: return "Aylık"
-        case .yearly: return "Yıllık"
+        case .monthly: return String(localized: "billing.monthly")
+        case .yearly: return String(localized: "billing.yearly")
         }
     }
 }
 
 private extension Product.SubscriptionPeriod {
     var localizedDescription: String {
-        let unitText: String
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .full
+        let components: DateComponents
         switch unit {
-        case .day: unitText = value == 1 ? "gün" : "gün"
-        case .week: unitText = value == 1 ? "hafta" : "hafta"
-        case .month: unitText = value == 1 ? "ay" : "ay"
-        case .year: unitText = value == 1 ? "yıl" : "yıl"
-        @unknown default: unitText = "dönem"
+        case .day: formatter.allowedUnits = .day; components = DateComponents(day: value)
+        case .week: formatter.allowedUnits = .weekOfMonth; components = DateComponents(weekOfMonth: value)
+        case .month: formatter.allowedUnits = .month; components = DateComponents(month: value)
+        case .year: formatter.allowedUnits = .year; components = DateComponents(year: value)
+        @unknown default: return String(localized: "billing.period")
         }
-        return "\(value) \(unitText)"
+        return formatter.string(from: components) ?? String(localized: "billing.period")
     }
 
     var localizedSuffix: String {
-        switch unit {
-        case .day: return value == 1 ? "/gün" : "/\(value) gün"
-        case .week: return value == 1 ? "/hafta" : "/\(value) hafta"
-        case .month: return value == 1 ? "/ay" : "/\(value) ay"
-        case .year: return value == 1 ? "/yıl" : "/\(value) yıl"
-        @unknown default: return "/dönem"
-        }
+        "/" + localizedDescription
     }
 }
 

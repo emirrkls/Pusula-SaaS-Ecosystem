@@ -112,12 +112,23 @@ struct ContentView: View {
     private var sessionRestoreView: some View {
         VStack(spacing: 16) {
             PusulaBrandMark(size: 52)
-            ProgressView()
-                .tint(PusulaTheme.accent)
-            Text("Oturum doğrulanıyor...")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            if session.restoreNeedsRetry {
+                Image(systemName: "wifi.exclamationmark").font(.title)
+                Text("session.restore_retry_message")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Button("session.retry") { session.retrySessionRestore() }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("session.restore.retry")
+                Button("session.other_account") { session.logout() }
+                    .buttonStyle(.bordered)
+            } else {
+                ProgressView().tint(PusulaTheme.accent)
+                Text("session.restoring")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
         }
+        .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(PusulaTheme.page)
     }

@@ -62,6 +62,8 @@ Beklenen:
 - Profil ve abonelik baglami backend'den dogrulanmadan yanlis rol ekrani gosterilmez.
 - Gecersiz veya suresi dolmus token login ekranina dondurur.
 
+Ek regresyon (12 October 2026): agi kapatip gecerli kayitli oturumla soguk acilis yapin; 429/5xx gecici hatalarini izole test ortaminda deneyin. Keychain bilgileri silinmemeli, onbellekten yetkili ekran acilmamali; **Tekrar Dene / Baska hesapla giris** secenekleri gorunmelidir. Ag duzeldikten sonra tekrar deneme dogru tenant/rolu acmali ve bekleyen bildirim ancak ekran hazir olunca yonlendirmelidir. 401/403 ve desteklenmeyen rol ise guvenle oturumu kapatmalidir.
+
 ### IOS-AUTH-04 Kurumsal ve hatali giris
 
 1. Kurumsal sekmede kurum kodu, kullanici adi ve sifreyle girin.
@@ -168,6 +170,8 @@ Beklenen:
 - Bilinen barkod dogru stogu bulur.
 - Bilinmeyen barkod hata/yeniden tara akisi gosterir.
 - Ayni kod art arda algilanarak birden fazla islem olusturmaz.
+
+Ek regresyon: tarayiciyi 10 kez hizla acip kapatin; kamera izin penceresi acikken tarayicidan ayrilin ve izni daha sonra verin. Arka plana alip geri donun. Kapanmis ekran kamerayi yeniden baslatmamali; kamera kapanisinda ana arayuz takilmamali; Thread Performance Checker ana thread'de `startRunning`/`stopRunning` uyarmamalidir.
 
 ## 5. Servis Fisi Uctan Uca
 
@@ -305,7 +309,7 @@ Beklenen:
 - Partial response: available paid options work; missing monthly/yearly options remain disabled. Switch billing periods to verify both states.
 - Offline/failed refresh: preserve already received Apple prices; show a separate connection/request notice. No product-loading failure may open a purchase-error alert.
 - Use the notice's Technical Information to inspect bundle/version/build, actual storefront, requested/returned count, missing IDs and error domain/code. It contains no identity, token, receipt or signed transaction.
-- Repeat Retry while loading: only one product request may run. Close and reopen Packages during a request; the loading flag must recover. Purchase/restore/backend verification remain unchanged.
+- Repeat Retry while loading: only one product request may run. Close and reopen Packages during a request; the loading flag must recover. Also run the account-binding and refresh-failure regressions below; purchase verification changed in the 12 October preflight release.
 - StoreKit/simulator UI validation still requires a Mac. These source changes do not repair an Apple-side catalog problem by themselves and do not establish that product loading has been verified on a real device.
 
 ### IOS-IAP-02 USTA satin alma
@@ -318,6 +322,7 @@ Beklenen:
 - JWS backend tarafinda dogrulanmadan transaction finish edilmez.
 - Basarida plan/feature context yenilenir ve USTA gorunur.
 - Ayni transaction tekrar geldiginde idempotent davranir.
+- Satin alma Apple'a sunucunun isletme UUID'siyle (`appAccountToken`) gider; ayni transaction'in purchase sonucu ve updates akisinda ayni anda gelmesi duplicate dogrulama/odeme yaratmaz.
 
 ### IOS-IAP-03 Upgrade ve downgrade
 
@@ -351,6 +356,7 @@ Beklenen:
 - Backend hatasinda transaction finish edilmez ve kullaniciya tekrar denenecegi soylenir.
 - Pending islem plan yetkisini erken acmaz.
 - Transaction update geldiginde uygulama acikken yeniden dogrulama yapilir.
+- Uygulama kapaliyken/auth hazir degilken gelen unfinished transaction, dogru isletme girisinden sonra yeniden denenir. Baska isletmeye ait transaction finish edilmez veya o isletmenin paketini degistirmez.
 
 ### IOS-IAP-06 Iptal, iade ve hesap silme
 
@@ -362,7 +368,44 @@ Beklenen:
 
 - Hesap silme uyarisi Apple aboneliginin ayrica iptal edilmesi gerektigini soyler.
 - Server Notifications V2 sonrasinda renewal/refund/revoke backend'e yansir.
-- Hesap silme tum uygulama verisini siler ve cihaz oturumunu kapatir.
+- Hesap silme giris kimliklerini/sosyal baglantilari, imzayi ve cihaz bildirim kaydini kaldirir; profil anonimlestirilir ve cihaz oturumu kapanir. Ortak isletme/servis/finans kayitlari hukuki ve operasyonel gerekcelerle korunabilir. Uyarisinda tum verilerin silinecegi iddia edilmez.
+- Apple abonelik yonetimi baglantisi paket ve rol degisse bile Hesap ekraninda erisilebilir kalir; hesap silme aboneligi kendiliginden iptal etmez.
+
+### IOS-IAP-07 Satin alma sirasinda hesap degistirme
+
+1. A isletmesinin admin hesabinda Sandbox satin almasini acin; islem/pending tamamlanmadan cikis yapip B isletmesine girin.
+2. Apple islem sonucunu veya bekleyen transaction update'ini tamamlayin; restore'u B ile de deneyin.
+3. A isletmesine geri girip unfinished/restore akisini tekrar deneyin.
+
+Beklenen:
+
+- Istek ilk yakalanan JWT/oturum revizyonuna sabitlenir; A islemi B'nin oturumuyla gonderilmez.
+- Imzali UUID farkliysa backend yazma yapmadan reddeder; B paketi degismez, eski sonuc B ekraninda basari gostermez.
+- A'ya donuste dogrulama/idempotent finish calisir. Ayni isletmenin farkli yetkili yoneticileri ayni kalici UUID'yi kullanir; UUID kisi bilgisi icermez.
+
+### IOS-IAP-08 Eski satin alma sahipligi
+
+1. Yeni UUID'yi icermeyen, daha once A'ya baglanmis eski bir Sandbox subscription chain'ini A ile restore edin.
+2. Ayni chain'i B ile ve A farkli odeme saglayicisina gectikten sonra B ile deneyin.
+3. Henuz hicbir isletmeye kaydedilmemis eski tokensiz transaction'i restore etmeyi deneyin.
+
+Beklenen:
+
+- Kayitli A sahipligi korunur; B'ye aktarim ledger ile de reddedilir.
+- Eski eslesmemis transaction 409 ile guvenle reddedilir; basari/finish/plan degisikligi yoktur. Kullaniciya yeniden odeme yapmamasi ve destekten sahiplik cozumlemesi gerektigi soylenir.
+- Eski build ile yeni tokensiz ilk satin almalarin da bu kurala tabi oldugu rollout planinda acikca belirtilir; guvenlik kontrolu bypass edilmez.
+
+### IOS-IAP-09 Dogrulama sonrasi yenileme ve dil
+
+1. Apple dogrulamasi backend'de basarili olduktan sonra feature-context yenilemesini gecici olarak basarisiz yapin.
+2. Restore icin de tekrarlayin. Ag duzeldiginde paketi yenileyin.
+3. Uygulamayi Turkce ve Ingilizce acip paket donemi, limitler, iptal/pending/restore ve hesap silme metinlerini okuyun.
+
+Beklenen:
+
+- Sunucu dogrulamasi tamamlanmadan finish yoktur. Dogrulama basarili, context yenileme basarisizsa "paket guncellendi" denmez; yenileme beklendigi ve yeniden odeme yapilmamasi aciklanir.
+- Sunucudaki paket korunur; sonraki basarili yenileme dogru yetkileri getirir.
+- Kaynak anahtarlar, yanlis ceviri veya bozuk format argumanlari gorunmez. Fiyat yalniz gercek StoreKit urununden, paket limitleri backend'den gelir; plan icerigi alinamazsa satin alma CTA'si kapali kalir.
 
 ## 9. Dayaniklilik ve Erisilebilirlik
 
@@ -396,6 +439,8 @@ Beklenen:
 
 ## Cikis Kriterleri
 
+- Backend V46, yeni iOS dagitimindan once yedek alinip PostgreSQL 13+ uzerinde uygulanmis; `flyway_schema_history` ve feature context UUID'si dogrulanmis olmali. Yerel Java/mock testleri SQL migrasyonunu dogrulamaz.
+- Kaynak kontrolleri (`node --test scripts/test-ios-auth-contract.cjs scripts/test-ios-release-contract.cjs`), Mac `swift test`, iPhone/iPad sosyal giris UI testleri, acilis/performans testleri ve temiz Release derlemesi gecmis olmali. Windows'taki kaynak testi native derlemenin yerine gecmez.
 - Tum P0/P1 senaryolari basarili.
 - Crash, veri sizintisi, tenant ihlali veya duplicate odeme yok.
 - StoreKit purchase/restore/upgrade gercek Sandbox JWS ile backend'de dogrulandi.

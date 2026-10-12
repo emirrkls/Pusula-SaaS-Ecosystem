@@ -34,6 +34,7 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class SubscriptionServiceAppleVerifyTest {
+    private static final java.util.UUID ACCOUNT_TOKEN = java.util.UUID.fromString("9839483d-f6a6-4981-a83d-ef65adc314c7");
 
     @Mock
     private CompanyRepository companyRepository;
@@ -321,6 +322,80 @@ class SubscriptionServiceAppleVerifyTest {
         assertFalse(saved.getPurchaseTokenMasked().contains("signed-jws-payload"));
     }
 
+    @Test
+    void signedAccountTokenFromAnotherCompanyIsRejectedBeforeAnyWrite() {
+        stubAppleVerification("com.pusula.usta", PlanType.USTA, "tx-wrong", "orig-wrong", LocalDateTime.now().plusDays(20));
+        stubNoExistingEvent();
+        Company target = company(10L, PlanType.CIRAK);
+        target.setAppStoreAccountToken(java.util.UUID.randomUUID());
+        when(companyRepository.lockById(10L)).thenReturn(Optional.of(target));
+        AppStoreVerificationException error = assertThrows(AppStoreVerificationException.class,
+                () -> subscriptionService.verifyAppleTransactionAndUpgradePlan(10L, "signed"));
+        assertEquals(AppStoreVerificationException.Reason.OWNERSHIP_CONFLICT, error.getReason());
+        verify(paymentEventRepository, never()).saveAndFlush(any());
+        verify(companyRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void unclaimedLegacyPurchaseCannotBeAssignedToCurrentCompany() {
+        stubLegacyVerification();
+        stubNoExistingEvent();
+        when(companyRepository.lockById(10L)).thenReturn(Optional.of(company(10L, PlanType.CIRAK)));
+        var error = assertThrows(AppStoreVerificationException.class,
+                () -> subscriptionService.verifyAppleTransactionAndUpgradePlan(10L, "signed"));
+        assertEquals(AppStoreVerificationException.Reason.ACCOUNT_BINDING_REQUIRED, error.getReason());
+        verify(paymentEventRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void newTokenCannotOverrideOriginalSubscriptionLedgerOwner() {
+        stubAppleVerification("com.pusula.usta", PlanType.USTA, "tx-new", "original", LocalDateTime.now().plusDays(20));
+        stubNoExistingEvent();
+        PaymentEvent previous = new PaymentEvent();
+        previous.setCompanyId(20L);
+        when(paymentEventRepository.findFirstByProviderAndExternalSubscriptionIdAndStatusOrderByIdAsc(
+                "APP_STORE", "appstore:" + sha256("original"), PaymentEventStatus.PROCESSED))
+                .thenReturn(Optional.of(previous));
+        assertThrows(AppStoreVerificationException.class,
+                () -> subscriptionService.verifyAppleTransactionAndUpgradePlan(10L, "signed"));
+        verify(companyRepository, never()).lockById(any());
+        verify(paymentEventRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void legacyRenewalCanRestoreItsPreviouslyRecordedOwner() {
+        stubLegacyVerification();
+        stubNoExistingEvent();
+        PaymentEvent previous = new PaymentEvent();
+        previous.setCompanyId(10L);
+        when(paymentEventRepository.findFirstByProviderAndExternalSubscriptionIdAndStatusOrderByIdAsc(
+                "APP_STORE", "appstore:" + sha256("legacy-original"), PaymentEventStatus.PROCESSED))
+                .thenReturn(Optional.of(previous));
+        stubSuccessfulPersistence(company(10L, PlanType.CIRAK));
+        assertTrue(subscriptionService.verifyAppleTransactionAndUpgradePlan(10L, "signed").verified());
+    }
+
+    @Test
+    void legacyLedgerOwnerCannotBeReassignedAfterProviderChange() {
+        stubLegacyVerification();
+        stubNoExistingEvent();
+        PaymentEvent previous = new PaymentEvent();
+        previous.setCompanyId(20L);
+        when(paymentEventRepository.findFirstByProviderAndExternalSubscriptionIdAndStatusOrderByIdAsc(
+                "APP_STORE", "appstore:" + sha256("legacy-original"), PaymentEventStatus.PROCESSED))
+                .thenReturn(Optional.of(previous));
+        assertThrows(AppStoreVerificationException.class,
+                () -> subscriptionService.verifyAppleTransactionAndUpgradePlan(10L, "signed"));
+        verify(paymentEventRepository, never()).saveAndFlush(any());
+    }
+
+    private void stubLegacyVerification() {
+        when(appleAppStoreVerificationService.verifyTransaction(any())).thenReturn(
+                new AppleAppStoreVerificationService.AppleVerificationResult("legacy-new", "legacy-original",
+                        "com.pusula.usta", PlanType.USTA, "com.pusula.service", "Sandbox",
+                        LocalDateTime.now().minusMinutes(1), LocalDateTime.now().plusDays(20)));
+    }
+
     private void assertVerificationFailure(AppStoreVerificationException.Reason reason) {
         when(appleAppStoreVerificationService.verifyTransaction("signed")).thenThrow(
                 new AppStoreVerificationException(reason, "Apple dogrulama basarisiz"));
@@ -356,7 +431,7 @@ class SubscriptionServiceAppleVerifyTest {
                 "com.pusula.service",
                 "Sandbox",
                 LocalDateTime.now().minusMinutes(1),
-                expiresAt);
+                expiresAt, null, ACCOUNT_TOKEN);
     }
 
     private void stubNoExistingEvent() {
@@ -383,6 +458,7 @@ class SubscriptionServiceAppleVerifyTest {
     private Company company(Long id, PlanType planType) {
         Company company = new Company();
         company.setId(id);
+        company.setAppStoreAccountToken(ACCOUNT_TOKEN);
         company.setName("Pusula");
         company.setSubscriptionStatus("EXPIRED");
         company.setPlanType(planType);

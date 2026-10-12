@@ -237,6 +237,29 @@ public class SubscriptionService {
             throw ownershipConflict();
         }
 
+        Optional<PaymentEvent> recordedOwner = paymentEventRepository
+                .findFirstByProviderAndExternalSubscriptionIdAndStatusOrderByIdAsc(
+                        APP_STORE_PROVIDER, externalSubscriptionId, PaymentEventStatus.PROCESSED);
+        if (recordedOwner.isPresent() && !companyId.equals(recordedOwner.get().getCompanyId())) {
+            throw ownershipConflict();
+        }
+        Company target = companyRepository.lockById(companyId)
+                .orElseThrow(() -> new RuntimeException("Company not found: " + companyId));
+        if (verification.appAccountToken() != null) {
+            // Only the Apple-signed token is trusted; never a client-submitted account identifier.
+            if (!verification.appAccountToken().equals(target.getAppStoreAccountToken())) {
+                throw ownershipConflict();
+            }
+        } else if (owner.isEmpty()) {
+            // Old builds did not send appAccountToken. Restore a previously bound chain,
+            // but never assign an unclaimed legacy purchase to whichever account is logged in.
+            if (recordedOwner.isEmpty()) {
+                throw new AppStoreVerificationException(
+                        AppStoreVerificationException.Reason.ACCOUNT_BINDING_REQUIRED,
+                        "Bu eski Apple satin alimi henuz bir isletmeye baglanmamis. Yeniden odeme yapmayin; destekle iletisime gecin.");
+            }
+        }
+
         PaymentEvent paymentEvent = new PaymentEvent();
         paymentEvent.setCompanyId(companyId);
         paymentEvent.setProvider(APP_STORE_PROVIDER);

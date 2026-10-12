@@ -67,6 +67,13 @@ public class Company extends BaseEntity {
     @Column(name = "app_store_environment", length = 16)
     private String appStoreEnvironment;
 
+    // Stable, opaque purchase ownership identifier. Never contains user/company PII.
+    @Column(name = "app_store_account_token", nullable = false, unique = true, updatable = false)
+    private UUID appStoreAccountToken = UUID.randomUUID();
+
+    public UUID getAppStoreAccountToken() { return appStoreAccountToken; }
+    public void setAppStoreAccountToken(UUID value) { appStoreAccountToken = value; }
+
     public String getAppStoreTransactionHash() { return appStoreTransactionHash; }
     public void setAppStoreTransactionHash(String value) { appStoreTransactionHash = value; }
     public LocalDateTime getAppStorePurchaseDate() { return appStorePurchaseDate; }

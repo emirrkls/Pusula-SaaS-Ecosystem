@@ -134,7 +134,7 @@ Pusula-SaaS-Ecosystem/
 ├── backend/                    # Spring Boot REST API
 │   ├── src/main/java/          # Controller, service, entity, DTO
 │   ├── src/main/resources/     # Yapılandırma, eski kurulum SQL'leri, fontlar
-│   ├── src/main/resources/db/migration/ # Aktif Flyway migrasyonları (baseline 20, V21–V43)
+│   ├── src/main/resources/db/migration/ # Aktif Flyway migrasyonları (baseline 20, V21–V46)
 │   ├── src/test/               # JUnit regression testleri
 │   └── .env.example            # Backend env şablonu
 ├── frontend-web/               # Marketing / kurumsal web sitesi (Vercel + SSG)
@@ -325,7 +325,7 @@ cd frontend-playstore/PusulaService
 
 ## Veritabanı Migrasyonları
 
-Production Flyway konumu `classpath:db/migration`, baseline sürümü `20`'dir; production'da Hibernate şema değişikliği kapalıdır (`ddl-auto=none`). Aktif sıra şu anda V21–V43 arasındadır:
+Production Flyway konumu `classpath:db/migration`, baseline sürümü `20`'dir; production'da Hibernate şema değişikliği kapalıdır (`ddl-auto=none`). Aktif sıra şu anda V21–V46 arasındadır:
 
 | Aralık | Başlıca değişiklikler |
 |--------|----------------------|
@@ -338,6 +338,8 @@ Production Flyway konumu `classpath:db/migration`, baseline sürümü `20`'dir; 
 | `V38–V40` | Birleşik hesap tarafları, bölünmüş servis tahsilatı ve finans hareket defteri |
 | `V41–V42` | Güvenilir WhatsApp outbox/durum takibi ve açık müşteri izni |
 | `V43` | Süresiz ücretsiz plan, kalıcı sosyal kimlik eşleştirmesi ve tek kullanımlık Apple giriş doğrulaması |
+| `V44–V45` | Kalıcı App Store sunucu bildirimleri/sahiplik metadatası ve imza silme kuyruğu |
+| `V46` | İşletme başına kalıcı Apple satın alma UUID'si ve abonelik sahiplik defteri indeksi |
 
 Eski kurulum ve şema evrimi dosyaları tarihsel kurulumlar için doğrudan `backend/src/main/resources/` altında tutulur; bunlar aktif production Flyway konumunda **değildir**. Uygulanmış bir migrasyonu değiştirmeyin, yeniden adlandırmayın veya sırasını bozmayın; yeni numaralı migrasyon ekleyin.
 
@@ -412,6 +414,10 @@ Ana yedekleme, artifact değiştirme, yeniden başlatma, geri dönüş ve doğru
 
 - **Android:** Release APK/AAB → Google Play Console
 - **iOS:** Archive → App Store Connect (API tarafında APNs key ve App Store doğrulama env’lerinin ayarlı olduğundan emin olun)
+
+Apple satın alma–işletme eşleştirmesi için **yeni iOS build'i dağıtılmadan önce V46 içeren backend canlıya alınmalıdır**. PostgreSQL 13+ (`gen_random_uuid()`), geri yüklenebilir yedek, migrasyon geçmişi ve oturumun feature context yanıtındaki `appAccountToken` doğrulanmalıdır. Yalnızca Apple'ın imzaladığı transaction içindeki UUID'ye güvenilir. Önceden işletmeye bağlanmış eski satın almalar o işletme için geri yüklenebilir/yenilenebilir; eski build'lerin henüz eşleşmemiş, tokensız satın almaları mevcut girişe atanmak yerine reddedilir. Kullanıcıdan yeniden ödeme istenmemelidir. Sahiplik doğrulanmış destek süreciyle çözülmeli, istemci tarafında kontrol atlanmamalıdır.
+
+Archive/gönderim öncesinde `node --test scripts/test-ios-auth-contract.cjs scripts/test-ios-release-contract.cjs`, Mac Swift/iPhone/iPad kontrolleri ve [`frontend-appstore/REAL_DEVICE_TEST_PLAN.md`](frontend-appstore/REAL_DEVICE_TEST_PLAN.md) içindeki Sandbox/hesap değiştirme/kamera testleri çalıştırılmalıdır. Kaynak kontrolleri iOS'un derlendiğini veya gerçek satın almanın çalıştığını kanıtlamaz. Hesap silme kişisel kimlik doğrulama/profil verilerini kaldırır; ortak operasyon/finans kayıtları korunabilir ve Apple aboneliğinin iptali ayrı işlemdir.
 
 Deploy sonrası smoke test planı için **[`RUNBOOK.md`](RUNBOOK.md)** dosyasına bakın.
 

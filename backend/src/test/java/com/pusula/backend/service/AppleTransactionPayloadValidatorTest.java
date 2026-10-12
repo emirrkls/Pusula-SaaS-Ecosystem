@@ -36,6 +36,13 @@ class AppleTransactionPayloadValidatorTest {
     }
 
     @Test
+    void validate_preservesAccountBindingFromSignedApplePayload() {
+        java.util.UUID token = java.util.UUID.randomUUID();
+        var result = validator.validate(validPayload().appAccountToken(token), Environment.SANDBOX);
+        assertEquals(token, result.appAccountToken());
+    }
+
+    @Test
     void validate_acceptsYearlySubscriptionPayload() {
         JWSTransactionDecodedPayload payload = validPayload()
                 .productId("com.pusula.patron.yearly");

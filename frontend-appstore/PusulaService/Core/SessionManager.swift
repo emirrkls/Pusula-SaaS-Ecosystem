@@ -14,6 +14,8 @@ final class SessionManager: ObservableObject {
     @Published var isAuthenticated = false
     @Published var isRestoringSession = true
     @Published var sessionMessage: String?
+    @Published private(set) var restoreNeedsRetry = false
+    @Published private(set) var appAccountToken: UUID?
     @Published var token: String?
     @Published var role: String = ""
     @Published var fullName: String = ""
@@ -23,6 +25,15 @@ final class SessionManager: ObservableObject {
 
     var canSetDesktopPassword: Bool { desktopLoginOptions.canSetPassword }
     var desktopLoginUsername: String? { desktopLoginOptions.loginUsername }
+
+    var authenticatedSnapshot: AuthenticatedSessionSnapshot? {
+        guard isAuthenticated, !isRestoringSession, let token, !token.isEmpty, let companyId else { return nil }
+        return AuthenticatedSessionSnapshot(token: token, companyId: companyId, revision: sessionRevision)
+    }
+
+    func isCurrent(_ snapshot: AuthenticatedSessionSnapshot) -> Bool {
+        authenticatedSnapshot == snapshot
+    }
     
     // MARK: - SaaS State
     @Published var planType: String = "CIRAK"
@@ -73,6 +84,8 @@ final class SessionManager: ObservableObject {
         hasAttemptedRestore = true
         self.isRestoringSession = false
         self.sessionMessage = nil
+        restoreNeedsRetry = false
+        appAccountToken = nil
         self.token = response.token
         self.role = response.role
         self.fullName = response.fullName ?? ""
@@ -86,12 +99,14 @@ final class SessionManager: ObservableObject {
         self.trialDaysRemaining = planType == "CIRAK" ? nil : response.trialDaysRemaining
         self.onboardingVersion = response.onboardingVersion ?? 0
         self.isAuthenticated = true
+        StoreKitManager.shared.sessionDidChange()
         
         // Persist token to Keychain
         KeychainHelper.save(key: "auth_token", value: response.token)
         KeychainHelper.save(key: "user_role", value: response.role)
         Task { @MainActor in
             PushNotificationManager.shared.sessionDidAuthenticate()
+            await StoreKitManager.shared.sessionDidAuthenticate()
         }
     }
     
@@ -118,6 +133,8 @@ final class SessionManager: ObservableObject {
         sessionRevision = UUID()
         AppNavigation.shared.resetForLogout()
         isRestoringSession = false
+        restoreNeedsRetry = false
+        appAccountToken = nil
         sessionMessage = message
         isAuthenticated = false
         token = nil
@@ -132,6 +149,7 @@ final class SessionManager: ObservableObject {
         isReadOnly = false
         trialDaysRemaining = nil
         onboardingVersion = 0
+        StoreKitManager.shared.sessionDidChange()
         
         KeychainHelper.delete(key: "auth_token")
         KeychainHelper.delete(key: "user_role")
@@ -139,13 +157,16 @@ final class SessionManager: ObservableObject {
     }
     
     func deleteAccount() async throws {
-        // Perform backend deletion
-        try await AuthService.deleteAccount()
-        
-        // Log out locally
-        await MainActor.run {
-            self.logout()
-        }
+        guard let snapshot = authenticatedSnapshot else { throw NetworkError.unauthorized }
+        try await AuthService.deleteAccount(authToken: snapshot.token)
+        guard isCurrent(snapshot) else { return }
+        logout()
+    }
+
+    func retrySessionRestore() {
+        guard restoreNeedsRetry else { return }
+        hasAttemptedRestore = false
+        tryRestoreSession()
     }
     
     func tryRestoreSession() {
@@ -157,6 +178,7 @@ final class SessionManager: ObservableObject {
             return
         }
         isRestoringSession = true
+        restoreNeedsRetry = false
         self.token = savedToken
         self.role = ""
         self.isAuthenticated = false
@@ -174,8 +196,8 @@ final class SessionManager: ObservableObject {
     @MainActor
     private func validateRestoredSession(expectedToken: String, revision: UUID) async {
         do {
-            async let profileRequest = AuthService.fetchAuthProfile()
-            async let subscriptionRequest = AuthService.refreshFeatureContext()
+            async let profileRequest = AuthService.fetchAuthProfile(authToken: expectedToken)
+            async let subscriptionRequest = AuthService.refreshFeatureContext(authToken: expectedToken)
             let (profile, context) = try await (profileRequest, subscriptionRequest)
             guard !Task.isCancelled, revision == sessionRevision,
                   SessionResponsePolicy.belongsToCurrentSession(requestToken: expectedToken, currentToken: token)
@@ -197,40 +219,57 @@ final class SessionManager: ObservableObject {
             isAuthenticated = true
             isRestoringSession = false
             sessionMessage = nil
+            restoreNeedsRetry = false
             logger.info("Saved session validation completed")
             PushNotificationManager.shared.sessionDidAuthenticate()
+            await StoreKitManager.shared.sessionDidAuthenticate()
         } catch {
             guard !Task.isCancelled, revision == sessionRevision,
                   SessionResponsePolicy.belongsToCurrentSession(requestToken: expectedToken, currentToken: token)
             else { return }
-            logger.notice("Saved session validation failed; returning safely to login")
-            clearLocalSession(message: "Oturum doğrulanamadı. Lütfen tekrar giriş yapın.")
-            await AuthService.logout(expectedToken: expectedToken)
+            let status: Int?
+            switch error {
+            case NetworkError.unauthorized: status = 401
+            case NetworkError.forbidden: status = 403
+            default: status = nil
+            }
+            if SessionRestorePolicy.shouldDiscardCredentials(
+                httpStatus: status, unsupportedRole: error is SessionRestoreError
+            ) {
+                clearLocalSession(message: String(localized: "session.invalid"))
+                await AuthService.logout(expectedToken: expectedToken)
+            } else {
+                // No cached privileged dashboard. Keep Keychain and pending navigation
+                // intact until the server can validate the session or the user signs out.
+                logger.notice("Session validation temporarily unavailable; credentials preserved")
+                restoreNeedsRetry = true
+            }
         }
     }
     
     @MainActor
-    func refreshSubscriptionContext() async {
-        guard isAuthenticated, !isRestoringSession, let requestToken = token else { return }
+    @discardableResult
+    func refreshSubscriptionContext(expectedSession: AuthenticatedSessionSnapshot? = nil) async -> Bool {
+        guard let snapshot = authenticatedSnapshot,
+              expectedSession == nil || expectedSession == snapshot else { return false }
         do {
-            let context = try await AuthService.refreshFeatureContext()
-            guard !Task.isCancelled, isAuthenticated,
-                  SessionResponsePolicy.belongsToCurrentSession(requestToken: requestToken, currentToken: token)
-            else { return }
+            let context = try await AuthService.refreshFeatureContext(authToken: snapshot.token)
+            guard !Task.isCancelled, isCurrent(snapshot) else { return false }
             applySubscriptionContext(context)
+            return true
         } catch {
-            guard !Task.isCancelled,
-                  SessionResponsePolicy.belongsToCurrentSession(requestToken: requestToken, currentToken: token)
-            else { return }
+            guard !Task.isCancelled, isCurrent(snapshot) else { return false }
             if case NetworkError.unauthorized = error {
-                handleUnauthorized(expectedToken: requestToken)
+                handleUnauthorized(expectedToken: snapshot.token)
             } else {
-                self.sessionMessage = "Sunucuya ulaşılamadı. Bazı bilgiler güncel olmayabilir."
+                self.sessionMessage = String(localized: "session.refresh_unavailable")
             }
+            return false
         }
     }
 
     private func applySubscriptionContext(_ context: SubscriptionContextDTO) {
+        appAccountToken = context.appAccountToken
         if let plan = context.planType { planType = plan }
         if let enabledFeatures = context.features { features = enabledFeatures }
         if let currentQuota = context.quota { quota = currentQuota }

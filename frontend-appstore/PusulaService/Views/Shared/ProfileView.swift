@@ -62,9 +62,10 @@ struct ProfileView: View {
                     .tint(.orange)
                 }
 
-                if session.isAdmin && session.planType.uppercased() != "CIRAK" {
+                // Apple subscriptions may outlive a plan change or a role change.
+                Group {
                     Button(action: { StoreKitManager.shared.manageSubscriptions() }) {
-                        Label("Aboneliği Yönet", systemImage: "creditcard")
+                        Label("account.manage_apple_subscription", systemImage: "creditcard")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                     }
@@ -129,9 +130,7 @@ struct ProfileView: View {
     }
 
     private var deleteConfirmationMessage: String {
-        let base = "Hesabınızı ve tüm verilerinizi kalıcı olarak silmek istediğinizden emin misiniz?"
-        guard session.planType.uppercased() != "CIRAK" else { return base }
-        return base + " Apple aboneliğiniz hesap silinince otomatik olarak iptal olmaz. Devam etmeden önce Aboneliği Yönet bölümünden iptal edin."
+        String(localized: "account.delete_explanation")
     }
     
     private var heroCard: some View {

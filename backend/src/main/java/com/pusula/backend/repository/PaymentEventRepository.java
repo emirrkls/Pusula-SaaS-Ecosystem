@@ -9,5 +9,7 @@ import java.util.Optional;
 
 public interface PaymentEventRepository extends JpaRepository<PaymentEvent, Long> {
     Optional<PaymentEvent> findByProviderAndTokenHash(String provider, String tokenHash);
+    Optional<PaymentEvent> findFirstByProviderAndExternalSubscriptionIdAndStatusOrderByIdAsc(
+            String provider, String externalSubscriptionId, PaymentEventStatus status);
     long countByStatusAndCreatedAtAfter(PaymentEventStatus status, LocalDateTime createdAt);
 }

@@ -86,7 +86,8 @@ public class AppleTransactionPayloadValidator {
                         : verifierEnvironment.getValue(),
                 millisToUtc(payload.getPurchaseDate()),
                 expiresAt,
-                payload.getSignedDate());
+                payload.getSignedDate(),
+                payload.getAppAccountToken());
     }
 
     private boolean isBlank(String value) {

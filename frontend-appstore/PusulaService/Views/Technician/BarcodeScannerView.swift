@@ -256,44 +256,42 @@ struct CameraPreview: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: CameraScannerController, context: Context) {}
+
+    static func dismantleUIViewController(_ controller: CameraScannerController, coordinator: ()) {
+        controller.stopCapture()
+    }
 }
 
 class CameraScannerController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
-    var captureSession: AVCaptureSession?
+    private let capture = BarcodeCaptureDriver()
+    private var isVisible = false
     var previewLayer: AVCaptureVideoPreviewLayer?
     var onBarcodeDetected: ((String) -> Void)?
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        let session = AVCaptureSession()
-        
-        guard let device = AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: device) else {
-            return
-        }
-        
-        if session.canAddInput(input) {
-            session.addInput(input)
-        }
-        
-        let output = AVCaptureMetadataOutput()
-        if session.canAddOutput(output) {
-            session.addOutput(output)
-            output.setMetadataObjectsDelegate(self, queue: DispatchQueue.main)
-            output.metadataObjectTypes = [.ean8, .ean13, .code128, .qr, .upce, .code39]
-        }
-        
-        let preview = AVCaptureVideoPreviewLayer(session: session)
+        let preview = AVCaptureVideoPreviewLayer(session: capture.session)
         preview.videoGravity = .resizeAspectFill
         preview.frame = view.layer.bounds
         view.layer.addSublayer(preview)
         
-        captureSession = session
         previewLayer = preview
-        
-        DispatchQueue.global(qos: .userInitiated).async {
-            session.startRunning()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        isVisible = true
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized: capture.start(delegate: self)
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                DispatchQueue.main.async {
+                    guard let self, granted, self.isVisible else { return }
+                    self.capture.start(delegate: self)
+                }
+            }
+        default: break
         }
     }
     
@@ -305,7 +303,7 @@ class CameraScannerController: UIViewController, AVCaptureMetadataOutputObjectsD
     func metadataOutput(_ output: AVCaptureMetadataOutput,
                         didOutput metadataObjects: [AVMetadataObject],
                         from connection: AVCaptureConnection) {
-        guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+        guard isVisible, let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
               let code = object.stringValue else { return }
         
         // Haptic feedback
@@ -317,6 +315,48 @@ class CameraScannerController: UIViewController, AVCaptureMetadataOutputObjectsD
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        captureSession?.stopRunning()
+        stopCapture()
+    }
+
+    func stopCapture() {
+        isVisible = false
+        capture.stop()
+    }
+}
+
+/// Only this serial queue mutates session configuration/running state. The immutable
+/// session reference is also used by the preview layer; no UIKit work runs here.
+private final class BarcodeCaptureDriver: @unchecked Sendable {
+    let session = AVCaptureSession()
+    private let sessionQueue = DispatchQueue(label: "com.pusula.barcode.capture", qos: .userInitiated)
+    private var configured = false
+
+    func start(delegate: AVCaptureMetadataOutputObjectsDelegate) {
+        sessionQueue.async { [self] in
+            if !configured {
+                guard let device = AVCaptureDevice.default(for: .video),
+                      let input = try? AVCaptureDeviceInput(device: device) else { return }
+                let output = AVCaptureMetadataOutput()
+                session.beginConfiguration()
+                guard session.canAddInput(input), session.canAddOutput(output) else {
+                    session.commitConfiguration()
+                    return
+                }
+                session.addInput(input)
+                session.addOutput(output)
+                output.setMetadataObjectsDelegate(delegate, queue: .main)
+                let supported: [AVMetadataObject.ObjectType] = [.ean8, .ean13, .code128, .qr, .upce, .code39]
+                output.metadataObjectTypes = supported.filter { output.availableMetadataObjectTypes.contains($0) }
+                session.commitConfiguration()
+                configured = true
+            }
+            if !session.isRunning { session.startRunning() }
+        }
+    }
+
+    func stop() {
+        sessionQueue.async { [self] in
+            if session.isRunning { session.stopRunning() }
+        }
     }
 }

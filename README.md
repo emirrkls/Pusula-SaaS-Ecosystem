@@ -134,7 +134,7 @@ Pusula-SaaS-Ecosystem/
 ├── backend/                    # Spring Boot REST API
 │   ├── src/main/java/          # Controllers, services, entities, DTOs
 │   ├── src/main/resources/     # Configuration, legacy bootstrap SQL, fonts
-│   ├── src/main/resources/db/migration/ # Active Flyway migrations (baseline 20, V21–V43)
+│   ├── src/main/resources/db/migration/ # Active Flyway migrations (baseline 20, V21–V46)
 │   ├── src/test/               # JUnit regression tests
 │   └── .env.example            # Backend env template
 ├── frontend-web/               # Marketing / corporate website (Vercel + SSG)
@@ -325,7 +325,7 @@ Template: `frontend-web/.env.example`
 
 ## Database Migrations
 
-Production Flyway uses `classpath:db/migration`, baseline version `20`, with Hibernate schema mutation disabled (`ddl-auto=none`). The active sequence currently runs from V21 through V43:
+Production Flyway uses `classpath:db/migration`, baseline version `20`, with Hibernate schema mutation disabled (`ddl-auto=none`). The active sequence currently runs from V21 through V46:
 
 | Range | Main changes |
 |-------|--------------|
@@ -338,6 +338,8 @@ Production Flyway uses `classpath:db/migration`, baseline version `20`, with Hib
 | `V38–V40` | Unified account parties, split service billing, and financial transaction ledger |
 | `V41–V42` | Reliable WhatsApp outbox/status tracking and explicit customer consent |
 | `V43` | Perpetual free plan, stable social identities, and single-use Apple login challenges |
+| `V44–V45` | Durable App Store server notifications/ownership metadata and queued signature erasure |
+| `V46` | Stable per-company Apple purchase UUID and subscription-ownership ledger index |
 
 Legacy bootstrap/evolution scripts remain directly under `backend/src/main/resources/` for historical installations, but they are **not** in the active production Flyway location. Do not rename, reorder, or edit an applied migration. Add a new versioned migration instead.
 
@@ -412,6 +414,10 @@ Connect the `frontend-web` directory to Vercel. Build command: `npm run build` (
 
 - **Android:** Release APK/AAB → Google Play Console
 - **iOS:** Archive → App Store Connect (ensure APNs key and App Store Server verification env are configured on the API)
+
+The Apple purchase-account binding release requires **backend deployment with V46 before rolling out the new iOS build**. Verify PostgreSQL 13+ (`gen_random_uuid()`), a recoverable backup, migration history, and the authenticated feature context's `appAccountToken`. Only the UUID from Apple's signed transaction is trusted. Already-bound legacy purchases can be restored/renewed for their recorded company; unclaimed tokenless purchases from older builds are refused rather than assigned to the current login. Do not ask affected users to pay again. Resolve ownership through a verified support process, not a client-side bypass.
+
+Before archive/submission, run `node --test scripts/test-ios-auth-contract.cjs scripts/test-ios-release-contract.cjs`, the Mac Swift/iPhone/iPad gates, and the Sandbox/account-switch/camera tests in [`frontend-appstore/REAL_DEVICE_TEST_PLAN.md`](frontend-appstore/REAL_DEVICE_TEST_PLAN.md). Source guards are not evidence of successful iOS compilation or a real purchase. Account deletion removes personal authentication/profile data; shared operational/financial records may be retained, and Apple subscription cancellation remains separate.
 
 For post-deploy smoke tests, see **[`RUNBOOK.md`](RUNBOOK.md)**.
 

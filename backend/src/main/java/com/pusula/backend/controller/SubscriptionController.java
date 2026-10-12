@@ -80,9 +80,12 @@ public class SubscriptionController {
     @PreAuthorize("hasAnyRole('COMPANY_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Void> verifyApplePurchase(@Valid @RequestBody AppleVerifyRequest request) {
         User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        subscriptionService.verifyAppleTransactionAndUpgradePlan(
+        SubscriptionService.AppleVerifyResult result = subscriptionService.verifyAppleTransactionAndUpgradePlan(
                 user.getCompanyId(),
                 request.getSignedTransactionInfo());
+        if (!result.verified()) {
+            return ResponseEntity.status(409).build();
+        }
         return ResponseEntity.noContent().build();
     }
 

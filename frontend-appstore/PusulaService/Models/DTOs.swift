@@ -158,6 +158,7 @@ struct SubscriptionContextDTO: Codable {
     let quota: QuotaDTO?
     let isReadOnly: Bool?
     let trialDaysRemaining: Int?
+    var appAccountToken: UUID? = nil
 }
 
 struct PlanSummaryDTO: Codable, Identifiable {
