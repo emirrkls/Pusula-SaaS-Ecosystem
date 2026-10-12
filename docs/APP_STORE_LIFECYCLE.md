@@ -240,3 +240,78 @@ optional desktop setup cancellation/save and unchanged access restrictions on
 iPhone and iPad. No new archive, upload, selected-build change, reviewer reply
 or resubmission is implied by these source changes. Choose the next unused
 build number on the Mac only after inspecting App Store Connect.
+
+### Purchase/session/privacy preflight (12 October 2026)
+
+The later preflight is broader than the passwordless UI-only correction above.
+Commit `75a510101913db63765768936b92d80495ba5224` adds stable company purchase
+UUIDs (V46), signed-transaction ownership checks and legacy ownership-ledger
+validation. It also pins asynchronous purchase/restore/deletion requests to the
+captured session, deduplicates transaction verification, preserves credentials
+on temporary restore failures, serializes camera capture off the UI thread and
+aligns the privacy manifest/account-deletion/subscription-management wording.
+Unlike the UI-only change, this release **requires V46 on the backend before the
+new iOS build is distributed**.
+
+Validation performed from clean backend snapshots (including the final
+`bb9eb1cdfda390c24fe8ec535154043baafde858` migration correction):
+
+- Maven verify: 353 tests discovered, 352 passed, zero failures/errors and one
+  opt-in PostgreSQL network test skipped. The separate
+  [Service Network Validation](https://github.com/emirrkls/Pusula-SaaS-Ecosystem/actions/runs/38307251106)
+  passed on PostgreSQL.
+- Both iOS source-contract suites: 14 passed. These do not replace Xcode or
+  real-device validation.
+- The first schema-only rehearsal did not retain production object owners and
+  therefore missed a legacy DDL ownership mismatch. The first rollout failed
+  when the non-superuser app role tried to index the postgres-owned
+  `payment_events` table. PostgreSQL rolled back the entire V46 transaction;
+  the release guard restored the previous application/environment and health
+  returned HTTP 200. No failed Flyway entry or partial UUID column remained.
+- Commit `bb9eb1c` permits the legacy table owner to prepare the index first;
+  V46 retains that exact index. The corrected rehearsal preserved the real
+  schema, owners and privileges, then ran the exact migration as the
+  non-superuser application role. It passed on PostgreSQL 16.15; 1,001 synthetic
+  UUIDs were unique, existing values remained stable and a duplicate was
+  rejected. The disposable test database was removed. No application database
+  privileges or table owners were changed.
+- A custom-format database backup and previous application/environment were
+  saved server-side; the dump was non-empty and `pg_restore --list` succeeded.
+- The first Mac Swift-package check exposed an undeclared macOS concurrency
+  deployment baseline. Commit `8bc5d73` declares macOS 12 for the host regression
+  package only; the iOS app deployment target is unchanged.
+- [iOS validation on `8bc5d73`](https://github.com/emirrkls/Pusula-SaaS-Ecosystem/actions/runs/38305404375):
+  51 Swift tests passed; all 17 ticket/date tests passed in each of three time
+  zones. Simulator application and UI-test compilation passed. The 3 auth
+  presentation, 7 social sign-in and 1 startup UI tests passed. The 2 large-list
+  UI tests failed to find the expected 10,000-ticket summary within 30 seconds;
+  iPad social-flow tests were consequently skipped. Do not treat this workflow
+  as green or claim real-device performance is fixed. Resolve these failures
+  and rerun the iPhone/iPad gates before the next store build/submission.
+
+Previously bound legacy subscriptions remain restorable for their recorded
+company. Unclaimed transactions from tokenless older builds are rejected with
+409 rather than attached to the current login; never instruct a user to pay
+again or bypass ownership verification. The new signed UUID purchase flow
+still needs a real TestFlight/Sandbox purchase after the new build is uploaded.
+
+Production rollout of backend `bb9eb1cdfda390c24fe8ec535154043baafde858`
+completed after the owner-aware rehearsal and a fresh verified database backup.
+The deployed JAR's SHA-256 is
+`f8ab30816221795d0630d45821e7936c68819ce59a213d87d268c4be28248fa0`.
+V46 is successful, every company has a non-null unique purchase UUID, and there
+are no failed Flyway migrations. The protected environment is byte-for-byte
+unchanged except the deployment-version line; existing Apple/JWT/provider
+credentials and table/role ownership were not changed.
+
+Two existing tenants' authenticated feature contexts returned stable, distinct
+UUIDs matching their database rows, and profile company IDs matched their
+authenticated tenant. The App Review demo account remained active, with
+authenticated feature-context and customer GET requests returning HTTP 200.
+Public HTTPS version/plans returned 200, anonymous subscription context 401,
+and an invalid signed Apple notification 422. No real purchase, business-data
+mutation, account deletion or password change was used for these smoke checks.
+The previous JAR/environment and custom-format database dump remain protected
+on the VPS for recovery. No iOS archive/upload, TestFlight rollout or App Review
+resubmission was performed; the outstanding large-list UI failures above remain
+an explicit gate for the next mobile release.
