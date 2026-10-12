@@ -18,6 +18,17 @@ def command(*args):
 def stdout(*args):
     return subprocess.run(args, check=True, capture_output=True).stdout
 
+def entitlement_plist(raw):
+    # Modern codesign can prefix the XML with an entitlement-blob header.
+    # Parse only a complete XML plist; never infer a missing entitlement.
+    start = raw.find(b'<?xml')
+    if start < 0:
+        start = raw.find(b'<plist')
+    end = raw.find(b'</plist>', max(start, 0))
+    if start < 0 or end < 0:
+        raise RuntimeError('codesign did not return a complete XML entitlement plist')
+    return plistlib.loads(raw[start:end + len(b'</plist>')])
+
 with tempfile.TemporaryDirectory(prefix='verify-', dir=root) as temporary:
     with zipfile.ZipFile(ipa) as package:
         for name in package.namelist():
@@ -36,7 +47,7 @@ with tempfile.TemporaryDirectory(prefix='verify-', dir=root) as temporary:
     signature = command('codesign', '-dv', '--verbose=4', str(app)).decode()
     assert 'TeamIdentifier=DDV3HCZRP6' in signature, 'Wrong signing team'
     assert 'Authority=Apple Distribution' in signature, 'Not distribution signed'
-    entitlements = plistlib.loads(stdout('codesign', '-d', '--entitlements', '-', str(app)))
+    entitlements = entitlement_plist(stdout('codesign', '-d', '--entitlements', ':-', '--xml', str(app)))
     assert entitlements.get('get-task-allow') is False, 'Debug entitlement must be false'
     assert entitlements.get('aps-environment') == 'production', 'Push must use production'
     assert entitlements.get('com.apple.developer.applesignin') == ['Default'], 'Apple sign-in missing'
@@ -56,7 +67,7 @@ with tempfile.TemporaryDirectory(prefix='verify-', dir=root) as temporary:
     assert binary_ids and all(uuid in symbol_uuids for uuid in binary_ids), 'dSYM UUID mismatch'
     strings = command('strings', str(executable)).decode(errors='replace')
     assert 'https://api.pusulaiklimlendirme.com' in strings, 'Production API missing'
-    assert not any(value in strings for value in ['-ui-testing-social-signin', '-ui-testing-startup']), 'UI test hook present in Release'
+    assert not any(value in strings for value in ['PUSULA_SOCIAL_AUTH_FIXTURE', 'PUSULA_TICKET_STRESS_COUNT']), 'DEBUG UI test hook present in Release'
     assert (app / 'GoogleSans.ttf').exists(), 'Social sign-in font missing'
     report = {'bundle': info['CFBundleIdentifier'], 'version': '1.0', 'build': expected_build,
               'team': 'DDV3HCZRP6', 'signature': 'Apple Distribution', 'push': 'production',
