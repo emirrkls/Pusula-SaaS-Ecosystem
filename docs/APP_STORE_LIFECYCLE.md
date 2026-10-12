@@ -313,5 +313,36 @@ and an invalid signed Apple notification 422. No real purchase, business-data
 mutation, account deletion or password change was used for these smoke checks.
 The previous JAR/environment and custom-format database dump remain protected
 on the VPS for recovery. No iOS archive/upload, TestFlight rollout or App Review
-resubmission was performed; the outstanding large-list UI failures above remain
-an explicit gate for the next mobile release.
+resubmission was performed. At this point, the large-list UI failures above
+remained an explicit gate for the next mobile release; see the follow-up below.
+
+### Large-list UI gate follow-up (13 October 2026)
+
+Commit `ceeec0f1112642e3e9f46cbe065ed1302aa8206f` replaces the brittle literal
+`10000 iş emri` lookup with a stable summary accessibility identifier and an
+exact, locale-independent value taken from `filteredTickets.count`. The visible
+localized text is unchanged. The runtime log confirms the cause: the summary
+reads `10.000 iş emri` in Turkish and `10,000 iş emri` in US English, while its
+actual count is 10000 in both cases. The old literal lookup therefore rejected
+a successfully loaded list; these two failures were not evidence of a stalled
+projection. The tests still require all 10,000 projected rows
+within 30 seconds, search for ticket 9999, validate its customer, repeat three
+background/foreground cycles, and restore all 10,000 rows within 10 seconds
+after clearing search. The two scenarios explicitly use Turkish and US English
+locales; no fixture size, timeout or responsiveness assertion was relaxed.
+
+[Validation on `ceeec0f`](https://github.com/emirrkls/Pusula-SaaS-Ecosystem/actions/runs/38308625141)
+passed all gates: 15 source guards, 51 Swift regressions, all 17 ticket/date
+tests in each of three time zones, simulator compilation, 13 iPhone UI tests
+and 7 iPad social-flow tests. Both previously failing list scenarios passed
+(14.812 seconds for foreground recovery and 28.225 seconds for the complete
+search/three-foreground-cycles scenario), with no failures or skipped UI tests.
+The general repository CI on the same source also passed. The former large-list
+UI blocker is resolved; the Mac archive and real-device release checks remain.
+
+Failures now retain synthetic-screen accessibility/screenshot attachments and
+the simulator xcresult/logs for seven days. No production session or customer
+data is used by the list fixture. These simulator checks do not replace the
+real-device crash, push, sign-in and Sandbox purchase checks before distribution.
+No iOS archive, upload, App Review change or backend deployment is part of this
+test correction.
