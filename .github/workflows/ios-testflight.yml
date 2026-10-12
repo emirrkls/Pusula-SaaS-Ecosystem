@@ -29,12 +29,13 @@ jobs:
     timeout-minutes: 60
     env:
       BUILD_NUMBER: ${{ inputs.build_number }}
-      RELEASE_DIR: ${{ runner.temp }}/pusula-ios-release
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Define ephemeral release paths
+        run: printf 'RELEASE_DIR=%s/pusula-ios-release\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - name: Guard manual release tooling
         run: node --test scripts/test-ios-testflight.cjs
       - name: Require a passing iPhone and iPad gate for this iOS source
