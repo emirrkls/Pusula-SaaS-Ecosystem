@@ -25,7 +25,9 @@ concurrency:
 
 jobs:
   compile:
-    runs-on: macos-latest
+    # Standard Intel pool: arm64 capacity can cancel jobs before any test starts.
+    # This is not a premium -large/-xlarge runner and does not change release signing.
+    runs-on: macos-26-intel
     timeout-minutes: 30
     strategy:
       fail-fast: false
