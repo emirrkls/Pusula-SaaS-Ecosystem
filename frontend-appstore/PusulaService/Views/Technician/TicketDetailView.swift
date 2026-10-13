@@ -392,6 +392,7 @@ struct TicketDetailView: View {
             HStack {
                 Label("Kullanılan Parçalar", systemImage: "shippingbox")
                     .font(.subheadline.weight(.semibold))
+                    .accessibilityIdentifier("ticket.parts.heading")
                 Spacer()
                 if isEditable {
                     Menu {
@@ -463,7 +464,6 @@ struct TicketDetailView: View {
             }
         }
         .pusulaCard()
-        .accessibilityIdentifier("ticket.parts.section")
     }
 
     private var timelineSection: some View {
@@ -471,6 +471,7 @@ struct TicketDetailView: View {
             HStack {
                 Label("İşlem Geçmişi", systemImage: "clock.arrow.circlepath")
                     .font(.subheadline.weight(.semibold))
+                    .accessibilityIdentifier("ticket.timeline.heading")
                 Spacer()
                 if !timeline.isEmpty {
                     Text("\(timeline.count) kayıt")
@@ -511,7 +512,6 @@ struct TicketDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .pusulaCard()
-        .accessibilityIdentifier("ticket.timeline.section")
     }
 
     private var financialSummarySection: some View {
@@ -522,26 +522,27 @@ struct TicketDetailView: View {
             }
             Label("Ücret ve Tahsilat Özeti", systemImage: "creditcard")
                 .font(.subheadline.weight(.semibold))
-            financialRow("Kullanılan malzemeler", partsTotal)
-            financialRow("İşçilik / servis", currentTicket.laborFee)
+            financialRow("Kullanılan malzemeler", partsTotal, id: "ticket.financial.parts")
+            financialRow("İşçilik / servis", currentTicket.laborFee, id: "ticket.financial.labor")
             Divider()
-            financialRow("Fiş toplamı", currentTicket.invoiceTotal ?? fallbackInvoiceTotal, emphasized: true)
-            financialRow("Müşteriden tahsil edilen", currentTicket.collectedAmount, color: .green)
+            financialRow("Fiş toplamı", currentTicket.invoiceTotal ?? fallbackInvoiceTotal, id: "ticket.financial.invoice", emphasized: true)
+            financialRow("Müşteriden tahsil edilen", currentTicket.collectedAmount, id: "ticket.financial.collected", color: .green)
             if let amount = currentTicket.billingPartyAmount, amount > 0 {
-                financialRow("\(currentTicket.billingPartyName ?? "Kurum") carisine aktarılan", amount, color: .orange)
+                financialRow("\(currentTicket.billingPartyName ?? "Kurum") carisine aktarılan", amount, id: "ticket.financial.institutionDebt", color: .orange)
             }
             let customerDebt = max(0, (currentTicket.outstandingAmount ?? 0) - (currentTicket.billingPartyAmount ?? 0))
-            if customerDebt > 0 { financialRow("Müşteri carisine aktarılan", customerDebt, color: .orange) }
+            if customerDebt > 0 { financialRow("Müşteri carisine aktarılan", customerDebt, id: "ticket.financial.customerDebt", color: .orange) }
         }
         .pusulaCard()
     }
 
-    private func financialRow(_ title: String, _ amount: Double?, emphasized: Bool = false, color: Color = .primary) -> some View {
+    private func financialRow(_ title: String, _ amount: Double?, id: String, emphasized: Bool = false, color: Color = .primary) -> some View {
         HStack {
             Text(title).font(emphasized ? .subheadline.weight(.semibold) : .subheadline)
             Spacer()
             Text(amount.map(formatCurrency) ?? String(localized: "ticket.detail.amount_unavailable"))
                 .font(emphasized ? .headline : .subheadline.weight(.semibold)).foregroundStyle(color)
+                .accessibilityIdentifier(id)
         }
     }
 
@@ -549,6 +550,7 @@ struct TicketDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Teknisyen Notları", systemImage: "note.text")
                 .font(.subheadline.weight(.semibold))
+                .accessibilityIdentifier("ticket.notes.heading")
             sectionLoadFeedback(notesState, title: "ticket.detail.notes.load_failed", id: "ticket.notes") {
                 Task { await loadTechnicianNotes() }
             }
@@ -592,7 +594,6 @@ struct TicketDetailView: View {
             }
         }
         .pusulaCard()
-        .accessibilityIdentifier("ticket.notes.section")
     }
 
     private var scheduleText: String? {

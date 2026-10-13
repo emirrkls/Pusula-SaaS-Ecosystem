@@ -4,6 +4,17 @@ import XCTest
 final class TicketDetailLoadTests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
+    override func tearDownWithError() throws {
+        if testRun?.hasSucceeded == false {
+            let app = XCUIApplication()
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "Offline ticket detail accessibility hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+            print("OFFLINE TICKET HIERARCHY:\n\(app.debugDescription)")
+        }
+    }
+
     func testTLSFailureIsNotEmptyAndRetryLoadsOnlyFailedSection() {
         let app = launch("parts-tls")
         let retry = reveal("ticket.parts.retry", in: app)
@@ -31,12 +42,17 @@ final class TicketDetailLoadTests: XCTestCase {
 
     func testFailedLegacyPartsReadDoesNotInventZeroFinancialTotals() {
         let app = launch("legacy-tls")
-        let retry = reveal("ticket.parts.retry", in: app)
-        let unavailableAmounts = app.staticTexts.matching(NSPredicate(format: "label == %@", "Bilgi alınamadı"))
-        XCTAssertEqual(unavailableAmounts.count, 2)
-        retry.tap()
+        _ = reveal("ticket.parts.retry", in: app)
+        for id in ["ticket.financial.parts", "ticket.financial.invoice"] {
+            XCTAssertEqual(revealText(id, in: app).label, "Bilgi alınamadı")
+        }
+        reveal("ticket.parts.retry", in: app, scrollUp: false).tap()
         XCTAssertTrue(app.staticTexts["Sentetik filtre"].waitForExistence(timeout: 5))
-        XCTAssertEqual(unavailableAmounts.count, 0)
+        for id in ["ticket.financial.parts", "ticket.financial.invoice"] {
+            let amount = revealText(id, in: app)
+            XCTAssertNotEqual(amount.label, "Bilgi alınamadı")
+            XCTAssertTrue(amount.label.contains("10"))
+        }
     }
 
     func testSuccessfulEmptyResponsesShowEmptyWithoutError() {
@@ -63,17 +79,20 @@ final class TicketDetailLoadTests: XCTestCase {
         app.launchEnvironment["PUSULA_TICKET_DETAIL_LOAD_FIXTURE"] = "1"
         app.launchEnvironment["PUSULA_TICKET_DETAIL_LOAD_SCENARIO"] = scenario
         app.launch()
+        XCTAssertTrue(app.navigationBars["İş Emri #1"].waitForExistence(timeout: 5))
         return app
     }
 
-    private func reveal(_ identifier: String, in app: XCUIApplication,
+    private func reveal(_ identifier: String, in app: XCUIApplication, scrollUp: Bool = true,
                         file: StaticString = #filePath, line: UInt = #line) -> XCUIElement {
         let element = app.buttons[identifier]
-        XCTAssertTrue(element.waitForExistence(timeout: 5), identifier, file: file, line: line)
+        // SwiftUI may not expose offscreen descendants in its accessibility
+        // snapshot. Discover them by scrolling before asserting existence.
         for _ in 0..<8 {
-            if element.isHittable { break }
-            app.swipeUp()
+            if element.exists && element.isHittable { break }
+            if scrollUp { app.swipeUp() } else { app.swipeDown() }
         }
+        XCTAssertTrue(element.waitForExistence(timeout: 5), identifier, file: file, line: line)
         XCTAssertTrue(element.isHittable, identifier, file: file, line: line)
         return element
     }

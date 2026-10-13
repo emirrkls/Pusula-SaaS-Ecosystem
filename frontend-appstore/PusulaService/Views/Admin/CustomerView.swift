@@ -79,6 +79,8 @@ struct CustomerView: View {
                 }
             }
             .listStyle(.plain)
+            // Pull-to-refresh must also be reachable for an empty/short list.
+            .scrollBounceBehavior(.always, axes: .vertical)
             .accessibilityIdentifier("customers.list")
             .refreshable { await load() }
             .overlay {

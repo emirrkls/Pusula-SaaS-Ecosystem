@@ -102,6 +102,16 @@ jobs:
             -only-testing:PusulaServiceScreenshots/TicketDetailLoadTests \
             -only-testing:PusulaServiceScreenshots/CustomerRefreshTests \
             test-without-building 2>&1 | tee /tmp/pusula-ios-social-ipad.log
+      - name: Export failed simulator attachments for diagnosis
+        if: failure()
+        run: |
+          for result in /tmp/pusula-ios-*.xcresult; do
+            [ -d "$result" ] || continue
+            output="/tmp/pusula-ios-diagnostics/$(basename "$result" .xcresult)"
+            mkdir -p "$output"
+            xcrun xcresulttool get test-results summary --path "$result" > "$output/summary.json" || true
+            xcrun xcresulttool export attachments --path "$result" --output-path "$output" --only-failures || true
+          done
       - name: Retain simulator diagnostics when a gate fails
         if: failure()
         uses: actions/upload-artifact@v4
@@ -110,5 +120,6 @@ jobs:
           path: |
             /tmp/pusula-ios-*.log
             /tmp/pusula-ios-*.xcresult
+            /tmp/pusula-ios-diagnostics
           retention-days: 7
           if-no-files-found: ignore

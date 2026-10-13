@@ -11,6 +11,7 @@ struct ReadLoadFailureView: View {
             Label("common.load_failed", systemImage: "exclamationmark.triangle")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.orange)
+                .accessibilityIdentifier("\(identifier).error")
             Text(verbatim: message)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -21,6 +22,5 @@ struct ReadLoadFailureView: View {
             .accessibilityIdentifier("\(identifier).retry")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityIdentifier("\(identifier).error")
     }
 }

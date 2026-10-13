@@ -22,10 +22,7 @@ final class CustomerRefreshTests: XCTestCase {
         let app = launch(scenario: "refresh-cancel")
         let firstCustomer = app.buttons["customers.card.901"]
         XCTAssertTrue(firstCustomer.waitForExistence(timeout: 10))
-        let list = app.descendants(matching: .any).matching(identifier: "customers.list").firstMatch
-        XCTAssertTrue(list.exists)
-
-        list.swipeDown()
+        pullToRefresh(in: app)
         waitForReads(2, in: app)
         XCTAssertTrue(firstCustomer.exists)
         XCTAssertFalse(app.alerts.firstMatch.exists)
@@ -33,7 +30,7 @@ final class CustomerRefreshTests: XCTestCase {
 
         // The next refresh returns a genuine TLS error. It must remain visible
         // inline, rather than being suppressed along with cancellation errors.
-        list.swipeDown()
+        pullToRefresh(in: app)
         let retry = app.buttons["customers.load.retry"]
         XCTAssertTrue(retry.waitForExistence(timeout: 10))
         XCTAssertTrue(firstCustomer.exists)
@@ -64,8 +61,7 @@ final class CustomerRefreshTests: XCTestCase {
         waitForReads(1, in: app)
         let empty = app.descendants(matching: .any).matching(identifier: "customers.empty").firstMatch
         XCTAssertTrue(empty.exists)
-        let list = app.descendants(matching: .any).matching(identifier: "customers.list").firstMatch
-        list.swipeDown()
+        pullToRefresh(in: app)
         let retry = app.buttons["customers.load.retry"]
         XCTAssertTrue(retry.waitForExistence(timeout: 10))
         XCTAssertFalse(empty.exists)
@@ -96,7 +92,45 @@ final class CustomerRefreshTests: XCTestCase {
         let counter = app.staticTexts["customers.fixture.reads"]
         let predicate = NSPredicate(format: "exists == true AND value == %@", "\(expected):0")
         let ready = XCTNSPredicateExpectation(predicate: predicate, object: counter)
-        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed,
+        let result = XCTWaiter.wait(for: [ready], timeout: 10)
+        let observed = counter.exists
+            ? "label=\(counter.label), value=\(String(describing: counter.value))"
+            : "counter missing"
+        if result != .completed { attachFailureState(in: app, reason: "Expected read \(expected); \(observed)") }
+        XCTAssertEqual(result, .completed,
+                       "Expected completed customer read \(expected); \(observed)",
                        file: file, line: line)
+    }
+
+    private func pullToRefresh(in app: XCUIApplication,
+                               file: StaticString = #filePath, line: UInt = #line) {
+        // List's accessibility wrapper is not necessarily its scrollable view,
+        // and a short default swipe may never cross UIRefreshControl's threshold.
+        // Drag the actual UIKit-backed list slowly, even when it has no cells.
+        let collection = app.collectionViews.firstMatch
+        let table = app.tables.firstMatch
+        let scrollable = collection.exists ? collection : table
+        guard scrollable.exists else {
+            attachFailureState(in: app, reason: "Customer list scroll container missing")
+            XCTFail("Customer list scroll container missing", file: file, line: line)
+            return
+        }
+        print("Customer refresh container: \(scrollable.elementType), frame=\(scrollable.frame)")
+        let start = scrollable.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.18))
+        let end = scrollable.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
+        start.press(forDuration: 0.05, thenDragTo: end,
+                    withVelocity: .slow, thenHoldForDuration: 0.2)
+    }
+
+    private func attachFailureState(in app: XCUIApplication, reason: String) {
+        print("Offline customer refresh failure: \(reason)")
+        let hierarchy = XCTAttachment(string: app.debugDescription)
+        hierarchy.name = "Synthetic customer refresh accessibility hierarchy"
+        hierarchy.lifetime = .keepAlways
+        add(hierarchy)
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Synthetic customer refresh failure"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
     }
 }
