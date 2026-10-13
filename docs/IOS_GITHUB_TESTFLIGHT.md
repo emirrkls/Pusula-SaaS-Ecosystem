@@ -48,6 +48,13 @@ iPhone/iPad validation run; never bypass that gate.
    If the polling times out, inspect Apple before retrying; the upload may already
    have succeeded. No purchase-flow or real-device test is implied by upload.
 
+GitHub's job/step status can lag behind actual execution. A missing step list,
+"Starting job" page, or temporarily unavailable log is **not** proof that the
+archive/upload has not started. Check Apple and the finalized job log before
+cancelling or retrying an upload. If CI processing verification was interrupted,
+App Store Connect's processed build status must be independently verified; do not
+reuse the number or claim the cancelled workflow itself passed.
+
 This uses a GitHub-hosted Mac, not Xcode Cloud. GitHub runner/artifact policies
 and quotas apply independently.
 
@@ -110,3 +117,21 @@ Xcode automatic provisioning did create the development signing assets needed
 by the new runner. Real-device checks and explicitly authorized review submission
 remain separate. Future uploads must select a fresh number, starting at `55`,
 and pass preflight again; certificate/provisioning limits are not bypassed.
+
+## Verified build 55 — 14 October 2026 (Türkiye)
+
+- [iPhone/iPad validation](https://github.com/emirrkls/Pusula-SaaS-Ecosystem/actions/runs/38462215908): **success**, tested source `64d2d1603a736b4e3b4661ac75a2ff304cb6b4b7`. The 88 Swift tests, 24 iPhone UI tests and 18 iPad UI tests passed, as did clean Debug/Release compilation and Release fixture isolation. The 35 local auth/release/upload guards also passed.
+- [Apple access preflight](https://github.com/emirrkls/Pusula-SaaS-Ecosystem/actions/runs/38468201187): **success**, correct application, highest previous build `54`, unused requested build `55`.
+- [Release/upload execution](https://github.com/emirrkls/Pusula-SaaS-Ecosystem/actions/runs/38468403533): fresh archive, export, actual-IPA verification and upload **succeeded**. The overall run is **cancelled**, not green: GitHub's API/UI temporarily exposed no steps/"Starting job" although execution had progressed. The cancellation interrupted the Apple-processing wait after the upload, not archive/export/upload. The encrypted-backup and cleanup steps completed.
+- Actual archive source: `64d2d1603a736b4e3b4661ac75a2ff304cb6b4b7`, version **1.0 (55)**, bundle `com.pusula.service`, team `DDV3HCZRP6`, Xcode **26.6 (17F113)**. No Xcode Cloud was used.
+- The exported IPA passed Apple Distribution, production APNs, Sign in with Apple, production API, font, DEBUG-hook exclusion and matching-symbol checks. App/dSYM UUID: `79160765-BD1F-375F-BDDC-A245C4F77FBF`.
+- Apple accepted the upload at **00:16:03 Türkiye time**. Processing was independently confirmed in App Store Connect: **Build 55 — Ready to Submit**. Apple build ID: `b3cacdb3-10af-4461-8bac-039e581cb28f`. The interrupted CI polling did not independently return `VALID`; the completion evidence is the directly observed Apple build page.
+- A subsequent [read-only preflight](https://github.com/emirrkls/Pusula-SaaS-Ecosystem/actions/runs/38469486149) correctly refused `55` because Apple already had it. No duplicate upload or build 56 was requested.
+- Future release jobs now request the same standard Intel Mac pool as validation. This workflow-only change does not change the already uploaded build's source. The stale status does not establish an arm64 or application fault.
+- Encrypted artifact: `ios-encrypted-archive-55-38468403533`, artifact ID `11851416196`. SHA-256 of `backup.pusula.enc`: `52c87fd83f6692ec28b3739699fe3eaf95d3458c6805543e9ced13673f668cb0`. An encrypted copy was downloaded into the owner's ignored local `outputs` directory. No plaintext archive, IPA, symbols or private key was committed.
+- The reviewed build **54**, store-selected build and review submission were not changed. No new App Review submission, publication, external-testing submission or backend deployment was performed. Build 55 had no tester group assigned when this upload record was written; assigning an existing internal group is a separate user-approved action.
+
+For the next upload, start with a fresh number **56 or higher**, verify Apple
+again, and preserve build 55's own matching encrypted archive for crash reports.
+Real-device connection/refresh/push/social-sign-in/purchase checks remain separate
+from simulator tests and successful processing.

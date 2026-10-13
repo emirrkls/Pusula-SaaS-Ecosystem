@@ -25,7 +25,7 @@ jobs:
   release:
     if: github.ref == 'refs/heads/main'
     # Use the same standard Intel pool as the validated iPhone/iPad gate.
-    # This avoids arm64 startup stalls without using a premium runner.
+    # This requests standard capacity, not a premium -large/-xlarge runner.
     runs-on: macos-26-intel
     timeout-minutes: 60
     env:
