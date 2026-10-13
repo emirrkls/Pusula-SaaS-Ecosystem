@@ -437,6 +437,34 @@ Beklenen:
 - Islem ya guvenle tamamlanir ya da anlasilir sekilde tekrar denenebilir.
 - Duplicate servis fisi, odeme veya stok hareketi olusmaz.
 
+### IOS-READ-01 Kesilen baglanti ve bolum bazli tekrar deneme
+
+Yeni build ile demo is emrini acin. Parca, teknisyen notu veya islem gecmisi
+okumasi basarisizken o bolumde yukleme hatasi ve Tekrar Dene gorunmeli;
+"henuz kayit yok" yalnizca basarili bos sunucu yanitindan sonra gorunmeli.
+Baglanti geri geldiginde sadece basarisiz bolumu tekrar deneyin. Diger bolumler
+ve daha once alinmis kayitlar korunmali. Sertifika/guven denetimi atlanmamali.
+Eksik ozet alanlari olan eski kapali fiste parca okuma hatasi varsa dogrulanmamis
+malzeme/fis toplami sifir tutar gibi gosterilmemeli.
+
+### IOS-READ-02 Musteri ve diger listelerde yenileme iptali
+
+Musteri listesini asagi cekerek yenileyin, hizla baska sekmeye gecip geri donun.
+Teklif, parca secimi, katalog, bildirim, finans, borc/cari gecmisi, servis agi,
+gorsel arsivi ve ayarlar okumalarinda da tekrarlayin. Mevcut liste yenilemede
+kaybolmamali; normal istek iptali "Hata / Vazgecildi" uyarisina donusmemeli.
+Gercek baglanti hatasi kayit yok dememeli ve tekrar denenebilmeli. Basarili bos
+okuma -> hata -> iptal edilen tekrar deneme, eski hatayi yanlis bos sonuca
+donusturmemeli. Oturum degisiminden sonra eski istegin sonucu gorunmemeli.
+
+13 Ekim 2026 tanisi: #985 icin 13:36 TR zamaninda not/gecmis GET'leri 200,
+parca istegi HTTP erisim kaydinda yok; TLS 1.2/1.3 zincir/hostname denetimi
+basarili. 13:46 TR musteri GET'i once 200 sonra istemci iptali 499/Broken pipe;
+bu pencereye ait TLS/upstream hatasi veya servis restart'i yok. Kalici TLS
+arizasi kanitlanmadi. Kaynak duzeltmesi bu gecici hatayi maskeliyor degil,
+bos/hatali/yuklenen/iptal durumlarini ayiriyor. Cihazdaki kesin TLS tetikleyicisi
+halen dogrulanmadi; otomatik/sentetik test gercek cihaz ag denemesinin yerine gecmez.
+
 ## Cikis Kriterleri
 
 - Backend V46, yeni iOS dagitimindan once yedek alinip PostgreSQL 13+ uzerinde uygulanmis; `flyway_schema_history` ve feature context UUID'si dogrulanmis olmali. Yerel Java/mock testleri SQL migrasyonunu dogrulamaz.

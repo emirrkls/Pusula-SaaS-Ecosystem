@@ -10,8 +10,9 @@ struct InventoryPartPickerView: View {
     @State private var searchText = ""
     @State private var selectedCategory: String?
     @State private var selectionDraft: InventoryPartSelectionDraft?
-    @State private var isLoading = true
-    @State private var errorMessage: String?
+    @State private var refreshRequest = RefreshRequestState()
+    @State private var hasLoaded = false
+    @State private var loadError: String?
 
     private var filteredItems: [InventoryItemDTO] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -36,73 +37,78 @@ struct InventoryPartPickerView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView("Stok yükleniyor...")
-                } else if inventory.isEmpty {
-                    ContentUnavailableView(
-                        "Stok bulunamadı",
-                        systemImage: "shippingbox",
-                        description: Text("Envantere ürün eklendiğinde burada görüntülenecek.")
-                    )
-                } else {
-                    List {
-                        if !categories.isEmpty {
-                            Picker("Kategori", selection: $selectedCategory) {
-                                Text("Tüm kategoriler").tag(Optional<String>.none)
-                                ForEach(categories, id: \.self) { category in
-                                    Text(category).tag(Optional(category))
-                                }
-                            }
-                            .pickerStyle(.menu)
+            List {
+                if let loadError {
+                    Section {
+                        ReadLoadFailureView(message: loadError, identifier: "inventory.picker.load") {
+                            Task { await loadInventory() }
                         }
-
-                        if filteredItems.isEmpty {
-                            ContentUnavailableView(
-                                "Yedek parça bulunamadı",
-                                systemImage: "magnifyingglass",
-                                description: Text(searchText.isEmpty
-                                    ? "Seçilen kategoride kayıtlı parça yok."
-                                    : "Aramayı veya kategori filtresini değiştirin.")
-                            )
-                        } else {
-                            ForEach(filteredItems) { item in
-                                Button { select(item) } label: {
-                                    HStack(spacing: 12) {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(item.partName)
-                                                .font(.subheadline.weight(.semibold))
-                                                .foregroundStyle(.primary)
-                                            HStack(spacing: 8) {
-                                                if let brand = item.brand, !brand.isEmpty { Text(brand) }
-                                                if let barcode = item.barcode, !barcode.isEmpty {
-                                                    Label(barcode, systemImage: "barcode")
-                                                }
-                                            }
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        }
-                                        Spacer()
-                                        VStack(alignment: .trailing, spacing: 4) {
-                                            Text(formatCurrency(item.sellPrice ?? 0))
-                                                .font(.subheadline.weight(.bold))
-                                                .foregroundStyle(PusulaTheme.accent)
-                                            Text("Stok: \(formatQuantity(item.quantity)) \(item.unitLabel)")
-                                                .font(.caption)
-                                                .foregroundStyle(item.quantity > 0 ? .green : .red)
-                                        }
-                                    }
-                                    .contentShape(Rectangle())
-                                }
-                                .disabled(item.quantity <= 0)
-                            }
+                        .disabled(refreshRequest.isLoading)
+                        if hasLoaded { Text("common.cached_records").font(.caption).foregroundStyle(.secondary) }
+                    }
+                }
+                if !categories.isEmpty {
+                    Picker("Kategori", selection: $selectedCategory) {
+                        Text("Tüm kategoriler").tag(Optional<String>.none)
+                        ForEach(categories, id: \.self) { category in
+                            Text(category).tag(Optional(category))
                         }
                     }
-                    .listStyle(.plain)
-                    .searchable(text: $searchText, prompt: "Parça, marka veya barkod ara")
-                    .refreshable { await loadInventory() }
+                    .pickerStyle(.menu)
+                }
+
+                if hasLoaded && loadError == nil && !inventory.isEmpty && filteredItems.isEmpty {
+                    ContentUnavailableView(
+                        "Yedek parça bulunamadı", systemImage: "magnifyingglass",
+                        description: Text(searchText.isEmpty
+                            ? "Seçilen kategoride kayıtlı parça yok."
+                            : "Aramayı veya kategori filtresini değiştirin.")
+                    )
+                } else {
+                    ForEach(filteredItems) { item in
+                        Button { select(item) } label: {
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(item.partName)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                    HStack(spacing: 8) {
+                                        if let brand = item.brand, !brand.isEmpty { Text(brand) }
+                                        if let barcode = item.barcode, !barcode.isEmpty {
+                                            Label(barcode, systemImage: "barcode")
+                                        }
+                                    }
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text(formatCurrency(item.sellPrice ?? 0))
+                                        .font(.subheadline.weight(.bold))
+                                        .foregroundStyle(PusulaTheme.accent)
+                                    Text("Stok: \(formatQuantity(item.quantity)) \(item.unitLabel)")
+                                        .font(.caption)
+                                        .foregroundStyle(item.quantity > 0 ? .green : .red)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .disabled(item.quantity <= 0)
+                    }
                 }
             }
+            .listStyle(.plain)
+            .searchable(text: $searchText, prompt: "Parça, marka veya barkod ara")
+            .overlay {
+                if refreshRequest.isLoading && !hasLoaded {
+                    ProgressView("common.loading")
+                } else if hasLoaded && loadError == nil && inventory.isEmpty {
+                    ContentUnavailableView("Stok bulunamadı", systemImage: "shippingbox",
+                        description: Text("Envantere ürün eklendiğinde burada görüntülenecek."))
+                        .allowsHitTesting(false)
+                }
+            }
+            .refreshable { await loadInventory() }
             .navigationTitle("Yedek Parça Seç")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -111,20 +117,13 @@ struct InventoryPartPickerView: View {
                 }
             }
             .task { await loadInventory() }
+            .onDisappear { refreshRequest.invalidate() }
             .sheet(item: $selectionDraft) { draft in
                 InventoryPartQuantitySheet(item: draft.item) { item, quantity, unitPrice in
                     onItemSelected(item, quantity, unitPrice)
                     selectionDraft = nil
                     dismiss()
                 }
-            }
-            .alert("Stok Yüklenemedi", isPresented: Binding(
-                get: { errorMessage != nil },
-                set: { if !$0 { errorMessage = nil } }
-            )) {
-                Button("Tamam", role: .cancel) { errorMessage = nil }
-            } message: {
-                Text(errorMessage ?? "")
             }
         }
     }
@@ -135,14 +134,22 @@ struct InventoryPartPickerView: View {
 
     @MainActor
     private func loadInventory() async {
-        isLoading = true
-        defer { isLoading = false }
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = refreshRequest.begin(for: snapshot) else { return }
+        defer { refreshRequest.finish(request) }
         do {
-            inventory = try await TicketService.getInventory().sorted {
+            let loaded = try await TicketService.getInventory(authToken: snapshot.token)
+            try Task.checkCancellation()
+            guard refreshRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            inventory = loaded.sorted {
                 $0.partName.localizedCaseInsensitiveCompare($1.partName) == .orderedAscending
             }
+            hasLoaded = true
+            loadError = nil
         } catch {
-            errorMessage = error.localizedDescription
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  refreshRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
         }
     }
 

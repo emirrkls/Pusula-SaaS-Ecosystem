@@ -174,8 +174,8 @@ enum FinanceService {
 
 enum CustomerService {
     
-    static func getCustomers() async throws -> [CustomerDTO] {
-        try await NetworkManager.shared.get("/api/customers")
+    static func getCustomers(authToken: String? = nil) async throws -> [CustomerDTO] {
+        try await NetworkManager.shared.request(.GET, path: "/api/customers", authTokenOverride: authToken)
     }
     
     static func createCustomer(_ customer: CustomerDTO) async throws -> CustomerDTO {
@@ -190,12 +190,16 @@ enum CustomerService {
         try await NetworkManager.shared.delete("/api/customers/\(id)")
     }
 
-    static func getServiceHistory(customerId: Int) async throws -> [FieldTicketDTO] {
-        try await NetworkManager.shared.get("/api/tickets/customer/\(customerId)")
+    static func getServiceHistory(customerId: Int, authToken: String? = nil) async throws -> [FieldTicketDTO] {
+        try await NetworkManager.shared.request(
+            .GET, path: "/api/tickets/customer/\(customerId)", authTokenOverride: authToken
+        )
     }
 
-    static func getWhatsAppConsent(customerId: Int) async throws -> CustomerWhatsAppConsentDTO {
-        try await NetworkManager.shared.get("/api/customers/\(customerId)/whatsapp-consent")
+    static func getWhatsAppConsent(customerId: Int, authToken: String? = nil) async throws -> CustomerWhatsAppConsentDTO {
+        try await NetworkManager.shared.request(
+            .GET, path: "/api/customers/\(customerId)/whatsapp-consent", authTokenOverride: authToken
+        )
     }
 
     static func updateWhatsAppConsent(
@@ -216,8 +220,8 @@ enum CustomerService {
 
 enum ProposalService {
     
-    static func getProposals() async throws -> [ProposalDTO] {
-        try await NetworkManager.shared.get("/api/proposals")
+    static func getProposals(authToken: String? = nil) async throws -> [ProposalDTO] {
+        try await NetworkManager.shared.request(.GET, path: "/api/proposals", authTokenOverride: authToken)
     }
     
     static func createProposal(_ proposal: ProposalDTO) async throws -> ProposalDTO {

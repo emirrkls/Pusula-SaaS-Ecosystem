@@ -1,6 +1,10 @@
 import SwiftUI
 
 struct CompanyDebtsView: View {
+    @State private var loadRequest = RefreshRequestState()
+    @State private var pdfRequest = RefreshRequestState()
+    @State private var loadError: String?
+    @State private var hasLoaded = false
     private enum Filter: String, CaseIterable { case open = "Açık", partial = "Kısmi", paid = "Ödenmiş", all = "Tümü" }
     @State private var parties: [PayablePartySummaryDTO] = []
     @State private var filter: Filter = .open
@@ -65,8 +69,9 @@ struct CompanyDebtsView: View {
             }
             .listStyle(.plain)
             .overlay {
-                if isLoading { ProgressView("Borçlar yükleniyor...") }
-                else if filtered.isEmpty { ContentUnavailableView("Borç bulunamadı", systemImage: "checkmark.circle") }
+                if isLoading && parties.isEmpty { ProgressView("Borçlar yükleniyor...") }
+                else if !hasLoaded && loadError == nil { Button("common.retry") { Task { await load() } } }
+                else if hasLoaded && filtered.isEmpty && loadError == nil { ContentUnavailableView("Borç bulunamadı", systemImage: "checkmark.circle") }
             }
         }
         .toolbar {
@@ -76,6 +81,8 @@ struct CompanyDebtsView: View {
         }
         .task { await load() }
         .refreshable { await load() }
+        .safeAreaInset(edge: .top) { if let loadError { ReadLoadFailureView(message: loadError) { Task { await load() } }.padding() } }
+        .onDisappear { loadRequest.invalidate(); pdfRequest.invalidate(); isLoading = false }
         .sheet(isPresented: $showEditor) { DebtEditorSheet(debt: editingDebt) { await load() } }
         .sheet(item: $selectedParty) { party in PayablePartyDetailSheet(party: party) { await load() } }
         .sheet(item: $pdfPreview) { PDFPreviewSheet(item: $0) }
@@ -85,14 +92,36 @@ struct CompanyDebtsView: View {
     }
 
     private func load() async {
-        isLoading = true; defer { isLoading = false }
-        do { parties = try await FinanceService.getPayableParties() } catch { errorMessage = error.localizedDescription }
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
+        isLoading = true
+        defer { loadRequest.finish(request); isLoading = loadRequest.isLoading }
+        do {
+            let loaded = try await FinanceService.getPayableParties()
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            parties = loaded
+            loadError = nil
+            hasLoaded = true
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
+        }
     }
 
     private func downloadPDF() async {
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = pdfRequest.begin(for: snapshot) else { return }
+        defer { pdfRequest.finish(request) }
         do {
-            pdfPreview = try PDFPreviewItem(data: try await FinanceService.downloadCompanyDebtsPDF(), fileName: "acik-isletme-borclari.pdf", title: "Açık İşletme Borçları")
-        } catch { errorMessage = error.localizedDescription }
+            let data = try await FinanceService.downloadCompanyDebtsPDF()
+            guard pdfRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            pdfPreview = try PDFPreviewItem(data: data, fileName: "acik-isletme-borclari.pdf", title: "Açık İşletme Borçları")
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  pdfRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
@@ -166,6 +195,9 @@ private struct DebtEditorSheet: View {
 }
 
 private struct PayablePartyDetailSheet: View {
+    @State private var loadRequest = RefreshRequestState()
+    @State private var loadError: String?
+    @State private var hasLoaded = false
     let party: PayablePartySummaryDTO
     let onChanged: () async -> Void
     @Environment(\.dismiss) private var dismiss
@@ -188,16 +220,17 @@ private struct PayablePartyDetailSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                if let loadError { ReadLoadFailureView(message: loadError) { Task { await load() } } }
                 Section("Kart Özeti") {
                     LabeledContent("Tedarikçi", value: party.name)
-                    LabeledContent("Toplam alım", value: formatCurrency(totalPurchases))
-                    LabeledContent("Toplam ödeme", value: formatCurrency(totalPaid))
-                    LabeledContent("Kalan borç", value: formatCurrency(currentBalance))
+                    LabeledContent("Toplam alım", value: formatCurrency(hasLoaded ? totalPurchases : party.totalPurchases))
+                    LabeledContent("Toplam ödeme", value: formatCurrency(hasLoaded ? totalPaid : party.totalPaid))
+                    LabeledContent("Kalan borç", value: formatCurrency(hasLoaded ? currentBalance : party.balance))
                 }
                 Section {
                     Button { showPurchase = true } label: { Label("Yeni Alım / Borç Ekle", systemImage: "plus.circle") }
                     Button { showPayment = true } label: { Label("Karta Ödeme Yap", systemImage: "banknote") }
-                        .disabled(currentBalance <= 0)
+                        .disabled(!hasLoaded || currentBalance <= 0)
                 }.readOnlyProtected()
                 Section("Alım ve Borç Kayıtları") {
                     ForEach(debts) { debt in
@@ -218,6 +251,8 @@ private struct PayablePartyDetailSheet: View {
             .navigationTitle(party.name)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Kapat") { dismiss() } } }
             .task { await load() }
+            .refreshable { await load() }
+            .onDisappear { loadRequest.invalidate() }
             .sheet(item: $selectedDebt) { debt in DebtDetailSheet(debt: debt) { await refreshAll() } }
             .sheet(isPresented: $showPurchase) { DebtEditorSheet(debt: nil, presetParty: party) { await refreshAll() } }
             .sheet(isPresented: $showPayment) { PayablePartyPaymentSheet(party: currentParty) { await refreshAll() } }
@@ -228,8 +263,19 @@ private struct PayablePartyDetailSheet: View {
     }
 
     private func load() async {
-        do { debts = try await FinanceService.getPartyDebts(partyId: party.partyId) }
-        catch { errorMessage = error.localizedDescription }
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { return }
+        defer { loadRequest.finish(request) }
+        do {
+            let loaded = try await FinanceService.getPartyDebts(partyId: party.partyId)
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            debts = loaded; hasLoaded = true
+            loadError = nil
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
+        }
     }
     private func refreshAll() async { await load(); await onChanged() }
 }
@@ -282,6 +328,8 @@ private struct PayablePartyPaymentSheet: View {
 }
 
 private struct DebtDetailSheet: View {
+    @State private var loadRequest = RefreshRequestState()
+    @State private var loadError: String?
     let debt: CompanyDebtDTO
     let onChanged: () async -> Void
     @Environment(\.dismiss) private var dismiss
@@ -294,6 +342,7 @@ private struct DebtDetailSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                if let loadError { ReadLoadFailureView(message: loadError) { Task { await load() } } }
                 Section("Özet") {
                     LabeledContent("Alacaklı", value: debt.creditorName ?? "-")
                     LabeledContent("Toplam", value: formatCurrency(debt.originalAmount))
@@ -324,6 +373,8 @@ private struct DebtDetailSheet: View {
                 ToolbarItem(placement: .primaryAction) { Button(role: .destructive) { deleteConfirmation = true } label: { Image(systemName: "trash") } }
             }
             .task { await load() }
+            .refreshable { await load() }
+            .onDisappear { loadRequest.invalidate() }
             .sheet(item: $mode) { selected in DebtMovementSheet(debt: debt, mode: selected) { await load(); await onChanged() } }
             .confirmationDialog("Bu borç silinsin mi?", isPresented: $deleteConfirmation) { Button("Borcu Sil", role: .destructive) { Task { await deleteDebt() } } }
             .alert("İşlem Başarısız", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) { Button("Tamam", role: .cancel) {} } message: { Text(errorMessage ?? "") }
@@ -337,7 +388,21 @@ private struct DebtDetailSheet: View {
     }
     private func load() async {
         guard let id = debt.id else { return }
-        do { async let p = FinanceService.getCompanyDebtPayments(id: id); async let a = FinanceService.getCompanyDebtAdditions(id: id); (payments, additions) = try await (p, a) } catch { errorMessage = error.localizedDescription }
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { return }
+        defer { loadRequest.finish(request) }
+        do {
+            async let p = FinanceService.getCompanyDebtPayments(id: id)
+            async let a = FinanceService.getCompanyDebtAdditions(id: id)
+            let (loadedPayments, loadedAdditions) = try await (p, a)
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            payments = loadedPayments; additions = loadedAdditions
+            loadError = nil
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
+        }
     }
     private func deletePayment(_ debtId: Int, _ paymentId: Int) async { do { try await FinanceService.deleteCompanyDebtPayment(debtId: debtId, paymentId: paymentId); await load(); await onChanged() } catch { errorMessage = error.localizedDescription } }
     private func deleteDebt() async { guard let id = debt.id else { return }; do { try await FinanceService.deleteCompanyDebt(id: id); await onChanged(); dismiss() } catch { errorMessage = error.localizedDescription } }

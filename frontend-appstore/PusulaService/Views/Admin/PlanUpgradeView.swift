@@ -12,6 +12,7 @@ struct PlanUpgradeView: View {
     @State private var planDefinitions: [String: PlanSummaryDTO] = [:]
     @State private var planLoadFailed = false
     @State private var isLoadingPlanDefinitions = false
+    @State private var planLoadRequest = RefreshRequestState()
     
     var body: some View {
         ScrollView {
@@ -93,6 +94,7 @@ struct PlanUpgradeView: View {
             .padding()
         }
         .background(PusulaTheme.page)
+        .onDisappear { planLoadRequest.invalidate(); isLoadingPlanDefinitions = false }
         .navigationTitle("billing.plans_title")
         .refreshable {
             guard session.isAdmin else { return }
@@ -136,16 +138,18 @@ struct PlanUpgradeView: View {
     }
 
     private func loadPlanDefinitions() async {
-        guard !isLoadingPlanDefinitions else { return }
+        guard let snapshot = session.authenticatedSnapshot,
+              let request = planLoadRequest.begin(for: snapshot) else { return }
         isLoadingPlanDefinitions = true
-        defer { isLoadingPlanDefinitions = false }
-        planLoadFailed = false
+        defer { planLoadRequest.finish(request); isLoadingPlanDefinitions = planLoadRequest.isLoading }
         do {
             let definitions = try await AuthService.getPlans()
-            guard !Task.isCancelled else { return }
+            guard planLoadRequest.accepts(request, session: session.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
             planDefinitions = Dictionary(definitions.map { ($0.name, $0) }, uniquingKeysWith: { _, latest in latest })
+            planLoadFailed = false
         } catch {
-            guard !Task.isCancelled else { return }
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  planLoadRequest.accepts(request, session: session.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
             planLoadFailed = true
         }
     }

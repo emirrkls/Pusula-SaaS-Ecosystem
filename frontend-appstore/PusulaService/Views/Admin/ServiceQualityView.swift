@@ -26,8 +26,9 @@ struct ServiceQualityView: View {
     @State private var useDateFilter = false
     @State private var startDate = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
     @State private var endDate = Date()
-    @State private var isLoading = true
-    @State private var errorMessage: String?
+    @State private var refreshRequest = RefreshRequestState()
+    @State private var hasLoaded = false
+    @State private var loadError: String?
 
     private var filteredPhotos: [ServicePhotoDTO] {
         let needle = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -62,9 +63,21 @@ struct ServiceQualityView: View {
                 categoryBar
                 dateFilters
 
-                if isLoading {
-                    ProgressView("Servis dosyaları getiriliyor…").padding(.top, 30)
-                } else if ticketGroups.isEmpty {
+                if let loadError {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ReadLoadFailureView(message: loadError, identifier: "service.archive.load") {
+                            Task { await load() }
+                        }
+                        .disabled(refreshRequest.isLoading)
+                        if hasLoaded { Text("common.cached_records").font(.caption).foregroundStyle(.secondary) }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .pusulaCard()
+                }
+
+                if refreshRequest.isLoading && !hasLoaded {
+                    ProgressView("common.loading").padding(.top, 30)
+                } else if hasLoaded && loadError == nil && ticketGroups.isEmpty {
                     ContentUnavailableView("Servis dosyası bulunamadı", systemImage: "folder.badge.questionmark",
                         description: Text("Müşteri, iş başlığı, fiş no veya görsel notuyla arama yapabilirsiniz."))
                         .padding(.top, 40)
@@ -86,11 +99,8 @@ struct ServiceQualityView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Müşteri, iş, fiş no veya not ara")
         .task { await load() }
+        .onDisappear { refreshRequest.invalidate() }
         .refreshable { await load() }
-        .alert("Görseller Yüklenemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
-            Button("Tekrar Dene") { Task { await load() } }
-            Button("Tamam", role: .cancel) { errorMessage = nil }
-        } message: { Text(errorMessage ?? "") }
     }
 
     private var archiveHeader: some View {
@@ -125,6 +135,7 @@ struct ServiceQualityView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(PusulaTheme.accent)
+            .disabled(refreshRequest.isLoading)
         }
     }
 
@@ -183,21 +194,30 @@ struct ServiceQualityView: View {
         .pusulaCard(padding: 10)
     }
 
+    @MainActor
     private func load() async {
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = refreshRequest.begin(for: snapshot) else { return }
+        defer { refreshRequest.finish(request) }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
+        let requestedStartDate = useDateFilter ? formatter.string(from: startDate) : nil
+        let requestedEndDate = useDateFilter ? formatter.string(from: endDate) : nil
+        let requestedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
-            photos = try await TicketService.getCompanyServicePhotos(
+            let loaded = try await TicketService.getCompanyServicePhotos(
                 type: nil, ticketId: nil,
-                startDate: useDateFilter ? formatter.string(from: startDate) : nil,
-                endDate: useDateFilter ? formatter.string(from: endDate) : nil,
-                searchText: searchText.trimmingCharacters(in: .whitespacesAndNewlines),
-                limit: 1000)
+                startDate: requestedStartDate, endDate: requestedEndDate,
+                searchText: requestedSearch, limit: 1000, authToken: snapshot.token)
+            try Task.checkCancellation()
+            guard refreshRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            photos = loaded
+            hasLoaded = true
+            loadError = nil
         } catch {
-            errorMessage = error.localizedDescription
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  refreshRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
         }
     }
 

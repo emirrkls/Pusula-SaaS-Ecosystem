@@ -25,7 +25,9 @@ struct ProposalView: View {
     @State private var customers: [CustomerDTO] = []
     @State private var searchText = ""
     @State private var selectedStatus = ProposalStatusFilter.all
-    @State private var isLoading = true
+    @State private var refreshRequest = RefreshRequestState()
+    @State private var hasLoaded = false
+    @State private var loadError: String?
     @State private var editingProposal: ProposalDTO?
     @State private var showCreate = false
     @State private var proposalPendingConversion: ProposalDTO?
@@ -96,23 +98,33 @@ struct ProposalView: View {
                 .padding(.vertical, 10)
             }
             
-            if isLoading {
-                Spacer(); ProgressView(); Spacer()
-            } else if filtered.isEmpty {
-                Spacer()
-                ContentUnavailableView(
-                    "Teklif bulunamadı",
-                    systemImage: "doc.text.magnifyingglass",
-                    description: Text("Aramayı veya durum kategorisini değiştirin.")
-                )
-                Spacer()
-            } else {
-                List(filtered) { proposal in
+            List {
+                if let loadError {
+                    Section {
+                        ReadLoadFailureView(message: loadError, identifier: "proposals.load") {
+                            Task { await load() }
+                        }
+                        .disabled(refreshRequest.isLoading)
+                        if hasLoaded { Text("common.cached_records").font(.caption).foregroundStyle(.secondary) }
+                    }
+                }
+                ForEach(filtered) { proposal in
                     proposalRow(proposal)
                 }
-                .listStyle(.plain)
-                .refreshable { await load() }
             }
+            .listStyle(.plain)
+            .overlay {
+                if refreshRequest.isLoading && !hasLoaded {
+                    ProgressView("common.loading")
+                } else if hasLoaded && loadError == nil && filtered.isEmpty {
+                    ContentUnavailableView(
+                        "Teklif bulunamadı", systemImage: "doc.text.magnifyingglass",
+                        description: Text("Aramayı veya durum kategorisini değiştirin.")
+                    )
+                    .allowsHitTesting(false)
+                }
+            }
+            .refreshable { await load() }
         }
         .navigationTitle("Teklifler")
         .toolbar {
@@ -122,6 +134,7 @@ struct ProposalView: View {
             }
         }
         .task { await load() }
+        .onDisappear { refreshRequest.invalidate() }
         .sheet(isPresented: $showCreate) {
             ProposalEditorSheet(proposal: nil, customers: customers) { await load() }
         }
@@ -235,20 +248,28 @@ struct ProposalView: View {
         .padding(.vertical, 8)
     }
     
+    @MainActor
     private func load() async {
-        isLoading = true
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = refreshRequest.begin(for: snapshot) else { return }
+        defer { refreshRequest.finish(request) }
         do {
-            async let proposalRequest = ProposalService.getProposals()
-            async let customerRequest = CustomerService.getCustomers()
+            async let proposalRequest = ProposalService.getProposals(authToken: snapshot.token)
+            async let customerRequest = CustomerService.getCustomers(authToken: snapshot.token)
             let (loadedProposals, loadedCustomers) = try await (proposalRequest, customerRequest)
+            try Task.checkCancellation()
+            guard refreshRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
             proposals = loadedProposals
             customers = loadedCustomers.sorted {
                 $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
             }
+            hasLoaded = true
+            loadError = nil
         } catch {
-            errorMessage = error.localizedDescription
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  refreshRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
         }
-        isLoading = false
     }
 
     private func proposalCount(for status: ProposalStatusFilter) -> Int {

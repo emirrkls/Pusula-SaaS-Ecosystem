@@ -79,7 +79,13 @@ test('offline authentication fixture is DEBUG/simulator only and cannot authenti
     'production completion must remain the last initializer closure');
   const mode = read(app + 'ScreenshotSupport/AppStoreScreenshotView.swift');
   assert.match(mode, /#if DEBUG\s+ProcessInfo[\s\S]*?#else\s+false\s+#endif/);
-  assert.match(mode, /#if DEBUG\s+if SocialAuthFlowFixture\.isEnabled/);
+  const bodyStart = mode.indexOf('var body: some View');
+  const debugStart = mode.indexOf('#if DEBUG', bodyStart);
+  const releaseStart = mode.indexOf('#else', debugStart);
+  assert.ok(bodyStart >= 0 && debugStart > bodyStart && releaseStart > debugStart);
+  const debugRouter = mode.slice(debugStart, releaseStart);
+  assert.match(debugRouter, /(?:if|else if) SocialAuthFlowFixture\.isEnabled\s*\{\s*SocialAuthFlowHarness\(\)/);
+  assert.doesNotMatch(mode.slice(releaseStart), /SocialAuthFlowHarness\(\)/);
 });
 
 test('CI includes new policy tests and iPhone/iPad social-flow regressions', () => {

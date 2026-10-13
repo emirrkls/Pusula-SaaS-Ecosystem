@@ -96,3 +96,91 @@ test('server trusts Apple-signed ownership and refuses unclaimed legacy assignme
   const validator = read('backend/src/main/java/com/pusula/backend/service/AppleTransactionPayloadValidator.java');
   assert.match(validator, /payload\.getAppAccountToken\(\)/);
 });
+
+test('detail failures and cancellations cannot masquerade as empty data', () => {
+  const state = read(app + 'Core/Tickets/TicketDetailSectionState.swift');
+  const view = read(app + 'Views/Technician/TicketDetailView.swift');
+  assert.match(state, /var showsEmpty: Bool \{ isLoaded && items\.isEmpty \}/);
+  assert.match(state, /guard activeRequest == request else \{ return \}/);
+  assert.match(state, /phase = previousPhase == \.idle \? \.cancelled : previousPhase/);
+  for (const section of ['parts', 'notes', 'timeline']) {
+    assert.match(view, new RegExp(`${section}State\\.showsEmpty`));
+    assert.ok(view.includes(`id: "ticket.${section}"`));
+  }
+  const loader = view.slice(view.indexOf('private func loadSection'), view.indexOf('private func isDetailSessionCurrent'));
+  assert.match(loader, /TicketDetailLoadFailure\.isCancellation\(error\)/);
+  assert.match(loader, /isDetailSessionCurrent\(snapshot\)/);
+  assert.doesNotMatch(loader, /errorMessage =/);
+  assert.match(view, /partsState\.isLoaded \? totalPartsValue : nil/);
+});
+
+test('shared read gates ignore cancellation but reject stale and other-account results', () => {
+  const policy = read(app + 'Core/Routing/RefreshRequestState.swift');
+  assert.match(policy, /error is CancellationError/);
+  assert.match(policy, /error\.domain == NSURLErrorDomain && error\.code == URLError\.cancelled\.rawValue/);
+  assert.match(policy, /!isCancelled && activeRequest == request && requestSession == session/);
+  const customer = read(app + 'Views/Admin/CustomerView.swift');
+  assert.match(customer, /\.refreshable \{ await load\(\) \}/);
+  assert.match(customer, /LoadCancellationPolicy\.isCancellation/);
+  assert.match(customer, /\.task\(id: readSnapshot\)/);
+  assert.doesNotMatch(customer, /if isLoading \{\s*ProgressView\(\)\s*\} else if filtered\.isEmpty/);
+});
+
+test('all audited read screens use cancellation guards without weakening transport security', () => {
+  const files = [
+    'Admin/CustomerView', 'Admin/ProposalView', 'Admin/CatalogView',
+    'Admin/AdminNotificationsView', 'Admin/ServiceQualityView',
+    'Admin/AccountPartiesView', 'Admin/BusinessAssetsView', 'Admin/FixedExpensesView',
+    'Admin/CompanyDebtsView', 'Admin/FinanceView', 'Admin/FieldRadarView',
+    'Admin/ServiceNetworkView', 'Admin/SettingsView', 'Admin/ProfitAnalysisView',
+    'Admin/PlanUpgradeView', 'Technician/InventoryPartPickerView',
+    'Technician/ServicePhotoView', 'Technician/TicketListView',
+  ];
+  for (const file of files) {
+    assert.match(read(app + `Views/${file}.swift`), /LoadCancellationPolicy\.isCancellation/, file);
+  }
+  const network = read(app + 'Services/NetworkManager.swift');
+  assert.match(network, /URLSession\.shared\.data\(for: request\)/);
+  assert.doesNotMatch(network, /URLCredential\(trust:|serverTrust|useCredential|allowsAnyHTTPSCertificate/);
+});
+
+test('new read feedback is translated through unique matching Turkish and English keys', () => {
+  const prefixes = /^(common\.|customers\.|ticket\.detail\.)/;
+  const catalogs = ['tr', 'en'].map(locale => {
+    const entries = [...read(app + `${locale}.lproj/Localizable.strings`).matchAll(/^"([^"]+)"\s*=\s*"((?:[^"\\]|\\.)*)";/gm)]
+      .filter(match => prefixes.test(match[1]));
+    assert.equal(entries.length, new Set(entries.map(match => match[1])).size, `${locale}: duplicate feedback key`);
+    return new Map(entries.map(match => [match[1], match[2]]));
+  });
+  assert.deepEqual([...catalogs[0].keys()].sort(), [...catalogs[1].keys()].sort());
+  for (const key of ['common.retry', 'customers.retry', 'ticket.detail.secure_connection_error',
+                     'ticket.detail.parts.empty', 'ticket.detail.notes.completed_empty',
+                     'ticket.detail.timeline.empty', 'ticket.detail.amount_unavailable']) {
+    for (const catalog of catalogs) assert.ok(catalog.get(key)?.length > 0, key);
+  }
+});
+
+test('failure fixtures are offline DEBUG simulator hooks and excluded from Release validation', () => {
+  const router = read(app + 'ScreenshotSupport/AppStoreScreenshotView.swift');
+  const debugStart = router.indexOf('#if DEBUG', router.indexOf('var body: some View'));
+  const releaseStart = router.indexOf('#else', debugStart);
+  for (const fixture of ['TicketDetailLoad', 'CustomerRefresh']) {
+    const source = read(app + `ScreenshotSupport/${fixture}Fixture.swift`);
+    assert.ok(source.startsWith('#if DEBUG'));
+    assert.match(source, /#if targetEnvironment\(simulator\)/);
+    assert.match(source, /AppStoreScreenshotMode\.isEnabled/);
+    assert.doesNotMatch(source, /NetworkManager\.|KeychainHelper\.|\.configureSession\(/);
+    assert.ok(router.slice(debugStart, releaseStart).includes(`${fixture}Fixture.isEnabled`));
+    assert.ok(read('scripts/verify-ios-export.py').includes(
+      fixture === 'TicketDetailLoad' ? 'PUSULA_TICKET_DETAIL_LOAD_FIXTURE' : 'PUSULA_CUSTOMER_REFRESH_FIXTURE'));
+  }
+});
+
+test('iPhone and iPad CI both run the actual detail and customer failure regressions', () => {
+  const workflow = read('.github/workflows/ios-validation.yml');
+  for (const name of ['TicketDetailLoadTests', 'CustomerRefreshTests']) {
+    assert.equal(workflow.split(`-only-testing:PusulaServiceScreenshots/${name}`).length - 1, 2, name);
+  }
+  assert.ok(read('frontend-appstore/TicketTests/TicketDetailSectionStateTests.swift').includes('testFailedInitialReadIsNotEmpty'));
+  assert.ok(read('frontend-appstore/RoutingTests/RefreshRequestStateTests.swift').includes('LoadCancellationPolicy'));
+});

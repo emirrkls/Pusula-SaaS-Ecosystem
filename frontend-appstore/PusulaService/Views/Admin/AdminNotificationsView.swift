@@ -3,35 +3,46 @@ import SwiftUI
 struct AdminNotificationsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var notifications: [AdminNotificationDTO] = []
-    @State private var isLoading = true
+    @State private var refreshRequest = RefreshRequestState()
+    @State private var hasLoaded = false
+    @State private var loadError: String?
     @State private var errorMessage: String?
     let onChanged: () async -> Void
 
     var body: some View {
-        Group {
-            if isLoading {
-                ProgressView("Bildirimler yükleniyor...")
-            } else if notifications.isEmpty {
-                ContentUnavailableView("Bildirim yok", systemImage: "bell.slash",
-                                       description: Text("Önemli operasyon hareketleri burada görünür."))
-            } else {
-                List {
-                    ForEach(notifications) { item in
-                        Button { open(item) } label: { notificationRow(item) }
-                            .buttonStyle(.plain)
-                            .listRowBackground(PusulaTheme.page)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                if !item.read {
-                                    Button("Okundu") { Task { await markRead(item) } }
-                                        .tint(PusulaTheme.accent)
-                                }
-                            }
+        List {
+            if let loadError {
+                Section {
+                    ReadLoadFailureView(message: loadError, identifier: "notifications.load") {
+                        Task { await load() }
                     }
+                    .disabled(refreshRequest.isLoading)
+                    if hasLoaded { Text("common.cached_records").font(.caption).foregroundStyle(.secondary) }
                 }
-                .listStyle(.plain)
-                .refreshable { await load() }
+            }
+            ForEach(notifications) { item in
+                Button { open(item) } label: { notificationRow(item) }
+                    .buttonStyle(.plain)
+                    .listRowBackground(PusulaTheme.page)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        if !item.read {
+                            Button("Okundu") { Task { await markRead(item) } }
+                                .tint(PusulaTheme.accent)
+                        }
+                    }
             }
         }
+        .listStyle(.plain)
+        .overlay {
+            if refreshRequest.isLoading && !hasLoaded {
+                ProgressView("common.loading")
+            } else if hasLoaded && loadError == nil && notifications.isEmpty {
+                ContentUnavailableView("Bildirim yok", systemImage: "bell.slash",
+                                       description: Text("Önemli operasyon hareketleri burada görünür."))
+                    .allowsHitTesting(false)
+            }
+        }
+        .refreshable { await load() }
         .background(PusulaTheme.page)
         .navigationTitle("Bildirimler")
         .navigationBarTitleDisplayMode(.inline)
@@ -45,6 +56,7 @@ struct AdminNotificationsView: View {
             }
         }
         .task { await load() }
+        .onDisappear { refreshRequest.invalidate() }
         .alert("Bildirimler yüklenemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Tamam", role: .cancel) { errorMessage = nil }
         } message: { Text(errorMessage ?? "Bilinmeyen hata") }
@@ -106,11 +118,23 @@ struct AdminNotificationsView: View {
         } catch { await MainActor.run { errorMessage = error.localizedDescription } }
     }
 
+    @MainActor
     private func load() async {
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = refreshRequest.begin(for: snapshot) else { return }
+        defer { refreshRequest.finish(request) }
         do {
-            let loaded = try await AdminNotificationService.list()
-            await MainActor.run { notifications = loaded; isLoading = false }
-        } catch { await MainActor.run { errorMessage = error.localizedDescription; isLoading = false } }
+            let loaded = try await AdminNotificationService.list(authToken: snapshot.token)
+            try Task.checkCancellation()
+            guard refreshRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            notifications = loaded
+            hasLoaded = true
+            loadError = nil
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  refreshRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
+        }
     }
 
     private func replace(_ updated: AdminNotificationDTO) {

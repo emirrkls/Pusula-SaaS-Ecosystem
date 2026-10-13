@@ -4,11 +4,13 @@ import SwiftUI
 struct ProfitAnalysisView: View {
     @State private var analysis: ProfitAnalysis?
     @State private var isLoading = true
+    @State private var loadRequest = RefreshRequestState()
     @State private var errorMessage: String?
     
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                if let errorMessage, analysis != nil { ReadLoadFailureView(message: errorMessage) { Task { await load() } } }
                 if let a = analysis {
                     // Summary cards
                     summarySection(a)
@@ -26,6 +28,8 @@ struct ProfitAnalysisView: View {
                         Button("Tekrar Dene") { Task { await load() } }
                             .buttonStyle(.borderedProminent)
                     }
+                } else if !isLoading {
+                    Button("common.retry") { Task { await load() } }
                 }
             }
             .padding()
@@ -33,21 +37,28 @@ struct ProfitAnalysisView: View {
         .background(PusulaTheme.page)
         .navigationTitle("Kâr Analizi")
         .task { await load() }
+        .refreshable { await load() }
+        .onDisappear { loadRequest.invalidate(); isLoading = false }
         .overlay {
-            if isLoading {
+            if isLoading && analysis == nil {
                 ProgressView("Analiz hesaplanıyor...")
             }
         }
     }
 
     private func load() async {
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
         isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        defer { loadRequest.finish(request); isLoading = loadRequest.isLoading }
         do {
-            analysis = try await AdminService.getProfitAnalysis()
+            let loaded = try await AdminService.getProfitAnalysis()
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            analysis = loaded
+            errorMessage = nil
         } catch {
-            analysis = nil
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
             errorMessage = error.localizedDescription
         }
     }

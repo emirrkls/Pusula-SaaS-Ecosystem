@@ -83,6 +83,8 @@ struct FinanceInsightsView: View {
 }
 
 struct FinanceDailyTab: View {
+    @State private var loadRequest = RefreshRequestState()
+    @State private var loadError: String?
     @State private var selectedDate = Date()
     @State private var summary: DailySummaryDTO?
     @State private var expenses: [ExpenseDTO] = []
@@ -97,7 +99,12 @@ struct FinanceDailyTab: View {
             VStack(spacing: 16) {
                 DatePicker("İşlem tarihi", selection: $selectedDate, displayedComponents: .date)
                     .datePickerStyle(.compact)
-                    .onChange(of: selectedDate) { _, _ in Task { await load() } }
+                    .onChange(of: selectedDate) { _, _ in
+                        loadRequest.invalidate()
+                        summary = nil; expenses = []
+                        Task { await load() }
+                    }
+                if let loadError { ReadLoadFailureView(message: loadError) { Task { await load() } } }
                 if let summary {
                     HStack(spacing: 12) {
                         financeMetric("Gelir", value: summary.totalIncome, color: .green)
@@ -166,6 +173,7 @@ struct FinanceDailyTab: View {
         .overlay { if isLoading { ProgressView() } }
         .task { await load() }
         .refreshable { await load() }
+        .onDisappear { loadRequest.invalidate(); isLoading = false }
         .sheet(isPresented: $showAddExpense) {
             AddExpenseSheet(date: selectedDate, expense: editingExpense) { await load() }
         }
@@ -176,19 +184,24 @@ struct FinanceDailyTab: View {
     }
     
     private func load() async {
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
+        let date = financeDate(selectedDate)
         isLoading = true
+        defer { loadRequest.finish(request); isLoading = loadRequest.isLoading }
         do {
-            async let summaryTask = FinanceService.getDailySummary(date: financeDate(selectedDate))
-            async let expenseTask = FinanceService.getExpenses(date: financeDate(selectedDate))
+            async let summaryTask = FinanceService.getDailySummary(date: date)
+            async let expenseTask = FinanceService.getExpenses(date: date)
             let (loadedSummary, loadedExpenses) = try await (summaryTask, expenseTask)
-            await MainActor.run {
-                summary = loadedSummary
-                expenses = loadedExpenses
-                isLoading = false
-            }
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled),
+                  date == financeDate(selectedDate) else { return }
+            summary = loadedSummary
+            expenses = loadedExpenses
+            loadError = nil
         } catch {
-            errorMessage = error.localizedDescription
-            isLoading = false
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
         }
     }
 
@@ -210,6 +223,9 @@ struct FinanceDailyTab: View {
 }
 
 struct FinanceAnalysisTab: View {
+    @State private var loadRequest = RefreshRequestState()
+    @State private var loadError: String?
+    @State private var hasLoaded = false
     @State private var dailyTotals: [DailyTotalDTO] = []
     @State private var categoryReport: CategoryReportDTO?
     @State private var isLoading = true
@@ -218,8 +234,9 @@ struct FinanceAnalysisTab: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                if let loadError { ReadLoadFailureView(message: loadError) { Task { await load() } } }
                 sectionCard("Aylık Trend") {
-                    if dailyTotals.isEmpty {
+                    if dailyTotals.isEmpty && hasLoaded {
                         Text("Veri yok").foregroundStyle(.secondary)
                     } else {
                         Chart(dailyTotals) { item in
@@ -254,6 +271,7 @@ struct FinanceAnalysisTab: View {
         .overlay { if isLoading { ProgressView("Analiz yükleniyor...") } }
         .task { await load() }
         .refreshable { await load() }
+        .onDisappear { loadRequest.invalidate(); isLoading = false }
         .alert("Finans Analizi Yüklenemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Tekrar Dene") { Task { await load() } }
             Button("Tamam", role: .cancel) { errorMessage = nil }
@@ -261,9 +279,10 @@ struct FinanceAnalysisTab: View {
     }
     
     private func load() async {
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
         isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        defer { loadRequest.finish(request); isLoading = loadRequest.isLoading }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let end = formatter.string(from: Date())
@@ -271,14 +290,23 @@ struct FinanceAnalysisTab: View {
         do {
             async let totalsTask = FinanceService.getDailyTotals()
             async let categoryTask = FinanceService.getCategoryReport(startDate: start, endDate: end)
-            (dailyTotals, categoryReport) = try await (totalsTask, categoryTask)
+            let (loadedTotals, loadedReport) = try await (totalsTask, categoryTask)
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            dailyTotals = loadedTotals; categoryReport = loadedReport; hasLoaded = true
+            loadError = nil
         } catch {
-            errorMessage = error.localizedDescription
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
         }
     }
 }
 
 struct FinanceAccountsTab: View {
+    @State private var loadRequest = RefreshRequestState()
+    @State private var pdfRequest = RefreshRequestState()
+    @State private var loadError: String?
+    @State private var hasLoaded = false
     @State private var accounts: [CurrentAccountDTO] = []
     @State private var selectedAccount: CurrentAccountDTO?
     @State private var isLoading = true
@@ -308,14 +336,18 @@ struct FinanceAccountsTab: View {
         }
         .listStyle(.plain)
         .overlay {
-            if isLoading {
+            if isLoading && accounts.isEmpty {
                 ProgressView("Cari hesaplar yükleniyor...")
-            } else if accounts.isEmpty {
+            } else if !hasLoaded && loadError == nil {
+                Button("common.retry") { Task { await load() } }
+            } else if accounts.isEmpty && loadError == nil {
                 ContentUnavailableView("Cari hesap yok", systemImage: "person.crop.circle.badge.exclamationmark")
             }
         }
         .task { await load() }
         .refreshable { await load() }
+        .safeAreaInset(edge: .top) { if let loadError { ReadLoadFailureView(message: loadError) { Task { await load() } }.padding() } }
+        .onDisappear { loadRequest.invalidate(); pdfRequest.invalidate(); isLoading = false }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { Task { await downloadPDF() } } label: { Label("PDF", systemImage: "arrow.down.doc") }
@@ -335,23 +367,44 @@ struct FinanceAccountsTab: View {
     }
 
     private func load() async {
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
         isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        defer { loadRequest.finish(request); isLoading = loadRequest.isLoading }
         do {
-            accounts = try await FinanceService.getCurrentAccounts()
+            let loaded = try await FinanceService.getCurrentAccounts()
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            accounts = loaded
+            loadError = nil
+            hasLoaded = true
         } catch {
-            errorMessage = error.localizedDescription
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
         }
     }
 
     private func downloadPDF() async {
-        do { pdfPreview = try PDFPreviewItem(data: try await FinanceService.downloadCurrentAccountsPDF(), fileName: "acik-cari-hesaplar.pdf", title: "Açık Cari Hesaplar") }
-        catch { errorMessage = error.localizedDescription }
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = pdfRequest.begin(for: snapshot) else { return }
+        defer { pdfRequest.finish(request) }
+        do {
+            let data = try await FinanceService.downloadCurrentAccountsPDF()
+            guard pdfRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            pdfPreview = try PDFPreviewItem(data: data, fileName: "acik-cari-hesaplar.pdf", title: "Açık Cari Hesaplar")
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  pdfRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
 struct CurrentAccountHistorySheet: View {
+    @State private var loadRequest = RefreshRequestState()
+    @State private var ticketRequest = RefreshRequestState()
+    @State private var pdfRequest = RefreshRequestState()
+    @State private var loadError: String?
     let account: CurrentAccountDTO
     let onChanged: () async -> Void
     @Environment(\.dismiss) private var dismiss
@@ -371,8 +424,11 @@ struct CurrentAccountHistorySheet: View {
                     LabeledContent("Güncel cari bakiye", value: formatCurrency(history?.currentBalance ?? account.balance))
                 }
                 Section("Cari hareketleri") {
-                    if isLoading {
+                    if let loadError { ReadLoadFailureView(message: loadError) { Task { await loadHistory() } } }
+                    if isLoading && history == nil {
                         HStack { Spacer(); ProgressView(); Spacer() }
+                    } else if history == nil && loadError == nil {
+                        Button("common.retry") { Task { await loadHistory() } }
                     } else if let history, history.transactions.isEmpty {
                         ContentUnavailableView("Cari hareket bulunamadı", systemImage: "clock.arrow.circlepath")
                     } else {
@@ -405,6 +461,7 @@ struct CurrentAccountHistorySheet: View {
             }
             .task { await loadHistory() }
             .refreshable { await loadHistory() }
+            .onDisappear { loadRequest.invalidate(); ticketRequest.invalidate(); pdfRequest.invalidate(); isLoading = false; isOpeningTicket = false }
             .sheet(isPresented: $showPaySheet) {
                 PayDebtSheet(account: refreshedAccount) {
                     await onChanged()
@@ -438,33 +495,61 @@ struct CurrentAccountHistorySheet: View {
 
     private func loadHistory() async {
         guard let accountId = account.id else {
-            errorMessage = "Cari hesap kimliği bulunamadı."
+            loadError = "Cari hesap kimliği bulunamadı."
             isLoading = false
             return
         }
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
         isLoading = true
-        defer { isLoading = false }
-        do { history = try await FinanceService.getCurrentAccountHistory(accountId: accountId) }
-        catch { errorMessage = error.localizedDescription }
+        defer { loadRequest.finish(request); isLoading = loadRequest.isLoading }
+        do {
+            let loaded = try await FinanceService.getCurrentAccountHistory(accountId: accountId)
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            history = loaded
+            loadError = nil
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
+        }
     }
 
     private func openTicket(_ transaction: CurrentAccountTransactionDTO) async {
         guard let ticketId = transaction.sourceId else { return }
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = ticketRequest.begin(for: snapshot) else { return }
         isOpeningTicket = true
-        defer { isOpeningTicket = false }
-        do { selectedTicket = try await TicketService.getTicket(id: ticketId) }
-        catch { errorMessage = "İş emri detayı açılamadı: \(error.localizedDescription)" }
+        defer { ticketRequest.finish(request); isOpeningTicket = ticketRequest.isLoading }
+        do {
+            let loaded = try await TicketService.getTicket(id: ticketId)
+            guard ticketRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            selectedTicket = loaded
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  ticketRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            errorMessage = "İş emri detayı açılamadı: \(error.localizedDescription)"
+        }
     }
 
     private func downloadStatement() async {
         guard let accountId = account.id else { return }
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = pdfRequest.begin(for: snapshot) else { return }
+        defer { pdfRequest.finish(request) }
         do {
+            let data = try await FinanceService.downloadCurrentAccountStatementPDF(accountId: accountId)
+            guard pdfRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
             pdfPreview = try PDFPreviewItem(
-                data: try await FinanceService.downloadCurrentAccountStatementPDF(accountId: accountId),
+                data: data,
                 fileName: "cari-ekstre-\(accountId).pdf",
                 title: "Cari Hesap Ekstresi"
             )
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  pdfRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
@@ -536,6 +621,9 @@ private func displayFinanceDate(_ value: String) -> String {
 }
 
 struct FinanceReportsTab: View {
+    @State private var loadRequest = RefreshRequestState()
+    @State private var pdfRequest = RefreshRequestState()
+    @State private var loadError: String?
     @State private var archives: [MonthlySummaryDTO] = []
     @State private var downloadingMonth: String?
     @State private var pdfPreview: PDFPreviewItem?
@@ -571,9 +659,11 @@ struct FinanceReportsTab: View {
                 }
             }
         }
-        .overlay { if isLoading { ProgressView("Raporlar yükleniyor...") } }
+        .overlay { if isLoading && archives.isEmpty { ProgressView("Raporlar yükleniyor...") } }
+        .safeAreaInset(edge: .top) { if let loadError { ReadLoadFailureView(message: loadError) { Task { await load() } }.padding() } }
         .task { await load() }
         .refreshable { await load() }
+        .onDisappear { loadRequest.invalidate(); pdfRequest.invalidate(); isLoading = false; downloadingMonth = nil }
         .sheet(item: $pdfPreview) { item in
             PDFPreviewSheet(item: item)
         }
@@ -584,29 +674,40 @@ struct FinanceReportsTab: View {
     }
 
     private func load() async {
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
         isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        defer { loadRequest.finish(request); isLoading = loadRequest.isLoading }
         do {
-            archives = try await FinanceService.getMonthlyArchives()
+            let loaded = try await FinanceService.getMonthlyArchives()
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            archives = loaded
+            loadError = nil
         } catch {
-            errorMessage = error.localizedDescription
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
         }
     }
     
     private func download(month: String) async {
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = pdfRequest.begin(for: snapshot) else { return }
         downloadingMonth = month
+        defer { pdfRequest.finish(request); if !pdfRequest.isLoading { downloadingMonth = nil } }
         do {
             let data = try await FinanceService.downloadMonthlyPDF(month: month)
+            guard pdfRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
             pdfPreview = try PDFPreviewItem(
                 data: data,
                 fileName: "finans-\(month).pdf",
                 title: "Aylık Finans Raporu"
             )
         } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  pdfRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
             errorMessage = error.localizedDescription
         }
-        downloadingMonth = nil
     }
 
     private func reportLine(_ title: String, _ value: Double?, _ color: Color) -> some View {

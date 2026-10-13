@@ -14,8 +14,8 @@ enum TicketService {
         try await NetworkManager.shared.get("/api/tickets/\(id)")
     }
 
-    static func getTimeline(ticketId: Int) async throws -> [AuditLogDTO] {
-        try await NetworkManager.shared.get("/api/audit-logs/ticket/\(ticketId)")
+    static func getTimeline(ticketId: Int, authToken: String? = nil) async throws -> [AuditLogDTO] {
+        try await NetworkManager.shared.request(.GET, path: "/api/audit-logs/ticket/\(ticketId)", authTokenOverride: authToken)
     }
     
     static func createTicket(_ request: CreateTicketRequest) async throws -> FieldTicketDTO {
@@ -38,8 +38,8 @@ enum TicketService {
         try await NetworkManager.shared.request(.POST, path: "/api/tickets/\(ticketId)/follow-up")
     }
     
-    static func getUsedParts(ticketId: Int) async throws -> [UsedPartDTO] {
-        try await NetworkManager.shared.get("/api/tickets/\(ticketId)/parts")
+    static func getUsedParts(ticketId: Int, authToken: String? = nil) async throws -> [UsedPartDTO] {
+        try await NetworkManager.shared.request(.GET, path: "/api/tickets/\(ticketId)/parts", authTokenOverride: authToken)
     }
     
     static func addUsedPart(ticketId: Int, part: UsedPartDTO) async throws -> UsedPartDTO {
@@ -88,8 +88,8 @@ enum TicketService {
         try await NetworkManager.shared.get("/api/account-parties/billing-options")
     }
 
-    static func getTechnicianNotes(ticketId: Int) async throws -> [TechnicianNoteDTO] {
-        try await NetworkManager.shared.get("/api/tickets/\(ticketId)/technician-notes")
+    static func getTechnicianNotes(ticketId: Int, authToken: String? = nil) async throws -> [TechnicianNoteDTO] {
+        try await NetworkManager.shared.request(.GET, path: "/api/tickets/\(ticketId)/technician-notes", authTokenOverride: authToken)
     }
 
     static func addTechnicianNote(ticketId: Int, content: String, important: Bool = false) async throws -> TechnicianNoteDTO {
@@ -124,8 +124,8 @@ enum TicketService {
         try await NetworkManager.shared.get("/api/inventory/barcode/\(code.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? code)")
     }
     
-    static func getInventory() async throws -> [InventoryItemDTO] {
-        try await NetworkManager.shared.get("/api/inventory")
+    static func getInventory(authToken: String? = nil) async throws -> [InventoryItemDTO] {
+        try await NetworkManager.shared.request(.GET, path: "/api/inventory", authTokenOverride: authToken)
     }
     
     static func createInventory(_ item: InventoryItemDTO) async throws -> InventoryItemDTO {
@@ -164,7 +164,8 @@ enum TicketService {
         startDate: String? = nil,
         endDate: String? = nil,
         searchText: String? = nil,
-        limit: Int? = 200
+        limit: Int? = 200,
+        authToken: String? = nil
     ) async throws -> [ServicePhotoDTO] {
         var query: [String] = []
         if let type { query.append("type=\(type)") }
@@ -178,7 +179,7 @@ enum TicketService {
         }
         if let limit { query.append("limit=\(limit)") }
         let suffix = query.isEmpty ? "" : "?" + query.joined(separator: "&")
-        return try await NetworkManager.shared.get("/api/tickets/photos\(suffix)")
+        return try await NetworkManager.shared.request(.GET, path: "/api/tickets/photos\(suffix)", authTokenOverride: authToken)
     }
     
     static func downloadServiceReportPDF(ticketId: Int) async throws -> Data {

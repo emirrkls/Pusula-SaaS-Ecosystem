@@ -63,7 +63,7 @@ jobs:
             fi
           done < /tmp/pusula-ios-build.log
           exit 1
-      - name: Smoke-test login and 10000-ticket foreground responsiveness
+      - name: Regress login, refresh failures and 10000-ticket responsiveness on iPhone
         run: |
           set -o pipefail
           simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(d["udid"] for group in devices.values() for d in group if d.get("isAvailable") and d["name"].startswith("iPhone")))')
@@ -76,6 +76,8 @@ jobs:
             -only-testing:PusulaServiceScreenshots/AuthPresentationTests \
             -only-testing:PusulaServiceScreenshots/SocialSignInFlowTests \
             -only-testing:PusulaServiceScreenshots/TicketListPerformanceTests \
+            -only-testing:PusulaServiceScreenshots/TicketDetailLoadTests \
+            -only-testing:PusulaServiceScreenshots/CustomerRefreshTests \
             test-without-building 2>&1 | tee /tmp/pusula-ios-smoke.log; then
             exit 0
           fi
@@ -87,7 +89,7 @@ jobs:
             fi
           done < /tmp/pusula-ios-smoke.log
           exit 1
-      - name: Regress Apple sign-in and optional desktop credentials on iPad
+      - name: Regress Apple sign-in and refresh failures on iPad
         run: |
           set -o pipefail
           simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(d["udid"] for group in devices.values() for d in group if d.get("isAvailable") and d["name"].startswith("iPad")))')
@@ -97,6 +99,8 @@ jobs:
             -derivedDataPath /tmp/pusula-derived CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath /tmp/pusula-ios-social-ipad.xcresult \
             -only-testing:PusulaServiceScreenshots/SocialSignInFlowTests \
+            -only-testing:PusulaServiceScreenshots/TicketDetailLoadTests \
+            -only-testing:PusulaServiceScreenshots/CustomerRefreshTests \
             test-without-building 2>&1 | tee /tmp/pusula-ios-social-ipad.log
       - name: Retain simulator diagnostics when a gate fails
         if: failure()

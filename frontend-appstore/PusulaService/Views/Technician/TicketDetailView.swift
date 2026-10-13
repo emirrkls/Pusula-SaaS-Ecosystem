@@ -9,9 +9,13 @@ struct TicketDetailView: View {
     
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var navigation = AppNavigation.shared
-    @State private var usedParts: [UsedPartDTO] = []
-    @State private var timeline: [AuditLogDTO] = []
-    @State private var technicianNotes: [TechnicianNoteDTO] = []
+    @State private var partsState = TicketDetailSectionState<UsedPartDTO>()
+    @State private var timelineState = TicketDetailSectionState<AuditLogDTO>()
+    @State private var notesState = TicketDetailSectionState<TechnicianNoteDTO>()
+#if DEBUG
+    // Only supplied by the offline simulator harness; never establishes a session.
+    var testLoaders: TicketDetailTestLoaders?
+#endif
     @State private var newTechnicianNote = ""
     @State private var isSavingTechnicianNote = false
     @State private var isImportantTechnicianNote = false
@@ -23,7 +27,6 @@ struct TicketDetailView: View {
     @State private var showSignature = false
     @State private var showPhotos = false
     @State private var showReschedule = false
-    @State private var isLoadingParts = false
     @State private var isAddingPart = false
     @State private var isMutatingPart = false
     @State private var isGeneratingPDF = false
@@ -50,6 +53,18 @@ struct TicketDetailView: View {
     
     private var isEditable: Bool {
         currentTicket.statusEnum != .completed && currentTicket.statusEnum != .cancelled
+    }
+
+    private var usedParts: [UsedPartDTO] {
+        get { partsState.items }
+        nonmutating set { partsState.updateVisibleItems(newValue) }
+    }
+
+    private var timeline: [AuditLogDTO] { timelineState.items }
+
+    private var technicianNotes: [TechnicianNoteDTO] {
+        get { notesState.items }
+        nonmutating set { notesState.updateVisibleItems(newValue) }
     }
 
     private var availableOperationalStatuses: [TicketStatus] {
@@ -391,18 +406,20 @@ struct TicketDetailView: View {
                             .font(.caption.weight(.semibold))
                     }
                     .readOnlyProtected()
-                    .disabled(isAddingPart)
+                    .disabled(isAddingPart || !partsState.isLoaded)
                 }
             }
             
-            if isLoadingParts {
-                ProgressView()
-            } else if usedParts.isEmpty {
-                Text("Henüz parça eklenmedi")
+            sectionLoadFeedback(partsState, title: "ticket.detail.parts.load_failed", id: "ticket.parts") {
+                Task { await loadParts() }
+            }
+            if partsState.showsEmpty {
+                Text("ticket.detail.parts.empty")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 8)
-            } else {
+                    .accessibilityIdentifier("ticket.parts.empty")
+            } else if !usedParts.isEmpty {
                 ForEach(usedParts) { part in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
@@ -428,7 +445,7 @@ struct TicketDetailView: View {
                                     .font(.title3)
                                     .frame(width: 34, height: 34)
                             }
-                            .disabled(isMutatingPart)
+                            .disabled(isMutatingPart || !partsState.isLoaded)
                             .readOnlyProtected()
                         }
                     }
@@ -446,6 +463,7 @@ struct TicketDetailView: View {
             }
         }
         .pusulaCard()
+        .accessibilityIdentifier("ticket.parts.section")
     }
 
     private var timelineSection: some View {
@@ -461,11 +479,15 @@ struct TicketDetailView: View {
                 }
             }
 
-            if timeline.isEmpty {
-                Text("Henüz işlem kaydı bulunmuyor")
+            sectionLoadFeedback(timelineState, title: "ticket.detail.timeline.load_failed", id: "ticket.timeline") {
+                Task { await loadTimeline() }
+            }
+            if timelineState.showsEmpty {
+                Text("ticket.detail.timeline.empty")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            } else {
+                    .accessibilityIdentifier("ticket.timeline.empty")
+            } else if !timeline.isEmpty {
                 ForEach(Array(timeline.enumerated()), id: \.offset) { index, log in
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: timelineIcon(log.actionType))
@@ -489,17 +511,22 @@ struct TicketDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .pusulaCard()
+        .accessibilityIdentifier("ticket.timeline.section")
     }
 
     private var financialSummarySection: some View {
         VStack(alignment: .leading, spacing: 10) {
+            let partsTotal = currentTicket.partsTotal ?? (partsState.isLoaded ? totalPartsValue : nil)
+            let fallbackInvoiceTotal = partsTotal.flatMap { parts in
+                currentTicket.laborFee.map { parts + $0 }
+            }
             Label("Ücret ve Tahsilat Özeti", systemImage: "creditcard")
                 .font(.subheadline.weight(.semibold))
-            financialRow("Kullanılan malzemeler", currentTicket.partsTotal ?? totalPartsValue)
-            financialRow("İşçilik / servis", currentTicket.laborFee ?? 0)
+            financialRow("Kullanılan malzemeler", partsTotal)
+            financialRow("İşçilik / servis", currentTicket.laborFee)
             Divider()
-            financialRow("Fiş toplamı", currentTicket.invoiceTotal ?? ((currentTicket.partsTotal ?? totalPartsValue) + (currentTicket.laborFee ?? 0)), emphasized: true)
-            financialRow("Müşteriden tahsil edilen", currentTicket.collectedAmount ?? 0, color: .green)
+            financialRow("Fiş toplamı", currentTicket.invoiceTotal ?? fallbackInvoiceTotal, emphasized: true)
+            financialRow("Müşteriden tahsil edilen", currentTicket.collectedAmount, color: .green)
             if let amount = currentTicket.billingPartyAmount, amount > 0 {
                 financialRow("\(currentTicket.billingPartyName ?? "Kurum") carisine aktarılan", amount, color: .orange)
             }
@@ -509,11 +536,12 @@ struct TicketDetailView: View {
         .pusulaCard()
     }
 
-    private func financialRow(_ title: String, _ amount: Double, emphasized: Bool = false, color: Color = .primary) -> some View {
+    private func financialRow(_ title: String, _ amount: Double?, emphasized: Bool = false, color: Color = .primary) -> some View {
         HStack {
             Text(title).font(emphasized ? .subheadline.weight(.semibold) : .subheadline)
             Spacer()
-            Text(formatCurrency(amount)).font(emphasized ? .headline : .subheadline.weight(.semibold)).foregroundStyle(color)
+            Text(amount.map(formatCurrency) ?? String(localized: "ticket.detail.amount_unavailable"))
+                .font(emphasized ? .headline : .subheadline.weight(.semibold)).foregroundStyle(color)
         }
     }
 
@@ -521,13 +549,17 @@ struct TicketDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Teknisyen Notları", systemImage: "note.text")
                 .font(.subheadline.weight(.semibold))
-            if technicianNotes.isEmpty {
+            sectionLoadFeedback(notesState, title: "ticket.detail.notes.load_failed", id: "ticket.notes") {
+                Task { await loadTechnicianNotes() }
+            }
+            if notesState.showsEmpty {
                 Text(currentTicket.statusEnum == .completed
-                     ? "Bu servis kapatılırken teknisyen notu girilmemiş."
-                     : "Henüz teknisyen notu eklenmemiş")
+                     ? LocalizedStringKey("ticket.detail.notes.completed_empty")
+                     : LocalizedStringKey("ticket.detail.notes.empty"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            } else {
+                    .accessibilityIdentifier("ticket.notes.empty")
+            } else if !technicianNotes.isEmpty {
                 ForEach(technicianNotes) { note in
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 5) {
@@ -555,11 +587,12 @@ struct TicketDetailView: View {
                 } label: {
                     if isSavingTechnicianNote { ProgressView() } else { Label("Not Ekle", systemImage: "plus") }
                 }
-                .disabled(newTechnicianNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSavingTechnicianNote)
+                .disabled(newTechnicianNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSavingTechnicianNote || !notesState.isLoaded)
                 .readOnlyProtected()
             }
         }
         .pusulaCard()
+        .accessibilityIdentifier("ticket.notes.section")
     }
 
     private var scheduleText: String? {
@@ -591,7 +624,9 @@ struct TicketDetailView: View {
     private var quickActionsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
             actionTile("Parça Seç", icon: "magnifyingglass", color: PusulaTheme.accent) { showPartPicker = true }
+                .disabled(!partsState.isLoaded || isAddingPart)
             actionTile("Barkod Okut", icon: "barcode.viewfinder", color: PusulaTheme.accent) { showScanner = true }
+                .disabled(!partsState.isLoaded || isAddingPart)
             actionTile("Görseller", icon: "photo.on.rectangle", color: PusulaTheme.accent) { showPhotos = true }
             actionTile("İmza", icon: "pencil.tip.crop.circle", color: PusulaTheme.accent) { showSignature = true }
             if currentTicket.assignedTechnicianId != nil {
@@ -614,6 +649,7 @@ struct TicketDetailView: View {
             .foregroundColor(.white)
             .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
             .readOnlyProtected()
+            .disabled(!partsState.isLoaded || isAddingPart || isMutatingPart)
 
         }
     }
@@ -671,14 +707,84 @@ struct TicketDetailView: View {
         .readOnlyProtected()
     }
     
-    private func loadParts() async {
-        isLoadingParts = true
-        do {
-            usedParts = try await TicketService.getUsedParts(ticketId: ticket.id)
-        } catch {
-            errorMessage = "Kullanılan parçalar yüklenemedi: \(error.localizedDescription)"
+    @ViewBuilder
+    private func sectionLoadFeedback<Item>(
+        _ state: TicketDetailSectionState<Item>, title: LocalizedStringKey,
+        id: String, retry: @escaping () -> Void
+    ) -> some View {
+        if state.phase == .idle || state.isLoading {
+            HStack(spacing: 8) {
+                ProgressView()
+                Text("ticket.detail.loading").font(.caption).foregroundStyle(.secondary)
+            }
+            .accessibilityIdentifier("\(id).loading")
+        } else if state.phase == .cancelled {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("ticket.detail.interrupted").font(.caption).foregroundStyle(.secondary)
+                Button(action: retry) { Label("ticket.detail.retry", systemImage: "arrow.clockwise") }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("\(id).retry")
+            }
+        } else if let failure = state.failure {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(title, systemImage: "exclamationmark.triangle")
+                    .font(.subheadline.weight(.medium)).foregroundStyle(.orange)
+                    .accessibilityIdentifier("\(id).error")
+                Text(LocalizedStringKey(failure.messageKey))
+                    .font(.caption).foregroundStyle(.secondary)
+                if !state.items.isEmpty {
+                    Text("ticket.detail.cached_records")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Button(action: retry) {
+                    Label("ticket.detail.retry", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("\(id).retry")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        isLoadingParts = false
+    }
+
+    private func loadSection<Item>(
+        _ state: Binding<TicketDetailSectionState<Item>>,
+        fetch: @MainActor (String?) async throws -> [Item]
+    ) async {
+        guard let request = state.wrappedValue.beginLoading() else { return }
+        let snapshot = SessionManager.shared.authenticatedSnapshot
+        do {
+            let items = try await fetch(snapshot?.token)
+            guard !Task.isCancelled, isDetailSessionCurrent(snapshot) else {
+                state.wrappedValue.cancel(request: request)
+                return
+            }
+            state.wrappedValue.succeed(items, request: request)
+        } catch {
+            if Task.isCancelled || TicketDetailLoadFailure.isCancellation(error) || !isDetailSessionCurrent(snapshot) {
+                state.wrappedValue.cancel(request: request)
+            } else {
+                state.wrappedValue.fail(TicketDetailLoadFailure(error: error), request: request)
+            }
+        }
+    }
+
+    private func isDetailSessionCurrent(_ snapshot: AuthenticatedSessionSnapshot?) -> Bool {
+#if DEBUG
+        if testLoaders != nil { return true }
+#endif
+        guard let snapshot else { return false }
+        return SessionManager.shared.isCurrent(snapshot)
+    }
+
+    private func loadParts() async {
+        guard !isAddingPart, !isMutatingPart else { return }
+        await loadSection($partsState) { token in
+#if DEBUG
+            if let testLoaders { return try await testLoaders.parts() }
+#endif
+            guard let token else { throw NetworkError.unauthorized }
+            return try await TicketService.getUsedParts(ticketId: ticket.id, authToken: token)
+        }
     }
 
     private func loadDetailData() async {
@@ -689,20 +795,28 @@ struct TicketDetailView: View {
     }
 
     private func loadTechnicianNotes() async {
-        do {
-            technicianNotes = try await TicketService.getTechnicianNotes(ticketId: ticket.id)
-        } catch {
-            if errorMessage == nil { errorMessage = "Teknisyen notları yüklenemedi: \(error.localizedDescription)" }
+        guard !isSavingTechnicianNote else { return }
+        await loadSection($notesState) { token in
+#if DEBUG
+            if let testLoaders { return try await testLoaders.notes() }
+#endif
+            guard let token else { throw NetworkError.unauthorized }
+            return try await TicketService.getTechnicianNotes(ticketId: ticket.id, authToken: token)
         }
     }
 
     private func saveTechnicianNote() async {
         let content = newTechnicianNote.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty else { return }
+        guard !content.isEmpty, !isSavingTechnicianNote, notesState.isLoaded,
+              let snapshot = SessionManager.shared.authenticatedSnapshot else { return }
         isSavingTechnicianNote = true
         do {
             let saved = try await TicketService.addTechnicianNote(ticketId: ticket.id, content: content,
                                                                   important: isImportantTechnicianNote)
+            guard !Task.isCancelled, SessionManager.shared.isCurrent(snapshot) else {
+                isSavingTechnicianNote = false
+                return
+            }
             technicianNotes.append(saved)
             newTechnicianNote = ""
             isImportantTechnicianNote = false
@@ -713,12 +827,12 @@ struct TicketDetailView: View {
     }
 
     private func loadTimeline() async {
-        do {
-            timeline = try await TicketService.getTimeline(ticketId: ticket.id)
-        } catch {
-            if errorMessage == nil {
-                errorMessage = "İşlem geçmişi yüklenemedi: \(error.localizedDescription)"
-            }
+        await loadSection($timelineState) { token in
+#if DEBUG
+            if let testLoaders { return try await testLoaders.timeline() }
+#endif
+            guard let token else { throw NetworkError.unauthorized }
+            return try await TicketService.getTimeline(ticketId: ticket.id, authToken: token)
         }
     }
 
@@ -758,7 +872,8 @@ struct TicketDetailView: View {
     
     @MainActor
     private func addPart(from item: InventoryItemDTO, quantity: Double, unitPrice: Double) async {
-        guard !isAddingPart else { return }
+        guard !isAddingPart, !isMutatingPart, partsState.isLoaded,
+              let snapshot = SessionManager.shared.authenticatedSnapshot else { return }
         isAddingPart = true
         errorMessage = nil
         operationMessage = nil
@@ -778,14 +893,17 @@ struct TicketDetailView: View {
         )
         do {
             let saved = try await TicketService.addUsedPart(ticketId: ticket.id, part: part)
+            guard !Task.isCancelled, SessionManager.shared.isCurrent(snapshot) else { return }
             if !usedParts.contains(where: { $0.id == saved.id }) { usedParts.append(saved) }
             operationMessage = "Parça eklendi: \(saved.partName)"
         } catch {
+            guard !Task.isCancelled, SessionManager.shared.isCurrent(snapshot) else { return }
             // If the response was interrupted after commit, reconcile from the server
             // before showing an error or encouraging a duplicate retry.
             if let refreshed = try? await TicketService.getUsedParts(ticketId: ticket.id),
                refreshed.contains(where: { $0.clientRequestId == requestId }) {
-                usedParts = refreshed
+                guard !Task.isCancelled, SessionManager.shared.isCurrent(snapshot) else { return }
+                partsState.replaceVerifiedItems(refreshed)
                 operationMessage = "Parça eklendi. Bağlantı sonrası liste yenilendi."
             } else {
                 errorMessage = error.localizedDescription
@@ -796,6 +914,10 @@ struct TicketDetailView: View {
     @MainActor
     private func updatePart(_ part: UsedPartDTO, quantity: Double, unitPrice: Double) async throws {
         guard let partId = part.id, !isMutatingPart else { return }
+        guard partsState.isLoaded, !isAddingPart,
+              let snapshot = SessionManager.shared.authenticatedSnapshot else {
+            throw NetworkError.badRequest(String(localized: "ticket.detail.parts.reload_before_edit"))
+        }
         isMutatingPart = true
         defer { isMutatingPart = false }
 
@@ -815,6 +937,7 @@ struct TicketDetailView: View {
             partId: partId,
             part: request
         )
+        guard !Task.isCancelled, SessionManager.shared.isCurrent(snapshot) else { throw CancellationError() }
         if let index = usedParts.firstIndex(where: { $0.id == partId }) {
             usedParts[index] = updated
         }
@@ -824,7 +947,8 @@ struct TicketDetailView: View {
 
     @MainActor
     private func deletePart(_ part: UsedPartDTO) async {
-        guard let partId = part.id, !isMutatingPart else { return }
+        guard let partId = part.id, !isMutatingPart, !isAddingPart, partsState.isLoaded,
+              let snapshot = SessionManager.shared.authenticatedSnapshot else { return }
         isMutatingPart = true
         defer {
             isMutatingPart = false
@@ -832,6 +956,7 @@ struct TicketDetailView: View {
         }
         do {
             try await TicketService.deleteUsedPart(ticketId: ticket.id, partId: partId)
+            guard !Task.isCancelled, SessionManager.shared.isCurrent(snapshot) else { return }
             usedParts.removeAll { $0.id == partId }
             operationMessage = "Parça silindi ve miktar stoğa iade edildi: \(part.partName)"
             await loadTimeline()
@@ -880,7 +1005,7 @@ struct TicketDetailView: View {
         do {
             let updated = try await TicketService.cancelService(ticketId: ticket.id)
             currentTicket = updated
-            usedParts = []
+            partsState.replaceVerifiedItems([])
             operationMessage = "Servis fişi iptal edildi."
             await loadTimeline()
             await onComplete()

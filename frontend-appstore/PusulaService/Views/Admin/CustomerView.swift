@@ -1,10 +1,18 @@
 import SwiftUI
 
+@MainActor
 struct CustomerView: View {
+#if DEBUG
+    var readFixture: CustomerRefreshFixture? = nil
+#endif
     @StateObject private var session = SessionManager.shared
     @State private var customers: [CustomerDTO] = []
     @State private var searchText = ""
-    @State private var isLoading = true
+    @State private var refreshRequest = RefreshRequestState()
+    @State private var loadedSession: AuthenticatedSessionSnapshot?
+    @State private var hasLoaded = false
+    @State private var hasAttemptedLoad = false
+    @State private var loadError: String?
     @State private var editingCustomer: CustomerDTO?
     @State private var selectedCustomer: CustomerDTO?
     @State private var showCreate = false
@@ -12,6 +20,21 @@ struct CustomerView: View {
     @State private var customerPendingDeletion: CustomerDTO?
     @State private var isDeletingCustomer = false
     @State private var errorMessage: String?
+
+    private var readSnapshot: AuthenticatedSessionSnapshot? {
+#if DEBUG
+        if CustomerRefreshFixture.isEnabled, let readFixture { return readFixture.snapshot }
+#endif
+        return session.authenticatedSnapshot
+    }
+
+    private var isReadFixture: Bool {
+#if DEBUG
+        CustomerRefreshFixture.isEnabled && readFixture != nil
+#else
+        false
+#endif
+    }
     
     private var filtered: [CustomerDTO] {
         guard !searchText.isEmpty else { return customers }
@@ -37,16 +60,53 @@ struct CustomerView: View {
             .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
             .padding()
             
-            if isLoading {
-                Spacer()
-                ProgressView()
-                Spacer()
-            } else {
-                List(filtered) { customer in
+            // Keep the refreshable List mounted while its refresh action runs.
+            // Replacing it with a spinner cancels the action that owns the read.
+            List {
+                if let loadError {
+                    Section {
+                        CustomerReadFailureView(
+                            titleKey: "customers.load_failed",
+                            message: loadError,
+                            retryIdentifier: "customers.load.retry",
+                            isLoading: refreshRequest.isLoading,
+                            showsCachedRecords: hasLoaded && !customers.isEmpty
+                        ) { await load() }
+                    }
+                }
+                ForEach(filtered) { customer in
                     customerRow(customer)
                 }
-                .listStyle(.plain)
-                .refreshable { await load() }
+            }
+            .listStyle(.plain)
+            .accessibilityIdentifier("customers.list")
+            .refreshable { await load() }
+            .overlay {
+                if !hasLoaded && (refreshRequest.isLoading || (!hasAttemptedLoad && readSnapshot != nil)) {
+                    ProgressView()
+                        .accessibilityIdentifier("customers.loading")
+                } else if !hasLoaded && loadError == nil {
+                    CustomerReadFailureView(
+                        titleKey: "customers.load_failed",
+                        message: String(localized: "customers.load_unavailable"),
+                        retryIdentifier: "customers.load.retry",
+                        isLoading: false
+                    ) { await load() }
+                    .padding()
+                } else if hasLoaded && loadError == nil && customers.isEmpty {
+                    ContentUnavailableView(
+                        "customers.empty", systemImage: "person.2",
+                        description: Text("customers.empty.description")
+                    )
+                    .accessibilityIdentifier("customers.empty")
+                    .allowsHitTesting(false)
+                } else if hasLoaded && loadError == nil && filtered.isEmpty {
+                    ContentUnavailableView(
+                        "customers.search.empty", systemImage: "magnifyingglass",
+                        description: Text("customers.search.empty.description")
+                    )
+                    .allowsHitTesting(false)
+                }
             }
         }
         .background(PusulaTheme.page)
@@ -57,9 +117,11 @@ struct CustomerView: View {
                     Image(systemName: "plus")
                 }
                 .readOnlyProtected()
+                .disabled(isReadFixture)
             }
         }
-        .task { await load() }
+        .task(id: readSnapshot) { await load() }
+        .onDisappear { refreshRequest.invalidate() }
         .sheet(isPresented: $showCreate) {
             CustomerEditorSheet(customer: nil) { await load() }
         }
@@ -67,7 +129,11 @@ struct CustomerView: View {
             CustomerEditorSheet(customer: customer) { await load() }
         }
         .sheet(item: $selectedCustomer) { customer in
+#if DEBUG
+            CustomerDetailSheet(customer: customer, readFixture: readFixture)
+#else
             CustomerDetailSheet(customer: customer)
+#endif
         }
         .sheet(item: $ticketCustomer) { customer in
             CreateTicketFromCustomerSheet(customer: customer) { await load() }
@@ -119,12 +185,14 @@ struct CustomerView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("customers.card.\(customer.id ?? 0)")
 
             HStack(spacing: 12) {
                 Button(action: { ticketCustomer = customer }) {
                     Label("Servis Fişi Aç", systemImage: "doc.badge.plus")
                 }
                 .readOnlyProtected()
+                .disabled(isReadFixture)
 
                 Spacer()
 
@@ -138,7 +206,7 @@ struct CustomerView: View {
                 } label: {
                     Label("İşlemler", systemImage: "ellipsis.circle")
                 }
-                .disabled(isDeletingCustomer)
+                .disabled(isDeletingCustomer || isReadFixture)
                 .readOnlyProtected()
             }
             .font(.caption.weight(.semibold))
@@ -149,28 +217,28 @@ struct CustomerView: View {
             Button(role: .destructive) { customerPendingDeletion = customer } label: {
                 Label("Sil", systemImage: "trash")
             }
-            .disabled(session.isReadOnly || isDeletingCustomer)
+            .disabled(session.isReadOnly || isDeletingCustomer || isReadFixture)
 
             Button { editingCustomer = customer } label: {
                 Label("Düzenle", systemImage: "pencil")
             }
             .tint(PusulaTheme.accent)
-            .disabled(session.isReadOnly)
+            .disabled(session.isReadOnly || isReadFixture)
         }
         .contextMenu {
             Button { editingCustomer = customer } label: {
                 Label("Müşteriyi Düzenle", systemImage: "pencil")
             }
-            .disabled(session.isReadOnly)
+            .disabled(session.isReadOnly || isReadFixture)
             Button { ticketCustomer = customer } label: {
                 Label("Servis Fişi Aç", systemImage: "doc.badge.plus")
             }
-            .disabled(session.isReadOnly)
+            .disabled(session.isReadOnly || isReadFixture)
             Divider()
             Button(role: .destructive) { customerPendingDeletion = customer } label: {
                 Label("Müşteriyi Sil", systemImage: "trash")
             }
-            .disabled(session.isReadOnly || isDeletingCustomer)
+            .disabled(session.isReadOnly || isDeletingCustomer || isReadFixture)
         }
     }
 
@@ -191,24 +259,74 @@ struct CustomerView: View {
     }
     
     private func load() async {
-        isLoading = true
-        do {
-            customers = try await CustomerService.getCustomers()
-        } catch {
-            errorMessage = error.localizedDescription
+        guard !Task.isCancelled, let snapshot = readSnapshot,
+              let request = refreshRequest.begin(for: snapshot) else { return }
+        hasAttemptedLoad = true
+        defer { refreshRequest.finish(request) }
+        if loadedSession != snapshot {
+            customers = []
+            hasLoaded = false
+            loadError = nil
+            loadedSession = snapshot
         }
-        isLoading = false
+        do {
+            let loaded = try await readCustomers(snapshot: snapshot)
+            guard refreshRequest.accepts(request, session: readSnapshot,
+                                         isCancelled: Task.isCancelled) else { return }
+            customers = loaded
+            hasLoaded = true
+            loadError = nil
+        } catch {
+            guard refreshRequest.accepts(request, session: readSnapshot,
+                                         isCancelled: Task.isCancelled),
+                  !LoadCancellationPolicy.isCancellation(error) else { return }
+            loadError = customerReadFailureMessage(
+                error, fallback: String(localized: "customers.load_unavailable")
+            )
+        }
+    }
+
+    private func readCustomers(snapshot: AuthenticatedSessionSnapshot) async throws -> [CustomerDTO] {
+#if DEBUG
+        if CustomerRefreshFixture.isEnabled, let readFixture {
+            return try await readFixture.loadCustomers()
+        }
+#endif
+        return try await CustomerService.getCustomers(authToken: snapshot.token)
     }
 }
 
+@MainActor
 private struct CustomerDetailSheet: View {
     let customer: CustomerDTO
+#if DEBUG
+    var readFixture: CustomerRefreshFixture? = nil
+#endif
 
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var session = SessionManager.shared
     @State private var tickets: [FieldTicketDTO] = []
     @State private var selectedTicket: FieldTicketDTO?
-    @State private var isLoading = true
-    @State private var errorMessage: String?
+    @State private var refreshRequest = RefreshRequestState()
+    @State private var loadedSession: AuthenticatedSessionSnapshot?
+    @State private var hasLoaded = false
+    @State private var hasAttemptedLoad = false
+    @State private var loadError: String?
+
+    private var readSnapshot: AuthenticatedSessionSnapshot? {
+#if DEBUG
+        if CustomerRefreshFixture.isEnabled, let readFixture { return readFixture.snapshot }
+#endif
+        return session.authenticatedSnapshot
+    }
+
+    private var isReadFixture: Bool {
+#if DEBUG
+        CustomerRefreshFixture.isEnabled && readFixture != nil
+#else
+        false
+#endif
+    }
 
     var body: some View {
         NavigationStack {
@@ -226,22 +344,40 @@ private struct CustomerDetailSheet: View {
                     }
                 }
 
-                if SessionManager.shared.isAdmin, let customerId = customer.id {
+                if !isReadFixture, session.isAdmin, let customerId = customer.id {
                     Section("WhatsApp Bilgilendirme") {
                         CustomerWhatsAppConsentSection(customerId: customerId)
                     }
                 }
 
                 Section("İşlem Geçmişi") {
-                    if isLoading {
+                    if let loadError {
+                        CustomerReadFailureView(
+                            titleKey: "customers.history.load_failed",
+                            message: loadError,
+                            retryIdentifier: "customers.history.retry",
+                            isLoading: refreshRequest.isLoading,
+                            showsCachedRecords: hasLoaded && !tickets.isEmpty
+                        ) { await loadHistory() }
+                    }
+                    if !hasLoaded && (refreshRequest.isLoading || (!hasAttemptedLoad && readSnapshot != nil && loadError == nil)) {
                         HStack { Spacer(); ProgressView(); Spacer() }
-                    } else if tickets.isEmpty {
+                    } else if !hasLoaded && loadError == nil {
+                        CustomerReadFailureView(
+                            titleKey: "customers.history.load_failed",
+                            message: String(localized: "customers.history.load_unavailable"),
+                            retryIdentifier: "customers.history.retry",
+                            isLoading: false
+                        ) { await loadHistory() }
+                    } else if hasLoaded && tickets.isEmpty && loadError == nil {
                         ContentUnavailableView(
                             "İşlem geçmişi yok",
                             systemImage: "clock.arrow.circlepath",
                             description: Text("Bu müşteri için henüz servis kaydı bulunmuyor.")
                         )
-                    } else {
+                        .accessibilityIdentifier("customers.history.empty")
+                    }
+                    if !tickets.isEmpty {
                         ForEach(tickets) { ticket in
                             Button { selectedTicket = ticket } label: {
                                 VStack(alignment: .leading, spacing: 6) {
@@ -266,6 +402,8 @@ private struct CustomerDetailSheet: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .disabled(isReadFixture)
+                            .accessibilityIdentifier("customers.history.ticket.\(ticket.id)")
                         }
                     }
                 }
@@ -277,20 +415,13 @@ private struct CustomerDetailSheet: View {
                     Button("Kapat") { dismiss() }
                 }
             }
-            .task { await loadHistory() }
+            .task(id: readSnapshot) { await loadHistory() }
+            .onDisappear { refreshRequest.invalidate() }
             .refreshable { await loadHistory() }
             .sheet(item: $selectedTicket) { ticket in
                 NavigationStack {
                     TicketDetailView(ticket: ticket, isAdmin: true, onComplete: { await loadHistory() })
                 }
-            }
-            .alert("İşlem Geçmişi Yüklenemedi", isPresented: Binding(
-                get: { errorMessage != nil },
-                set: { if !$0 { errorMessage = nil } }
-            )) {
-                Button("Tamam", role: .cancel) { errorMessage = nil }
-            } message: {
-                Text(errorMessage ?? "")
             }
         }
     }
@@ -298,16 +429,43 @@ private struct CustomerDetailSheet: View {
     @MainActor
     private func loadHistory() async {
         guard let customerId = customer.id else {
-            isLoading = false
+            loadError = String(localized: "customers.history.missing_id")
             return
         }
-        isLoading = true
-        do {
-            tickets = try await CustomerService.getServiceHistory(customerId: customerId)
-        } catch {
-            errorMessage = error.localizedDescription
+        guard !Task.isCancelled, let snapshot = readSnapshot,
+              let request = refreshRequest.begin(for: snapshot) else { return }
+        hasAttemptedLoad = true
+        defer { refreshRequest.finish(request) }
+        if loadedSession != snapshot {
+            tickets = []
+            hasLoaded = false
+            loadError = nil
+            loadedSession = snapshot
         }
-        isLoading = false
+        do {
+            let loaded = try await readHistory(customerId: customerId, snapshot: snapshot)
+            guard refreshRequest.accepts(request, session: readSnapshot,
+                                         isCancelled: Task.isCancelled) else { return }
+            tickets = loaded
+            hasLoaded = true
+            loadError = nil
+        } catch {
+            guard refreshRequest.accepts(request, session: readSnapshot,
+                                         isCancelled: Task.isCancelled),
+                  !LoadCancellationPolicy.isCancellation(error) else { return }
+            loadError = customerReadFailureMessage(
+                error, fallback: String(localized: "customers.history.load_unavailable")
+            )
+        }
+    }
+
+    private func readHistory(customerId: Int, snapshot: AuthenticatedSessionSnapshot) async throws -> [FieldTicketDTO] {
+#if DEBUG
+        if CustomerRefreshFixture.isEnabled, let readFixture {
+            return try await readFixture.loadHistory()
+        }
+#endif
+        return try await CustomerService.getServiceHistory(customerId: customerId, authToken: snapshot.token)
     }
 
     private func serviceDate(_ ticket: FieldTicketDTO) -> String? {
@@ -322,16 +480,20 @@ private struct CustomerDetailSheet: View {
     }
 }
 
+@MainActor
 private struct CustomerWhatsAppConsentSection: View {
     let customerId: Int
 
     @StateObject private var session = SessionManager.shared
     @State private var consent: CustomerWhatsAppConsentDTO?
-    @State private var isLoading = true
+    @State private var consentRequest = RefreshRequestState()
+    @State private var loadedSession: AuthenticatedSessionSnapshot?
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var showSourcePicker = false
     @State private var showRevokeConfirmation = false
+
+    private var isLoading: Bool { consentRequest.isLoading }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -402,7 +564,10 @@ private struct CustomerWhatsAppConsentSection: View {
                 .disabled(isLoading)
             }
         }
-        .task(id: customerId) { await loadConsent() }
+        .task(id: CustomerConsentReadIdentity(customerId: customerId, session: session.authenticatedSnapshot)) {
+            await loadConsent()
+        }
+        .onDisappear { consentRequest.invalidate() }
         .confirmationDialog(
             "İzin kaynağını seçin",
             isPresented: $showSourcePicker,
@@ -464,19 +629,30 @@ private struct CustomerWhatsAppConsentSection: View {
 
     @MainActor
     private func loadConsent() async {
-        guard session.isAdmin else {
-            isLoading = false
-            return
-        }
-        isLoading = true
-        errorMessage = nil
-        do {
-            consent = try await CustomerService.getWhatsAppConsent(customerId: customerId)
-        } catch {
+        guard session.isAdmin, !Task.isCancelled, let snapshot = session.authenticatedSnapshot,
+              let request = consentRequest.begin(for: snapshot) else { return }
+        defer { consentRequest.finish(request) }
+        if loadedSession != snapshot {
             consent = nil
-            errorMessage = error.localizedDescription
+            errorMessage = nil
+            loadedSession = snapshot
         }
-        isLoading = false
+        do {
+            let loaded = try await CustomerService.getWhatsAppConsent(
+                customerId: customerId, authToken: snapshot.token
+            )
+            guard consentRequest.accepts(request, session: session.authenticatedSnapshot,
+                                         isCancelled: Task.isCancelled) else { return }
+            consent = loaded
+            errorMessage = nil
+        } catch {
+            guard consentRequest.accepts(request, session: session.authenticatedSnapshot,
+                                         isCancelled: Task.isCancelled),
+                  !LoadCancellationPolicy.isCancellation(error) else { return }
+            errorMessage = customerReadFailureMessage(
+                error, fallback: String(localized: "common.connection_error")
+            )
+        }
     }
 
     @MainActor
@@ -503,6 +679,68 @@ private struct CustomerWhatsAppConsentSection: View {
         formatter.timeZone = TimeZone(identifier: "Europe/Istanbul")
         formatter.dateFormat = "d MMMM yyyy, HH:mm"
         return formatter.string(from: date)
+    }
+}
+
+private struct CustomerConsentReadIdentity: Equatable {
+    let customerId: Int
+    let session: AuthenticatedSessionSnapshot?
+}
+
+@MainActor
+private struct CustomerReadFailureView: View {
+    let titleKey: String
+    let message: String
+    let retryIdentifier: String
+    let isLoading: Bool
+    var showsCachedRecords = false
+    let retry: () async -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(LocalizedStringKey(titleKey), systemImage: "exclamationmark.circle")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier(retryIdentifier + ".message")
+            if showsCachedRecords {
+                Text("common.cached_records")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Button {
+                Task { await retry() }
+            } label: {
+                Label("customers.retry", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderless)
+            .disabled(isLoading)
+            .accessibilityIdentifier(retryIdentifier)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 8)
+    }
+}
+
+private func customerReadFailureMessage(_ error: Error, fallback: String) -> String {
+    switch TicketDetailLoadFailure(error: error) {
+    case .connection:
+        return String(localized: "common.connection_error")
+    case .secureConnection:
+        return String(localized: "ticket.detail.secure_connection_error")
+    case .unavailable:
+        // Keep meaningful permission/quota errors; do not expose arbitrary
+        // decoder details or internal URLs as a customer-facing error message.
+        switch error {
+        case NetworkError.forbidden, NetworkError.quotaExceeded:
+            return error.localizedDescription
+        default:
+            return fallback
+        }
     }
 }
 

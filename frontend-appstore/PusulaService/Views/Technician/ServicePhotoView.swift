@@ -7,6 +7,9 @@ struct ServicePhotoView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var photos: [ServicePhotoDTO] = []
     @State private var isLoading = true
+    @State private var loadRequest = RefreshRequestState()
+    @State private var loadError: String?
+    @State private var hasLoaded = false
     @State private var isUploading = false
     @State private var selectedType = "BEFORE"
     @State private var note = ""
@@ -41,7 +44,13 @@ struct ServicePhotoView: View {
                 if isLoading || isUploading {
                     ProgressView(isUploading ? "Yükleniyor..." : "Görseller getiriliyor...")
                 }
-                if photos.isEmpty && !isLoading {
+                if let loadError {
+                    ReadLoadFailureView(message: loadError) { Task { await loadPhotos() } }
+                }
+                if !hasLoaded && !isLoading && loadError == nil {
+                    Button("common.retry") { Task { await loadPhotos() } }
+                }
+                if photos.isEmpty && hasLoaded && !isLoading && loadError == nil {
                     ContentUnavailableView("Görsel eklenmemiş", systemImage: "photo.on.rectangle.angled",
                         description: Text("Cihaz etiketi, seri numarası, arıza detayı veya işlem görseli ekleyebilirsiniz."))
                         .padding(.top, 40)
@@ -54,6 +63,8 @@ struct ServicePhotoView: View {
         .navigationTitle("Servis Görselleri").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Tamam") { dismiss() } } }
         .task { await loadPhotos() }
+        .refreshable { await loadPhotos() }
+        .onDisappear { loadRequest.invalidate(); isLoading = false }
         .confirmationDialog("Görsel kaynağı", isPresented: $showSourcePicker) {
             Button("Kamera ile Çek") { showCamera = true }
             Button("Galeriden Seç") { showPhotoLibrary = true }
@@ -98,9 +109,21 @@ struct ServicePhotoView: View {
     }
 
     private func loadPhotos() async {
-        isLoading = true; defer { isLoading = false }
-        do { photos = try await TicketService.getServicePhotos(ticketId: ticketId) }
-        catch { errorMessage = error.localizedDescription }
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
+        isLoading = true
+        defer { loadRequest.finish(request); isLoading = loadRequest.isLoading }
+        do {
+            let loaded = try await TicketService.getServicePhotos(ticketId: ticketId)
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            photos = loaded
+            loadError = nil
+            hasLoaded = true
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
+        }
     }
     private func upload(item: PhotosPickerItem) async {
         do {

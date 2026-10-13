@@ -5,6 +5,7 @@ import MapKit
 struct FieldRadarView: View {
     @State private var pins: [FieldPin] = []
     @State private var isLoading = true
+    @State private var loadRequest = RefreshRequestState()
     @State private var errorMessage: String?
     @State private var position: MapCameraPosition = .region(MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 39.9334, longitude: 32.8597), // Ankara default
@@ -54,14 +55,12 @@ struct FieldRadarView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadPins() }
         .refreshable { await loadPins() }
-        .alert("Saha Verileri Yüklenemedi", isPresented: Binding(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )) {
-            Button("Tekrar Dene") { Task { await loadPins() } }
-            Button("Tamam", role: .cancel) { errorMessage = nil }
-        } message: {
-            Text(errorMessage ?? "")
+        .onDisappear { loadRequest.invalidate(); isLoading = false }
+        .safeAreaInset(edge: .top) {
+            if let errorMessage {
+                ReadLoadFailureView(message: errorMessage) { Task { await loadPins() } }
+                    .padding().background(.regularMaterial)
+            }
         }
     }
     
@@ -116,11 +115,15 @@ struct FieldRadarView: View {
     }
     
     private func loadPins() async {
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
         isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
+        defer { loadRequest.finish(request); isLoading = loadRequest.isLoading }
         do {
-            pins = try await AdminService.getFieldRadar()
+            let loaded = try await AdminService.getFieldRadar()
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            pins = loaded
+            errorMessage = nil
             
             // Auto-center map on first pin
             if let first = mapPins.first {
@@ -130,6 +133,8 @@ struct FieldRadarView: View {
                 ))
             }
         } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
             errorMessage = error.localizedDescription
         }
     }

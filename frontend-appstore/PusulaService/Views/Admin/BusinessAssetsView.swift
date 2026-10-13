@@ -8,6 +8,9 @@ struct BusinessAssetsView: View {
     @State private var showEditor = false
     @State private var pdfPreview: PDFPreviewItem?
     @State private var isLoading = true
+    @State private var loadRequest = RefreshRequestState()
+    @State private var loadError: String?
+    @State private var hasLoaded = false
     @State private var errorMessage: String?
 
     private var filtered: [BusinessAssetDTO] {
@@ -23,6 +26,7 @@ struct BusinessAssetsView: View {
                 VStack(alignment: .leading) { Text("Envanter değeri").font(.caption).foregroundStyle(.secondary); Text(formatCurrency(totalValue)).font(.title2.bold()).foregroundStyle(PusulaTheme.accent) }
                 Spacer()
                 Button { createPDF() } label: { Label("PDF", systemImage: "arrow.down.doc") }
+                    .disabled(!hasLoaded)
             }.padding()
             List(filtered) { asset in
                 Button { editing = asset; showEditor = true } label: {
@@ -37,15 +41,38 @@ struct BusinessAssetsView: View {
             }
             .listStyle(.plain)
             .searchable(text: $search, prompt: "Ad, kategori, seri no veya konum")
-            .overlay { if isLoading { ProgressView("Demirbaşlar yükleniyor...") } else if filtered.isEmpty { ContentUnavailableView.search(text: search) } }
+            .overlay {
+                if isLoading && assets.isEmpty { ProgressView("Demirbaşlar yükleniyor...") }
+                else if let loadError, assets.isEmpty { ReadLoadFailureView(message: loadError) { Task { await load() } } }
+                else if !hasLoaded { Button("common.retry") { Task { await load() } } }
+                else if filtered.isEmpty { ContentUnavailableView.search(text: search) }
+            }
         }
         .toolbar { ToolbarItem(placement: .primaryAction) { Button { editing = nil; showEditor = true } label: { Image(systemName: "plus") }.readOnlyProtected() } }
         .task { await load() }.refreshable { await load() }
+        .safeAreaInset(edge: .top) { if let loadError, !assets.isEmpty { ReadLoadFailureView(message: loadError) { Task { await load() } }.padding() } }
+        .onDisappear { loadRequest.invalidate(); isLoading = false }
         .sheet(isPresented: $showEditor) { BusinessAssetEditorSheet(asset: editing) { await load() } }
         .sheet(item: $pdfPreview) { PDFPreviewSheet(item: $0) }
         .alert("İşlem Başarısız", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) { Button("Tamam", role: .cancel) {} } message: { Text(errorMessage ?? "") }
     }
-    private func load() async { isLoading = true; defer { isLoading = false }; do { assets = try await FinanceService.getBusinessAssets() } catch { errorMessage = error.localizedDescription } }
+    private func load() async {
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
+        isLoading = true
+        defer { loadRequest.finish(request); isLoading = loadRequest.isLoading }
+        do {
+            let loaded = try await FinanceService.getBusinessAssets()
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            assets = loaded
+            loadError = nil
+            hasLoaded = true
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
+        }
+    }
     private func delete(_ asset: BusinessAssetDTO) async { guard let id = asset.id else { return }; do { try await FinanceService.deleteBusinessAsset(id: id); await load() } catch { errorMessage = error.localizedDescription } }
     private func createPDF() {
         do { pdfPreview = try PDFPreviewItem(data: BusinessAssetPDF.make(assets: assets), fileName: "isletme-mulkiyeti.pdf", title: "İşletme Mülkiyeti") } catch { errorMessage = error.localizedDescription }

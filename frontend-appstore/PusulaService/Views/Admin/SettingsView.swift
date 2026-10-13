@@ -13,6 +13,9 @@ struct SettingsView: View {
     @State private var companyEmail = ""
     @State private var companyId: Int?
     @State private var isLoading = true
+    @State private var loadRequest = RefreshRequestState()
+    @State private var hasLoaded = false
+    @State private var loadError: String?
     @State private var editingUser: UserDTO?
     @State private var editingVehicle: VehicleDTO?
     @State private var showUserForm = false
@@ -30,6 +33,7 @@ struct SettingsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
+            if let loadError, hasLoaded { ReadLoadFailureView(message: loadError) { Task { await load(refresh: true) } }.padding() }
             Picker("Ayarlar", selection: $selectedTab) {
                 Text("Ekip").tag(0)
                 Text("Araçlar").tag(1)
@@ -40,10 +44,14 @@ struct SettingsView: View {
             .padding()
             .onboardingTarget(.settingsSections)
             
-            if isLoading && selectedTab != 3 {
+            if isLoading && !hasLoaded && selectedTab != 3 {
                 Spacer()
                 ProgressView()
                 Spacer()
+            } else if let loadError, !hasLoaded, selectedTab != 3 {
+                ReadLoadFailureView(message: loadError) { Task { await load() } }
+            } else if !hasLoaded && selectedTab != 3 {
+                Button("common.retry") { Task { await load() } }
             } else {
                 TabView(selection: $selectedTab) {
                     usersTab.tag(0)
@@ -64,6 +72,7 @@ struct SettingsView: View {
             }
         }
         .task { await load() }
+        .onDisappear { loadRequest.invalidate(); isLoading = false }
         .sheet(isPresented: $showUserForm) {
             UserEditorSheet(user: editingUser) { await load(refresh: true) }
         }
@@ -400,12 +409,16 @@ struct SettingsView: View {
     }
     
     private func load(refresh: Bool = false) async {
-        if !refresh { isLoading = true }
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
+        isLoading = true
+        defer { loadRequest.finish(request); isLoading = loadRequest.isLoading }
         do {
             async let usersTask = SettingsService.getUsers()
             async let vehiclesTask = SettingsService.getVehicles()
             async let companyTask = SettingsService.getCompany()
             let (loadedUsers, loadedVehicles, loadedCompany) = try await (usersTask, vehiclesTask, companyTask)
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
             users = loadedUsers
             vehicles = loadedVehicles
             companyId = loadedCompany.id
@@ -413,10 +426,13 @@ struct SettingsView: View {
             companyPhone = loadedCompany.phone ?? ""
             companyAddress = loadedCompany.address ?? ""
             companyEmail = loadedCompany.email ?? ""
+            loadError = nil
+            hasLoaded = true
         } catch {
-            errorMessage = error.localizedDescription
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
         }
-        isLoading = false
     }
     
     private func uploadLogo(item: PhotosPickerItem) async {

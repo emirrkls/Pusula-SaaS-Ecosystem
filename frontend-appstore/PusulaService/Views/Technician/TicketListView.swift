@@ -21,6 +21,10 @@ struct TicketListView: View {
     @State private var technicians: [TechnicianDTO] = []
     @State private var customers: [CustomerDTO] = []
     @State private var isLoading = true
+    @State private var loadRequest = RefreshRequestState()
+    @State private var customerLoadRequest = RefreshRequestState()
+    @State private var loadError: String?
+    @State private var hasLoaded = false
     @State private var isRefreshing = false
     @State private var selectedFilter: String = TicketFilters.defaultFilter(isAdmin: SessionManager.shared.isAdmin)
     @State private var searchText = ""
@@ -88,6 +92,7 @@ struct TicketListView: View {
             .onboardingTarget(.ticketFilters)
 
             ticketSearchAndDateFilter
+            if let loadError, !tickets.isEmpty { ReadLoadFailureView(message: loadError) { Task { await loadTickets(refresh: true) } }.padding(.horizontal) }
             
             if isAdmin {
                 adminActionBar
@@ -99,6 +104,12 @@ struct TicketListView: View {
             if (isLoading || isProcessingTickets) && filteredTickets.isEmpty {
                 Spacer()
                 ProgressView("İş emirleri yükleniyor...")
+                Spacer()
+            } else if let loadError, tickets.isEmpty {
+                ReadLoadFailureView(message: loadError) { Task { await loadTickets(refresh: true) } }.padding()
+                Spacer()
+            } else if !hasLoaded {
+                Button("common.retry") { Task { await loadTickets(refresh: true) } }
                 Spacer()
             } else if filteredTickets.isEmpty {
                 Spacer()
@@ -139,7 +150,11 @@ struct TicketListView: View {
                 onRequestedFilterApplied?()
             }
         }
-        .onDisappear { isScreenVisible = false }
+        .onDisappear {
+            isScreenVisible = false
+            loadRequest.invalidate(); customerLoadRequest.invalidate()
+            isLoading = false; isRefreshing = false
+        }
         .onChange(of: session.isAdmin) { _, _ in
             selectedFilter = TicketFilters.defaultFilter(isAdmin: session.isAdmin)
         }
@@ -175,10 +190,16 @@ struct TicketListView: View {
             )
             .onAppear { isSheetPresented = true }
             .task {
-                if customers.isEmpty {
+                if customers.isEmpty, let snapshot = session.authenticatedSnapshot,
+                   let request = customerLoadRequest.begin(for: snapshot) {
+                    defer { customerLoadRequest.finish(request) }
                     do {
-                        customers = try await CustomerService.getCustomers()
+                        let loaded = try await CustomerService.getCustomers()
+                        guard customerLoadRequest.accepts(request, session: session.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+                        customers = loaded
                     } catch {
+                        guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                              customerLoadRequest.accepts(request, session: session.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
                         errorMessage = error.localizedDescription
                     }
                 }
@@ -385,25 +406,35 @@ struct TicketListView: View {
     }
     
     private func loadTickets(refresh: Bool = false) async {
-        if refresh { isRefreshing = true } else { isLoading = true }
 #if DEBUG
         if let count = performanceFixtureCount {
+            if refresh { isRefreshing = true } else { isLoading = true }
+            defer { isLoading = false; isRefreshing = false }
             do {
                 let values = try await TicketListStressFixture.makeTickets(count: count)
                 try Task.checkCancellation()
                 replaceTickets(values)
+                loadError = nil
+                hasLoaded = true
                 isLoading = false
                 isRefreshing = false
             } catch {
-                if !Task.isCancelled { errorMessage = error.localizedDescription }
+                if !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled) { loadError = error.localizedDescription }
             }
             return
         }
 #endif
-        guard let requestToken = session.token else {
+        guard let snapshot = session.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else {
+            if loadRequest.isLoading { return }
             isLoading = false
             isRefreshing = false
             return
+        }
+        if refresh { isRefreshing = true } else { isLoading = true }
+        defer {
+            loadRequest.finish(request)
+            if !loadRequest.isLoading { isLoading = false; isRefreshing = false }
         }
         do {
             if isAdmin {
@@ -412,8 +443,10 @@ struct TicketListView: View {
                 let (loadedTickets, loadedTechs) = try await (ticketsTask, techTask)
                 try Task.checkCancellation()
                 await MainActor.run {
-                    guard SessionResponsePolicy.belongsToCurrentSession(requestToken: requestToken, currentToken: session.token) else { return }
+                    guard loadRequest.accepts(request, session: session.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
                     replaceTickets(loadedTickets)
+                    loadError = nil
+                    hasLoaded = true
                     technicians = loadedTechs
                     isLoading = false
                     isRefreshing = false
@@ -422,17 +455,19 @@ struct TicketListView: View {
                 let loaded = try await TicketService.getMyAssignedTickets()
                 try Task.checkCancellation()
                 await MainActor.run {
-                    guard SessionResponsePolicy.belongsToCurrentSession(requestToken: requestToken, currentToken: session.token) else { return }
+                    guard loadRequest.accepts(request, session: session.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
                     replaceTickets(loaded)
+                    loadError = nil
+                    hasLoaded = true
                     isLoading = false
                     isRefreshing = false
                 }
             }
         } catch {
-            guard !Task.isCancelled else { return }
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled) else { return }
             await MainActor.run {
-                guard SessionResponsePolicy.belongsToCurrentSession(requestToken: requestToken, currentToken: session.token) else { return }
-                errorMessage = error.localizedDescription
+                guard loadRequest.accepts(request, session: session.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+                loadError = error.localizedDescription
                 isLoading = false
                 isRefreshing = false
             }
@@ -496,7 +531,7 @@ struct TicketListView: View {
             presentingNotificationRequest = request
             selectedTicket = ticket
         } catch {
-            guard !Task.isCancelled,
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
                   navigation.ticketQueue.matches(request, companyId: session.companyId),
                   SessionResponsePolicy.belongsToCurrentSession(requestToken: requestToken, currentToken: session.token)
             else { return }

@@ -6,6 +6,9 @@ struct FixedExpensesView: View {
     @State private var paying: FixedExpenseDefinitionDTO?
     @State private var showEditor = false
     @State private var isLoading = true
+    @State private var loadRequest = RefreshRequestState()
+    @State private var loadError: String?
+    @State private var hasLoaded = false
     @State private var errorMessage: String?
 
     var body: some View {
@@ -42,16 +45,36 @@ struct FixedExpensesView: View {
         }
         .listStyle(.insetGrouped)
         .overlay {
-            if isLoading { ProgressView("Sabit giderler yükleniyor...") }
+            if isLoading && expenses.isEmpty { ProgressView("Sabit giderler yükleniyor...") }
+            else if let loadError, expenses.isEmpty { ReadLoadFailureView(message: loadError) { Task { await load() } } }
+            else if !hasLoaded { Button("common.retry") { Task { await load() } } }
             else if expenses.isEmpty { ContentUnavailableView("Sabit gider bulunamadı", systemImage: "repeat.circle", description: Text("Kira, maaş ve diğer düzenli ödemeleri ekleyebilirsiniz.")) }
         }
         .toolbar { ToolbarItem(placement: .primaryAction) { Button { editing = nil; showEditor = true } label: { Image(systemName: "plus") }.readOnlyProtected() } }
         .task { await load() }.refreshable { await load() }
+        .safeAreaInset(edge: .top) { if let loadError, !expenses.isEmpty { ReadLoadFailureView(message: loadError) { Task { await load() } }.padding() } }
+        .onDisappear { loadRequest.invalidate(); isLoading = false }
         .sheet(isPresented: $showEditor) { FixedExpenseEditorSheet(expense: editing) { await load() } }
         .sheet(item: $paying) { FixedExpensePaymentSheet(expense: $0) { await load() } }
         .alert("İşlem Başarısız", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) { Button("Tamam", role: .cancel) {} } message: { Text(errorMessage ?? "") }
     }
-    private func load() async { isLoading = true; defer { isLoading = false }; do { expenses = try await FinanceService.getFixedExpenses() } catch { errorMessage = error.localizedDescription } }
+    private func load() async {
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
+        isLoading = true
+        defer { loadRequest.finish(request); isLoading = loadRequest.isLoading }
+        do {
+            let loaded = try await FinanceService.getFixedExpenses()
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            expenses = loaded
+            loadError = nil
+            hasLoaded = true
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
+        }
+    }
     private func delete(_ expense: FixedExpenseDefinitionDTO) async { guard let id = expense.id else { return }; do { try await FinanceService.deleteFixedExpense(id: id); await load() } catch { errorMessage = error.localizedDescription } }
 }
 

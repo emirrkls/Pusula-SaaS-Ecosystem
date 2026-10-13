@@ -2,7 +2,9 @@ import SwiftUI
 
 struct CatalogView: View {
     @State private var inventory: [InventoryItemDTO] = []
-    @State private var isLoading = true
+    @State private var refreshRequest = RefreshRequestState()
+    @State private var hasLoaded = false
+    @State private var loadError: String?
     @State private var isLookingUpBarcode = false
     @State private var searchText = ""
     @State private var presentedSheet: CatalogSheet?
@@ -51,6 +53,7 @@ struct CatalogView: View {
             }
         }
         .task { await loadInventory() }
+        .onDisappear { refreshRequest.invalidate() }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .editor(let item, let barcode):
@@ -85,19 +88,18 @@ struct CatalogView: View {
         }
     }
 
-    @ViewBuilder
     private var catalogContent: some View {
-        if isLoading && inventory.isEmpty {
-            ProgressView("Katalog yükleniyor...")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if filteredItems.isEmpty {
-            ContentUnavailableView(
-                searchText.isEmpty ? "Henüz Stok Kalemi Yok" : "Sonuç Bulunamadı",
-                systemImage: searchText.isEmpty ? "shippingbox" : "magnifyingglass",
-                description: Text(searchText.isEmpty ? "İlk stok kalemini ekleyerek başlayın." : "Arama metnini değiştirip tekrar deneyin.")
-            )
-        } else {
-            List(filteredItems) { item in
+        List {
+            if let loadError {
+                Section {
+                    ReadLoadFailureView(message: loadError, identifier: "catalog.load") {
+                        Task { await loadInventory() }
+                    }
+                    .disabled(refreshRequest.isLoading)
+                    if hasLoaded { Text("common.cached_records").font(.caption).foregroundStyle(.secondary) }
+                }
+            }
+            ForEach(filteredItems) { item in
                 CatalogItemRow(
                     item: item,
                     isDeleting: deletingItemId == item.id,
@@ -117,19 +119,40 @@ struct CatalogView: View {
                     .readOnlyProtected()
                 }
             }
-            .listStyle(.plain)
-            .refreshable { await loadInventory(refresh: true) }
         }
+        .listStyle(.plain)
+        .overlay {
+            if refreshRequest.isLoading && !hasLoaded {
+                ProgressView("common.loading")
+            } else if hasLoaded && loadError == nil && filteredItems.isEmpty {
+                ContentUnavailableView(
+                    searchText.isEmpty ? "Henüz Stok Kalemi Yok" : "Sonuç Bulunamadı",
+                    systemImage: searchText.isEmpty ? "shippingbox" : "magnifyingglass",
+                    description: Text(searchText.isEmpty ? "İlk stok kalemini ekleyerek başlayın." : "Arama metnini değiştirip tekrar deneyin.")
+                )
+                .allowsHitTesting(false)
+            }
+        }
+        .refreshable { await loadInventory() }
     }
 
-    private func loadInventory(refresh: Bool = false) async {
-        if !refresh { isLoading = true }
+    @MainActor
+    private func loadInventory() async {
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = refreshRequest.begin(for: snapshot) else { return }
+        defer { refreshRequest.finish(request) }
         do {
-            inventory = try await TicketService.getInventory()
+            let loaded = try await TicketService.getInventory(authToken: snapshot.token)
+            try Task.checkCancellation()
+            guard refreshRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            inventory = loaded
+            hasLoaded = true
+            loadError = nil
         } catch {
-            errorMessage = error.localizedDescription
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  refreshRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
         }
-        isLoading = false
     }
 
     private func handleScannedBarcode(_ code: String) async {

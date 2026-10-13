@@ -3,6 +3,7 @@ import SwiftUI
 /// Resolves a notification's exact record through tenant-scoped endpoints.
 @MainActor
 struct NetworkNotificationDestination: View {
+    @State private var loadRequest = RefreshRequestState()
     let route: NetworkNotificationRoute
     @State private var context: ServiceNetworkContext?
     @State private var member: ServiceNetworkMember?
@@ -22,22 +23,37 @@ struct NetworkNotificationDestination: View {
                     if let member { NetworkMemberDetail(member: member, context: context) }
                     else { ProgressView("Bağlantı yükleniyor…") }
                 }
-            } else { ProgressView("Servis ağı yükleniyor…") }
-        }.task(id: route) { await load() }
+            } else if loadRequest.isLoading { ProgressView("Servis ağı yükleniyor…") }
+            else { Button("common.retry") { Task { await load() } } }
+        }.task(id: route) { loadRequest.invalidate(); await load() }
+        .onDisappear { loadRequest.invalidate() }
     }
 
     private func load() async {
-        error = nil; context = nil; member = nil
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { return }
+        let requestedRoute = route
+        defer { loadRequest.finish(request) }
         do {
             let loadedContext: ServiceNetworkContext = try await ServiceNetworkAPI.get("/context")
-            if case .member(let id) = route { member = try await ServiceNetworkAPI.get("/members/\(id)") }
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled), route == requestedRoute else { return }
+            var loadedMember: ServiceNetworkMember?
+            if case .member(let id) = requestedRoute { loadedMember = try await ServiceNetworkAPI.get("/members/\(id)") }
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled), route == requestedRoute else { return }
+            member = loadedMember
             context = loadedContext
-        } catch { self.error = error.localizedDescription }
+            error = nil
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            self.error = error.localizedDescription
+        }
     }
 }
 
 @MainActor
 struct ServiceNetworkView: View {
+    @State private var loadRequest = RefreshRequestState()
     @State private var context: ServiceNetworkContext?
     @State private var members: [ServiceNetworkMember] = []
     @State private var orders: [ServiceNetworkOrder] = []
@@ -57,7 +73,7 @@ struct ServiceNetworkView: View {
 
     var body: some View {
         List {
-            if let error { Text(error).foregroundStyle(.red) }
+            if let error { ReadLoadFailureView(message: error) { Task { await load() } } }
             Section {
                 Picker("Görünüm", selection: $section) {
                     Text("Gelen İşler").tag("incoming")
@@ -119,7 +135,7 @@ struct ServiceNetworkView: View {
                             } label: { NetworkOrderRow(order: order) }
                         }
                     }
-                    if !loading && (section == "members" ? members.isEmpty : orders.isEmpty) {
+                    if !loading && error == nil && (section == "members" ? members.isEmpty : orders.isEmpty) {
                         Text("Bu filtreye uygun kayıt yok.").foregroundStyle(.secondary)
                     }
                     HStack {
@@ -136,6 +152,7 @@ struct ServiceNetworkView: View {
         .overlay { if loading { ProgressView() } }
         .task { await load() }
         .refreshable { await load() }
+        .onDisappear { loadRequest.invalidate(); loading = false }
         .onChange(of: section) { _, _ in refresh() }
         .sheet(isPresented: $showMemberForm, onDismiss: refresh) {
             NavigationStack { NetworkMemberForm(create: memberForm == true) }
@@ -144,26 +161,42 @@ struct ServiceNetworkView: View {
 
     private func refresh() { page = 0; Task { await load() } }
     private func load() async {
-        guard !loading else { return }
-        loading = true; error = nil
-        defer { loading = false }
-        do {
-            context = try await ServiceNetworkAPI.get("/context")
-            var query = ["page": String(page), "query": search]
-            if section == "members" {
-                let result: ServiceNetworkPage<ServiceNetworkMember> = try await ServiceNetworkAPI.get(ServiceNetworkAPI.query("/members", query))
-                members = result.items; total = result.totalElements; hasNext = result.hasNext
-            } else {
-                query["direction"] = section
-                if !status.isEmpty { query["status"] = status }
-                if dateFilter {
-                    query["from"] = ServiceNetworkAPI.timestamp(from, dayOnly: true)
-                    query["to"] = ServiceNetworkAPI.timestamp(to, dayOnly: true)
-                }
-                let result: ServiceNetworkPage<ServiceNetworkOrder> = try await ServiceNetworkAPI.get(ServiceNetworkAPI.query("/orders", query))
-                orders = result.items; total = result.totalElements; hasNext = result.hasNext
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { return }
+        let requestedSection = section
+        let requestedPage = page
+        var query = ["page": String(requestedPage), "query": search]
+        if requestedSection != "members" {
+            query["direction"] = requestedSection
+            if !status.isEmpty { query["status"] = status }
+            if dateFilter {
+                query["from"] = ServiceNetworkAPI.timestamp(from, dayOnly: true)
+                query["to"] = ServiceNetworkAPI.timestamp(to, dayOnly: true)
             }
-        } catch { self.error = error.localizedDescription }
+        }
+        loading = true
+        defer { loadRequest.finish(request); loading = loadRequest.isLoading }
+        do {
+            let loadedContext: ServiceNetworkContext = try await ServiceNetworkAPI.get("/context")
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            if requestedSection == "members" {
+                let result: ServiceNetworkPage<ServiceNetworkMember> = try await ServiceNetworkAPI.get(ServiceNetworkAPI.query("/members", query))
+                guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled), section == requestedSection, page == requestedPage else { return }
+                context = loadedContext
+                members = result.items; total = result.totalElements; hasNext = result.hasNext
+                error = nil
+            } else {
+                let result: ServiceNetworkPage<ServiceNetworkOrder> = try await ServiceNetworkAPI.get(ServiceNetworkAPI.query("/orders", query))
+                guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled), section == requestedSection, page == requestedPage else { return }
+                context = loadedContext
+                orders = result.items; total = result.totalElements; hasNext = result.hasNext
+                error = nil
+            }
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            self.error = error.localizedDescription
+        }
     }
 }
 
@@ -348,6 +381,7 @@ private struct NetworkDispatchForm: View {
 
 @MainActor
 private struct NetworkOrderDetail: View {
+    @State private var loadRequest = RefreshRequestState()
     let id: Int
     let context: ServiceNetworkContext
     @Environment(\.dismiss) private var dismiss
@@ -361,7 +395,8 @@ private struct NetworkOrderDetail: View {
     @State private var showNote = false
     var body: some View {
         List {
-            if let error { Text(error).foregroundStyle(.red) }
+            if let error { ReadLoadFailureView(message: error) { Task { await load() } } }
+            if order == nil && !busy && error == nil { Button("common.retry") { Task { await load() } } }
             if let order {
                 Section { NetworkOrderRow(order: order) }
                 Section("İş bilgileri") {
@@ -407,6 +442,7 @@ private struct NetworkOrderDetail: View {
             }
         }.navigationTitle("Ağ İşi #\(id)")
         .task { await load() }.refreshable { await load() }
+        .onDisappear { loadRequest.invalidate(); busy = false }
         .overlay { if busy { ProgressView() } }
         .sheet(isPresented: $showNote, onDismiss: { Task { await load() } }) {
             NavigationStack {
@@ -421,28 +457,48 @@ private struct NetworkOrderDetail: View {
         }
     }
     private func load() async {
-        guard !busy else { return }
-        busy = true; error = nil
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { return }
+        busy = true
+        defer { loadRequest.finish(request); busy = loadRequest.isLoading }
         do {
-            order = try await ServiceNetworkAPI.get("/orders/\(id)")
+            let loadedOrder: ServiceNetworkOrder = try await ServiceNetworkAPI.get("/orders/\(id)")
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
             let result: ServiceNetworkPage<ServiceNetworkEvent> = try await ServiceNetworkAPI.get("/orders/\(id)/history?page=0")
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            order = loadedOrder
             events = result.items; page = 1; more = result.hasNext
-        } catch { self.error = error.localizedDescription }
-        busy = false
+            error = nil
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            self.error = error.localizedDescription
+        }
     }
     private func loadHistory() async {
-        guard !busy else { return }
-        busy = true; defer { busy = false }
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { return }
+        let requestedPage = page
+        busy = true
+        defer { loadRequest.finish(request); busy = loadRequest.isLoading }
         do {
-            let result: ServiceNetworkPage<ServiceNetworkEvent> = try await ServiceNetworkAPI.get("/orders/\(id)/history?page=\(page)")
+            let result: ServiceNetworkPage<ServiceNetworkEvent> = try await ServiceNetworkAPI.get("/orders/\(id)/history?page=\(requestedPage)")
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled), page == requestedPage else { return }
             let existing = Set(events.map(\.id))
             events += result.items.filter { !existing.contains($0.id) }; page += 1; more = result.hasNext
-        } catch { self.error = error.localizedDescription }
+            error = nil
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            self.error = error.localizedDescription
+        }
     }
 }
 
 @MainActor
 private struct NetworkAcceptForm: View {
+    @State private var choicesRequest = RefreshRequestState()
+    @State private var choicesError: String?
     let order: ServiceNetworkOrder
     @Environment(\.dismiss) private var dismiss
     @State private var customers: [CustomerDTO] = []
@@ -460,6 +516,7 @@ private struct NetworkAcceptForm: View {
     var body: some View {
         Form {
             if let error { Text(error).foregroundStyle(.red) }
+            if let choicesError { ReadLoadFailureView(message: choicesError) { Task { await loadChoices() } } }
             Section {
                 Text("Kabul edildiğinde işletmenizde normal servis fişi oluşturulur. Müşteri seçmezseniz işteki bilgilerle yeni kayıt açılır.").font(.caption)
                 Toggle("Mevcut müşterime bağla", isOn: $existing)
@@ -483,10 +540,25 @@ private struct NetworkAcceptForm: View {
         .toolbar { ToolbarItem(placement: .confirmationAction) {
             Button("Kabul Et") { Task { await accept() } }.disabled(busy || (existing && customerId == nil))
         } }
-        .task {
-            busy = true; defer { busy = false }
-            do { customers = try await CustomerService.getCustomers(); technicians = try await TicketService.getTechnicians() }
-            catch { self.error = error.localizedDescription }
+        .task { await loadChoices() }
+        .onDisappear { choicesRequest.invalidate() }
+    }
+    private func loadChoices() async {
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = choicesRequest.begin(for: snapshot) else { return }
+        busy = true
+        defer { choicesRequest.finish(request); busy = choicesRequest.isLoading }
+        do {
+            async let customersTask = CustomerService.getCustomers()
+            async let techniciansTask = TicketService.getTechnicians()
+            let (loadedCustomers, loadedTechnicians) = try await (customersTask, techniciansTask)
+            guard choicesRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            customers = loadedCustomers; technicians = loadedTechnicians
+            choicesError = nil
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  choicesRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            choicesError = error.localizedDescription
         }
     }
     private func accept() async {

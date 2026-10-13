@@ -4,6 +4,9 @@ struct AccountPartiesView: View {
     @State private var organizations: [AccountPartyDTO] = []
     @State private var showAdd = false
     @State private var isLoading = true
+    @State private var loadRequest = RefreshRequestState()
+    @State private var loadError: String?
+    @State private var hasLoaded = false
     @State private var errorMessage: String?
 
     var body: some View {
@@ -26,9 +29,15 @@ struct AccountPartiesView: View {
         }
         .navigationTitle("Kurum Cari Kartları")
         .toolbar { ToolbarItem(placement: .primaryAction) { Button { showAdd = true } label: { Image(systemName: "plus") } } }
-        .overlay { if isLoading { ProgressView("Kurumlar yükleniyor...") } }
+        .overlay {
+            if isLoading && organizations.isEmpty { ProgressView("Kurumlar yükleniyor...") }
+            else if let loadError, organizations.isEmpty { ReadLoadFailureView(message: loadError) { Task { await load() } } }
+            else if !hasLoaded { Button("common.retry") { Task { await load() } } }
+        }
+        .safeAreaInset(edge: .top) { if let loadError, !organizations.isEmpty { ReadLoadFailureView(message: loadError) { Task { await load() } }.padding() } }
         .task { await load() }
         .refreshable { await load() }
+        .onDisappear { loadRequest.invalidate(); isLoading = false }
         .sheet(isPresented: $showAdd) { AddAccountPartySheet { await load() } }
         .alert("İşlem Başarısız", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Tamam", role: .cancel) { errorMessage = nil }
@@ -36,9 +45,21 @@ struct AccountPartiesView: View {
     }
 
     private func load() async {
-        isLoading = true; defer { isLoading = false }
-        do { organizations = try await FinanceService.getAccountParties(type: "ORGANIZATION") }
-        catch { errorMessage = error.localizedDescription }
+        guard let snapshot = SessionManager.shared.authenticatedSnapshot,
+              let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
+        isLoading = true
+        defer { loadRequest.finish(request); isLoading = loadRequest.isLoading }
+        do {
+            let loaded = try await FinanceService.getAccountParties(type: "ORGANIZATION")
+            guard loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            organizations = loaded
+            loadError = nil
+            hasLoaded = true
+        } catch {
+            guard !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled),
+                  loadRequest.accepts(request, session: SessionManager.shared.authenticatedSnapshot, isCancelled: Task.isCancelled) else { return }
+            loadError = error.localizedDescription
+        }
     }
 }
 
