@@ -900,9 +900,9 @@ struct TicketDetailView: View {
             guard !Task.isCancelled, SessionManager.shared.isCurrent(snapshot) else { return }
             // If the response was interrupted after commit, reconcile from the server
             // before showing an error or encouraging a duplicate retry.
-            if let refreshed = try? await TicketService.getUsedParts(ticketId: ticket.id),
-               refreshed.contains(where: { $0.clientRequestId == requestId }) {
-                guard !Task.isCancelled, SessionManager.shared.isCurrent(snapshot) else { return }
+            let refreshed = try? await TicketService.getUsedParts(ticketId: ticket.id, authToken: snapshot.token)
+            guard !Task.isCancelled, SessionManager.shared.isCurrent(snapshot) else { return }
+            if let refreshed, refreshed.contains(where: { $0.clientRequestId == requestId }) {
                 partsState.replaceVerifiedItems(refreshed)
                 operationMessage = "Parça eklendi. Bağlantı sonrası liste yenilendi."
             } else {

@@ -139,9 +139,9 @@ struct ServiceNetworkView: View {
                         Text("Bu filtreye uygun kayıt yok.").foregroundStyle(.secondary)
                     }
                     HStack {
-                        Button("Önceki") { page -= 1; Task { await load() } }.disabled(page == 0)
+                        Button("Önceki") { loadRequest.invalidate(); page -= 1; Task { await load() } }.disabled(page == 0)
                         Spacer()
-                        Button("Sonraki") { page += 1; Task { await load() } }.disabled(!hasNext)
+                        Button("Sonraki") { loadRequest.invalidate(); page += 1; Task { await load() } }.disabled(!hasNext)
                     }.buttonStyle(.borderless)
                 }
             }
@@ -159,7 +159,13 @@ struct ServiceNetworkView: View {
         }
     }
 
-    private func refresh() { page = 0; Task { await load() } }
+    private func refresh() {
+        // A changed section/search/page is a new query, not a duplicate refresh.
+        // Supersede an older read so it cannot block the latest query's begin.
+        loadRequest.invalidate()
+        page = 0
+        Task { await load() }
+    }
     private func load() async {
         guard let snapshot = SessionManager.shared.authenticatedSnapshot,
               let request = loadRequest.begin(for: snapshot) else { return }
