@@ -37,7 +37,9 @@ struct AppStoreScreenshotView: View {
     @ViewBuilder
     var body: some View {
 #if DEBUG
-        if CustomerRefreshFixture.isEnabled {
+        if ConnectionDiagnosticsFixture.isEnabled {
+            ConnectionDiagnosticsHarness()
+        } else if CustomerRefreshFixture.isEnabled {
             CustomerRefreshHarness()
         } else if TicketDetailLoadFixture.isEnabled {
             TicketDetailLoadHarness()

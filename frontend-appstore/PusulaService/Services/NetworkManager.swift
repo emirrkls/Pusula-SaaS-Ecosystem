@@ -9,13 +9,16 @@ actor NetworkManager {
     
     private var authToken: String?
     
-    func setToken(_ token: String?) {
+    func setToken(_ token: String?) async {
+        let changedAccount = authToken != nil && authToken != token
         self.authToken = token
+        if changedAccount { await ConnectionDiagnosticsStore.shared.clear() }
     }
 
-    func clearToken(ifMatching expectedToken: String?) -> Bool {
+    func clearToken(ifMatching expectedToken: String?) async -> Bool {
         guard authToken == expectedToken else { return false }
         authToken = nil
+        await ConnectionDiagnosticsStore.shared.clear()
         return true
     }
 
@@ -58,7 +61,7 @@ actor NetworkManager {
         }
         
         // Execute
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await observedData(for: request, operation: .api)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NetworkError.invalidResponse
@@ -140,7 +143,7 @@ actor NetworkManager {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await observedData(for: request, operation: .download)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NetworkError.invalidResponse
@@ -241,7 +244,7 @@ actor NetworkManager {
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
         request.httpBody = body
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await observedData(for: request, operation: .upload)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NetworkError.invalidResponse
@@ -279,6 +282,12 @@ actor NetworkManager {
         }
 
         return data
+    }
+
+    private func observedData(for request: URLRequest, operation: ConnectionOperation) async throws -> (Data, URLResponse) {
+        let context = await ConnectionDiagnosticEnvironment.context()
+        return try await ConnectionDiagnosticsTransport.data(for: request, operation: operation,
+            interface: context.0, appState: context.1)
     }
 
     private func apiErrorMessage(from data: Data) -> String? {

@@ -339,6 +339,10 @@ struct SettingsView: View {
             }
 
             Section("Yardım") {
+                NavigationLink { ConnectionDiagnosticsView() } label: {
+                    Label("diagnostics.title", systemImage: "network")
+                }
+                .accessibilityIdentifier("settings.diagnostics.open")
                 Button {
                     OnboardingManager.shared.restartRoleTour(
                         role: session.role,

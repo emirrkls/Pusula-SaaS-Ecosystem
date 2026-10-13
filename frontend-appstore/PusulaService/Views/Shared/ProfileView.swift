@@ -40,6 +40,14 @@ struct ProfileView: View {
                 PusulaAppearancePicker()
                     .pusulaCard()
 
+                NavigationLink { ConnectionDiagnosticsView() } label: {
+                    Label("diagnostics.title", systemImage: "network")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("account.diagnostics.open")
+
                 Button {
                     OnboardingManager.shared.restartRoleTour(
                         role: session.role,

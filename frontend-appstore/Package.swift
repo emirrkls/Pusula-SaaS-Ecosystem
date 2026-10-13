@@ -12,7 +12,8 @@ let package = Package(
         .library(name: "PusulaRouting", targets: ["PusulaRouting"]),
         .library(name: "PusulaBilling", targets: ["PusulaBilling"]),
         .library(name: "PusulaTickets", targets: ["PusulaTickets"]),
-        .library(name: "PusulaAuth", targets: ["PusulaAuth"])
+        .library(name: "PusulaAuth", targets: ["PusulaAuth"]),
+        .library(name: "PusulaDiagnostics", targets: ["PusulaDiagnostics"])
     ],
     targets: [
         .target(name: "PusulaRouting", path: "PusulaService/Core/Routing"),
@@ -22,6 +23,8 @@ let package = Package(
         .target(name: "PusulaTickets", path: "PusulaService/Core/Tickets"),
         .testTarget(name: "PusulaTicketTests", dependencies: ["PusulaTickets"], path: "TicketTests"),
         .target(name: "PusulaAuth", path: "PusulaService/Core/Auth"),
-        .testTarget(name: "PusulaAuthTests", dependencies: ["PusulaAuth"], path: "AuthTests")
+        .testTarget(name: "PusulaAuthTests", dependencies: ["PusulaAuth"], path: "AuthTests"),
+        .target(name: "PusulaDiagnostics", path: "PusulaService/Core/Diagnostics"),
+        .testTarget(name: "PusulaDiagnosticsTests", dependencies: ["PusulaDiagnostics"], path: "DiagnosticsTests")
     ]
 )

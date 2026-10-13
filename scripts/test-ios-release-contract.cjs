@@ -140,8 +140,11 @@ test('all audited read screens use cancellation guards without weakening transpo
     assert.match(read(app + `Views/${file}.swift`), /LoadCancellationPolicy\.isCancellation/, file);
   }
   const network = read(app + 'Services/NetworkManager.swift');
-  assert.match(network, /URLSession\.shared\.data\(for: request\)/);
-  assert.doesNotMatch(network, /URLCredential\(trust:|serverTrust|useCredential|allowsAnyHTTPSCertificate/);
+  assert.match(network, /ConnectionDiagnosticsTransport\.data\(for: request/);
+  const transport = read(app + 'Core/Diagnostics/ConnectionDiagnosticsTransport.swift');
+  assert.match(transport, /session: URLSession = \.shared/);
+  assert.match(transport, /session\.data\(for: request, delegate: observer\)/);
+  assert.doesNotMatch(network + transport, /URLCredential\(trust:|serverTrust|useCredential|allowsAnyHTTPSCertificate/);
 });
 
 test('new read feedback is translated through unique matching Turkish and English keys', () => {
@@ -183,4 +186,58 @@ test('iPhone and iPad CI both run the actual detail and customer failure regress
   }
   assert.ok(read('frontend-appstore/TicketTests/TicketDetailSectionStateTests.swift').includes('testFailedInitialReadIsNotEmpty'));
   assert.ok(read('frontend-appstore/RoutingTests/RefreshRequestStateTests.swift').includes('LoadCancellationPolicy'));
+});
+
+test('diagnostics observes every common transport without automatic retries or raw secrets', () => {
+  const network = read(app + 'Services/NetworkManager.swift');
+  for (const operation of ['api', 'download', 'upload']) {
+    assert.ok(network.includes(`observedData(for: request, operation: .${operation})`));
+  }
+  const model = read(app + 'Core/Diagnostics/ConnectionDiagnosticRecord.swift');
+  assert.doesNotMatch(model, /localizedDescription|allHTTPHeaderFields|httpBody|UIDevice|identifierForVendor/);
+  assert.match(model, /ConnectionErrorDomain\(rawValue: value\.domain\) \?\? \.other/);
+  assert.match(model, /result\.count < 4/);
+  const transport = read(app + 'Core/Diagnostics/ConnectionDiagnosticsTransport.swift');
+  assert.equal((transport.match(/session\.data\(for:/g) || []).length, 1);
+  assert.match(transport, /throw error \/\/ Preserve exact error\/cancellation/);
+  assert.doesNotMatch(transport, /CFNETWORK_DIAGNOSTICS|URLCredential|didReceive.*challenge|while |for attempt/);
+  const photos = read(app + 'Views/Technician/ServicePhotoView.swift');
+  assert.match(photos, /local\(operation: \.photoLibraryRead/);
+  assert.match(photos, /local\(operation: \.photoPreparation/);
+});
+
+test('diagnostics is local bounded protected storage with explicit user sharing and clearing', () => {
+  const storage = read(app + 'Core/Diagnostics/ConnectionDiagnosticsStore.swift');
+  assert.match(storage, /limit: Int = 100/);
+  assert.match(storage, /retention: TimeInterval = 24 \* 60 \* 60/);
+  assert.match(storage, /isExcludedFromBackup = true/);
+  assert.match(storage, /completeFileProtectionUntilFirstUserAuthentication/);
+  assert.match(storage, /guard generation == expected else \{ return \}/);
+  assert.match(storage, /records\.append\(record\.redacted\(\)\)/);
+  assert.doesNotMatch(storage, /URLSession|NetworkManager|AuthService|UserDefaults/);
+  const view = read(app + 'Views/Shared/ConnectionDiagnosticsView.swift');
+  assert.match(view, /ShareLink\(item: exportURL\)/);
+  assert.match(view, /await store\.clear\(\)/);
+  for (const file of ['Views/Auth/LoginView.swift', 'Views/Shared/ProfileView.swift', 'Views/Admin/SettingsView.swift']) {
+    assert.match(read(app + file), /ConnectionDiagnosticsView\(\)/, file);
+  }
+});
+
+test('diagnostics UI has matching translations and simulator-only offline coverage on both devices', () => {
+  const catalogs = ['tr', 'en'].map(locale => {
+    const entries = [...read(app + `${locale}.lproj/Localizable.strings`).matchAll(/^"(diagnostics\.[^"]+)"\s*=\s*"((?:[^"\\]|\\.)*)";/gm)];
+    assert.equal(entries.length, new Set(entries.map(match => match[1])).size);
+    return new Map(entries.map(match => [match[1], match[2]]));
+  });
+  assert.deepEqual([...catalogs[0].keys()].sort(), [...catalogs[1].keys()].sort());
+  for (const [, key] of read(app + 'Views/Shared/ConnectionDiagnosticsView.swift').matchAll(/"(diagnostics\.[a-z_]+)"/g)) {
+    for (const catalog of catalogs) assert.ok(catalog.has(key), key);
+  }
+  const fixture = read(app + 'ScreenshotSupport/ConnectionDiagnosticsFixture.swift');
+  assert.ok(fixture.startsWith('#if DEBUG'));
+  assert.match(fixture, /#if targetEnvironment\(simulator\)/);
+  assert.match(fixture, /AppStoreScreenshotMode\.isEnabled/);
+  assert.doesNotMatch(fixture, /NetworkManager|configureSession|KeychainHelper|URLSession/);
+  assert.ok(read('scripts/verify-ios-export.py').includes('PUSULA_CONNECTION_DIAGNOSTICS_FIXTURE'));
+  assert.equal(read('.github/workflows/ios-validation.yml').split('-only-testing:PusulaServiceScreenshots/ConnectionDiagnosticsPresentationTests').length - 1, 2);
 });

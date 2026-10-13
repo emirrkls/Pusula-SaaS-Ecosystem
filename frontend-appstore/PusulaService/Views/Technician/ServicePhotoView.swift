@@ -79,7 +79,12 @@ struct ServicePhotoView: View {
             CameraImagePicker { image in
                 showCamera = false
                 Task {
-                    do { await upload(data: try preparedServicePhotoData(from: image)) }
+                    do {
+                        let context = await ConnectionDiagnosticEnvironment.context()
+                        let data = try await ConnectionDiagnosticsTransport.local(operation: .photoPreparation,
+                            interface: context.0, appState: context.1) { try preparedServicePhotoData(from: image) }
+                        await upload(data: data)
+                    }
                     catch { await MainActor.run { errorMessage = error.localizedDescription } }
                 }
             }
@@ -127,9 +132,18 @@ struct ServicePhotoView: View {
     }
     private func upload(item: PhotosPickerItem) async {
         do {
-            guard let data = try await item.loadTransferable(type: Data.self) else { throw NetworkError.invalidResponse }
-            guard let image = UIImage(data: data) else { throw NetworkError.invalidResponse }
-            await upload(data: try preparedServicePhotoData(from: image))
+            let context = await ConnectionDiagnosticEnvironment.context()
+            let data = try await ConnectionDiagnosticsTransport.local(operation: .photoLibraryRead,
+                interface: context.0, appState: context.1) {
+                guard let data = try await item.loadTransferable(type: Data.self) else { throw NetworkError.invalidResponse }
+                return data
+            }
+            let prepared = try await ConnectionDiagnosticsTransport.local(operation: .photoPreparation,
+                interface: context.0, appState: context.1) {
+                guard let image = UIImage(data: data) else { throw NetworkError.invalidResponse }
+                return try preparedServicePhotoData(from: image)
+            }
+            await upload(data: prepared)
         } catch { await MainActor.run { errorMessage = error.localizedDescription } }
         await MainActor.run { selectedLibraryItem = nil }
     }

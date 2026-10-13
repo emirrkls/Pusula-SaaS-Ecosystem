@@ -31,6 +31,13 @@ struct LoginView: View {
                         }
                     }
                     accountActions
+                    NavigationLink { ConnectionDiagnosticsView() } label: {
+                        Label("diagnostics.title", systemImage: "network")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .accessibilityIdentifier("login.diagnostics.open")
                 }
                 .frame(maxWidth: 520, alignment: .leading)
                 .padding(.horizontal, PusulaTheme.pagePadding)

@@ -465,6 +465,29 @@ arizasi kanitlanmadi. Kaynak duzeltmesi bu gecici hatayi maskeliyor degil,
 bos/hatali/yuklenen/iptal durumlarini ayiriyor. Cihazdaki kesin TLS tetikleyicisi
 halen dogrulanmadi; otomatik/sentetik test gercek cihaz ag denemesinin yerine gecmez.
 
+### IOS-NET-01 Baglanti tanilama ve manuel rapor paylasimi
+
+Yeni build'de giris ekranindaki veya Hesap/Ayarlar altindaki Baglanti Tanilama
+bolumunu acin. API okuma, PDF indirme ve gorsel yukleme; Wi-Fi/mobil veri ve
+arka plandan donus senaryolarini ayni cihazda deneyin. Hata aninin TR saatini
+kaydedip raporu yenileyin, inceleyin ve sistem paylasim sayfasindan paylasin.
+Bu rapor eski build 54'te mevcut degildir; tek basina TLS kok nedenini cozmez.
+
+Beklenen:
+
+- API, indirme, yukleme ve galeriden dosya alma/hazirlama ayri operation alanlarinda gorunur.
+- Domain/kod ve izin verilen underlying/CFStream kodlari tutulur; HTTP hata ve normal iptal ayridir.
+- URLSession olcumleri mevcutsa DNS/TCP/TLS/istek/yanit zamanlari, yeniden kullanilan baglanti ve protokol gorunur. Bos olcum belirli bir hata asamasinin kaniti degildir.
+- En fazla 100 kayit ve 24 saatlik pencere; zamanlar UTC/ISO8601'dir. Arayuz yolu baglanti baslangicindaki NWPath tahminidir; task'in cellular olcumu ayrica tutulur.
+- Ham URL/query, kimlikler, Authorization/cookie, istek/yanit govdesi, foto/mesaj icerigi, IP/SSID/cihaz adi raporda yoktur. Hata mesajlari ve serbest userInfo metni disari cikmaz.
+- Kayitlar cihazda korumali/backup disi saklanir; rapor otomatik yuklenmez. Silme ve cikis/hesap degisimi yerel raporu temizler; zaten paylasilmis kopyalari silemez.
+- Sertifika dogrulamasi/URLSession guven politikasi degismez. POST/yazma islemleri otomatik tekrarlanmaz. Dosya hatasi asıl islemin sonucunu degistirmez.
+- Rapor tum OS/StoreKit/sosyal giris SDK/AsyncImage trafigini kapsamaz. Tanilama UUID'si istek bazlidir; mevcut Nginx combined log'u bu header'i kaydetmez. Sunucu eslestirmesi simdilik zaman/metot/route ile yapilir.
+
+Gerekirse Mac Console veya kontrollu Apple CFNetwork/sysdiagnose kaydi ile
+gercek TLS tetikleyicisi arastirilir. Ham Apple gunlukleri hassas veri
+icerebilir; genel kullanicilarda detayli CFNETWORK_DIAGNOSTICS acilmaz.
+
 ## Cikis Kriterleri
 
 - Backend V46, yeni iOS dagitimindan once yedek alinip PostgreSQL 13+ uzerinde uygulanmis; `flyway_schema_history` ve feature context UUID'si dogrulanmis olmali. Yerel Java/mock testleri SQL migrasyonunu dogrulamaz.

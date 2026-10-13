@@ -27,6 +27,10 @@ jobs:
   compile:
     runs-on: macos-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPhone, iPad]
     steps:
       - uses: actions/checkout@v4
       - name: Guard the passwordless social sign-in contract
@@ -64,6 +68,7 @@ jobs:
           done < /tmp/pusula-ios-build.log
           exit 1
       - name: Regress login, refresh failures and 10000-ticket responsiveness on iPhone
+        if: matrix.device == 'iPhone'
         run: |
           set -o pipefail
           simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(d["udid"] for group in devices.values() for d in group if d.get("isAvailable") and d["name"].startswith("iPhone")))')
@@ -78,6 +83,7 @@ jobs:
             -only-testing:PusulaServiceScreenshots/TicketListPerformanceTests \
             -only-testing:PusulaServiceScreenshots/TicketDetailLoadTests \
             -only-testing:PusulaServiceScreenshots/CustomerRefreshTests \
+            -only-testing:PusulaServiceScreenshots/ConnectionDiagnosticsPresentationTests \
             test-without-building 2>&1 | tee /tmp/pusula-ios-smoke.log; then
             exit 0
           fi
@@ -90,6 +96,7 @@ jobs:
           done < /tmp/pusula-ios-smoke.log
           exit 1
       - name: Regress Apple sign-in and refresh failures on iPad
+        if: matrix.device == 'iPad'
         run: |
           set -o pipefail
           simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; devices=json.load(sys.stdin)["devices"]; print(next(d["udid"] for group in devices.values() for d in group if d.get("isAvailable") and d["name"].startswith("iPad")))')
@@ -101,6 +108,7 @@ jobs:
             -only-testing:PusulaServiceScreenshots/SocialSignInFlowTests \
             -only-testing:PusulaServiceScreenshots/TicketDetailLoadTests \
             -only-testing:PusulaServiceScreenshots/CustomerRefreshTests \
+            -only-testing:PusulaServiceScreenshots/ConnectionDiagnosticsPresentationTests \
             test-without-building 2>&1 | tee /tmp/pusula-ios-social-ipad.log
       - name: Export failed simulator attachments for diagnosis
         if: failure()
@@ -116,7 +124,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ios-simulator-failure-${{ github.run_id }}
+          name: ios-simulator-failure-${{ matrix.device }}-${{ github.run_id }}
           path: |
             /tmp/pusula-ios-*.log
             /tmp/pusula-ios-*.xcresult
