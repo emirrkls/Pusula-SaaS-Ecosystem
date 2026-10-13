@@ -30,6 +30,19 @@ struct ConnectionErrorCode: Codable, Equatable, Sendable {
         }
         return result
     }
+
+    static func streamDetails(_ error: Error?) -> (Int?, Int?) {
+        var current = error.map { $0 as NSError }
+        var visited = Set<ObjectIdentifier>()
+        for _ in 0..<4 {
+            guard let value = current, visited.insert(ObjectIdentifier(value)).inserted else { break }
+            let domain = (value.userInfo["_kCFStreamErrorDomainKey"] as? NSNumber)?.intValue
+            let code = (value.userInfo["_kCFStreamErrorCodeKey"] as? NSNumber)?.intValue
+            if domain != nil || code != nil { return (domain, code) }
+            current = value.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        return (nil, nil)
+    }
 }
 
 struct ConnectionTransaction: Codable, Equatable, Sendable {
@@ -132,9 +145,9 @@ struct ConnectionDiagnosticRecord: Codable, Identifiable, Equatable, Sendable {
         self.interface = interface
         self.appState = appState
         errors = error.map(ConnectionErrorCode.capture) ?? []
-        let nsError = error.map { $0 as NSError }
-        streamErrorDomain = (nsError?.userInfo["_kCFStreamErrorDomainKey"] as? NSNumber)?.intValue
-        streamErrorCode = (nsError?.userInfo["_kCFStreamErrorCodeKey"] as? NSNumber)?.intValue
+        let stream = ConnectionErrorCode.streamDetails(error)
+        streamErrorDomain = stream.0
+        streamErrorCode = stream.1
         self.transactions = Array(transactions.suffix(4)).map { $0.redacted() }
         if error is CancellationError || errors.contains(where: { $0.domain == .url && $0.code == -999 }) {
             outcome = .cancelled

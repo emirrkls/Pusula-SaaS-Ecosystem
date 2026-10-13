@@ -48,6 +48,18 @@ final class ConnectionDiagnosticsTests: XCTestCase {
         XCTAssertEqual(ConnectionDiagnosticRecord(operation: .api, url: url, status: 200).outcome, .success)
     }
 
+    func testNestedCFStreamCodesAreNotLostBehindGenericTLSFailure() {
+        let detail = NSError(domain: "kCFErrorDomainCFNetwork", code: -1200, userInfo: [
+            "_kCFStreamErrorDomainKey": 3, "_kCFStreamErrorCodeKey": -9824,
+            NSLocalizedDescriptionKey: "SECRET-DETAIL"
+        ])
+        let outer = NSError(domain: NSURLErrorDomain, code: -1200, userInfo: [NSUnderlyingErrorKey: detail])
+        let record = ConnectionDiagnosticRecord(operation: .api, error: outer).redacted()
+        XCTAssertEqual(record.streamErrorDomain, 3)
+        XCTAssertEqual(record.streamErrorCode, -9824)
+        XCTAssertEqual(record.errors.map(\.code), [-1200, -1200])
+    }
+
     func testRestoredUntrustedStringsAreSanitizedAgainIncludingOriginalBuild() throws {
         let source = ConnectionDiagnosticRecord(operation: .api, url: URL(string: "https://api.pusulaiklimlendirme.com/api/customers"))
         var object = try XCTUnwrap(JSONSerialization.jsonObject(with: ConnectionDiagnosticsStore.encoder().encode(source)) as? [String: Any])
