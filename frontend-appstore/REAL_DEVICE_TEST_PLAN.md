@@ -479,6 +479,7 @@ Beklenen:
 - Domain/kod ve izin verilen underlying/CFStream kodlari tutulur; HTTP hata ve normal iptal ayridir.
 - URLSession olcumleri mevcutsa DNS/TCP/TLS/istek/yanit zamanlari, yeniden kullanilan baglanti ve protokol gorunur. Bos olcum belirli bir hata asamasinin kaniti degildir.
 - En fazla 100 kayit ve 24 saatlik pencere; zamanlar UTC/ISO8601'dir. Arayuz yolu baglanti baslangicindaki NWPath tahminidir; task'in cellular olcumu ayrica tutulur.
+- Her kaydin sourceAppVersion/sourceBuild/sourceOSVersion alanlari olay anindaki surumu korur; rapor metadata'si raporu olusturan guncel surumu anlatir.
 - Ham URL/query, kimlikler, Authorization/cookie, istek/yanit govdesi, foto/mesaj icerigi, IP/SSID/cihaz adi raporda yoktur. Hata mesajlari ve serbest userInfo metni disari cikmaz.
 - Kayitlar cihazda korumali/backup disi saklanir; rapor otomatik yuklenmez. Silme ve cikis/hesap degisimi yerel raporu temizler; zaten paylasilmis kopyalari silemez.
 - Sertifika dogrulamasi/URLSession guven politikasi degismez. POST/yazma islemleri otomatik tekrarlanmaz. Dosya hatasi asıl islemin sonucunu degistirmez.
@@ -487,6 +488,13 @@ Beklenen:
 Gerekirse Mac Console veya kontrollu Apple CFNetwork/sysdiagnose kaydi ile
 gercek TLS tetikleyicisi arastirilir. Ham Apple gunlukleri hassas veri
 icerebilir; genel kullanicilarda detayli CFNETWORK_DIAGNOSTICS acilmaz.
+
+Yeni build'in dagitimi oncesinde manuel destek raporlarinin alinmasi/saklanmasi
+is akisina gore App Store gizlilik beyanlari ve gizlilik metni tekrar
+degerlendirilmelidir (Other Diagnostic Data/Performance Data veya destek
+istisnasinin tum kosullari). Cihazda tutma, otomatik sunucuya gonderme degildir;
+manuel paylasim da kosulsuz bir beyan muafiyeti kabul edilmemelidir. Bu calisma
+App Store Connect'teki mevcut beyanlari veya incelemedeki build 54'u degistirmez.
 
 ## Cikis Kriterleri
 

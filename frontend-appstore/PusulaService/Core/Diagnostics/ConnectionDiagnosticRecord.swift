@@ -95,6 +95,9 @@ enum ConnectionDiagnosticPrivacy {
 struct ConnectionDiagnosticRecord: Codable, Identifiable, Equatable, Sendable {
     let id: UUID
     let startedAt: Date
+    let sourceAppVersion: String
+    let sourceBuild: String
+    let sourceOSVersion: String
     let operation: ConnectionOperation
     let target: ConnectionTarget
     let route: String
@@ -116,6 +119,10 @@ struct ConnectionDiagnosticRecord: Codable, Identifiable, Equatable, Sendable {
          transactions: [ConnectionTransaction] = []) {
         self.id = id
         self.startedAt = startedAt
+        sourceAppVersion = ConnectionDiagnosticPrivacy.version(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")
+        sourceBuild = ConnectionDiagnosticPrivacy.version(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "")
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        sourceOSVersion = "\(os.majorVersion).\(os.minorVersion).\(os.patchVersion)"
         self.operation = operation
         target = url == nil ? .local : (url?.host == "api.pusulaiklimlendirme.com" ? .api : .external)
         route = target == .api ? ConnectionDiagnosticPrivacy.route(url?.path ?? "") : "/"
@@ -150,18 +157,24 @@ struct ConnectionDiagnosticRecord: Codable, Identifiable, Equatable, Sendable {
 
     private func preservingSafeErrorDetails(from source: Self) -> Self {
         // All these values have closed enum or numeric types; no free text.
-        Self(id: id, startedAt: startedAt, operation: operation, target: target, route: route, method: method,
+        Self(id: id, startedAt: startedAt,
+             sourceAppVersion: ConnectionDiagnosticPrivacy.version(source.sourceAppVersion),
+             sourceBuild: ConnectionDiagnosticPrivacy.version(source.sourceBuild),
+             sourceOSVersion: ConnectionDiagnosticPrivacy.version(source.sourceOSVersion),
+             operation: operation, target: target, route: route, method: method,
              outcome: source.outcome, status: status, elapsedMilliseconds: elapsedMilliseconds,
              interface: interface, appState: appState, errors: Array(source.errors.prefix(4)),
              streamErrorDomain: source.streamErrorDomain, streamErrorCode: source.streamErrorCode,
              transactions: transactions)
     }
 
-    private init(id: UUID, startedAt: Date, operation: ConnectionOperation, target: ConnectionTarget,
+    private init(id: UUID, startedAt: Date, sourceAppVersion: String, sourceBuild: String, sourceOSVersion: String,
+                 operation: ConnectionOperation, target: ConnectionTarget,
                  route: String, method: String, outcome: ConnectionOutcome, status: Int?, elapsedMilliseconds: Int,
                  interface: ConnectionInterface, appState: ConnectionAppState, errors: [ConnectionErrorCode],
                  streamErrorDomain: Int?, streamErrorCode: Int?, transactions: [ConnectionTransaction]) {
         self.id = id; self.startedAt = startedAt; self.operation = operation; self.target = target
+        self.sourceAppVersion = sourceAppVersion; self.sourceBuild = sourceBuild; self.sourceOSVersion = sourceOSVersion
         self.route = route; self.method = method; self.outcome = outcome; self.status = status
         self.elapsedMilliseconds = elapsedMilliseconds; self.interface = interface; self.appState = appState
         self.errors = errors; self.streamErrorDomain = streamErrorDomain; self.streamErrorCode = streamErrorCode

@@ -48,6 +48,22 @@ final class ConnectionDiagnosticsTests: XCTestCase {
         XCTAssertEqual(ConnectionDiagnosticRecord(operation: .api, url: url, status: 200).outcome, .success)
     }
 
+    func testRestoredUntrustedStringsAreSanitizedAgainIncludingOriginalBuild() throws {
+        let source = ConnectionDiagnosticRecord(operation: .api, url: URL(string: "https://api.pusulaiklimlendirme.com/api/customers"))
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: ConnectionDiagnosticsStore.encoder().encode(source)) as? [String: Any])
+        object["sourceAppVersion"] = "SECRET-USER"
+        object["sourceBuild"] = "SECRET-TOKEN"
+        object["sourceOSVersion"] = "SECRET-DEVICE"
+        object["route"] = "/api/customers/SECRET-NAME?token=SECRET-QUERY"
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let restored = try decoder.decode(ConnectionDiagnosticRecord.self, from: JSONSerialization.data(withJSONObject: object))
+        let safe = restored.redacted()
+        XCTAssertEqual(safe.sourceBuild, "unknown")
+        XCTAssertEqual(safe.route, "/api/customers/:redacted")
+        XCTAssertFalse(String(decoding: try ConnectionDiagnosticsStore.encoder().encode(safe), as: UTF8.self).contains("SECRET"))
+    }
+
     func testMetricsCannotExportArbitraryProtocolStringsOrUnrecognizedTLS() {
         var metrics = ConnectionTransaction()
         metrics.protocolName = "SECRET-PROTOCOL"

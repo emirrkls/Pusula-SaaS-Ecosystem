@@ -67,6 +67,19 @@ jobs:
             fi
           done < /tmp/pusula-ios-build.log
           exit 1
+      - name: Compile clean Release and reject simulator-only diagnostic hooks
+        run: |
+          set -o pipefail
+          xcodebuild -project frontend-appstore/PusulaService.xcodeproj \
+            -scheme PusulaService -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath /tmp/pusula-release CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee /tmp/pusula-ios-release.log
+          if strings /tmp/pusula-release/Build/Products/Release-iphonesimulator/PusulaService.app/PusulaService \
+            | grep -E 'PUSULA_(CONNECTION_DIAGNOSTICS_FIXTURE|CUSTOMER_REFRESH_FIXTURE|TICKET_DETAIL_LOAD_FIXTURE|SOCIAL_AUTH_FIXTURE|TICKET_STRESS_COUNT)'; then
+            echo '::error::A simulator-only regression hook is present in Release'
+            exit 1
+          fi
       - name: Regress login, refresh failures and 10000-ticket responsiveness on iPhone
         if: matrix.device == 'iPhone'
         run: |
