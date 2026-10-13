@@ -24,7 +24,9 @@ concurrency:
 jobs:
   release:
     if: github.ref == 'refs/heads/main'
-    runs-on: macos-latest
+    # Use the same standard Intel pool as the validated iPhone/iPad gate.
+    # This avoids arm64 startup stalls without using a premium runner.
+    runs-on: macos-26-intel
     timeout-minutes: 60
     env:
       BUILD_NUMBER: ${{ inputs.build_number }}
