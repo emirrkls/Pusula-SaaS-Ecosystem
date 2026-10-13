@@ -32,10 +32,11 @@ final class TicketDetailLoadTests: XCTestCase {
     func testFailedLegacyPartsReadDoesNotInventZeroFinancialTotals() {
         let app = launch("legacy-tls")
         let retry = reveal("ticket.parts.retry", in: app)
-        XCTAssertEqual(app.staticTexts["Bilgi alınamadı"].count, 2)
+        let unavailableAmounts = app.staticTexts.matching(NSPredicate(format: "label == %@", "Bilgi alınamadı"))
+        XCTAssertEqual(unavailableAmounts.count, 2)
         retry.tap()
         XCTAssertTrue(app.staticTexts["Sentetik filtre"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.staticTexts["Bilgi alınamadı"].count, 0)
+        XCTAssertEqual(unavailableAmounts.count, 0)
     }
 
     func testSuccessfulEmptyResponsesShowEmptyWithoutError() {
