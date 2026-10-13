@@ -35,6 +35,8 @@ struct ConnectionDiagnosticsView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding()
                                 .accessibilityIdentifier("diagnostics.report.body")
+                                .accessibilityLabel(Text("diagnostics.preview"))
+                                .accessibilityValue(Text(verbatim: reportText))
                         }
                         .navigationTitle("diagnostics.preview")
                     } label: { Label("diagnostics.preview", systemImage: "doc.text.magnifyingglass") }

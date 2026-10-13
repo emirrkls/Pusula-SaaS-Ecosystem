@@ -11,11 +11,18 @@ final class ConnectionDiagnosticsPresentationTests: XCTestCase {
         reveal("diagnostics.preview.open", in: app, scrollUp: false).tap()
         let body = app.staticTexts["diagnostics.report.body"]
         XCTAssertTrue(body.waitForExistence(timeout: 5))
-        XCTAssertTrue(body.label.contains("NSURLErrorDomain"))
-        XCTAssertTrue(body.label.contains("-1200"))
-        XCTAssertTrue(body.label.contains("/api/tickets/:id/photos"))
-        XCTAssertFalse(body.label.contains("fixture-secret"))
-        XCTAssertFalse(body.label.contains("987654"))
+        // Selectable SwiftUI Text can expose a presentation label rather than
+        // its full document. The explicit accessible value is the displayed text.
+        let reportText = body.value as? String ?? body.label
+        if !reportText.contains("NSURLErrorDomain") {
+            print("Offline report AX label=\(body.label), value=\(String(describing: body.value))")
+            print(app.debugDescription)
+        }
+        XCTAssertTrue(reportText.contains("NSURLErrorDomain"))
+        XCTAssertTrue(reportText.contains("-1200"))
+        XCTAssertTrue(reportText.contains("/api/tickets/:id/photos"))
+        XCTAssertFalse(reportText.contains("fixture-secret"))
+        XCTAssertFalse(reportText.contains("987654"))
     }
 
     func testClearRemovesRecordsAndDisablesSharing() {

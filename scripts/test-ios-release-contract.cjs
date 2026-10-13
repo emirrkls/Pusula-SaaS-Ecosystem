@@ -214,6 +214,8 @@ test('diagnostics is local bounded protected storage with explicit user sharing 
   assert.match(storage, /completeFileProtectionUntilFirstUserAuthentication/);
   assert.match(storage, /guard generation == expected else \{ return \}/);
   assert.match(storage, /records\.append\(record\.redacted\(\)\)/);
+  assert.match(storage, /read\(upToCount: 512 \* 1_024 \+ 1\)/);
+  assert.doesNotMatch(storage, /attributesOfItem|creationDate|modificationDate|volumeAvailableCapacity/);
   assert.doesNotMatch(storage, /URLSession|NetworkManager|AuthService|UserDefaults/);
   const view = read(app + 'Views/Shared/ConnectionDiagnosticsView.swift');
   assert.match(view, /ShareLink\(item: exportURL\)/);

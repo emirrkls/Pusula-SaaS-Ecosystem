@@ -68,9 +68,11 @@ actor ConnectionDiagnosticsStore {
         guard !didRestore else { return }
         didRestore = true
         guard let file = directory?.appendingPathComponent("records.json"),
-              let size = (try? FileManager.default.attributesOfItem(atPath: file.path)[.size]) as? NSNumber,
-              size.intValue <= 512 * 1_024,
-              let data = try? Data(contentsOf: file), data.count <= 512 * 1_024 else { return }
+              let handle = try? FileHandle(forReadingFrom: file) else { return }
+        defer { try? handle.close() }
+        // Bounded content read; no file timestamps or disk-space metadata.
+        guard let data = try? handle.read(upToCount: 512 * 1_024 + 1),
+              data.count <= 512 * 1_024 else { return }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         if let decoded = try? decoder.decode([ConnectionDiagnosticRecord].self, from: data) {

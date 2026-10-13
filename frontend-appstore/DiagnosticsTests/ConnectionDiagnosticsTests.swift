@@ -172,6 +172,21 @@ final class ConnectionDiagnosticsTests: XCTestCase {
         catch { /* Diagnostics storage failure is contained. */ }
     }
 
+    func testOversizedOrCorruptLocalFileIsIgnoredWithBoundedRead() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let file = directory.appendingPathComponent("records.json")
+        try Data(repeating: 65, count: 600 * 1_024).write(to: file)
+        let oversized = ConnectionDiagnosticsStore(directory: directory)
+        let first = await oversized.report(metadata: metadata, now: now)
+        XCTAssertTrue(first.records.isEmpty)
+        try Data("invalid JSON".utf8).write(to: file)
+        let corrupt = ConnectionDiagnosticsStore(directory: directory)
+        let second = await corrupt.report(metadata: metadata, now: now)
+        XCTAssertTrue(second.records.isEmpty)
+    }
+
     func testLocalPhotoFailureIsRecordedSeparatelyWithoutBackendRequest() async {
         let store = ConnectionDiagnosticsStore()
         do {
