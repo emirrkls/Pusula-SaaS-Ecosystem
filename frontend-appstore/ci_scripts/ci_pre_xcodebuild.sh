@@ -2,6 +2,13 @@
 # Xcode Cloud release gate. This does not submit or change an App Review build.
 set -eu
 
+# Simulator workers restore the compiled test artifacts, not the source checkout.
+# Policy tests have already passed in the required build-for-testing action.
+if [ "${CI_XCODEBUILD_ACTION:-}" = "test-without-building" ]; then
+    echo "Policy gate already passed before build-for-testing; running compiled device tests."
+    exit 0
+fi
+
 repository_path="${CI_PRIMARY_REPOSITORY_PATH:?Xcode Cloud repository path is required}"
 package_path="$repository_path/frontend-appstore"
 
