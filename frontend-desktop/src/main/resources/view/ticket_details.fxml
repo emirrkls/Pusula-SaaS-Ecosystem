@@ -75,6 +75,7 @@
          <children>
             <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="%ticket.financial.parts"/><Label fx:id="lblPartsTotal" styleClass="ticket-summary-value"/></VBox>
             <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="%ticket.financial.labor"/><Label fx:id="lblLaborFee" styleClass="ticket-summary-value"/></VBox>
+            <VBox fx:id="discountSummaryBox" styleClass="ticket-summary-card"><Label styleClass="field-label" text="İskonto"/><Label fx:id="lblDiscountAmount" styleClass="ticket-summary-value"/></VBox>
             <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="Fiş Toplamı"/><Label fx:id="lblInvoiceTotal" styleClass="ticket-summary-value"/></VBox>
             <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="Tahsil Edilen"/><Label fx:id="lblCollectedAmount" styleClass="ticket-summary-value-success"/></VBox>
             <VBox styleClass="ticket-summary-card"><Label styleClass="field-label" text="%ticket.financial.customer_current"/><Label fx:id="lblOutstandingAmount" styleClass="ticket-summary-value-warning"/></VBox>

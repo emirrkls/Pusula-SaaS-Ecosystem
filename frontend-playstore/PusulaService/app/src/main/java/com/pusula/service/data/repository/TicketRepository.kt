@@ -43,10 +43,16 @@ class TicketRepository @Inject constructor(
         method: String,
         laborFee: Double,
         technicianNote: String? = null
-    ): FieldTicketDTO = apiService.completeTicket(
+    ): FieldTicketDTO = apiService.completeTicketReliable(
         ticketId,
+        java.util.UUID.randomUUID().toString(),
         CollectionRequest(amount, method, laborFee, technicianNote?.trim()?.ifBlank { null })
     )
+
+    suspend fun completeService(ticketId: Long, key: String, request: CollectionRequest): FieldTicketDTO =
+        apiService.completeTicketReliable(ticketId, key, request)
+
+    suspend fun getBillingOrganizations() = apiService.billingOrganizations()
 
     suspend fun getTechnicianNotes(ticketId: Long): List<TechnicianNoteDTO> =
         apiService.technicianNotes(ticketId)
@@ -149,6 +155,10 @@ class TicketRepository @Inject constructor(
         notes = dto.notes,
         technicianPrivateNote = dto.technicianPrivateNote,
         collectedAmount = dto.collectedAmount,
+        partsTotal = dto.partsTotal, laborFee = dto.laborFee, invoiceTotal = dto.invoiceTotal,
+        outstandingAmount = dto.outstandingAmount, discountType = dto.discountType,
+        discountValue = dto.discountValue, discountAmount = dto.discountAmount,
+        billingPartyId = dto.billingPartyId, billingPartyName = dto.billingPartyName, billingPartyAmount = dto.billingPartyAmount,
         paymentMethod = dto.paymentMethod,
         isWarrantyCall = dto.isWarrantyCall,
         parentTicketId = dto.parentTicketId,

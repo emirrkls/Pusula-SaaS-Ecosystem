@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Centralized network manager using async/await.
 /// Automatically attaches JWT Bearer token to authenticated requests.
@@ -8,9 +11,11 @@ actor NetworkManager {
     private let baseURL = "https://api.pusulaiklimlendirme.com"
     
     private var authToken: String?
+    private var credentialGeneration: UInt64 = 0
     
     func setToken(_ token: String?) async {
         let changedAccount = authToken != nil && authToken != token
+        if authToken != token { credentialGeneration &+= 1 }
         self.authToken = token
         if changedAccount { await ConnectionDiagnosticsStore.shared.clear() }
     }
@@ -18,6 +23,7 @@ actor NetworkManager {
     func clearToken(ifMatching expectedToken: String?) async -> Bool {
         guard authToken == expectedToken else { return false }
         authToken = nil
+        credentialGeneration &+= 1
         await ConnectionDiagnosticsStore.shared.clear()
         return true
     }
@@ -36,7 +42,8 @@ actor NetworkManager {
         path: String,
         body: (any Encodable)? = nil,
         requiresAuth: Bool = true,
-        authTokenOverride: String? = nil
+        authTokenOverride: String? = nil,
+        idempotencyKey: UUID? = nil
     ) async throws -> T {
         guard let url = URL(string: baseURL + path) else {
             throw NetworkError.invalidURL
@@ -47,6 +54,7 @@ actor NetworkManager {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = 30
+        if let idempotencyKey { request.setValue(idempotencyKey.uuidString, forHTTPHeaderField: "Idempotency-Key") }
         
         // Attach JWT if authenticated
         let requestToken = requiresAuth ? (authTokenOverride ?? authToken) : nil
@@ -117,8 +125,9 @@ actor NetworkManager {
         try await request(.GET, path: path, requiresAuth: requiresAuth)
     }
     
-    func post<T: Decodable>(_ path: String, body: any Encodable, requiresAuth: Bool = true) async throws -> T {
-        try await request(.POST, path: path, body: body, requiresAuth: requiresAuth)
+    func post<T: Decodable>(_ path: String, body: any Encodable, requiresAuth: Bool = true,
+                           idempotencyKey: UUID? = nil) async throws -> T {
+        try await request(.POST, path: path, body: body, requiresAuth: requiresAuth, idempotencyKey: idempotencyKey)
     }
     
     func put<T: Decodable>(_ path: String, body: any Encodable) async throws -> T {
@@ -170,7 +179,8 @@ actor NetworkManager {
         fileName: String,
         mimeType: String,
         fieldName: String = "file",
-        textFields: [String: String] = [:]
+        textFields: [String: String] = [:],
+        idempotencyKey: UUID? = nil
     ) async throws -> T {
         let data = try await uploadMultipartData(
             path: path,
@@ -178,7 +188,8 @@ actor NetworkManager {
             fileName: fileName,
             mimeType: mimeType,
             fieldName: fieldName,
-            textFields: textFields
+            textFields: textFields,
+            idempotencyKey: idempotencyKey
         )
 
         if data.isEmpty, T.self == EmptyResponse.self {
@@ -213,7 +224,8 @@ actor NetworkManager {
         fileName: String,
         mimeType: String,
         fieldName: String,
-        textFields: [String: String]
+        textFields: [String: String],
+        idempotencyKey: UUID? = nil
     ) async throws -> Data {
         guard let url = URL(string: baseURL + path) else {
             throw NetworkError.invalidURL
@@ -224,6 +236,7 @@ actor NetworkManager {
         request.httpMethod = HTTPMethod.POST.rawValue
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 120
+        if let idempotencyKey { request.setValue(idempotencyKey.uuidString, forHTTPHeaderField: "Idempotency-Key") }
         
         let requestToken = authToken
         if let token = requestToken {
@@ -285,9 +298,20 @@ actor NetworkManager {
     }
 
     private func observedData(for request: URLRequest, operation: ConnectionOperation) async throws -> (Data, URLResponse) {
+        let generation = credentialGeneration
+        let authorization = request.value(forHTTPHeaderField: "Authorization")
+        guard mayRetry(generation: generation, authorization: authorization) else { throw CancellationError() }
         let context = await ConnectionDiagnosticEnvironment.context()
-        return try await ConnectionDiagnosticsTransport.data(for: request, operation: operation,
-            interface: context.0, appState: context.1)
+        guard mayRetry(generation: generation, authorization: authorization) else { throw CancellationError() }
+        let result = try await ConnectionReliableTransport.data(for: request, operation: operation,
+            interface: context.0, appState: context.1,
+            mayRetry: { await self.mayRetry(generation: generation, authorization: authorization) })
+        guard mayRetry(generation: generation, authorization: authorization) else { throw CancellationError() }
+        return result
+    }
+
+    private func mayRetry(generation: UInt64, authorization: String?) -> Bool {
+        credentialGeneration == generation && (authorization == nil || authorization == authToken.map { "Bearer \($0)" })
     }
 
     private func apiErrorMessage(from data: Data) -> String? {

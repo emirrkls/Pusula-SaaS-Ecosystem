@@ -822,6 +822,7 @@ struct CreateTicketSheet: View {
     @State private var scheduledDay: Date
     @State private var scheduledStart: Date
     @State private var scheduledEnd: Date
+    @State private var submissionId = UUID()
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -980,10 +981,11 @@ struct CreateTicketSheet: View {
                 }
             }
             .navigationTitle("Servis Fişi Oluştur")
+            .interactiveDismissDisabled(isSaving)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("İptal") { dismiss() }
+                    Button("İptal") { dismiss() }.disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Oluştur") { Task { await createTicket() } }
@@ -1019,6 +1021,7 @@ struct CreateTicketSheet: View {
     }
     
     private func createTicket() async {
+        guard !isSaving else { return }
         guard let customerId = selectedCustomerId else { return }
         guard let start = combinedSchedule(day: scheduledDay, time: scheduledStart),
               let end = combinedSchedule(day: scheduledDay, time: scheduledEnd), end > start else {
@@ -1036,7 +1039,7 @@ struct CreateTicketSheet: View {
                 scheduledDate: backendDateTime(start),
                 scheduledEndDate: backendDateTime(end)
             )
-            _ = try await TicketService.createTicket(request)
+            _ = try await TicketService.createTicket(request, requestId: submissionId)
             await onCreated()
             await MainActor.run { dismiss() }
         } catch {

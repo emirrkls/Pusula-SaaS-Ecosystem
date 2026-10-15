@@ -2,6 +2,7 @@ package com.pusula.backend.config;
 
 import com.pusula.backend.service.AppStoreVerificationException;
 import com.pusula.backend.service.PaymentOwnershipException;
+import com.pusula.backend.service.MutationConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -24,6 +26,20 @@ import java.util.UUID;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingHeader(
+            MissingRequestHeaderException exception, HttpServletRequest request) {
+        return ResponseEntity.badRequest().body(errorBody(HttpStatus.BAD_REQUEST,
+                "MISSING_HEADER", "İstek için zorunlu bir başlık eksik.", request, null));
+    }
+
+    @ExceptionHandler(MutationConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleMutationConflict(
+            MutationConflictException exception, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(errorBody(HttpStatus.CONFLICT, exception.getCode(), exception.getMessage(), request, null));
+    }
 
     /**
      * Jakarta Validation (@Valid) hatalarını yapılandırılmış JSON olarak döndürür.

@@ -77,6 +77,11 @@ private final class ConnectionMetricsObserver: NSObject, URLSessionTaskDelegate,
             result.protocolName = metric.networkProtocolName
 #if !canImport(FoundationNetworking)
             result.tlsProtocol = metric.negotiatedTLSProtocolVersion.map { Int($0.rawValue) }
+            result.localPort = metric.localPort
+            if let address = metric.remoteAddress {
+                // Keep only the address family, never the address itself.
+                result.remoteAddressFamily = address.contains(":") ? "ipv6" : "ipv4"
+            }
 #endif
             return result.redacted()
         }

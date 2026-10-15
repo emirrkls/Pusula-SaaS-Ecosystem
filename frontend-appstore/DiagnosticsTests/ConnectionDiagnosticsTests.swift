@@ -1,4 +1,7 @@
 import XCTest
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 @testable import PusulaDiagnostics
 
 final class ConnectionDiagnosticsTests: XCTestCase {
@@ -67,8 +70,7 @@ final class ConnectionDiagnosticsTests: XCTestCase {
         object["sourceBuild"] = "SECRET-TOKEN"
         object["sourceOSVersion"] = "SECRET-DEVICE"
         object["route"] = "/api/customers/SECRET-NAME?token=SECRET-QUERY"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = ConnectionDiagnosticsStore.decoder()
         let restored = try decoder.decode(ConnectionDiagnosticRecord.self, from: JSONSerialization.data(withJSONObject: object))
         let safe = restored.redacted()
         XCTAssertEqual(safe.sourceBuild, "unknown")

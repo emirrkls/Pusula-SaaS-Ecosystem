@@ -11,6 +11,7 @@ struct ServicePhotoView: View {
     @State private var loadError: String?
     @State private var hasLoaded = false
     @State private var isUploading = false
+    @State private var uploadSubmissionId = UUID()
     @State private var selectedType = "BEFORE"
     @State private var note = ""
     @State private var selectedLibraryItem: PhotosPickerItem?
@@ -38,6 +39,7 @@ struct ServicePhotoView: View {
                             .frame(maxWidth: .infinity).padding(.vertical, 8)
                     }
                     .buttonStyle(.borderedProminent).tint(PusulaTheme.accent).readOnlyProtected()
+                    .disabled(isUploading)
                 }
                 .pusulaCard()
 
@@ -61,7 +63,8 @@ struct ServicePhotoView: View {
         }
         .background(PusulaTheme.page)
         .navigationTitle("Servis Görselleri").navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Tamam") { dismiss() } } }
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Tamam") { dismiss() }.disabled(isUploading) } }
+        .interactiveDismissDisabled(isUploading)
         .task { await loadPhotos() }
         .refreshable { await loadPhotos() }
         .onDisappear { loadRequest.invalidate(); isLoading = false }
@@ -148,10 +151,15 @@ struct ServicePhotoView: View {
         await MainActor.run { selectedLibraryItem = nil }
     }
     private func upload(data: Data) async {
+        guard !isUploading else { return }
         isUploading = true
         do {
-            let saved = try await TicketService.uploadServicePhoto(ticketId: ticketId, type: selectedType, note: note, imageData: data)
-            await MainActor.run { photos.insert(saved, at: 0); note = ""; isUploading = false }
+            let saved = try await TicketService.uploadServicePhoto(ticketId: ticketId, type: selectedType, note: note,
+                imageData: data, requestId: uploadSubmissionId)
+            await MainActor.run {
+                if !photos.contains(where: { $0.id == saved.id }) { photos.insert(saved, at: 0) }
+                uploadSubmissionId = UUID(); note = ""; isUploading = false
+            }
         } catch { await MainActor.run { errorMessage = error.localizedDescription; isUploading = false } }
     }
     private func deletePhoto(_ photo: ServicePhotoDTO) async {

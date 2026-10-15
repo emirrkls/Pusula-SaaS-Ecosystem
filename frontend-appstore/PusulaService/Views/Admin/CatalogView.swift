@@ -302,6 +302,7 @@ private struct InventoryEditorSheet: View {
     let onSaved: (InventoryItemDTO) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var submissionId = UUID()
     @State private var partName = ""
     @State private var quantity = "1"
     @State private var buyPrice = ""
@@ -382,7 +383,7 @@ private struct InventoryEditorSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Vazgeç") { dismiss() }
+                    Button("Vazgeç") { dismiss() }.disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Kaydet") { Task { await save() } }
@@ -405,6 +406,7 @@ private struct InventoryEditorSheet: View {
     }
 
     private func save() async {
+        guard !isSaving else { return }
         guard let parsedQuantity = nonNegativeDecimal(quantity) else { return }
         let parsedCriticalLevel = optionalNonNegativeDecimal(criticalLevel)
         guard unitOfMeasure != "ADET" || (
@@ -431,7 +433,7 @@ private struct InventoryEditorSheet: View {
             let saved = if let id = item?.id {
                 try await TicketService.updateInventory(id: id, item: dto)
             } else {
-                try await TicketService.createInventory(dto)
+                try await TicketService.createInventory(dto, requestId: submissionId)
             }
             onSaved(saved)
             dismiss()

@@ -67,6 +67,7 @@ data class MonthlySummaryDTO(
     val period: String? = null,
     val displayPeriod: String? = null,
     val totalIncome: Double? = null,
+    val totalDiscounts: Double? = null,
     val totalExpense: Double? = null,
     val netProfit: Double? = null,
     val carryOver: Double? = null

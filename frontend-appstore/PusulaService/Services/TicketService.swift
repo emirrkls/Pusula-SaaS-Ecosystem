@@ -18,8 +18,8 @@ enum TicketService {
         try await NetworkManager.shared.request(.GET, path: "/api/audit-logs/ticket/\(ticketId)", authTokenOverride: authToken)
     }
     
-    static func createTicket(_ request: CreateTicketRequest) async throws -> FieldTicketDTO {
-        try await NetworkManager.shared.post("/api/tickets", body: request)
+    static func createTicket(_ request: CreateTicketRequest, requestId: UUID) async throws -> FieldTicketDTO {
+        try await NetworkManager.shared.post("/api/reliable-mutations/tickets", body: request, idempotencyKey: requestId)
     }
 
     static func updateTicket(id: Int, request: UpdateTicketRequest) async throws -> FieldTicketDTO {
@@ -71,17 +71,9 @@ enum TicketService {
         try await NetworkManager.shared.request(.PATCH, path: "/api/tickets/\(ticketId)/resume")
     }
     
-    static func completeService(ticketId: Int, amount: Double, paymentMethod: String, laborFee: Double,
-                                technicianNote: String? = nil, billingPartyId: Int? = nil,
-                                billingResponsibility: String? = nil,
-                                billingPartyAmount: Double? = nil) async throws -> FieldTicketDTO {
-        let body = CollectionRequest(collectedAmount: amount, paymentMethod: paymentMethod, laborFee: laborFee,
-                                     technicianNote: technicianNote?.trimmingCharacters(in: .whitespacesAndNewlines),
-                                     billingPartyId: billingPartyId, billingResponsibility: billingResponsibility,
-                                     billingPartyAmount: billingPartyAmount)
-        return try await NetworkManager.shared.request(
-            .PATCH, path: "/api/tickets/\(ticketId)/complete", body: body
-        )
+    static func completeService(ticketId: Int, request: CollectionRequest, requestId: UUID) async throws -> FieldTicketDTO {
+        try await NetworkManager.shared.post(
+            "/api/reliable-mutations/tickets/\(ticketId)/complete", body: request, idempotencyKey: requestId)
     }
 
     static func getBillingOrganizations() async throws -> [AccountPartyOptionDTO] {
@@ -128,8 +120,8 @@ enum TicketService {
         try await NetworkManager.shared.request(.GET, path: "/api/inventory", authTokenOverride: authToken)
     }
     
-    static func createInventory(_ item: InventoryItemDTO) async throws -> InventoryItemDTO {
-        try await NetworkManager.shared.post("/api/inventory", body: item)
+    static func createInventory(_ item: InventoryItemDTO, requestId: UUID) async throws -> InventoryItemDTO {
+        try await NetworkManager.shared.post("/api/reliable-mutations/inventory", body: item, idempotencyKey: requestId)
     }
     
     static func updateInventory(id: Int, item: InventoryItemDTO) async throws -> InventoryItemDTO {
@@ -144,13 +136,15 @@ enum TicketService {
         try await NetworkManager.shared.get("/api/tickets/\(ticketId)/photos")
     }
     
-    static func uploadServicePhoto(ticketId: Int, type: String, note: String, imageData: Data) async throws -> ServicePhotoDTO {
+    static func uploadServicePhoto(ticketId: Int, type: String, note: String, imageData: Data,
+                                   requestId: UUID) async throws -> ServicePhotoDTO {
         try await NetworkManager.shared.uploadMultipart(
-            path: "/api/tickets/\(ticketId)/photos",
+            path: "/api/reliable-mutations/tickets/\(ticketId)/photos",
             fileData: imageData,
             fileName: "photo.jpg",
             mimeType: "image/jpeg",
-            textFields: ["type": type, "note": note]
+            textFields: ["type": type, "note": note],
+            idempotencyKey: requestId
         )
     }
     

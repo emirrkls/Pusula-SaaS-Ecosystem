@@ -3,6 +3,7 @@ package com.pusula.service.data.remote
 import com.pusula.service.data.model.AuthRequest
 import com.pusula.service.data.model.AuthResponse
 import com.pusula.service.data.model.CollectionRequest
+import retrofit2.http.Header
 import com.pusula.service.data.model.CloseDayRequest
 import com.pusula.service.data.model.CategoryReportDTO
 import com.pusula.service.data.model.CurrentAccountDTO
@@ -121,6 +122,13 @@ interface ApiService {
 
     @PATCH("/api/tickets/{id}/complete")
     suspend fun completeTicket(@Path("id") ticketId: Long, @Body request: CollectionRequest): FieldTicketDTO
+
+    @POST("/api/reliable-mutations/tickets/{id}/complete")
+    suspend fun completeTicketReliable(@Path("id") ticketId: Long, @Header("Idempotency-Key") key: String,
+                                      @Body request: CollectionRequest): FieldTicketDTO
+
+    @GET("/api/account-parties/billing-options")
+    suspend fun billingOrganizations(): List<com.pusula.service.data.model.AccountPartyOptionDTO>
 
     @PUT("/api/tickets/{id}")
     suspend fun updateTicket(

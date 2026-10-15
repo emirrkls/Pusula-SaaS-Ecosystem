@@ -11,6 +11,8 @@ public class MonthlySummaryDTO {
     private String period; // "2025-11" (for backend)
     private String displayPeriod; // "Kasım 2025" (for display)
     private BigDecimal totalIncome;
+    /** Informational only: already deducted from totalIncome, never a cash expense. */
+    private BigDecimal totalDiscounts;
     private BigDecimal currentAccountTransferred;
     private BigDecimal cashCardCollections;
     private BigDecimal currentAccountCollections;

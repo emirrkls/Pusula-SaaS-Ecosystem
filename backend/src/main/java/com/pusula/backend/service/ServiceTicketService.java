@@ -1161,9 +1161,27 @@ public class ServiceTicketService {
     public ServiceTicketDTO completeService(Long ticketId, BigDecimal collectedAmount, BigDecimal laborFee,
             PaymentMethod paymentMethod, LocalDate requestedCompletionDate, Long billingPartyId,
             String requestedBillingResponsibility, BigDecimal requestedBillingPartyAmount) {
+        return completeService(ticketId, collectedAmount, laborFee, paymentMethod, requestedCompletionDate,
+                billingPartyId, requestedBillingResponsibility, requestedBillingPartyAmount, null, null);
+    }
+
+    @Transactional
+    public ServiceTicketDTO completeService(Long ticketId, BigDecimal collectedAmount, BigDecimal laborFee,
+            PaymentMethod paymentMethod, LocalDate requestedCompletionDate, Long billingPartyId,
+            String requestedBillingResponsibility, BigDecimal requestedBillingPartyAmount,
+            String discountType, BigDecimal discountValue) {
+        return completeService(ticketId, collectedAmount, laborFee, paymentMethod, requestedCompletionDate,
+                billingPartyId, requestedBillingResponsibility, requestedBillingPartyAmount, discountType, discountValue, null);
+    }
+
+    @Transactional
+    public ServiceTicketDTO completeService(Long ticketId, BigDecimal collectedAmount, BigDecimal laborFee,
+            PaymentMethod paymentMethod, LocalDate requestedCompletionDate, Long billingPartyId,
+            String requestedBillingResponsibility, BigDecimal requestedBillingPartyAmount,
+            String discountType, BigDecimal discountValue, BigDecimal expectedPartsTotal) {
         User currentUser = getCurrentUser();
-        ServiceTicket ticket = repository.findById(ticketId)
-                .filter(t -> t.getCompanyId().equals(currentUser.getCompanyId()))
+        // Serialize completions, including requests from older clients with no replay key.
+        ServiceTicket ticket = repository.findByIdAndCompanyIdForUpdate(ticketId, currentUser.getCompanyId())
                 .orElseThrow(() -> new RuntimeException("Ticket not found or access denied"));
 
         if (!isAdmin(currentUser)
@@ -1195,6 +1213,9 @@ public class ServiceTicketService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         PaymentMethod effectivePaymentMethod = paymentMethod != null ? paymentMethod : PaymentMethod.CASH;
+        if (expectedPartsTotal != null && ServicePricing.money(expectedPartsTotal).compareTo(ServicePricing.money(partsTotal)) != 0) {
+            throw new IllegalArgumentException("Parça toplamı değişmiş. Tahsilat ekranını yeniden açıp güncel tutarı kontrol edin.");
+        }
         BigDecimal effectiveLaborFee;
         BigDecimal invoiceTotal;
         BigDecimal effectiveCollectedAmount;
@@ -1209,6 +1230,18 @@ public class ServiceTicketService {
         }
         boolean institutionalWarranty = warrantyCompletion && billingParty != null;
         boolean structuredPricingRequest = laborFee != null || warrantyCompletion;
+        if (!structuredPricingRequest && (discountType != null || discountValue != null)) {
+            throw new IllegalArgumentException("İskonto için işçilik/servis bedelini ayrıca belirtin.");
+        }
+        ServicePricing.Totals pricing = ServicePricing.calculate(partsTotal,
+                laborFee == null ? BigDecimal.ZERO : laborFee, discountType, discountValue);
+        if (warrantyCompletion && pricing.discountAmount().signum() != 0) {
+            throw new IllegalArgumentException("Garanti kapanışında iskonto uygulanamaz; ücretsiz işlem için normal kapanışı kullanın.");
+        }
+        if (structuredPricingRequest) {
+            collectedAmount = ServicePricing.money(collectedAmount);
+            partsTotal = ServicePricing.money(partsTotal);
+        }
 
         if (institutionalWarranty) {
             if (collectedAmount.signum() != 0) {
@@ -1218,7 +1251,7 @@ public class ServiceTicketService {
                 throw new IllegalArgumentException("Kurum garantisi için işçilik/servis bedeli zorunludur ve negatif olamaz.");
             }
             effectiveLaborFee = laborFee;
-            invoiceTotal = partsTotal.add(effectiveLaborFee);
+            invoiceTotal = pricing.invoiceTotal();
             effectiveCollectedAmount = BigDecimal.ZERO;
             storedCollectedAmount = BigDecimal.ZERO;
             outstandingAmount = invoiceTotal;
@@ -1252,7 +1285,7 @@ public class ServiceTicketService {
                 throw new IllegalArgumentException("İşçilik/servis bedeli negatif olamaz.");
             }
             effectiveLaborFee = laborFee;
-            invoiceTotal = partsTotal.add(effectiveLaborFee);
+            invoiceTotal = pricing.invoiceTotal();
 
             if (effectivePaymentMethod == PaymentMethod.CURRENT_ACCOUNT) {
                 if (collectedAmount.signum() != 0) {
@@ -1272,7 +1305,7 @@ public class ServiceTicketService {
         BigDecimal billingPartyAmount = BigDecimal.ZERO;
         if (billingParty != null) {
             billingPartyAmount = requestedBillingPartyAmount != null
-                    ? requestedBillingPartyAmount
+                    ? ServicePricing.money(requestedBillingPartyAmount)
                     : outstandingAmount;
             if (billingPartyAmount.signum() < 0 || billingPartyAmount.compareTo(invoiceTotal) > 0) {
                 throw new IllegalArgumentException("Kuruma aktarılacak tutar sıfır ile fiş toplamı arasında olmalıdır.");
@@ -1281,6 +1314,9 @@ public class ServiceTicketService {
             throw new IllegalArgumentException("Kuruma tutar aktarabilmek için kurum/firma cari kartı seçilmelidir.");
         }
         BigDecimal customerShare = invoiceTotal.subtract(billingPartyAmount);
+        if (institutionalWarranty && billingPartyAmount.compareTo(invoiceTotal) != 0) {
+            throw new IllegalArgumentException("Kurum garantisinde fiş toplamının tamamı kuruma aktarılmalıdır.");
+        }
         if (effectiveCollectedAmount.compareTo(customerShare) > 0) {
             throw new IllegalArgumentException("Müşteriden alınan tutar, müşteriye düşen kısmı aşamaz.");
         }
@@ -1315,6 +1351,9 @@ public class ServiceTicketService {
                 ? (warrantyCompletion && !institutionalWarranty ? BigDecimal.ZERO : partsTotal) : null);
         ticket.setLaborFee(structuredPricingRequest ? effectiveLaborFee : null);
         ticket.setInvoiceTotal(structuredPricingRequest ? invoiceTotal : null);
+        ticket.setDiscountType(structuredPricingRequest ? pricing.discountType() : null);
+        ticket.setDiscountValue(structuredPricingRequest ? pricing.discountValue() : null);
+        ticket.setDiscountAmount(structuredPricingRequest ? pricing.discountAmount() : null);
         ticket.setCollectedAmount(storedCollectedAmount);
         ticket.setOutstandingAmount(structuredPricingRequest ? outstandingAmount : null);
         ticket.setPaymentMethod(effectivePaymentMethod);
@@ -1378,6 +1417,11 @@ public class ServiceTicketService {
                 String.format("Tahsilat kaydedildi: %.2f ₺ (%s)",
                         effectiveCollectedAmount,
                         effectivePaymentMethod.name()));
+        if (structuredPricingRequest && pricing.discountAmount().signum() > 0) {
+            auditLogService.log("DISCOUNT", "TICKET", saved.getId(),
+                    "Fiş iskontosu: " + pricing.discountAmount() + " ₺ (" + pricing.discountValue()
+                            + " " + pricing.discountType() + ") | Net fiş: " + invoiceTotal + " ₺");
+        }
 
         // WhatsApp notification — async fire-and-forget
         try {
@@ -1609,6 +1653,9 @@ public class ServiceTicketService {
         dto.setBillingResponsibility(ticket.getBillingResponsibility() != null
                 ? ticket.getBillingResponsibility().name() : null);
         dto.setBillingPartyAmount(ticket.getBillingPartyAmount());
+        dto.setDiscountType(ticket.getDiscountType());
+        dto.setDiscountValue(ticket.getDiscountValue());
+        dto.setDiscountAmount(ticket.getEffectiveDiscountAmount());
 
         return dto;
     }

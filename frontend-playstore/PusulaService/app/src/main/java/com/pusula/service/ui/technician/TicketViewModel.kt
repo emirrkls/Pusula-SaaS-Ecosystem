@@ -29,8 +29,14 @@ data class TicketUiState(
     val error: String? = null,
     val tickets: List<FieldTicketDTO> = emptyList(),
     val selectedTicket: FieldTicketDTO? = null,
+    val billingOrganizations: List<com.pusula.service.data.model.AccountPartyOptionDTO> = emptyList(),
+    val billingOrganizationsError: String? = null,
+    val collecting: Boolean = false,
+    val collectionLocked: Boolean = false,
     val technicians: List<TechnicianDTO> = emptyList(),
     val usedParts: List<UsedPartDTO> = emptyList(),
+    val usedPartsLoadedTicketId: Long? = null,
+    val usedPartsLoading: Boolean = false,
     val inventory: List<InventoryItemDTO> = emptyList(),
     val barcodeItem: InventoryItemDTO? = null,
     val barcodeLookupFailed: Boolean = false,
@@ -65,6 +71,40 @@ class TicketViewModel @Inject constructor(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(TicketUiState())
     val uiState: StateFlow<TicketUiState> = _uiState.asStateFlow()
+    private var pendingCollection: Triple<Long, String, com.pusula.service.data.model.CollectionRequest>? = null
+
+    fun loadBillingOrganizations() = viewModelScope.launch {
+        runCatching { repository.getBillingOrganizations() }
+            .onSuccess { values -> _uiState.update { it.copy(billingOrganizations = values, billingOrganizationsError = null) } }
+            .onFailure { failure ->
+                if (failure is kotlinx.coroutines.CancellationException) throw failure
+                _uiState.update { it.copy(billingOrganizationsError = "Kurumlar yüklenemedi. Tekrar deneyin.") }
+            }
+    }
+
+    fun completeService(ticketId: Long, request: com.pusula.service.data.model.CollectionRequest) = viewModelScope.launch {
+        if (_uiState.value.collecting) return@launch
+        val existing = pendingCollection
+        if (existing != null && existing.first != ticketId) {
+            _uiState.update { it.copy(error = "Önce bekleyen tahsilatın sonucunu kontrol edin.") }
+            return@launch
+        }
+        val attempt = existing ?: Triple(ticketId, java.util.UUID.randomUUID().toString(), request).also { pendingCollection = it }
+        _uiState.update { it.copy(collecting = true, collectionLocked = true, error = null) }
+        try {
+            val updated = repository.completeService(ticketId, attempt.second, attempt.third)
+            pendingCollection = null
+            _uiState.update { state -> state.copy(collecting = false, collectionLocked = false,
+                tickets = state.tickets.map { if (it.id == ticketId) updated else it },
+                selectedTicket = updated, serviceCompletedTicketId = ticketId) }
+        } catch (failure: Exception) {
+            if (failure is kotlinx.coroutines.CancellationException) throw failure
+            val code = (failure as? retrofit2.HttpException)?.code()
+            if (code != null && code in 400..499 && code != 409) pendingCollection = null
+            _uiState.update { it.copy(collecting = false, collectionLocked = pendingCollection != null,
+                error = failure.toUserMessage("Tahsilat teyit edilemedi. Aynı işlemi tekrar deneyin.")) }
+        } finally { _uiState.update { it.copy(collecting = false) } }
+    }
 
     fun loadTickets(refresh: Boolean = false) = viewModelScope.launch {
         _uiState.update { it.copy(loading = !refresh, refreshing = refresh, error = null) }
@@ -283,9 +323,15 @@ class TicketViewModel @Inject constructor(
     }
 
     fun loadUsedParts(ticketId: Long) = viewModelScope.launch {
+        _uiState.update { it.copy(usedPartsLoading = true, usedPartsLoadedTicketId = null) }
         runCatching { repository.getUsedParts(ticketId) }
-            .onSuccess { _uiState.update { s -> s.copy(usedParts = it, error = null) } }
-            .onFailure { _uiState.update { s -> s.copy(error = it.toUserMessage("Parçalar alınamadı")) } }
+            .onSuccess { parts -> _uiState.update { s ->
+                if (s.selectedTicket?.id == ticketId) s.copy(usedParts = parts, usedPartsLoading = false, usedPartsLoadedTicketId = ticketId, error = null) else s
+            } }
+            .onFailure {
+                if (it is kotlinx.coroutines.CancellationException) throw it
+                _uiState.update { s -> if (s.selectedTicket?.id == ticketId) s.copy(usedPartsLoading = false, error = it.toUserMessage("Parçalar alınamadı")) else s }
+            }
     }
 
     fun addUsedPart(ticketId: Long, item: InventoryItemDTO, quantity: Double) = viewModelScope.launch {

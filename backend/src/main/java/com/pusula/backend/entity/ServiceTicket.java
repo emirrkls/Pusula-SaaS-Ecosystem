@@ -64,9 +64,16 @@ public class ServiceTicket extends BaseEntity {
     @Column(name = "parts_total")
     private BigDecimal partsTotal;
 
-    /** Total amount charged to the customer: parts + labor/service fee. */
+    /** Net sale: parts + labor/service fee - discount. Never represents cash collected. */
     @Column(name = "invoice_total")
     private BigDecimal invoiceTotal;
+
+    @Column(name = "discount_type", length = 16)
+    private String discountType;
+    @Column(name = "discount_value", precision = 14, scale = 2)
+    private BigDecimal discountValue;
+    @Column(name = "discount_amount", precision = 14, scale = 2)
+    private BigDecimal discountAmount;
 
     /** Portion of the invoice that remains receivable after completion. */
     @Column(name = "outstanding_amount")
@@ -249,6 +256,17 @@ public class ServiceTicket extends BaseEntity {
     public void setInvoiceTotal(BigDecimal invoiceTotal) {
         this.invoiceTotal = invoiceTotal;
     }
+
+    public String getDiscountType() { return discountType; }
+    public void setDiscountType(String discountType) { this.discountType = discountType; }
+    public BigDecimal getDiscountValue() { return discountValue; }
+    public void setDiscountValue(BigDecimal discountValue) { this.discountValue = discountValue; }
+    public BigDecimal getDiscountAmount() { return discountAmount; }
+    public void setDiscountAmount(BigDecimal discountAmount) { this.discountAmount = discountAmount; }
+    @Transient
+    public BigDecimal getEffectiveDiscountAmount() { return discountAmount == null ? BigDecimal.ZERO : discountAmount; }
+    @Transient
+    public BigDecimal getEffectiveSubtotal() { return getEffectiveInvoiceTotal().add(getEffectiveDiscountAmount()); }
 
     public BigDecimal getOutstandingAmount() {
         return outstandingAmount;

@@ -36,6 +36,9 @@ struct FieldTicketDTO: Codable, Identifiable, Sendable {
     let billingPartyName: String?
     let billingResponsibility: String?
     let billingPartyAmount: Double?
+    var discountType: String? = nil
+    var discountValue: Double? = nil
+    var discountAmount: Double? = nil
     
     var statusEnum: TicketStatus {
         TicketStatus(rawValue: status ?? "") ?? .pending
@@ -75,6 +78,9 @@ struct CollectionRequest: Codable {
     let billingPartyId: Int?
     let billingResponsibility: String?
     let billingPartyAmount: Double?
+    var discountType: String? = nil
+    var discountValue: Decimal? = nil
+    var expectedPartsTotal: Decimal? = nil
 }
 
 struct AccountPartyOptionDTO: Codable, Identifiable, Hashable {

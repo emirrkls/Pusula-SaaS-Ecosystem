@@ -1,475 +1,291 @@
 import SwiftUI
 
-/// Service pricing and payment summary.
-/// Flow: Parts + labor → collected amount → remaining current-account balance.
+/// Price → payer allocation → collection. A discount is never a payment.
 struct CollectionView: View {
     let ticket: FieldTicketDTO
-    let partsTotal: Double
+    let partsTotal: Decimal
     let onComplete: () async -> Void
-    
     @Environment(\.dismiss) private var dismiss
     @State private var laborFee = ""
     @State private var collectedAmount = ""
     @State private var selectedMethod: PaymentMethodOption = .cash
-    @State private var showDebtConfirmation = false
-    @State private var isProcessing = false
-    @State private var errorMessage: String?
-    @State private var technicianNote = ""
+    @State private var discountEnabled = false
+    @State private var discountType: CollectionPricing.DiscountType = .amount
+    @State private var discountText = ""
+    @State private var warranty = false
     @State private var transferToOrganization = false
     @State private var billingPartyAmount = ""
     @State private var billingOrganizations: [AccountPartyOptionDTO] = []
     @State private var selectedBillingPartyId: Int?
-    
-    var isWarranty: Bool { selectedMethod == .warranty }
-    var isInstitutionalWarranty: Bool { isWarranty && transferToOrganization }
-    var isCurrentAccount: Bool { selectedMethod == .currentAccount }
-    var laborValue: Double { isWarranty && !isInstitutionalWarranty ? 0 : (Double(laborFee.replacingOccurrences(of: ",", with: ".")) ?? 0) }
-    var serviceTotal: Double { isWarranty && !isInstitutionalWarranty ? 0 : partsTotal + laborValue }
-    var collectedValue: Double {
-        (isWarranty || isCurrentAccount) ? 0 : (Double(collectedAmount.replacingOccurrences(of: ",", with: ".")) ?? 0)
+    @State private var organizationsError: String?
+    @State private var technicianNote = ""
+    @State private var isProcessing = false
+    @State private var errorMessage: String?
+    @State private var showDebtConfirmation = false
+    // An ambiguous response must be retried with exactly the same key and payload.
+    @State private var requestId = UUID()
+    @State private var pendingRequest: CollectionRequest?
+#if DEBUG
+    var testLoaders: CollectionTestLoaders?
+#endif
+
+    init(ticket: FieldTicketDTO, partsTotal: Decimal, onComplete: @escaping () async -> Void) {
+        self.ticket = ticket; self.partsTotal = partsTotal; self.onComplete = onComplete
+        func text(_ value: Double?) -> String { value.map { NSDecimalNumber(decimal: CollectionPricing.round(Decimal(string: String($0)) ?? 0)).stringValue } ?? "" }
+        _laborFee = State(initialValue: text(ticket.laborFee))
+        _collectedAmount = State(initialValue: text(ticket.collectedAmount))
+        _discountEnabled = State(initialValue: (ticket.discountAmount ?? 0) > 0)
+        _discountType = State(initialValue: ticket.discountType == "PERCENT" ? .percent : .amount)
+        _discountText = State(initialValue: text(ticket.discountValue))
+        _transferToOrganization = State(initialValue: (ticket.billingPartyAmount ?? 0) > 0)
+        _billingPartyAmount = State(initialValue: text(ticket.billingPartyAmount))
+        _selectedBillingPartyId = State(initialValue: ticket.billingPartyId)
+        _warranty = State(initialValue: ticket.paymentMethod == "WARRANTY")
+        _selectedMethod = State(initialValue: ticket.paymentMethod == "CREDIT_CARD" ? .creditCard
+                                : ticket.paymentMethod == "CURRENT_ACCOUNT" ? .currentAccount : .cash)
     }
-    var organizationAmount: Double {
-        transferToOrganization ? (Double(billingPartyAmount.replacingOccurrences(of: ",", with: ".")) ?? 0) : 0
+
+    private var internalWarranty: Bool { warranty && !transferToOrganization }
+    private var noCollection: Bool { warranty || selectedMethod == .currentAccount }
+    private var parts: Decimal { internalWarranty ? 0 : partsTotal }
+    private var labor: Decimal { (try? CollectionPricing.parse(internalWarranty ? "0" : laborFee)) ?? 0 }
+    private var discount: Decimal { (try? CollectionPricing.parse(discountEnabled && !warranty ? discountText : "0")) ?? 0 }
+    private var organization: Decimal { (try? CollectionPricing.parse(transferToOrganization ? billingPartyAmount : "0")) ?? 0 }
+    private var collected: Decimal { (try? CollectionPricing.parse(noCollection ? "0" : collectedAmount)) ?? 0 }
+    private var totals: CollectionPricing.Totals? {
+        try? CollectionPricing.calculate(parts: parts, labor: labor, discountType: discountType,
+                                         discountValue: discount, organization: organization, collected: collected)
     }
-    var customerShare: Double { max(0, serviceTotal - organizationAmount) }
-    var remainingDebt: Double { isWarranty && !isInstitutionalWarranty ? 0 : max(0, customerShare - collectedValue) }
-    var isOverpayment: Bool { collectedValue > customerShare + 0.005 }
-    var isOrganizationAmountInvalid: Bool {
-        transferToOrganization && (selectedBillingPartyId == nil || organizationAmount <= 0
-            || organizationAmount > serviceTotal + 0.005 || (isWarranty && abs(organizationAmount - serviceTotal) > 0.005))
+    private var pricing: CollectionPricing.Totals? {
+        try? CollectionPricing.calculate(parts: parts, labor: labor, discountType: discountType,
+                                         discountValue: discount, organization: 0, collected: 0)
     }
-    var existingDebt: Double { ticket.customerBalance ?? 0 }
-    var isFullPayment: Bool { remainingDebt < 0.005 }
-    var finalDebt: Double { existingDebt + remainingDebt }
-    
+    private var validation: String? {
+        do {
+            _ = try CollectionPricing.parse(internalWarranty ? "0" : laborFee)
+            _ = try CollectionPricing.parse(discountEnabled && !warranty ? discountText : "0")
+            _ = try CollectionPricing.parse(transferToOrganization ? billingPartyAmount : "0")
+            _ = try CollectionPricing.parse(noCollection ? "0" : collectedAmount)
+            _ = try CollectionPricing.calculate(parts: parts, labor: labor, discountType: discountType,
+                                                discountValue: discount, organization: organization, collected: collected)
+            if transferToOrganization && (selectedBillingPartyId == nil || organization <= 0) {
+                return "Kurum seçin ve aktarılacak tutarı girin."
+            }
+            if warranty && transferToOrganization && organization != (pricing?.net ?? 0) {
+                return "Kurum garantisinde fiş toplamının tamamını kuruma aktarın."
+            }
+            return nil
+        } catch { return error.localizedDescription }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
-                    // Service summary card
-                    summaryCard
-                    
-                    // Payment method selector
-                    paymentMethodPicker
-
-                    institutionalBillingCard
-                    
-                    // Amount input
-                    amountInput
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Teknisyen Notu").font(.subheadline.weight(.semibold))
-                        TextField("Yapılan işlem / kapanış notu", text: $technicianNote, axis: .vertical)
-                            .lineLimit(3...8)
-                            .padding()
-                            .background(PusulaTheme.raisedSurface)
-                            .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("Servis fişi #\(ticket.id) · \(ticket.customerName ?? "Müşteri")")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                    feesCard
+                    organizationCard
+                    collectionCard
+                    DisclosureGroup("Kapanış notu ve garanti") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            TextField("Yapılan işlem / kapanış notu", text: $technicianNote, axis: .vertical)
+                                .lineLimit(2...6).textFieldStyle(.roundedBorder)
+                            Toggle("Garanti kapsamında kapat", isOn: $warranty)
+                            Text("İşletme garantisinde satış oluşmaz; kurum garantisinde fişin tamamı kurum carisine yazılır. Ücretsiz normal işlem için iskonto kullanın.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }.padding(.top, 8)
+                    }.pusulaCard()
+                    if let previous = ticket.customerBalance, previous != 0 {
+                        Text("Önceki cari bakiye: \(money(Decimal(string: String(previous)) ?? 0)). Bu fişin toplamına dahil değildir.")
+                            .font(.caption).foregroundStyle(.secondary)
                     }
-                    
-                    paymentSummary
-                    
-                    // Error
-                    if let error = errorMessage {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundColor(.red)
+                    if let validation { Text(validation).font(.caption).foregroundStyle(.red) }
+                    if let errorMessage { Text(errorMessage).font(.caption).foregroundStyle(.red) }
+                    if pendingRequest != nil {
+                        Text("İşlem sonucu henüz teyit edilemedi. Aynı bilgilerle tekrar deneyin; ikinci tahsilat oluşturulmaz.")
+                            .font(.caption).foregroundStyle(.orange)
                     }
-                    
-                    // Submit button
-                    submitButton
-                }
-                .padding()
+                }.padding().disabled(isProcessing || pendingRequest != nil)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(PusulaTheme.page)
-            .navigationTitle("Tahsilat")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("İptal") { dismiss() }
+            .navigationTitle("Tahsilat").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .topBarLeading) { Button("İptal") { dismiss() }.disabled(isProcessing) } }
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    if pendingRequest != nil { Task { await processPayment() } }
+                    else if (totals?.customerDebt ?? 0) > 0 || organization > 0 { showDebtConfirmation = true }
+                    else { Task { await processPayment() } }
+                } label: {
+                    HStack {
+                        if isProcessing { ProgressView().tint(.white) }
+                        Text(pendingRequest != nil ? "Aynı İşlemi Tekrar Dene" : "Tahsilatı Kaydet ve İşi Tamamla")
+                            .font(.headline).multilineTextAlignment(.center)
+                    }.frame(maxWidth: .infinity).padding(.vertical, 14)
                 }
+                .buttonStyle(.borderedProminent).tint(PusulaTheme.accent)
+                .disabled(isProcessing || (pendingRequest == nil && validation != nil))
+                .padding().background(PusulaTheme.page)
             }
-            .alert("Cari Hesap Uyarısı", isPresented: $showDebtConfirmation) {
-                Button("İptal", role: .cancel) {}
-                Button("Onayla", role: .destructive) {
-                    Task { await processPayment() }
-                }
+            .alert("Cari aktarımı onayla", isPresented: $showDebtConfirmation) {
+                Button("Vazgeç", role: .cancel) {}
+                Button("Onayla ve Tamamla") { Task { await processPayment() } }
             } message: {
-                Text("Dikkat: Kalan ₺\(String(format: "%.2f", remainingDebt)) tutar müşterinin cari hesabına borç olarak işlenecektir.\n\nToplam cari borç: ₺\(String(format: "%.2f", finalDebt))\n\nOnaylıyor musunuz?")
+                Text("Kurum carisine: \(money(organization))\nMüşteri carisine: \(money(totals?.customerDebt ?? 0))")
             }
-            .task {
-                do { billingOrganizations = try await TicketService.getBillingOrganizations() }
-                catch { /* Normal completion remains available. */ }
-            }
+            .task { await loadOrganizations() }
         }
     }
 
-    private var institutionalBillingCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Toggle("Tutarın bir kısmını kuruma aktar", isOn: $transferToOrganization)
-                .font(.subheadline.weight(.semibold))
-                .onChange(of: transferToOrganization) { _, enabled in
-                    if enabled {
-                        billingPartyAmount = String(format: "%.2f", serviceTotal)
-                        collectedAmount = "0.00"
-                    } else {
-                        selectedBillingPartyId = nil
-                        billingPartyAmount = ""
-                        if !isWarranty && !isCurrentAccount {
-                            collectedAmount = String(format: "%.2f", serviceTotal)
-                        }
-                    }
+    private var feesCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("1. Ücret Bilgileri").font(.headline)
+            row("Parça toplamı", parts)
+            moneyField("Servis / işçilik bedeli", text: $laborFee).disabled(internalWarranty)
+            if !warranty {
+                Toggle("İskonto ekle", isOn: $discountEnabled)
+                if discountEnabled {
+                    Picker("İskonto türü", selection: $discountType) {
+                        Text("TL").tag(CollectionPricing.DiscountType.amount)
+                        Text("% ").tag(CollectionPricing.DiscountType.percent)
+                    }.pickerStyle(.segmented)
+                    moneyField(discountType == .percent ? "İskonto yüzdesi" : "İskonto tutarı", text: $discountText)
+                    row("Ara toplam", pricing?.subtotal ?? 0)
+                    row("İskonto", -(pricing?.discount ?? 0))
                 }
-            if transferToOrganization {
-                Picker("Ödemeyi üstlenen kurum", selection: $selectedBillingPartyId) {
-                    Text("Kurum seçin").tag(nil as Int?)
-                    ForEach(billingOrganizations) { party in
-                        Text(party.displayName).tag(Optional(party.id))
-                    }
-                }
-                TextField("Kuruma aktarılacak tutar", text: $billingPartyAmount)
-                    .keyboardType(.decimalPad)
-                    .textFieldStyle(.roundedBorder)
-                HStack {
-                    Text("Müşteriye düşen")
-                    Spacer()
-                    Text(formatCurrency(customerShare)).fontWeight(.semibold)
-                }
-                Text(isWarranty
-                     ? "Garanti ödeme yönteminde fiş toplamının tamamı kuruma aktarılmalıdır. Kısmi paylaşım için nakit, kart veya cari seçin."
-                     : "Yalnızca buradaki tutar kurum carisine yazılır; kalan bölüm müşteriden tahsil edilebilir veya müşteri carisine bırakılabilir.")
-                    .font(.caption).foregroundStyle(.secondary)
-            } else if isWarranty {
-                Text("İşletme garantisi: satış ve tahsilat oluşmaz, yalnızca gerçek servis maliyeti izlenir.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
+            Divider()
+            row("Fiş toplamı", pricing?.net ?? 0, emphasized: true)
         }.pusulaCard()
     }
-    
-    // MARK: - Summary Card
-    
-    private var summaryCard: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("Servis Tutarı")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("₺\(String(format: "%.2f", serviceTotal))")
-                    .font(.title2.weight(.bold))
-            }
-            
-            if existingDebt > 0 {
-                Divider()
-                HStack {
-                    HStack(spacing: 4) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                        Text("Geçmiş Cari Borç")
-                            .font(.subheadline)
-                    }
-                    Spacer()
-                    Text("₺\(String(format: "%.2f", existingDebt))")
-                        .font(.headline.weight(.bold))
-                        .foregroundColor(.orange)
-                }
-                
-                HStack {
-                    Text("Toplam (Servis + Borç)")
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                    Text("₺\(String(format: "%.2f", serviceTotal + existingDebt))")
-                        .font(.headline.weight(.bold))
-                        .foregroundColor(.red)
-                }
-            }
-        }
-        .pusulaCard()
-    }
-    
-    // MARK: - Payment Method
-    
-    private var paymentMethodPicker: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Ödeme Yöntemi")
-                .font(.subheadline.weight(.semibold))
-            
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                ForEach(PaymentMethodOption.allCases, id: \.self) { method in
-                    Button(action: {
-                        selectedMethod = method
-                        collectedAmount = (method == .warranty || method == .currentAccount)
-                            ? "0.00"
-                            : String(format: "%.2f", partsTotal + laborValue)
-                    }) {
-                        VStack(spacing: 6) {
-                            Image(systemName: method.icon)
-                                .font(.title2)
-                            Text(method.displayName)
-                                .font(.caption)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(selectedMethod == method ? PusulaTheme.accent.opacity(0.10) : PusulaTheme.raisedSurface)
-                        .foregroundColor(selectedMethod == method ? PusulaTheme.accent : .secondary)
-                        .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: PusulaTheme.radius)
-                                .stroke(selectedMethod == method ? PusulaTheme.accent : PusulaTheme.border, lineWidth: 1)
-                        )
-                    }
-                }
-            }
-        }
-    }
-    
-    // MARK: - Amount Input
-    
-    private var amountInput: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Ücret ve Ödeme Bilgileri")
-                .font(.subheadline.weight(.semibold))
 
-            HStack {
-                Text("Parça toplamı")
-                Spacer()
-                Text("₺\(String(format: "%.2f", partsTotal))").fontWeight(.semibold)
-            }
-
-            Text("İşçilik / Servis Bedeli")
-                .font(.subheadline.weight(.semibold))
-
-            TextField("Örn. 1.500,00 ₺", text: $laborFee)
-                .keyboardType(.decimalPad)
-                .textFieldStyle(.roundedBorder)
-                .disabled(isWarranty && !isInstitutionalWarranty)
-                .onChange(of: laborFee) { _, _ in
-                    if !isWarranty && !isCurrentAccount {
-                        collectedAmount = String(format: "%.2f", serviceTotal)
-                    }
-                }
-
-            Text("Bu fişe ait işçilik ücretini girin. İşçilik parça fiyatına dâhilse boş bırakabilirsiniz.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            HStack {
-                Text("Fiş toplamı")
-                Spacer()
-                Text("₺\(String(format: "%.2f", serviceTotal))").fontWeight(.bold)
-            }
-
-            Text("Tahsil Edilen Tutar")
-                .font(.subheadline.weight(.semibold))
-            
-            HStack {
-                Text("₺")
-                    .font(.title.weight(.bold))
-                    .foregroundColor(PusulaTheme.accent)
-                TextField("0.00", text: $collectedAmount)
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .keyboardType(.decimalPad)
-                    .disabled(isWarranty || isCurrentAccount)
-            }
-            .padding()
-            .background(PusulaTheme.raisedSurface)
-            .overlay {
-                RoundedRectangle(cornerRadius: PusulaTheme.radius)
-                    .stroke(PusulaTheme.border, lineWidth: 1)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
-
-            if isOverpayment {
-                Label(
-                    "Tahsil edilen tutar fiş toplamını aşamaz.",
-                    systemImage: "exclamationmark.triangle.fill"
-                )
-                .font(.caption.weight(.semibold))
-                .foregroundColor(.red)
-            }
-
-            if isWarranty {
-                Text(isInstitutionalWarranty
-                     ? "Servis bedeli seçilen kurumun carisine aktarılır; müşteriden tahsilat alınmaz."
-                     : "İşletme garantisinde satış, tahsilat ve cari borç oluşmaz. Kullanılan parçaların maliyeti rapora yansır.")
-                    .font(.caption)
-                    .foregroundColor(.orange)
-            }
-            
-            // Quick amount buttons
-            if !isWarranty && !isCurrentAccount {
-                HStack(spacing: 8) {
-                quickAmountButton("Tam Tutar", amount: serviceTotal)
-                }
-            }
-        }
-    }
-    
-    private func quickAmountButton(_ title: String, amount: Double) -> some View {
-        Button(action: { collectedAmount = String(format: "%.2f", amount) }) {
-            Text(title)
-                .font(.caption.weight(.medium))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(PusulaTheme.accent.opacity(0.1))
-                .foregroundColor(PusulaTheme.accent)
-                .clipShape(Capsule())
-        }
-    }
-    
-    // MARK: - Payment Summary
-    
-    private var paymentSummary: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Ödeme Özeti")
-                .font(.subheadline.weight(.semibold))
-            
+    private var organizationCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("2. Ödemeyi Üstlenen").font(.headline)
+            Toggle("Tamamını veya bir kısmını kurum carisine aktar", isOn: $transferToOrganization)
             if transferToOrganization {
-                waterfallRow("Kurum carisine aktarılacak", amount: organizationAmount,
-                             icon: "building.2", color: .orange)
-            }
-            if isWarranty {
-                if isInstitutionalWarranty {
-                    Text("Müşteriden tahsilat alınmayacak.").font(.caption).foregroundStyle(.secondary)
-                } else {
-                    Text("İşletme garantisinde tahsilat veya cari işlem oluşturulmayacak.")
-                        .font(.caption).foregroundColor(.orange)
+                Picker("Kurum", selection: $selectedBillingPartyId) {
+                    Text("Kurum seçin").tag(nil as Int?)
+                    ForEach(billingOrganizations) { Text($0.displayName).tag(Optional($0.id)) }
                 }
-            } else if isCurrentAccount {
-                waterfallRow("Müşteri carisine aktarılacak",
-                             amount: remainingDebt,
-                             icon: "doc.text",
-                             color: .orange)
-                Divider()
-                finalDebtRow
-            } else if collectedValue > 0 {
-                // Step 1: Service payment
-                waterfallRow("1. Servis Ücreti",
-                             amount: min(collectedValue, customerShare),
-                             icon: "wrench.and.screwdriver",
-                             color: .green)
-                
-                if remainingDebt > 0 {
-                    waterfallRow("⚠️ Cariye Eklenecek",
-                                 amount: remainingDebt,
-                                 icon: "exclamationmark.triangle",
-                                 color: .orange)
+                if let organizationsError {
+                    Text(organizationsError).font(.caption).foregroundStyle(.red)
+                    Button("Kurumları Tekrar Yükle") { Task { await loadOrganizations() } }
                 }
-                
-                Divider()
-                
-                // Final debt
-                finalDebtRow
-            } else {
-                Text("Dağılımı görmek için tahsil edilen tutarı girin.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                moneyField("Kuruma aktarılacak tutar", text: $billingPartyAmount)
+                Button("Fişin tamamını aktar") { billingPartyAmount = raw(pricing?.net ?? 0) }
+                    .font(.caption.weight(.semibold))
+                Text("Bu tutar kurumun borcudur; alınmış ödeme değildir.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
-        }
-        .pusulaCard()
+            row("Müşteriye düşen", max(0, (pricing?.net ?? 0) - organization), emphasized: true)
+        }.pusulaCard()
     }
 
-    private var finalDebtRow: some View {
-        HStack {
-            Text("Son Cari Durum").font(.subheadline.weight(.bold))
-            Spacer()
-            Text(finalDebt > 0 ? "₺\(String(format: "%.2f", finalDebt)) borç" : "Temiz ✓")
-                .font(.subheadline.weight(.bold))
-                .foregroundColor(finalDebt > 0 ? .orange : .green)
-        }
-    }
-    
-    private func waterfallRow(_ title: String, amount: Double, icon: String, color: Color) -> some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundColor(color)
-            Text(title)
-                .font(.caption)
-            Spacer()
-            Text("₺\(String(format: "%.2f", abs(amount)))")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(color)
-        }
-    }
-    
-    // MARK: - Submit Button
-    
-    private var submitButton: some View {
-        Button(action: handleSubmit) {
-            HStack {
-                if isProcessing {
-                    ProgressView().tint(.white)
-                } else {
-                    Image(systemName: "checkmark.circle.fill")
-                    Text(isWarranty ? "Garanti Kapsamında Kapat" : (isFullPayment ? "Tamamla" : "Kaydet & Cariye Ekle"))
+    private var collectionCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("3. Tahsilat").font(.headline)
+            if warranty {
+                Text(internalWarranty ? "İşletme garantisi: tahsilat ve cari borç oluşmaz." : "Kurum garantisi: müşteriden tahsilat alınmaz.")
+                    .font(.subheadline)
+            } else {
+                Picker("Ödeme yöntemi", selection: $selectedMethod) {
+                    ForEach(PaymentMethodOption.allCases.filter { $0 != .warranty }, id: \.self) { method in
+                        Text(method == .currentAccount ? "Şimdi ödeme alınmadı" : method.displayName).tag(method)
+                    }
+                }
+                if !noCollection {
+                    moneyField("Tahsil edilen tutar", text: $collectedAmount)
+                    Button("Müşteri payının tamamı") { collectedAmount = raw(max(0, (pricing?.net ?? 0) - organization)) }
+                        .font(.caption.weight(.semibold))
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .font(.headline)
-        }
-        .background(isFullPayment ? PusulaTheme.accent : Color.orange)
-        .foregroundColor(.white)
-        .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
-        .disabled(isProcessing || isOverpayment
-                  || isOrganizationAmountInvalid
-                  || (!isWarranty && !isCurrentAccount && collectedAmount.isEmpty))
+            Divider()
+            row("Kurum carisine", organization)
+            row("Tahsil edilen", collected)
+            row("Müşteri carisine kalan", totals?.customerDebt ?? 0, emphasized: true)
+        }.pusulaCard()
     }
-    
-    // MARK: - Logic
-    
-    private func handleSubmit() {
-        guard !isOverpayment else {
-            errorMessage = "Tahsil edilen tutar müşteriye düşen kısmı aşamaz."
-            return
-        }
-        guard !isOrganizationAmountInvalid else {
-            errorMessage = "Kurum, tutar ve ödeme yöntemi dağılımını kontrol edin."
-            return
-        }
-        if isWarranty {
-            Task { await processPayment() }
-            return
-        }
-        if !isFullPayment {
-            // SAFETY: Show confirmation before adding to cari
-            showDebtConfirmation = true
-        } else {
-            Task { await processPayment() }
+
+    private func moneyField(_ label: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label).font(.subheadline)
+            TextField("0,00", text: text).keyboardType(.decimalPad).textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("collection.input.\(label)")
         }
     }
-    
-    private func processPayment() async {
-        isProcessing = true
-        errorMessage = nil
-        
-        do {
-            _ = try await TicketService.completeService(
-                ticketId: ticket.id,
-                amount: collectedValue,
-                paymentMethod: selectedMethod.apiValue,
-                laborFee: laborValue,
-                technicianNote: technicianNote,
+    private func row(_ title: String, _ value: Decimal, emphasized: Bool = false) -> some View {
+        HStack {
+            Text(title)
+            Spacer(minLength: 12)
+            Text(money(value)).fontWeight(emphasized ? .bold : .medium)
+        }.font(.subheadline).accessibilityElement(children: .combine)
+    }
+    private func raw(_ value: Decimal) -> String { NSDecimalNumber(decimal: value).stringValue }
+    private func money(_ value: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "tr_TR"); formatter.numberStyle = .currency
+        formatter.currencyCode = "TRY"
+        return formatter.string(from: NSDecimalNumber(decimal: value)) ?? raw(value)
+    }
+    @MainActor private func loadOrganizations() async {
+#if DEBUG
+        if let testLoaders {
+            do { billingOrganizations = try await testLoaders.organizations(); organizationsError = nil }
+            catch { organizationsError = error.localizedDescription }
+            return
+        }
+#endif
+        do { billingOrganizations = try await TicketService.getBillingOrganizations(); organizationsError = nil }
+        catch { if !(error is CancellationError) { organizationsError = "Kurumlar yüklenemedi. Tekrar deneyin." } }
+    }
+    @MainActor private func processPayment() async {
+        guard !isProcessing else { return }
+        if pendingRequest == nil {
+            guard validation == nil else { errorMessage = validation; return }
+            var request = CollectionRequest(collectedAmount: NSDecimalNumber(decimal: collected).doubleValue,
+                paymentMethod: warranty ? "WARRANTY" : selectedMethod.apiValue,
+                laborFee: NSDecimalNumber(decimal: labor).doubleValue,
+                technicianNote: technicianNote.trimmingCharacters(in: .whitespacesAndNewlines),
                 billingPartyId: transferToOrganization ? selectedBillingPartyId : nil,
-                billingResponsibility: transferToOrganization
-                    ? (organizationAmount >= serviceTotal ? "ORGANIZATION" : "SPLIT")
-                    : (isWarranty ? "INTERNAL" : "CUSTOMER"),
-                billingPartyAmount: transferToOrganization ? organizationAmount : nil
-            )
+                billingResponsibility: nil,
+                billingPartyAmount: transferToOrganization ? NSDecimalNumber(decimal: organization).doubleValue : nil)
+            request.discountType = warranty ? "AMOUNT" : discountType.rawValue
+            request.discountValue = discount
+            request.expectedPartsTotal = partsTotal
+            pendingRequest = request
+        }
+        guard let request = pendingRequest else { return }
+        isProcessing = true; errorMessage = nil
+        defer { isProcessing = false }
+        do {
+            _ = try await submit(request)
             await onComplete()
+            dismiss()
         } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-                isProcessing = false
+            errorMessage = error.localizedDescription
+            switch error {
+            case NetworkError.badRequest, NetworkError.forbidden, NetworkError.unauthorized,
+                 NetworkError.quotaExceeded, NetworkError.payloadTooLarge:
+                pendingRequest = nil; requestId = UUID()
+            case NetworkError.serverError(let status) where (400...499).contains(status):
+                pendingRequest = nil; requestId = UUID()
+            default: break
             }
         }
+    }
+
+    @MainActor private func submit(_ request: CollectionRequest) async throws -> FieldTicketDTO {
+#if DEBUG
+        if let testLoaders { return try await testLoaders.complete(request, requestId) }
+#endif
+        return try await TicketService.completeService(ticketId: ticket.id, request: request, requestId: requestId)
     }
 }
 
-// MARK: - Payment Method Options
-
 enum PaymentMethodOption: CaseIterable {
     case cash, creditCard, currentAccount, warranty
-    
     var displayName: String {
         switch self {
         case .cash: return "Nakit"
@@ -478,16 +294,6 @@ enum PaymentMethodOption: CaseIterable {
         case .warranty: return "Garanti"
         }
     }
-    
-    var icon: String {
-        switch self {
-        case .cash: return "banknote"
-        case .creditCard: return "creditcard"
-        case .currentAccount: return "doc.text"
-        case .warranty: return "checkmark.shield"
-        }
-    }
-    
     var apiValue: String {
         switch self {
         case .cash: return "CASH"

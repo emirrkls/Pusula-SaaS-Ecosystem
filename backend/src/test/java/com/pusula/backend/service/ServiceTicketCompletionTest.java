@@ -91,7 +91,7 @@ class ServiceTicketCompletionTest {
         authenticate(1L, 10L, "COMPANY_ADMIN");
         ServiceTicket ticket = openTicket(100L, 10L, null);
         LocalDate historicalDate = BUSINESS_TODAY.minusDays(4);
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
         when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ServiceTicketDTO result = service.completeService(100L, new BigDecimal("1250.00"),
@@ -110,7 +110,7 @@ class ServiceTicketCompletionTest {
     void technicianCannotSupplyCompletionDate() {
         authenticate(7L, 10L, "TECHNICIAN");
         ServiceTicket ticket = openTicket(100L, 10L, 7L);
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
 
         assertThrows(AccessDeniedException.class,
                 () -> service.completeService(100L, BigDecimal.TEN, PaymentMethod.CASH, BUSINESS_TODAY));
@@ -121,7 +121,7 @@ class ServiceTicketCompletionTest {
     void technicianCannotCompleteAnotherTechniciansTicket() {
         authenticate(7L, 10L, "TECHNICIAN");
         ServiceTicket ticket = openTicket(100L, 10L, 8L);
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
 
         assertThrows(AccessDeniedException.class,
                 () -> service.completeService(100L, BigDecimal.TEN, PaymentMethod.CASH, null));
@@ -132,7 +132,7 @@ class ServiceTicketCompletionTest {
     void assignedTechnicianCanCompleteWithoutSupplyingDate() {
         authenticate(7L, 10L, "TECHNICIAN");
         ServiceTicket ticket = openTicket(100L, 10L, 7L);
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
         when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.completeService(100L, BigDecimal.TEN, PaymentMethod.CASH, null);
@@ -146,7 +146,7 @@ class ServiceTicketCompletionTest {
     void futureCompletionDateIsRejected() {
         authenticate(1L, 10L, "COMPANY_ADMIN");
         ServiceTicket ticket = openTicket(100L, 10L, null);
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.completeService(100L, BigDecimal.TEN, PaymentMethod.CASH,
@@ -158,7 +158,7 @@ class ServiceTicketCompletionTest {
     void structuredPricingIncludesPartsWithoutRequiringLaborFee() {
         authenticate(1L, 10L, "COMPANY_ADMIN");
         ServiceTicket ticket = openTicket(100L, 10L, null);
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
         when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
         when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -182,7 +182,7 @@ class ServiceTicketCompletionTest {
         Customer customer = Customer.builder().id(20L).companyId(10L).name("Müşteri").build();
         CurrentAccount account = CurrentAccount.builder()
                 .companyId(10L).customer(customer).balance(new BigDecimal("100.00")).build();
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
         when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
         when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
         when(currentAccountRepository.findByCustomerIdAndCompanyId(20L, 10L)).thenReturn(Optional.of(account));
@@ -208,7 +208,7 @@ class ServiceTicketCompletionTest {
                 .normalizedName("termodinamik").active(true).build();
         CurrentAccount account = CurrentAccount.builder().id(91L).companyId(10L).party(organization)
                 .balance(new BigDecimal("100.00")).build();
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
         when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
         when(accountPartyService.getEntity(10L, 90L)).thenReturn(organization);
         when(currentAccountRepository.findByPartyIdAndCompanyId(90L, 10L)).thenReturn(Optional.of(account));
@@ -242,7 +242,7 @@ class ServiceTicketCompletionTest {
                 .normalizedName("termodinamik").active(true).build();
         CurrentAccount organizationAccount = CurrentAccount.builder().id(91L).companyId(10L).party(organization)
                 .balance(BigDecimal.ZERO).build();
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
         when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
         when(accountPartyService.getEntity(10L, 90L)).thenReturn(organization);
         when(currentAccountRepository.findByPartyIdAndCompanyId(90L, 10L))
@@ -274,7 +274,7 @@ class ServiceTicketCompletionTest {
         Customer customer = Customer.builder().id(20L).companyId(10L).name("Müşteri").build();
         CurrentAccount account = CurrentAccount.builder()
                 .companyId(10L).customer(customer).balance(BigDecimal.ZERO).build();
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
         when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
         when(currentAccountRepository.findByCustomerIdAndCompanyId(20L, 10L)).thenReturn(Optional.of(account));
         when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -298,7 +298,7 @@ class ServiceTicketCompletionTest {
         Customer customer = Customer.builder().id(20L).companyId(10L).name("Müşteri").build();
         CurrentAccount account = CurrentAccount.builder()
                 .companyId(10L).customer(customer).balance(BigDecimal.ZERO).build();
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
         when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
         when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
         when(currentAccountRepository.findByCustomerIdAndCompanyId(20L, 10L)).thenReturn(Optional.of(account));
@@ -317,7 +317,7 @@ class ServiceTicketCompletionTest {
     void collectionCannotExceedStructuredInvoiceTotal() {
         authenticate(1L, 10L, "COMPANY_ADMIN");
         ServiceTicket ticket = openTicket(100L, 10L, null);
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
         when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
 
         assertThrows(IllegalArgumentException.class,
@@ -330,7 +330,7 @@ class ServiceTicketCompletionTest {
     void warrantyCompletionCreatesNoRevenueCollectionOrDebtButKeepsStructuredCosting() {
         authenticate(7L, 10L, "TECHNICIAN");
         ServiceTicket ticket = openTicket(100L, 10L, 7L);
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
         when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
         when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -351,7 +351,7 @@ class ServiceTicketCompletionTest {
     void warrantyCompletionRejectsAnyCollectionOrLaborCharge() {
         authenticate(7L, 10L, "TECHNICIAN");
         ServiceTicket ticket = openTicket(100L, 10L, 7L);
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.completeService(100L, BigDecimal.ONE, BigDecimal.ZERO,
@@ -474,7 +474,7 @@ class ServiceTicketCompletionTest {
         service = createService(Clock.fixed(Instant.parse(instant), ZoneOffset.UTC));
         authenticate(7L, 10L, "TECHNICIAN");
         ServiceTicket ticket = openTicket(100L, 10L, 7L);
-        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
         when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.completeService(100L, BigDecimal.TEN, PaymentMethod.CASH, null);
@@ -482,6 +482,88 @@ class ServiceTicketCompletionTest {
         assertEquals(expectedDate, ticket.getCollectionDate());
         assertEquals(expectedDate.atTime(expectedTime), ticket.getCompletedAt());
         verify(financeService).reconcileClosedDay(10L, expectedDate);
+    }
+
+    @Test
+    void discountedSplitBillingPostsOnlyNetDebtsAndKeepsPreviousCustomerBalanceSeparate() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = openTicket(100L, 10L, null); ticket.setCustomerId(20L);
+        Customer customer = Customer.builder().id(20L).companyId(10L).name("Müşteri").build();
+        AccountParty organization = AccountParty.builder().id(90L).companyId(10L)
+                .partyType(AccountParty.PartyType.ORGANIZATION).displayName("Kurum").active(true).build();
+        CurrentAccount institution = CurrentAccount.builder().id(91L).companyId(10L).party(organization).balance(BigDecimal.ZERO).build();
+        CurrentAccount customerAccount = CurrentAccount.builder().id(92L).companyId(10L).customer(customer).balance(new BigDecimal("700.00")).build();
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("1000.00", "3000.00")));
+        when(accountPartyService.getEntity(10L, 90L)).thenReturn(organization);
+        when(currentAccountRepository.findByPartyIdAndCompanyId(90L, 10L)).thenReturn(Optional.of(institution));
+        when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
+        when(currentAccountRepository.findByCustomerIdAndCompanyId(20L, 10L)).thenReturn(Optional.of(customerAccount));
+        when(currentAccountRepository.save(any(CurrentAccount.class))).thenAnswer(call -> call.getArgument(0));
+        when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(call -> call.getArgument(0));
+
+        var result = service.completeService(100L, new BigDecimal("1500.00"), new BigDecimal("2000.00"),
+                PaymentMethod.CASH, null, 90L, "SPLIT", new BigDecimal("2000.00"), "PERCENT", new BigDecimal("10"));
+
+        assertEquals(new BigDecimal("4500.00"), ticket.getInvoiceTotal());
+        assertEquals(new BigDecimal("500.00"), result.getDiscountAmount());
+        assertEquals(new BigDecimal("3000.00"), ticket.getOutstandingAmount());
+        assertEquals(new BigDecimal("2000.00"), institution.getBalance());
+        assertEquals(new BigDecimal("1700.00"), customerAccount.getBalance());
+        verify(auditLogService).log(eq("DISCOUNT"), eq("TICKET"), eq(100L), contains("500.00"));
+    }
+
+    @Test
+    void fullDiscountIsNotWarrantyAndCreatesNoCashOrDebt() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = openTicket(100L, 10L, null);
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
+        when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(call -> call.getArgument(0));
+        service.completeService(100L, BigDecimal.ZERO, BigDecimal.ZERO, PaymentMethod.CASH, null,
+                null, null, null, "PERCENT", new BigDecimal("100"));
+        assertEquals(new BigDecimal("0.00"), ticket.getInvoiceTotal());
+        assertEquals(new BigDecimal("500.00"), ticket.getPartsTotal());
+        assertEquals(new BigDecimal("500.00"), ticket.getDiscountAmount());
+        assertNull(ticket.getCollectionDate()); assertFalse(ticket.isWarrantyCall());
+        verify(currentAccountRepository, never()).save(any());
+    }
+
+    @Test
+    void discountCannotBeUsedToHideOverpaymentOrWarrantyCharges() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = openTicket(100L, 10L, null);
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
+        assertThrows(IllegalArgumentException.class, () -> service.completeService(100L, new BigDecimal("500"),
+                BigDecimal.ZERO, PaymentMethod.CASH, null, null, null, null, "AMOUNT", new BigDecimal("100")));
+        assertThrows(IllegalArgumentException.class, () -> service.completeService(100L, BigDecimal.ZERO,
+                BigDecimal.ZERO, PaymentMethod.WARRANTY, null, null, null, null, "AMOUNT", new BigDecimal("100")));
+        verify(ticketRepository, never()).save(any());
+    }
+
+    @Test
+    void secondCompletionCannotDuplicateCollectionsOrLedger() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = openTicket(100L, 10L, null);
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.save(any(ServiceTicket.class))).thenAnswer(call -> call.getArgument(0));
+        service.completeService(100L, new BigDecimal("100.00"), new BigDecimal("100.00"), PaymentMethod.CASH, null);
+        assertThrows(IllegalStateException.class, () -> service.completeService(100L, new BigDecimal("100.00"),
+                new BigDecimal("100.00"), PaymentMethod.CASH, null));
+        verify(ticketRepository, times(1)).save(any());
+        verify(financeService, times(1)).reconcileClosedDay(any(), any());
+    }
+
+    @Test
+    void stalePartTotalRequiresUserToRecheckBeforeAnyFinancialWrite() {
+        authenticate(1L, 10L, "COMPANY_ADMIN");
+        ServiceTicket ticket = openTicket(100L, 10L, null);
+        when(ticketRepository.findByIdAndCompanyIdForUpdate(100L, 10L)).thenReturn(Optional.of(ticket));
+        when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part("400.00", "500.00")));
+        assertThrows(IllegalArgumentException.class, () -> service.completeService(100L, new BigDecimal("400.00"),
+                BigDecimal.ZERO, PaymentMethod.CASH, null, null, null, null, "AMOUNT", BigDecimal.ZERO, new BigDecimal("400.00")));
+        verify(ticketRepository, never()).save(any()); verify(currentAccountRepository, never()).save(any());
     }
 
     private ServiceTicket openTicket(Long id, Long companyId, Long technicianId) {

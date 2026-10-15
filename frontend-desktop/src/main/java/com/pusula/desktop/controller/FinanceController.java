@@ -793,6 +793,7 @@ public class FinanceController {
         metrics.getStyleClass().add("report-metric-grid");
         metrics.getChildren().addAll(
                 reportMetricCard("Satış / Ciro", summary.getTotalIncome(), "amount-positive", "Bu ay oluşan toplam satış"),
+                reportMetricCard("Uygulanan İskonto", summary.getTotalDiscounts(), "amount-warning", "Cirodan zaten düşülmüştür; ek gider değildir"),
                 reportMetricCard("Cariye Aktarılan", summary.getCurrentAccountTransferred(), "amount-warning", "Cironun henüz tahsil edilmemiş kısmı"),
                 reportMetricCard("Toplam Gider", summary.getTotalProfitExpenses(), "amount-negative", "Servis maliyeti ve diğer giderler"),
                 reportMetricCard("Aylık Kâr / Zarar", summary.getNetProfit(), signedColor(summary.getNetProfit()),

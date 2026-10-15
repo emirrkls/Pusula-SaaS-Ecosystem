@@ -1,308 +1,201 @@
 package com.pusula.service.ui.technician
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.CreditCard
-import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.activity.compose.BackHandler
-import androidx.compose.runtime.Composable
-import com.pusula.service.ui.components.AppTopBar
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.pusula.service.core.CollectionPricing
 import com.pusula.service.core.readOnlyProtected
-import com.pusula.service.ui.components.AppDashboardSection
+import com.pusula.service.data.model.CollectionRequest
+import com.pusula.service.ui.components.AppTopBar
 import com.pusula.service.ui.components.AppGhostCard
-import com.pusula.service.ui.components.AppHeroCard
-import com.pusula.service.ui.components.AppIconBadge
-import com.pusula.service.ui.theme.AccentOrange
-import com.pusula.service.ui.theme.AccentPurple
-import com.pusula.service.ui.theme.Info
-import com.pusula.service.ui.theme.Spacing
-import com.pusula.service.ui.theme.Success
-import com.pusula.service.ui.theme.Warning
+import java.math.BigDecimal
+import java.text.NumberFormat
+import java.util.Locale
 
-private data class PaymentMethodOption(
-    val label: String,
-    val apiValue: String
-)
-
-private val paymentMethods = listOf(
-    PaymentMethodOption(label = "Nakit", apiValue = "CASH"),
-    PaymentMethodOption(label = "Kredi Kartı", apiValue = "CREDIT_CARD"),
-    PaymentMethodOption(label = "Cari Hesap", apiValue = "CURRENT_ACCOUNT"),
-    PaymentMethodOption(label = "Garanti Kapsamında", apiValue = "WARRANTY")
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CollectionScreen(
-    ticketId: Long,
-    onBack: () -> Unit,
-    onDone: () -> Unit,
-    viewModel: TicketViewModel = hiltViewModel()
-) {
-    val uiState by viewModel.uiState.collectAsState()
+fun CollectionScreen(ticketId: Long, onBack: () -> Unit, onDone: () -> Unit,
+                     viewModel: TicketViewModel = hiltViewModel()) {
+    val state by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
-    val ticket = uiState.selectedTicket
-    val partsTotal = uiState.usedParts.sumOf { it.sellingPriceSnapshot * it.quantityUsed }
-
-    var expanded by remember { mutableStateOf(false) }
-    var method by remember { mutableStateOf(paymentMethods.first()) }
-    var laborFeeText by remember { mutableStateOf("") }
-    var amountText by remember { mutableStateOf("%.2f".format(partsTotal)) }
-    var confirmCari by remember { mutableStateOf(false) }
-    var technicianNote by remember { mutableStateOf("") }
-
-    val isWarranty = method.apiValue == "WARRANTY"
-    val isCurrentAccount = method.apiValue == "CURRENT_ACCOUNT"
-    val laborFee = if (isWarranty) 0.0 else laborFeeText.replace(',', '.').toDoubleOrNull() ?: 0.0
-    val serviceTotal = if (isWarranty) 0.0 else partsTotal + laborFee
-    val entered = if (isWarranty || isCurrentAccount) 0.0
-        else amountText.replace(',', '.').toDoubleOrNull() ?: 0.0
-    val isOverpayment = !isWarranty && !isCurrentAccount && entered > serviceTotal + 0.005
-    val remain = if (isWarranty) 0.0 else (serviceTotal - entered).coerceAtLeast(0.0)
-
-    LaunchedEffect(uiState.serviceCompletedTicketId) {
-        if (uiState.serviceCompletedTicketId == ticketId) {
-            viewModel.consumeServiceCompleted()
-            onDone()
+    var laborText by rememberSaveable(ticketId) { mutableStateOf("") }
+    var discountEnabled by rememberSaveable(ticketId) { mutableStateOf(false) }
+    var discountType by rememberSaveable(ticketId) { mutableStateOf("AMOUNT") }
+    var discountText by rememberSaveable(ticketId) { mutableStateOf("") }
+    var organizationEnabled by rememberSaveable(ticketId) { mutableStateOf(false) }
+    var organizationId by rememberSaveable(ticketId) { mutableStateOf<Long?>(null) }
+    var organizationText by rememberSaveable(ticketId) { mutableStateOf("") }
+    var method by rememberSaveable(ticketId) { mutableStateOf("CASH") }
+    var amountText by rememberSaveable(ticketId) { mutableStateOf("") }
+    var warranty by rememberSaveable(ticketId) { mutableStateOf(false) }
+    var extras by rememberSaveable(ticketId) { mutableStateOf(false) }
+    var note by rememberSaveable(ticketId) { mutableStateOf("") }
+    var confirm by remember { mutableStateOf(false) }
+    val editable = !state.collecting && !state.collectionLocked
+    val internalWarranty = warranty && !organizationEnabled
+    val noCollection = warranty || method == "CURRENT_ACCOUNT"
+    val actualParts = state.usedParts.fold(BigDecimal.ZERO) { sum, part ->
+        sum + BigDecimal.valueOf(part.sellingPriceSnapshot) * BigDecimal.valueOf(part.quantityUsed)
+    }
+    val parts = if (internalWarranty) BigDecimal.ZERO else actualParts
+    val labor = runCatching { CollectionPricing.parse(if (internalWarranty) "0" else laborText) }
+    val discount = runCatching { CollectionPricing.parse(if (discountEnabled && !warranty) discountText else "0") }
+    val institution = runCatching { CollectionPricing.parse(if (organizationEnabled) organizationText else "0") }
+    val collected = runCatching { CollectionPricing.parse(if (noCollection) "0" else amountText) }
+    val price = runCatching { CollectionPricing.calculate(parts, labor.getOrThrow(), discountType,
+        discount.getOrThrow(), BigDecimal.ZERO, BigDecimal.ZERO) }
+    val totals = runCatching {
+        require(state.selectedTicket?.id == ticketId && state.usedPartsLoadedTicketId == ticketId && !state.usedPartsLoading) { "Parça bilgileri henüz yüklenmedi. Yenilemeyi deneyin." }
+        val value = CollectionPricing.calculate(parts, labor.getOrThrow(), discountType, discount.getOrThrow(), institution.getOrThrow(), collected.getOrThrow())
+        require(!organizationEnabled || (organizationId != null && institution.getOrThrow() > BigDecimal.ZERO)) { "Kurum seçin ve aktarılacak tutarı girin." }
+        require(!warranty || !organizationEnabled || institution.getOrThrow().compareTo(value.net) == 0) { "Kurum garantisinde fişin tamamını kuruma aktarın." }
+        value
+    }
+    val customerShare = price.getOrNull()?.net?.subtract(institution.getOrDefault(BigDecimal.ZERO))?.max(BigDecimal.ZERO) ?: BigDecimal.ZERO
+    fun submit() {
+        if (state.collectionLocked || totals.isSuccess) {
+            viewModel.completeService(ticketId, CollectionRequest(
+                collectedAmount = collected.getOrDefault(BigDecimal.ZERO).toDouble(),
+                paymentMethod = if (warranty) "WARRANTY" else method,
+                laborFee = labor.getOrDefault(BigDecimal.ZERO).toDouble(), technicianNote = note.trim(),
+                discountType = if (warranty) "AMOUNT" else discountType,
+                discountValue = discount.getOrDefault(BigDecimal.ZERO),
+                billingPartyId = if (organizationEnabled) organizationId else null,
+                billingPartyAmount = if (organizationEnabled) institution.getOrNull() else null,
+                expectedPartsTotal = CollectionPricing.money(actualParts)
+            ))
         }
     }
-
-    BackHandler(onBack = onBack)
-
-    Scaffold(topBar = { AppTopBar(title = "Tahsilat", onBack = onBack) }) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(
-                start = Spacing.lg,
-                end = Spacing.lg,
-                top = Spacing.md,
-                bottom = Spacing.xxl
-            ),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xl)
-        ) {
-            item {
-                AppHeroCard(
-                    eyebrow = "Servis fişi #$ticketId",
-                    title = "₺${"%.2f".format(serviceTotal)}",
-                    subtitle = ticket?.customerName?.let { "Müşteri: $it" },
-                    badge = ticket?.customerBalance?.let { "Bakiye: ₺${"%.2f".format(it)}" }
-                )
+    LaunchedEffect(ticketId) { viewModel.selectTicket(ticketId); viewModel.loadBillingOrganizations() }
+    LaunchedEffect(state.serviceCompletedTicketId) {
+        if (state.serviceCompletedTicketId == ticketId) { viewModel.consumeServiceCompleted(); onDone() }
+    }
+    BackHandler(enabled = !state.collecting, onBack = onBack)
+    Scaffold(topBar = { AppTopBar(title = "Tahsilat", onBack = { if (!state.collecting) onBack() }) },
+        bottomBar = {
+            Surface(tonalElevation = 3.dp) {
+                Button(onClick = {
+                    if (!state.collectionLocked && (totals.getOrNull()?.customerDebt ?: BigDecimal.ZERO) + institution.getOrDefault(BigDecimal.ZERO) > BigDecimal.ZERO) confirm = true
+                    else submit()
+                }, enabled = !state.collecting && (state.collectionLocked || totals.isSuccess),
+                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(16.dp).readOnlyProtected(session.isReadOnly)) {
+                    Text(if (state.collecting) "Kaydediliyor…" else if (state.collectionLocked) "Aynı İşlemi Tekrar Dene" else "Tahsilatı Kaydet ve İşi Tamamla")
+                }
             }
-
+        }) { padding ->
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            item { Text("Servis fişi #$ticketId · ${state.selectedTicket?.customerName.orEmpty()}", style = MaterialTheme.typography.bodyMedium) }
             item {
-                AppDashboardSection(title = "Ödeme Yöntemi") {
-                    AppGhostCard {
-                        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-                            OutlinedTextField(
-                                value = method.label,
-                                onValueChange = {},
-                                label = { Text("Yöntem") },
-                                readOnly = true,
-                                leadingIcon = {
-                                    AppIconBadge(
-                                        icon = methodIcon(method.label),
-                                        tint = methodTint(method.label),
-                                        size = 28.dp,
-                                        iconSize = 14.dp,
-                                        cornerRadius = 8.dp
-                                    )
-                                },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                                modifier = Modifier
-                                    .menuAnchor(type = MenuAnchorType.PrimaryNotEditable)
-                                    .fillMaxWidth()
-                            )
-                            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                paymentMethods.forEach {
-                                    DropdownMenuItem(
-                                        text = { Text(it.label) },
-                                        onClick = {
-                                            method = it
-                                            amountText = if (it.apiValue == "WARRANTY" || it.apiValue == "CURRENT_ACCOUNT") {
-                                                "0.00"
-                                            } else {
-                                                "%.2f".format(partsTotal + laborFee)
-                                            }
-                                            expanded = false
-                                        }
-                                    )
+                AppGhostCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("1. Ücret Bilgileri", fontWeight = FontWeight.Bold)
+                        MoneyRow("Parça toplamı", parts)
+                        MoneyField("Servis / işçilik bedeli", laborText, editable && !internalWarranty) { laborText = it }
+                        CheckRow("İskonto ekle", discountEnabled, editable && !warranty) { discountEnabled = it }
+                        if (discountEnabled && !warranty) {
+                            Row {
+                                FilterChip(selected = discountType == "AMOUNT", onClick = { discountType = "AMOUNT" }, enabled = editable, label = { Text("TL") })
+                                Spacer(Modifier.width(12.dp))
+                                FilterChip(selected = discountType == "PERCENT", onClick = { discountType = "PERCENT" }, enabled = editable, label = { Text("%") })
+                            }
+                            MoneyField(if (discountType == "PERCENT") "İskonto yüzdesi" else "İskonto tutarı", discountText, editable) { discountText = it }
+                            MoneyRow("Ara toplam", price.getOrNull()?.subtotal)
+                            MoneyRow("İskonto", price.getOrNull()?.discount?.negate())
+                        }
+                        HorizontalDivider()
+                        MoneyRow("Fiş toplamı", price.getOrNull()?.net)
+                    }
+                }
+            }
+            item {
+                AppGhostCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("2. Ödemeyi Üstlenen", fontWeight = FontWeight.Bold)
+                        CheckRow("Tamamını veya bir kısmını kurum carisine aktar", organizationEnabled, editable) { organizationEnabled = it }
+                        if (organizationEnabled) {
+                            var expanded by remember { mutableStateOf(false) }
+                            Box {
+                                OutlinedButton(onClick = { expanded = true }, enabled = editable) {
+                                    Text(state.billingOrganizations.firstOrNull { it.id == organizationId }?.displayName ?: "Kurum seçin")
+                                }
+                                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                    state.billingOrganizations.forEach { party ->
+                                        DropdownMenuItem(text = { Text(party.displayName) }, onClick = { organizationId = party.id; expanded = false })
+                                    }
                                 }
                             }
+                            state.billingOrganizationsError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                            if (state.billingOrganizations.isEmpty()) TextButton(onClick = { viewModel.loadBillingOrganizations() }, enabled = editable) { Text("Kurumları tekrar yükle") }
+                            MoneyField("Kuruma aktarılacak tutar", organizationText, editable) { organizationText = it }
+                            TextButton(onClick = { organizationText = price.getOrNull()?.net?.toPlainString().orEmpty() }, enabled = editable && price.isSuccess) { Text("Fişin tamamını aktar") }
+                            Text("Bu tutar kurumun cari borcudur; alınmış ödeme değildir.", style = MaterialTheme.typography.bodySmall)
                         }
+                        MoneyRow("Müşteriye düşen", customerShare)
                     }
                 }
             }
-
             item {
-                AppDashboardSection(title = "Ücret ve Ödeme Özeti") {
-                    AppGhostCard {
-                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                            OutlinedTextField(
-                                value = laborFeeText,
-                                onValueChange = { newValue ->
-                                    laborFeeText = newValue.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' }
-                                    if (!isWarranty && !isCurrentAccount) {
-                                        val newLabor = laborFeeText.replace(',', '.').toDoubleOrNull() ?: 0.0
-                                        amountText = "%.2f".format(partsTotal + newLabor)
-                                    }
-                                },
-                                label = { Text("İşçilik / Servis Bedeli") },
-                                placeholder = { Text("Örn. 1.500,00 ₺") },
-                                supportingText = {
-                                    Text("İşçilik parça fiyatına dâhilse boş bırakabilirsiniz.")
-                                },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                enabled = !isWarranty,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            OutlinedTextField(
-                                value = amountText,
-                                onValueChange = { amountText = it.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' } },
-                                label = { Text("Tahsil edilen tutar") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                enabled = !isWarranty && !isCurrentAccount,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            if (isOverpayment) {
-                                Text(
-                                    "Tahsil edilen tutar fiş toplamını aşamaz.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error
-                                )
+                AppGhostCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("3. Tahsilat", fontWeight = FontWeight.Bold)
+                        if (!warranty) {
+                            listOf("CASH" to "Nakit", "CREDIT_CARD" to "Kredi Kartı", "CURRENT_ACCOUNT" to "Şimdi ödeme alınmadı").forEach { (value, label) ->
+                                Row { RadioButton(selected = method == value, onClick = { method = value }, enabled = editable); Text(label, modifier = Modifier.padding(top = 12.dp)) }
                             }
-                            if (isWarranty) {
-                                Text(
-                                    "Garanti kapsamında satış, tahsilat ve cari borç oluşturulmaz. Kullanılan parçaların maliyeti rapora yansır.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = AccentOrange
-                                )
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Fiş toplamı", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("₺${"%.2f".format(serviceTotal)}", fontWeight = FontWeight.Bold)
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Cari'ye aktarılacak",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "₺${"%.2f".format(remain)}",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = if (remain > 0) Warning else Success
-                                )
-                            }
+                        } else Text(if (internalWarranty) "İşletme garantisi: tahsilat ve cari borç oluşmaz." else "Kurum garantisi: müşteriden tahsilat alınmaz.")
+                        if (!noCollection) {
+                            MoneyField("Tahsil edilen tutar", amountText, editable) { amountText = it }
+                            TextButton(onClick = { amountText = customerShare.toPlainString() }, enabled = editable) { Text("Müşteri payının tamamı") }
                         }
+                        HorizontalDivider()
+                        MoneyRow("Kurum carisine", institution.getOrNull())
+                        MoneyRow("Tahsil edilen", collected.getOrNull())
+                        MoneyRow("Müşteri carisine kalan", totals.getOrNull()?.customerDebt)
                     }
                 }
             }
-
             item {
-                AppDashboardSection(title = "Teknisyen Notu") {
-                    AppGhostCard {
-                        OutlinedTextField(
-                            value = technicianNote,
-                            onValueChange = { technicianNote = it },
-                            label = { Text("Yapılan işlem / kapanış notu") },
-                            minLines = 3,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                TextButton(onClick = { extras = !extras }, enabled = editable) { Text("Kapanış notu ve garanti") }
+                if (extras) {
+                    OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("Yapılan işlem / kapanış notu") }, minLines = 2, enabled = editable, modifier = Modifier.fillMaxWidth())
+                    CheckRow("Garanti kapsamında kapat", warranty, editable) { warranty = it }
+                    Text("Garanti, iskonto ile ücretsiz işlemden farklıdır. Kurum garantisinde fişin tamamı kuruma aktarılır.", style = MaterialTheme.typography.bodySmall)
                 }
-            }
-
-            item {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Button(
-                        onClick = {
-                            if (remain > 0 && !isCurrentAccount && !isWarranty) {
-                                confirmCari = true
-                            } else {
-                                viewModel.completeService(ticketId, entered, method.apiValue, laborFee, technicianNote)
-                            }
-                        },
-                        enabled = !isOverpayment,
-                        modifier = Modifier.fillMaxWidth().readOnlyProtected(session.isReadOnly)
-                    ) {
-                        Text(if (isWarranty) "Garanti Kapsamında Kapat" else "Tahsilatı Kaydet")
-                    }
+                state.selectedTicket?.customerBalance?.takeIf { it != 0.0 }?.let {
+                    Text("Önceki cari bakiye: ${currency(BigDecimal.valueOf(it))}. Bu fişe dahil değildir.", style = MaterialTheme.typography.bodySmall)
                 }
+                totals.exceptionOrNull()?.message?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                if (state.usedPartsLoadedTicketId != ticketId && !state.usedPartsLoading) TextButton(onClick = { viewModel.loadUsedParts(ticketId) }) { Text("Parçaları tekrar yükle") }
+                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                if (state.collectionLocked) Text("Sonuç teyit edilene kadar aynı bilgilerle tekrar deneyin; ikinci tahsilat oluşturulmaz.")
             }
         }
     }
+    if (confirm) AlertDialog(onDismissRequest = { confirm = false }, title = { Text("Cari aktarımı onayla") },
+        text = { Text("Kurum carisine: ${currency(institution.getOrDefault(BigDecimal.ZERO))}\nMüşteri carisine: ${currency(totals.getOrNull()?.customerDebt ?: BigDecimal.ZERO)}") },
+        confirmButton = { TextButton(onClick = { confirm = false; submit() }) { Text("Onayla ve Tamamla") } },
+        dismissButton = { TextButton(onClick = { confirm = false }) { Text("Vazgeç") } })
+}
 
-    if (confirmCari) {
-        AlertDialog(
-            onDismissRequest = { confirmCari = false },
-            title = { Text("Güvenlik Onayı") },
-            text = { Text("Kalan tutar cari hesaba aktarılacak. Onaylıyor musunuz?") },
-            confirmButton = {
-                Button(onClick = {
-                    viewModel.completeService(ticketId, entered, method.apiValue, laborFee, technicianNote)
-                    confirmCari = false
-                }) {
-                    Text("Onayla")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmCari = false }) { Text("Vazgeç") }
-            }
-        )
+@Composable private fun MoneyField(label: String, value: String, enabled: Boolean, onChange: (String) -> Unit) {
+    OutlinedTextField(value = value, onValueChange = onChange, label = { Text(label) }, placeholder = { Text("0,00") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), enabled = enabled, singleLine = true, modifier = Modifier.fillMaxWidth())
+}
+@Composable private fun CheckRow(label: String, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
+    Row { Checkbox(checked = checked, onCheckedChange = onChange, enabled = enabled); Text(label, modifier = Modifier.padding(top = 12.dp)) }
+}
+@Composable private fun MoneyRow(label: String, amount: BigDecimal?) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, modifier = Modifier.weight(1f)); Text(amount?.let(::currency) ?: "—", fontWeight = FontWeight.SemiBold)
     }
 }
-
-private fun methodIcon(method: String) = when (method) {
-    "Kredi Kartı" -> Icons.Outlined.CreditCard
-    "Cari Hesap" -> Icons.Outlined.AccountBalanceWallet
-    "Garanti Kapsamında" -> Icons.Outlined.Payments
-    else -> Icons.Outlined.Payments
-}
-
-private fun methodTint(method: String) = when (method) {
-    "Kredi Kartı" -> Info
-    "Cari Hesap" -> AccentOrange
-    "Garanti Kapsamında" -> Warning
-    else -> AccentPurple
-}
+private fun currency(value: BigDecimal): String = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("tr-TR")).format(value)

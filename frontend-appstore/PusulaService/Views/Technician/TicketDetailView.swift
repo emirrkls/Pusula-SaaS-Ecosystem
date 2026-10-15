@@ -164,7 +164,10 @@ struct TicketDetailView: View {
         .sheet(isPresented: $showCollection) {
             CollectionView(
                 ticket: currentTicket,
-                partsTotal: totalPartsValue,
+                partsTotal: CollectionPricing.round(usedParts.reduce(Decimal.zero) { sum, part in
+                    sum + (Decimal(string: String(part.quantityUsed)) ?? 0)
+                        * (Decimal(string: String(part.sellingPriceSnapshot)) ?? 0)
+                }),
                 onComplete: {
                     await onComplete()
                     dismiss()
@@ -524,6 +527,10 @@ struct TicketDetailView: View {
                 .font(.subheadline.weight(.semibold))
             financialRow("Kullanılan malzemeler", partsTotal, id: "ticket.financial.parts")
             financialRow("İşçilik / servis", currentTicket.laborFee, id: "ticket.financial.labor")
+            if let discount = currentTicket.discountAmount, discount > 0 {
+                financialRow("Ara toplam", (currentTicket.invoiceTotal ?? fallbackInvoiceTotal ?? 0) + discount, id: "ticket.financial.subtotal")
+                financialRow("İskonto", -discount, id: "ticket.financial.discount")
+            }
             Divider()
             financialRow("Fiş toplamı", currentTicket.invoiceTotal ?? fallbackInvoiceTotal, id: "ticket.financial.invoice", emphasized: true)
             financialRow("Müşteriden tahsil edilen", currentTicket.collectedAmount, id: "ticket.financial.collected", color: .green)

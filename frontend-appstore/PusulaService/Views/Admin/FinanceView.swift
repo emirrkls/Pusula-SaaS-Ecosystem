@@ -635,6 +635,9 @@ struct FinanceReportsTab: View {
             DisclosureGroup {
                 VStack(spacing: 8) {
                     reportLine("Satış / Ciro", archive.totalIncome, .green)
+                    if (archive.totalDiscounts ?? 0) > 0 {
+                        reportLine("İskonto (cirodan düşülmüş)", archive.totalDiscounts, .orange)
+                    }
                     reportLine("Cariye Aktarılan", archive.currentAccountTransferred, .orange)
                     reportLine("Peşin / Kart Tahsilatı", archive.cashCardCollections, .green)
                     reportLine("Eski Cariden Tahsilat", archive.currentAccountCollections, .green)
@@ -725,6 +728,7 @@ struct AddExpenseSheet: View {
     @State private var category = ExpenseCategory.other
     @State private var treatment = FinancialTreatment.operatingExpense
     @State private var selectedDate: Date
+    @State private var submissionId = UUID()
     @State private var isSaving = false
     @State private var errorMessage: String?
     
@@ -756,13 +760,15 @@ struct AddExpenseSheet: View {
                 }
             }
             .navigationTitle("Gider Ekle")
+            .interactiveDismissDisabled(isSaving)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() }.disabled(isSaving) }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Kaydet") {
                         Task { await save() }
                     }
-                    .disabled(isSaving || parsedAmount <= 0)
+                    .disabled(isSaving || parsedAmount <= 0 || !parsedAmount.isFinite
+                              || description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             .alert("Gider Kaydedilemedi", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
@@ -782,11 +788,18 @@ struct AddExpenseSheet: View {
     }
 
     private func save() async {
+        guard !isSaving else { return }
+        guard parsedAmount.isFinite, parsedAmount > 0,
+              !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         isSaving = true
         defer { isSaving = false }
         let value = ExpenseDTO(id: expense?.id, amount: parsedAmount, description: description, date: financeDate(selectedDate), category: category.rawValue, fixedExpenseId: expense?.fixedExpenseId, paymentMethod: expense?.paymentMethod, financialTreatment: treatment.rawValue)
         do {
-            if expense == nil { _ = try await FinanceService.addExpense(value) } else { _ = try await FinanceService.updateExpense(value) }
+            if expense == nil {
+                _ = try await FinanceService.addExpense(value, requestId: submissionId)
+            } else {
+                _ = try await FinanceService.updateExpense(value)
+            }
             await onSaved()
             dismiss()
         } catch {

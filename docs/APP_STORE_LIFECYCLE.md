@@ -347,6 +347,85 @@ real-device crash, push, sign-in and Sandbox purchase checks before distribution
 No iOS archive, upload, App Review change or backend deployment is part of this
 test correction.
 
+### Intermittent connection failures: local reliability work (15 October 2026)
+
+This work is **local only**, at the owner's request. No push, backend deployment,
+archive/upload or change to the reviewed build 54 is authorized by this step.
+The new backend contract must be deployed and verified before distributing an
+iOS build that uses it. Existing builds continue using the legacy routes.
+
+- New POST routes under `/api/reliable-mutations` cover customer, ticket,
+  inventory and manual expense creation, plus ticket-photo upload. A UUID `Idempotency-Key` is
+  mandatory. There is deliberately no fallback to a legacy POST: an older
+  server must fail closed instead of silently ignoring the key.
+- A unique tenant/user/key claim, the business mutation and its result ID commit
+  in one transaction. Concurrent identical attempts wait and reload the same
+  authorized resource. Reusing a key for different input/operations returns
+  409. Existing feature, role, tenant, assignment, quota and read-only checks
+  remain in force; the actual write and quota consumption run only once.
+- V47 stores only actor/tenant IDs, UUID, operation, a SHA-256 fingerprint,
+  result ID and creation time, not request/response content or files. The retry
+  contract lasts 24 hours; minimal receipts remain for 30 days before pruning.
+  Rolled-back photo writes remove only their own new original/thumbnail files.
+- The client permits at most one automatic retry, with a short backoff, for
+  reads or these explicit keyed writes. Eligible failures are selected transient
+  network errors, the observed TLS -1200 / stream-domain 3 / -9816 combination,
+  or HTTP 502/503/504 without `Retry-After`. Cancellation, offline state, generic
+  TLS/certificate/trust failures, HTTP 4xx, other finance/auth writes and legacy
+  POSTs are not automatically retried. TLS validation is unchanged.
+- An automatic retry uses the exact encoded body/multipart boundary and mutation
+  key, but a distinct diagnostic UUID. Credentials are checked before sending,
+  before/after retry backoff and before returning results; stale-account work is
+  cancelled. Forms block simultaneous saves and dismissal while saving, and
+  retain the same key for manual retries within that form. A new form/app session
+  is a **new intent**, not content-based duplicate detection. After an uncertain
+  result, check the list before starting a fresh form; never promise cross-form
+  deduplication.
+
+Local validation covers the backend suite (including one pre-existing opt-in
+external-database test skipped), actual PostgreSQL 17
+concurrent/rollback receipt tests, V47 rerun safety, Swift policy regressions,
+and source guards. Linux policy/type checks are not an iPhone/iPad Xcode build.
+Before a later release, run the Mac simulator compile/UI gates and real-device
+lost-response, cancellation, account-switch and photo retry checks. No live
+customer mutation was used to test this local implementation.
+
+The 14 October ticket-create failure still has no matching HTTP request on the
+server; its later manual retry created one ticket, not a duplicate. TCP reset
+metadata around that time is relevant but cannot identify the exact pre-HTTP
+request or conclusively attribute the cause. Resilience is **not** evidence of
+a root-cause fix. Client reports now retain fractional-second timestamps and
+bounded numeric local-port/address-family hints, never raw IP addresses.
+
+Separately authorized temporary VPS diagnostics were extended to **18 October
+2026, 18:19:03 Europe/Istanbul** (15:19:03 UTC), with automatic cleanup and the
+same 10 MiB cap. Only sanitized transport metadata is persisted; TCP
+sequence/acknowledgment numbers improve reset/retransmission correlation without
+recording payloads, packet-capture files or raw IPs. Recording can stop earlier
+if the size cap is reached. HTTP correlation currently targets build 55 only;
+review that allowlist before a future build's diagnostic session. The backend,
+TLS trust/protocol configuration and Nginx master were not restarted/changed.
+
+The owner also authorized manual expense creation on 15 October. The explicit
+`POST /api/reliable-mutations/expenses` contract requires `FINANCE_MODULE`, an
+administrator role and a valid key. Dedicated validated input excludes client
+record/tenant IDs and managed fixed-expense/source links. Expense creation,
+audit and closed-day reconciliation join the receipt transaction, so a rollback
+reverts all of them and a replay does not repeat any of them. Updates, fixed
+expense payments, debt collections and other financial writes remain outside
+automatic replay. The iOS expense sheet keeps its intent UUID and disables
+duplicate saves/dismissal while a write is pending. These additions are local
+only; they do not change build 54, build 55 or the live backend.
+
+Expense follow-up validation: 378 backend tests passed with one existing opt-in
+database test skipped (379 discovered), all 100 Swift policy tests and 18 source
+guards passed. The 14 receipt integration scenarios also passed independently on
+an isolated PostgreSQL 17 instance, including eight concurrent expense copies,
+one audit/reconciliation effect, full rollback and safe replay. The temporary
+test database is disposable; no production expense was created for this check.
+These host-side checks still do not replace iPhone/iPad Xcode compilation and
+real-device validation before a later separately authorized rollout.
+
 ### GitHub signed release and upload (13 October 2026)
 
 The owner authorized a manual GitHub-hosted Mac build and TestFlight upload using

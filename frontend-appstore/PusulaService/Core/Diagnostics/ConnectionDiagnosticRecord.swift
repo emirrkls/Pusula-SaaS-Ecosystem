@@ -62,11 +62,15 @@ struct ConnectionTransaction: Codable, Equatable, Sendable {
     var cellular = false
     var protocolName: String?
     var tlsProtocol: Int?
+    var localPort: Int?
+    var remoteAddressFamily: String?
 
     func redacted() -> Self {
         var result = self
         result.protocolName = ["h2", "h3", "http/1.1", "http/1.0"].contains(protocolName ?? "") ? protocolName : nil
         result.tlsProtocol = [0x0303, 0x0304].contains(tlsProtocol ?? 0) ? tlsProtocol : nil
+        result.localPort = localPort.flatMap { (1...65535).contains($0) ? $0 : nil }
+        result.remoteAddressFamily = ["ipv4", "ipv6"].contains(remoteAddressFamily ?? "") ? remoteAddressFamily : nil
         return result
     }
 }
@@ -75,7 +79,7 @@ enum ConnectionDiagnosticPrivacy {
     // Only literal API vocabulary survives. Dynamic IDs, names, search terms,
     // signed file paths and query strings never enter storage or the report.
     private static let vocabulary: Set<String> = [
-        "api", "auth", "authenticate", "google", "apple", "challenge", "register", "register-individual",
+        "api", "reliable-mutations", "auth", "authenticate", "google", "apple", "challenge", "register", "register-individual",
         "feature-context", "initial-password", "delete-account", "onboarding-version", "subscription",
         "my-context", "plans", "verify", "context", "tickets", "customer", "customers", "parts", "photos",
         "technician-notes", "signature", "complete", "cancel", "follow-up", "audit-logs", "ticket",

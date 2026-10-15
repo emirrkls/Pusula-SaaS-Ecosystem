@@ -4,18 +4,14 @@ import com.pusula.desktop.api.ServiceTicketApi;
 import com.pusula.desktop.api.ReportApi;
 import com.pusula.desktop.api.UserApi;
 import com.pusula.desktop.api.CustomerApi;
-import com.pusula.desktop.api.AccountPartyApi;
 import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.dto.CustomerDTO;
 import com.pusula.desktop.dto.ServiceUsedPartDTO;
 import com.pusula.desktop.dto.ServiceTicketExpenseDTO;
 import com.pusula.desktop.dto.UserDTO;
-import com.pusula.desktop.dto.AccountPartyOptionDTO;
-import com.pusula.desktop.dto.AccountPartyDTO;
 import com.pusula.desktop.api.ServiceTicketExpenseApi;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
-import com.pusula.desktop.util.CurrencyTextField;
 import com.pusula.desktop.util.NotificationService;
 import com.pusula.desktop.util.WhatsAppHelper;
 import javafx.application.Platform;
@@ -106,6 +102,8 @@ public class TicketDetailsController {
     @FXML private Label lblInvoiceTotal;
     @FXML private Label lblPartsTotal;
     @FXML private Label lblLaborFee;
+    @FXML private Label lblDiscountAmount;
+    @FXML private VBox discountSummaryBox;
     @FXML private Label lblCollectedAmount;
     @FXML private Label lblOutstandingAmount;
     @FXML private Label lblPaymentMethod;
@@ -499,6 +497,9 @@ public class TicketDetailsController {
         if (isCompleted) {
             lblPartsTotal.setText(formatMoney(currentTicket.getPartsTotal()));
             lblLaborFee.setText(formatMoney(currentTicket.getLaborFee()));
+            lblDiscountAmount.setText("−" + formatMoney(currentTicket.getDiscountAmount()));
+            discountSummaryBox.setVisible(currentTicket.getDiscountAmount() != null && currentTicket.getDiscountAmount().signum() > 0);
+            discountSummaryBox.setManaged(discountSummaryBox.isVisible());
             lblInvoiceTotal.setText(formatMoney(currentTicket.getInvoiceTotal()));
             lblCollectedAmount.setText(formatMoney(currentTicket.getCollectedAmount()));
             BigDecimal institutionAmount = currentTicket.getBillingPartyAmount() != null
@@ -1420,396 +1421,20 @@ public class TicketDetailsController {
 
     @FXML
     private void handleCompleteService() {
-        if (currentTicket == null)
-            return;
-
-        // Create custom dialog with GridPane
-        Dialog<java.util.Map<String, Object>> dialog = new Dialog<>();
-        com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, lblStatus.getScene().getWindow(),
-                com.pusula.desktop.util.ThemeHelper.DialogProfile.WORKFLOW);
-        dialog.setTitle(resourceBundle.getString("dialog.complete.title"));
-        dialog.setHeaderText(resourceBundle.getString("dialog.complete.header"));
-
-        ButtonType completeButtonType = new ButtonType(
-                resourceBundle.getString("dialog.complete.action"), ButtonBar.ButtonData.OK_DONE);
-        ButtonType cancelButtonType = new ButtonType(
-                resourceBundle.getString("btn.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
-        dialog.getDialogPane().getButtonTypes().addAll(completeButtonType, cancelButtonType);
-
-        // Create form
-        GridPane grid = new GridPane();
-        grid.setHgap(18);
-        grid.setVgap(12);
-        grid.setPadding(new javafx.geometry.Insets(4));
-        grid.getStyleClass().add("service-completion-grid");
-        javafx.scene.layout.ColumnConstraints labelColumn = new javafx.scene.layout.ColumnConstraints();
-        labelColumn.setMinWidth(150);
-        labelColumn.setPrefWidth(165);
-        javafx.scene.layout.ColumnConstraints fieldColumn = new javafx.scene.layout.ColumnConstraints();
-        fieldColumn.setMinWidth(300);
-        fieldColumn.setHgrow(javafx.scene.layout.Priority.ALWAYS);
-        grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
-
-        BigDecimal partsTotal = usedPartsList.stream()
-                .map(part -> {
-                    BigDecimal unitPrice = part.getSellingPriceSnapshot() != null
-                            ? part.getSellingPriceSnapshot()
-                            : BigDecimal.ZERO;
-                    BigDecimal quantity = part.getQuantityUsed() != null ? part.getQuantityUsed() : BigDecimal.ZERO;
-                    return unitPrice.multiply(quantity);
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        CurrencyTextField laborFeeField = new CurrencyTextField();
-        laborFeeField.setRawValue(currentTicket.getLaborFee() != null
-                ? currentTicket.getLaborFee() : BigDecimal.ZERO);
-        CurrencyTextField collectedField = new CurrencyTextField();
-        collectedField.setRawValue(currentTicket.getCollectedAmount() != null
-                ? currentTicket.getCollectedAmount() : partsTotal.add(laborFeeField.getRawValue()));
-
-        Label partsTotalLabel = new Label(formatMoney(partsTotal));
-        BigDecimal initialInvoiceTotal = partsTotal.add(laborFeeField.getRawValue());
-        Label invoiceTotalLabel = new Label(formatMoney(initialInvoiceTotal));
-        Label outstandingLabel = new Label(formatMoney(
-                initialInvoiceTotal.subtract(collectedField.getRawValue()).max(BigDecimal.ZERO)));
-
-        javafx.scene.control.ComboBox<String> paymentCombo = new javafx.scene.control.ComboBox<>();
-        paymentCombo.getItems().addAll(
-                resourceBundle.getString("payment.cash"), // Nakit
-                resourceBundle.getString("payment.credit_card"), // Kredi Kartı
-                resourceBundle.getString("payment.current_account"), // Cari Hesap (Veresiye)
-                resourceBundle.getString("payment.warranty")
-        );
-        String existingPaymentMethod = currentTicket.getPaymentMethod();
-        paymentCombo.setValue("CREDIT_CARD".equals(existingPaymentMethod)
-                ? resourceBundle.getString("payment.credit_card")
-                : "CURRENT_ACCOUNT".equals(existingPaymentMethod)
-                        ? resourceBundle.getString("payment.current_account")
-                        : "WARRANTY".equals(existingPaymentMethod)
-                                ? resourceBundle.getString("payment.warranty")
-                        : resourceBundle.getString("payment.cash"));
-
-        DatePicker completionDatePicker = new DatePicker(currentTicket.getCompletedAt() != null
-                ? currentTicket.getCompletedAt().toLocalDate() : LocalDate.now());
-        completionDatePicker.setDayCellFactory(picker -> new DateCell() {
-            @Override
-            public void updateItem(LocalDate item, boolean empty) {
-                super.updateItem(item, empty);
-                setDisable(empty || item.isAfter(LocalDate.now()));
-            }
-        });
-
-        grid.add(new Label("Parça toplamı:"), 0, 0);
-        grid.add(partsTotalLabel, 1, 0);
-        grid.add(new Label("İşçilik / servis bedeli:"), 0, 1);
-        grid.add(laborFeeField, 1, 1);
-        grid.add(new Label("Fiş toplamı:"), 0, 2);
-        grid.add(invoiceTotalLabel, 1, 2);
-        grid.add(new Label("Tahsil edilen:"), 0, 3);
-        grid.add(collectedField, 1, 3);
-        grid.add(new Label("Kalan / cari:"), 0, 4);
-        grid.add(outstandingLabel, 1, 4);
-        grid.add(new Label(resourceBundle.getString("payment.method") + ":"), 0, 5);
-        grid.add(paymentCombo, 1, 5);
-        CheckBox institutionalWarranty = new CheckBox(resourceBundle.getString("service.complete.organization.toggle"));
-        CurrencyTextField billingPartyAmountField = new CurrencyTextField();
-        billingPartyAmountField.setPromptText(resourceBundle.getString("service.complete.organization.amount.prompt"));
-        billingPartyAmountField.setDisable(true);
-        ComboBox<AccountPartyOptionDTO> billingPartyCombo = new ComboBox<>();
-        billingPartyCombo.setPromptText("Kurumlar yükleniyor…");
-        billingPartyCombo.setMaxWidth(Double.MAX_VALUE);
-        billingPartyCombo.setDisable(true);
-        Button addBillingPartyButton = new Button("Yeni kurum");
-        addBillingPartyButton.getStyleClass().addAll("btn-secondary", "btn-sm");
-        addBillingPartyButton.setVisible(com.pusula.desktop.util.SessionManager.isAdmin());
-        addBillingPartyButton.setManaged(addBillingPartyButton.isVisible());
-        HBox billingPartyBox = new HBox(8, billingPartyCombo, addBillingPartyButton);
-        HBox.setHgrow(billingPartyCombo, javafx.scene.layout.Priority.ALWAYS);
-        grid.add(new Label("Ödeme sorumlusu:"), 0, 6);
-        grid.add(institutionalWarranty, 1, 6);
-        grid.add(new Label("Ödemeyi üstlenen kurum:"), 0, 7);
-        grid.add(billingPartyBox, 1, 7);
-        grid.add(new Label(resourceBundle.getString("service.complete.organization.amount") + ":"), 0, 8);
-        grid.add(billingPartyAmountField, 1, 8);
-        Label billingPartyHint = new Label(resourceBundle.getString("service.complete.organization.hint"));
-        billingPartyHint.setWrapText(true);
-        billingPartyHint.getStyleClass().add("section-caption");
-        grid.add(billingPartyHint, 1, 9);
-        TextArea technicianNoteField = new TextArea();
-        technicianNoteField.setPromptText("Yapılan işlem / kapanış notu");
-        technicianNoteField.setWrapText(true);
-        technicianNoteField.setPrefRowCount(3);
-        grid.add(new Label("Kapanış notu:"), 0, 10);
-        grid.add(technicianNoteField, 1, 10);
-        if (com.pusula.desktop.util.SessionManager.isAdmin()) {
-            grid.add(new Label(resourceBundle.getString("dialog.complete.date") + ":"), 0, 11);
-            grid.add(completionDatePicker, 1, 11);
-        }
-
-        RetrofitClient.getClient().create(AccountPartyApi.class).getBillingOptions().enqueue(
-                new Callback<List<AccountPartyOptionDTO>>() {
-                    @Override public void onResponse(Call<List<AccountPartyOptionDTO>> call,
-                            Response<List<AccountPartyOptionDTO>> response) {
-                        if (response.isSuccessful() && response.body() != null) {
-                            Platform.runLater(() -> {
-                                billingPartyCombo.setItems(FXCollections.observableArrayList(response.body()));
-                                if (response.body().isEmpty()) {
-                                    billingPartyCombo.setPromptText("Kayıtlı anlaşmalı kurum yok");
-                                    billingPartyHint.setText("Henüz kurum kartı yok. Yeni kurum düğmesiyle oluşturabilirsiniz.");
-                                } else {
-                                    billingPartyCombo.setPromptText("Anlaşmalı kurum seçin");
-                                    if (currentTicket.getBillingPartyId() != null) {
-                                        response.body().stream()
-                                                .filter(option -> currentTicket.getBillingPartyId().equals(option.getId()))
-                                                .findFirst().ifPresent(billingPartyCombo::setValue);
-                                    }
-                                }
-                            });
-                        }
-                    }
-                    @Override public void onFailure(Call<List<AccountPartyOptionDTO>> call, Throwable throwable) {
-                        Platform.runLater(() -> billingPartyCombo.setPromptText("Kurumlar alınamadı"));
-                    }
-                });
-
-        addBillingPartyButton.setOnAction(event -> {
-            TextInputDialog createDialog = new TextInputDialog();
-            com.pusula.desktop.util.ThemeHelper.applyToDialog(createDialog, lblStatus.getScene().getWindow(),
-                    com.pusula.desktop.util.ThemeHelper.DialogProfile.FORM);
-            createDialog.setTitle("Yeni Kurum/Firma Cari Kartı");
-            createDialog.setHeaderText("Servis bedelinin aktarılacağı kurum veya firma");
-            createDialog.setContentText("Kurum/firma adı:");
-            createDialog.showAndWait().map(String::trim).filter(name -> !name.isBlank()).ifPresent(name -> {
-                addBillingPartyButton.setDisable(true);
-                AccountPartyDTO request = AccountPartyDTO.builder()
-                        .partyType("ORGANIZATION").displayName(name).paymentTermDays(0).active(true).build();
-                RetrofitClient.getClient().create(AccountPartyApi.class).create(request).enqueue(
-                        new Callback<AccountPartyDTO>() {
-                            @Override public void onResponse(Call<AccountPartyDTO> call,
-                                    Response<AccountPartyDTO> response) {
-                                Platform.runLater(() -> {
-                                    addBillingPartyButton.setDisable(false);
-                                    if (response.isSuccessful() && response.body() != null) {
-                                        AccountPartyDTO saved = response.body();
-                                        AccountPartyOptionDTO option = new AccountPartyOptionDTO(
-                                                saved.getId(), saved.getDisplayName(), saved.getPartyType());
-                                        billingPartyCombo.getItems().add(option);
-                                        billingPartyCombo.setValue(option);
-                                    } else {
-                                        AlertHelper.showAlert(Alert.AlertType.ERROR,
-                                                lblStatus.getScene().getWindow(), "Kurum oluşturulamadı",
-                                                "Kurum/firma cari kartı kaydedilemedi (" + response.code() + ").");
-                                    }
-                                });
-                            }
-                            @Override public void onFailure(Call<AccountPartyDTO> call, Throwable throwable) {
-                                Platform.runLater(() -> {
-                                    addBillingPartyButton.setDisable(false);
-                                    AlertHelper.showAlert(Alert.AlertType.ERROR,
-                                            lblStatus.getScene().getWindow(), "Kurum oluşturulamadı",
-                                            throwable.getMessage());
-                                });
-                            }
-                        });
-            });
-        });
-
-        boolean initiallyCurrentAccount = paymentCombo.getValue()
-                .equals(resourceBundle.getString("payment.current_account"));
-        boolean initiallyWarranty = paymentCombo.getValue()
-                .equals(resourceBundle.getString("payment.warranty"));
-        collectedField.setDisable(initiallyCurrentAccount || initiallyWarranty);
-        laborFeeField.setDisable(initiallyWarranty && !institutionalWarranty.isSelected());
-        if (initiallyWarranty) laborFeeField.setRawValue(BigDecimal.ZERO);
-        if (initiallyCurrentAccount || initiallyWarranty) collectedField.setRawValue(BigDecimal.ZERO);
-
-        Runnable updateTotals = () -> {
-            boolean warranty = paymentCombo.getValue().equals(resourceBundle.getString("payment.warranty"));
-            boolean billedToInstitution = warranty && institutionalWarranty.isSelected();
-            BigDecimal invoiceTotal = warranty && !billedToInstitution
-                    ? BigDecimal.ZERO : partsTotal.add(laborFeeField.getRawValue());
-            boolean currentAccount = paymentCombo.getValue()
-                    .equals(resourceBundle.getString("payment.current_account"));
-            if (currentAccount || warranty) {
-                collectedField.setRawValue(BigDecimal.ZERO);
-            }
-            BigDecimal collected = collectedField.getRawValue();
-            BigDecimal institutionAmount = institutionalWarranty.isSelected()
-                    ? billingPartyAmountField.getRawValue() : BigDecimal.ZERO;
-            BigDecimal customerShare = invoiceTotal.subtract(institutionAmount).max(BigDecimal.ZERO);
-            BigDecimal outstanding = customerShare.subtract(collected).max(BigDecimal.ZERO);
-            invoiceTotalLabel.setText(formatMoney(invoiceTotal));
-            outstandingLabel.setText(formatMoney(outstanding));
-        };
-
-        laborFeeField.textProperty().addListener((observable, oldValue, newValue) -> {
-            BigDecimal invoiceTotal = partsTotal.add(laborFeeField.getRawValue());
-            if (!paymentCombo.getValue().equals(resourceBundle.getString("payment.current_account"))) {
-                collectedField.setRawValue(invoiceTotal);
-            }
-            updateTotals.run();
-        });
-        collectedField.textProperty().addListener((observable, oldValue, newValue) -> updateTotals.run());
-        billingPartyAmountField.textProperty().addListener((observable, oldValue, newValue) -> updateTotals.run());
-        paymentCombo.valueProperty().addListener((observable, oldValue, newValue) -> {
-            boolean currentAccount = newValue.equals(resourceBundle.getString("payment.current_account"));
-            boolean warranty = newValue.equals(resourceBundle.getString("payment.warranty"));
-            institutionalWarranty.setDisable(false);
-            laborFeeField.setDisable(warranty && !institutionalWarranty.isSelected());
-            if (warranty && !institutionalWarranty.isSelected()) laborFeeField.setRawValue(BigDecimal.ZERO);
-            collectedField.setDisable(currentAccount || warranty);
-            collectedField.setRawValue(currentAccount || warranty
-                    ? BigDecimal.ZERO
-                    : partsTotal.add(laborFeeField.getRawValue()));
-            updateTotals.run();
-        });
-        institutionalWarranty.selectedProperty().addListener((observable, oldValue, selected) -> {
-            boolean warranty = paymentCombo.getValue().equals(resourceBundle.getString("payment.warranty"));
-            billingPartyCombo.setDisable(!selected);
-            billingPartyAmountField.setDisable(!selected);
-            if (selected) {
-                billingPartyAmountField.setRawValue(partsTotal.add(laborFeeField.getRawValue()));
-                collectedField.setRawValue(BigDecimal.ZERO);
-            } else {
-                billingPartyAmountField.setRawValue(BigDecimal.ZERO);
-                billingPartyCombo.setValue(null);
-                if (!warranty && !paymentCombo.getValue().equals(resourceBundle.getString("payment.current_account"))) {
-                    collectedField.setRawValue(partsTotal.add(laborFeeField.getRawValue()));
-                }
-            }
-            laborFeeField.setDisable(warranty && !selected);
-            if (warranty && !selected) laborFeeField.setRawValue(BigDecimal.ZERO);
-            updateTotals.run();
-        });
-        updateTotals.run();
-
-        Label formTitle = new Label("Ücret ve Tahsilat");
-        formTitle.getStyleClass().add("dialog-section-title");
-        Label formCaption = new Label("Fiş bedelini, tahsilatı ve ödeme sorumlusunu tek adımda kesinleştirin.");
-        formCaption.getStyleClass().add("section-caption");
-        VBox dialogContent = new VBox(5, formTitle, formCaption, grid);
-        dialogContent.getStyleClass().add("service-completion-content");
-        VBox.setMargin(grid, new javafx.geometry.Insets(10, 0, 0, 0));
-        ScrollPane formScroll = new ScrollPane(dialogContent);
-        formScroll.setFitToWidth(true);
-        formScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        formScroll.setMinHeight(0);
-        formScroll.setPrefViewportHeight(570);
-        formScroll.getStyleClass().add("dialog-form-scroll");
-        dialog.getDialogPane().setContent(formScroll);
-
-        // Convert result
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == completeButtonType) {
-                java.util.Map<String, Object> result = new java.util.HashMap<>();
-                result.put("laborFee", laborFeeField.getRawValue());
-                result.put("collectedAmount", collectedField.getRawValue());
-                result.put("paymentMethod", paymentCombo.getValue());
-                result.put("technicianNote", technicianNoteField.getText());
-                result.put("institutionalWarranty", institutionalWarranty.isSelected());
-                result.put("billingParty", billingPartyCombo.getValue());
-                result.put("billingPartyAmount", billingPartyAmountField.getRawValue());
-                if (com.pusula.desktop.util.SessionManager.isAdmin()) {
-                    result.put("completionDate", completionDatePicker.getValue());
-                }
-                return result;
-            }
-            return null;
-        });
-
-        dialog.showAndWait().ifPresent(result -> {
-            try {
-                BigDecimal laborFee = (BigDecimal) result.get("laborFee");
-                BigDecimal collectedAmount = (BigDecimal) result.get("collectedAmount");
-                String paymentMethodDisplay = result.get("paymentMethod").toString();
-                boolean billedToInstitution = Boolean.TRUE.equals(result.get("institutionalWarranty"));
-                AccountPartyOptionDTO billingParty = (AccountPartyOptionDTO) result.get("billingParty");
-                BigDecimal billingPartyAmount = (BigDecimal) result.get("billingPartyAmount");
-                if (billedToInstitution && billingParty == null) {
-                    AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                            "Kurum seçilmedi", "Tutarın aktarılacağı kurum/firma cari kartını seçin.");
-                    return;
-                }
-                BigDecimal invoiceTotal = partsTotal.add(laborFee);
-                if (billedToInstitution && (billingPartyAmount.signum() <= 0
-                        || billingPartyAmount.compareTo(invoiceTotal) > 0)) {
-                    AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                            "Geçersiz kurum payı", "Kurum payı sıfırdan büyük ve fiş toplamını aşmayacak şekilde girilmelidir.");
-                    return;
-                }
-                BigDecimal customerShare = invoiceTotal.subtract(billedToInstitution
-                        ? billingPartyAmount : BigDecimal.ZERO);
-                if (collectedAmount.compareTo(customerShare) > 0) {
-                    AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                            "Geçersiz tahsilat", "Tahsil edilen tutar müşteriye düşen kısmı aşamaz.");
-                    return;
-                }
-
-                // Map display text to backend enum value
-                String paymentMethod = "CASH"; // Default
-                if (paymentMethodDisplay.equals(resourceBundle.getString("payment.credit_card"))) {
-                    paymentMethod = "CREDIT_CARD";
-                } else if (paymentMethodDisplay.equals(resourceBundle.getString("payment.current_account"))) {
-                    paymentMethod = "CURRENT_ACCOUNT";
-                } else if (paymentMethodDisplay.equals(resourceBundle.getString("payment.warranty"))) {
-                    paymentMethod = "WARRANTY";
-                    if (!billedToInstitution) laborFee = BigDecimal.ZERO;
-                    collectedAmount = BigDecimal.ZERO;
-                    if (billedToInstitution && billingPartyAmount.compareTo(invoiceTotal) != 0) {
-                        AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                                "Garanti dağılımı geçersiz", "Garanti yönteminde fiş toplamının tamamı kuruma aktarılmalıdır.");
-                        return;
-                    }
-                }
-
-                // Create request body as Map
-                java.util.Map<String, Object> requestBody = new java.util.HashMap<>();
-                requestBody.put("laborFee", laborFee);
-                requestBody.put("collectedAmount", collectedAmount);
-                requestBody.put("paymentMethod", paymentMethod);
-                requestBody.put("technicianNote", result.get("technicianNote"));
-                requestBody.put("billingResponsibility", billedToInstitution
-                        ? (billingPartyAmount.compareTo(invoiceTotal) == 0 ? "ORGANIZATION" : "SPLIT")
-                        : "WARRANTY".equals(paymentMethod) ? "INTERNAL" : "CUSTOMER");
-                if (billingParty != null) {
-                    requestBody.put("billingPartyId", billingParty.getId());
-                    requestBody.put("billingPartyAmount", billingPartyAmount);
-                }
-                if (result.get("completionDate") != null) {
-                    requestBody.put("completionDate", result.get("completionDate").toString());
-                }
-
-                ServiceTicketApi api = RetrofitClient.getClient().create(ServiceTicketApi.class);
-                api.completeService(currentTicket.getId(), requestBody).enqueue(new Callback<ServiceTicketDTO>() {
-                    @Override
-                    public void onResponse(Call<ServiceTicketDTO> call, Response<ServiceTicketDTO> response) {
-                        if (response.isSuccessful() && response.body() != null) {
-                            Platform.runLater(() -> {
-                                currentTicket = response.body();
-                                updateUI();
-                                AlertHelper.showAlert(Alert.AlertType.INFORMATION, lblStatus.getScene().getWindow(),
-                                        resourceBundle.getString("dialog.title.success"),
-                                        resourceBundle.getString("dialog.complete.success"));
-                            });
-                        } else {
-                            Platform.runLater(() -> {
-                                AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                                        "Hata", "Servis tamamlanamadı: " + response.code());
-                            });
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(Call<ServiceTicketDTO> call, Throwable t) {
-                        Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
-                                lblStatus.getScene().getWindow(), "Hata", t.getMessage()));
-                    }
-                });
-            } catch (Exception e) {
-                AlertHelper.showAlert(Alert.AlertType.ERROR, lblStatus.getScene().getWindow(),
-                        "Geçersiz Tutar", "Tutar alanını kontrol edin: " + e.getMessage());
-            }
-        });
+        if (currentTicket == null) return;
+        BigDecimal partsTotal = usedPartsList.stream().map(part -> {
+            BigDecimal price = part.getSellingPriceSnapshot() == null ? BigDecimal.ZERO : part.getSellingPriceSnapshot();
+            BigDecimal quantity = part.getQuantityUsed() == null ? BigDecimal.ZERO : part.getQuantityUsed();
+            return price.multiply(quantity);
+        }).reduce(BigDecimal.ZERO, BigDecimal::add);
+        new com.pusula.desktop.util.ServiceCollectionDialog(lblStatus.getScene().getWindow(),
+                currentTicket, partsTotal, completed -> {
+                    currentTicket = completed;
+                    updateUI();
+                    AlertHelper.showAlert(Alert.AlertType.INFORMATION, lblStatus.getScene().getWindow(),
+                            resourceBundle.getString("dialog.title.success"),
+                            resourceBundle.getString("dialog.complete.success"));
+                }).show();
     }
 
     @FXML

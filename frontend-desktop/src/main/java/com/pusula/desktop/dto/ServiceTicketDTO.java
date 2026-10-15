@@ -22,6 +22,9 @@ public class ServiceTicketDTO {
     private BigDecimal laborFee;
     private BigDecimal partsTotal;
     private BigDecimal invoiceTotal;
+    private String discountType;
+    private BigDecimal discountValue;
+    private BigDecimal discountAmount;
     private BigDecimal outstandingAmount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -182,6 +185,12 @@ public class ServiceTicketDTO {
 
     public BigDecimal getInvoiceTotal() { return invoiceTotal; }
     public void setInvoiceTotal(BigDecimal invoiceTotal) { this.invoiceTotal = invoiceTotal; }
+    public String getDiscountType() { return discountType; }
+    public void setDiscountType(String discountType) { this.discountType = discountType; }
+    public BigDecimal getDiscountValue() { return discountValue; }
+    public void setDiscountValue(BigDecimal discountValue) { this.discountValue = discountValue; }
+    public BigDecimal getDiscountAmount() { return discountAmount; }
+    public void setDiscountAmount(BigDecimal discountAmount) { this.discountAmount = discountAmount; }
 
     public BigDecimal getOutstandingAmount() { return outstandingAmount; }
     public void setOutstandingAmount(BigDecimal outstandingAmount) { this.outstandingAmount = outstandingAmount; }

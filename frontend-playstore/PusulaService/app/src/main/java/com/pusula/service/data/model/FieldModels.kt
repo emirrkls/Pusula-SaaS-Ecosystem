@@ -19,7 +19,17 @@ data class FieldTicketDTO(
     val paymentMethod: String? = null,
     val isWarrantyCall: Boolean? = null,
     val parentTicketId: Long? = null,
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    val partsTotal: Double? = null,
+    val laborFee: Double? = null,
+    val invoiceTotal: Double? = null,
+    val outstandingAmount: Double? = null,
+    val discountType: String? = null,
+    val discountValue: Double? = null,
+    val discountAmount: Double? = null,
+    val billingPartyId: Long? = null,
+    val billingPartyName: String? = null,
+    val billingPartyAmount: Double? = null
 )
 
 data class UsedPartDTO(
@@ -38,8 +48,15 @@ data class CollectionRequest(
     val collectedAmount: Double,
     val paymentMethod: String,
     val laborFee: Double? = null,
-    val technicianNote: String? = null
+    val technicianNote: String? = null,
+    val discountType: String = "AMOUNT",
+    val discountValue: java.math.BigDecimal = java.math.BigDecimal.ZERO,
+    val billingPartyId: Long? = null,
+    val billingPartyAmount: java.math.BigDecimal? = null,
+    val expectedPartsTotal: java.math.BigDecimal? = null
 )
+
+data class AccountPartyOptionDTO(val id: Long, val displayName: String, val partyType: String)
 
 data class TechnicianNoteDTO(
     val id: Long,

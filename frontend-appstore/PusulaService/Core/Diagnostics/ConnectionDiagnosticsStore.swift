@@ -73,8 +73,7 @@ actor ConnectionDiagnosticsStore {
         // Bounded content read; no file timestamps or disk-space metadata.
         guard let data = try? handle.read(upToCount: 512 * 1_024 + 1),
               data.count <= 512 * 1_024 else { return }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = Self.decoder()
         if let decoded = try? decoder.decode([ConnectionDiagnosticRecord].self, from: data) {
             records = Array(decoded.suffix(limit)).map { $0.redacted() }
             prune(now: now)
@@ -115,7 +114,26 @@ actor ConnectionDiagnosticsStore {
     static func encoder() -> JSONEncoder {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        encoder.dateEncodingStrategy = .iso8601
+        let timestamp = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var value = encoder.singleValueContainer()
+            try value.encode(timestamp.format(date))
+        }
         return encoder
+    }
+
+    static func decoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        let precise = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+        let legacy = Date.ISO8601FormatStyle()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let value = try decoder.singleValueContainer()
+            let text = try value.decode(String.self)
+            guard let date = (try? precise.parse(text)) ?? (try? legacy.parse(text)) else {
+                throw DecodingError.dataCorruptedError(in: value, debugDescription: "Invalid diagnostic timestamp")
+            }
+            return date
+        }
+        return decoder
     }
 }

@@ -140,7 +140,7 @@ test('all audited read screens use cancellation guards without weakening transpo
     assert.match(read(app + `Views/${file}.swift`), /LoadCancellationPolicy\.isCancellation/, file);
   }
   const network = read(app + 'Services/NetworkManager.swift');
-  assert.match(network, /ConnectionDiagnosticsTransport\.data\(for: request/);
+  assert.match(network, /ConnectionReliableTransport\.data\(for: request/);
   const transport = read(app + 'Core/Diagnostics/ConnectionDiagnosticsTransport.swift');
   assert.match(transport, /session: URLSession = \.shared/);
   assert.match(transport, /session\.data\(for: request, delegate: observer\)/);
@@ -188,7 +188,7 @@ test('iPhone and iPad CI both run the actual detail and customer failure regress
   assert.ok(read('frontend-appstore/RoutingTests/RefreshRequestStateTests.swift').includes('LoadCancellationPolicy'));
 });
 
-test('diagnostics observes every common transport without automatic retries or raw secrets', () => {
+test('diagnostic observer remains single-attempt and excludes raw secrets', () => {
   const network = read(app + 'Services/NetworkManager.swift');
   for (const operation of ['api', 'download', 'upload']) {
     assert.ok(network.includes(`observedData(for: request, operation: .${operation})`));
@@ -204,6 +204,50 @@ test('diagnostics observes every common transport without automatic retries or r
   const photos = read(app + 'Views/Technician/ServicePhotoView.swift');
   assert.match(photos, /local\(operation: \.photoLibraryRead/);
   assert.match(photos, /local\(operation: \.photoPreparation/);
+});
+
+test('automatic write replay requires the explicit server-enforced mutation contract', () => {
+  const policy = read(app + 'Core/Diagnostics/ConnectionRetryPolicy.swift');
+  assert.match(policy, /url\.scheme == "https"/);
+  assert.match(policy, /url\.host == "api\.pusulaiklimlendirme\.com"/);
+  assert.match(policy, /UUID\(uuidString: key\) != nil/);
+  assert.match(policy, /let root = "\/api\/reliable-mutations"/);
+  assert.match(policy, /for attempt in 0\.\.\.1/);
+  assert.match(policy, /url\.code == -1200 && stream\.0 == 3 && stream\.1 == -9816/);
+  assert.match(policy, /\[502, 503, 504\]/);
+  assert.match(policy, /forHTTPHeaderField: "Retry-After"\) == nil/);
+  assert.doesNotMatch(policy, /URLCredential|serverTrust|useCredential|allowsAnyHTTPSCertificate/);
+  const controller = read('backend/src/main/java/com/pusula/backend/controller/ReliableMutationController.java');
+  assert.match(controller, /@RequestMapping\("\/api\/reliable-mutations"\)/);
+  assert.equal((controller.match(/@RequestHeader\("Idempotency-Key"\)/g) || []).length, 6);
+  assert.match(controller, /@PostMapping\("\/tickets\/\{ticketId\}\/complete"\)/);
+  assert.match(controller, /reliable\.execute\(key, "ticket\.complete"/);
+  for (const service of ['Services/TicketService.swift', 'Services/BusinessServices.swift']) {
+    const source = read(app + service);
+    assert.doesNotMatch(source, /\.post\("\/api\/(?:tickets|customers|inventory|finance\/expenses)"/);
+    assert.match(source, /idempotencyKey: requestId/);
+    assert.doesNotMatch(source, /requestId: UUID = UUID\(\)/);
+  }
+});
+
+test('mutation forms keep their key and suppress concurrent submits, retries obey account changes', () => {
+  for (const file of ['Admin/CustomerView', 'Admin/CatalogView', 'Admin/FinanceView', 'Technician/TicketListView']) {
+    const source = read(app + `Views/${file}.swift`);
+    assert.match(source, /@State private var submissionId = UUID\(\)/, file);
+    assert.match(source, /requestId: submissionId/, file);
+    assert.match(source, /guard !is(?:Saving|Creating) else \{ return \}/, file);
+    assert.match(source, /\.interactiveDismissDisabled\(is(?:Saving|Creating)\)/, file);
+  }
+  const photo = read(app + 'Views/Technician/ServicePhotoView.swift');
+  assert.match(photo, /requestId: uploadSubmissionId/);
+  assert.match(photo, /guard !isUploading else \{ return \}/);
+  assert.match(photo, /photos\.contains\(where:/);
+  const network = read(app + 'Services/NetworkManager.swift');
+  const observer = network.slice(network.indexOf('private func observedData'), network.indexOf('private func apiErrorMessage'));
+  assert.ok(observer.indexOf('let generation = credentialGeneration') < observer.indexOf('await ConnectionDiagnosticEnvironment.context()'));
+  assert.equal((observer.match(/guard mayRetry\(generation: generation, authorization: authorization\)/g) || []).length, 3);
+  assert.match(observer, /mayRetry: \{ await self\.mayRetry/);
+  assert.match(observer, /credentialGeneration == generation/);
 });
 
 test('diagnostics is local bounded protected storage with explicit user sharing and clearing', () => {

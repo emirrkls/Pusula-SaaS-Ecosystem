@@ -514,6 +514,25 @@ fun TicketDetailScreen(
                 }
             }
 
+            if (ticket.invoiceTotal != null) item {
+                AppDashboardSection(title = "Ücret ve Tahsilat Özeti") {
+                    AppGhostCard {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Parça toplamı: ₺${"%.2f".format(ticket.partsTotal ?: 0.0)}")
+                            Text("Servis / işçilik: ₺${"%.2f".format(ticket.laborFee ?: 0.0)}")
+                            if ((ticket.discountAmount ?: 0.0) > 0) {
+                                Text("Ara toplam: ₺${"%.2f".format(ticket.invoiceTotal + (ticket.discountAmount ?: 0.0))}")
+                                Text("İskonto: −₺${"%.2f".format(ticket.discountAmount)}")
+                            }
+                            Text("Fiş toplamı: ₺${"%.2f".format(ticket.invoiceTotal)}", fontWeight = FontWeight.Bold)
+                            Text("Tahsil edilen: ₺${"%.2f".format(ticket.collectedAmount ?: 0.0)}")
+                            if ((ticket.billingPartyAmount ?: 0.0) > 0) Text("${ticket.billingPartyName ?: "Kurum"} carisine: ₺${"%.2f".format(ticket.billingPartyAmount)}")
+                            Text("Müşteri carisine: ₺${"%.2f".format(((ticket.outstandingAmount ?: 0.0) - (ticket.billingPartyAmount ?: 0.0)).coerceAtLeast(0.0))}")
+                        }
+                    }
+                }
+            }
+
             item {
                 AppDashboardSection(title = "İşlemler") {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {

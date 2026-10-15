@@ -9,6 +9,7 @@ public class MonthlySummaryDTO {
     private String period; // "2025-11"
     private String displayPeriod; // "Kasım 2025"
     private BigDecimal totalIncome;
+    private BigDecimal totalDiscounts;
     private BigDecimal currentAccountTransferred;
     private BigDecimal cashCardCollections;
     private BigDecimal currentAccountCollections;

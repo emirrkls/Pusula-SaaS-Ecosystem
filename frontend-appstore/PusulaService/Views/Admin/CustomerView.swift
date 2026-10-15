@@ -755,6 +755,7 @@ struct CustomerEditorSheet: View {
     @State private var name = ""
     @State private var phone = ""
     @State private var address = ""
+    @State private var submissionId = UUID()
     @State private var isSaving = false
     @State private var errorMessage: String?
     
@@ -766,8 +767,9 @@ struct CustomerEditorSheet: View {
                 TextField("Adres", text: $address, axis: .vertical).lineLimit(2...4)
             }
             .navigationTitle(customer == nil ? "Yeni Müşteri" : "Müşteri Düzenle")
+            .interactiveDismissDisabled(isSaving)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() }.disabled(isSaving) }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Kaydet") {
                         Task { await save() }
@@ -788,6 +790,7 @@ struct CustomerEditorSheet: View {
     }
 
     private func save() async {
+        guard !isSaving else { return }
         isSaving = true
         defer { isSaving = false }
         let dto = CustomerDTO(id: customer?.id, name: name, phone: phone.nilIfEmpty, address: address.nilIfEmpty, coordinates: customer?.coordinates)
@@ -796,7 +799,7 @@ struct CustomerEditorSheet: View {
             if let id = customer?.id {
                 savedCustomer = try await CustomerService.updateCustomer(id: id, customer: dto)
             } else {
-                savedCustomer = try await CustomerService.createCustomer(dto)
+                savedCustomer = try await CustomerService.createCustomer(dto, requestId: submissionId)
             }
             onCustomerSaved?(savedCustomer)
             await onSaved()
@@ -815,6 +818,7 @@ struct CreateTicketFromCustomerSheet: View {
     @State private var description = ""
     @State private var notes = ""
     @State private var isCreating = false
+    @State private var submissionId = UUID()
     @State private var errorMessage: String?
     
     var body: some View {
@@ -829,8 +833,9 @@ struct CreateTicketFromCustomerSheet: View {
                 }
             }
             .navigationTitle("Servis Fişi")
+            .interactiveDismissDisabled(isCreating)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() }.disabled(isCreating) }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Oluştur") {
                         Task { await createTicket() }
@@ -846,6 +851,7 @@ struct CreateTicketFromCustomerSheet: View {
     }
 
     private func createTicket() async {
+        guard !isCreating else { return }
         guard let customerId = customer.id else {
             errorMessage = "Müşteri kimliği bulunamadı."
             return
@@ -854,7 +860,7 @@ struct CreateTicketFromCustomerSheet: View {
         defer { isCreating = false }
         do {
             let request = CreateTicketRequest(customerId: customerId, description: description, notes: notes.nilIfEmpty)
-            _ = try await TicketService.createTicket(request)
+            _ = try await TicketService.createTicket(request, requestId: submissionId)
             await onCreated()
             dismiss()
         } catch {

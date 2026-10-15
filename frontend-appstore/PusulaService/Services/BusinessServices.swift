@@ -16,8 +16,8 @@ enum FinanceService {
         try await NetworkManager.shared.get("/api/finance/fixed-expenses")
     }
     
-    static func addExpense(_ expense: ExpenseDTO) async throws -> ExpenseDTO {
-        try await NetworkManager.shared.post("/api/finance/expenses", body: expense)
+    static func addExpense(_ expense: ExpenseDTO, requestId: UUID) async throws -> ExpenseDTO {
+        try await NetworkManager.shared.post("/api/reliable-mutations/expenses", body: expense, idempotencyKey: requestId)
     }
 
     static func getExpenses(date: String? = nil) async throws -> [ExpenseDTO] {
@@ -178,8 +178,8 @@ enum CustomerService {
         try await NetworkManager.shared.request(.GET, path: "/api/customers", authTokenOverride: authToken)
     }
     
-    static func createCustomer(_ customer: CustomerDTO) async throws -> CustomerDTO {
-        try await NetworkManager.shared.post("/api/customers", body: customer)
+    static func createCustomer(_ customer: CustomerDTO, requestId: UUID) async throws -> CustomerDTO {
+        try await NetworkManager.shared.post("/api/reliable-mutations/customers", body: customer, idempotencyKey: requestId)
     }
     
     static func updateCustomer(id: Int, customer: CustomerDTO) async throws -> CustomerDTO {

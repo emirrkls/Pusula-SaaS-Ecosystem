@@ -75,6 +75,7 @@ struct MonthlySummaryDTO: Codable, Identifiable {
     let period: String?
     let displayPeriod: String?
     let totalIncome: Double?
+    var totalDiscounts: Double? = nil
     let currentAccountTransferred: Double?
     let cashCardCollections: Double?
     let currentAccountCollections: Double?

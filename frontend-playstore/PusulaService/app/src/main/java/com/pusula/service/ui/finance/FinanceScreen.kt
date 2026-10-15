@@ -465,6 +465,7 @@ fun FinanceScreen(
                                             Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                                 Text(monthly.displayPeriod ?: monthly.period.orEmpty(), fontWeight = FontWeight.SemiBold)
                                                 Text("Gelir: ₺${formatMoney(monthly.totalIncome ?: 0.0)}")
+                                                if ((monthly.totalDiscounts ?: 0.0) > 0) Text("İskonto (gelirden düşülmüş): ₺${formatMoney(monthly.totalDiscounts ?: 0.0)}")
                                                 Text("Gider: ₺${formatMoney(monthly.totalExpense ?: 0.0)}")
                                                 Text("Kar: ₺${formatMoney(monthly.netProfit ?: 0.0)}")
                                                 val month = monthly.period

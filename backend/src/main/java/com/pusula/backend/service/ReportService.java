@@ -386,9 +386,24 @@ public class ReportService {
                                 ? ticket.getOutstandingAmount()
                                 : invoiceTotal.subtract(collected).max(BigDecimal.ZERO);
 
+                if (ticket.getEffectiveDiscountAmount().signum() > 0) {
+                        addTotalRow(totalsTable, "ARA TOPLAM:", String.format("%.2f ₺", ticket.getEffectiveSubtotal()));
+                        String discountLabel = "PERCENT".equals(ticket.getDiscountType())
+                                        ? "İSKONTO (%" + ticket.getDiscountValue().stripTrailingZeros().toPlainString() + "):"
+                                        : "İSKONTO:";
+                        addTotalRow(totalsTable, discountLabel, String.format("-%.2f ₺", ticket.getEffectiveDiscountAmount()));
+                }
                 addTotalRow(totalsTable, "FİŞ TOPLAMI:", String.format("%.2f ₺", invoiceTotal));
                 addTotalRow(totalsTable, "TAHSİL EDİLEN:", String.format("%.2f ₺", collected));
-                addTotalRow(totalsTable, "KALAN / CARİ:", String.format("%.2f ₺", outstanding));
+                BigDecimal organizationAmount = ticket.getBillingPartyAmount() == null
+                                ? BigDecimal.ZERO : ticket.getBillingPartyAmount();
+                if (organizationAmount.signum() > 0) {
+                        addTotalRow(totalsTable, "KURUM CARİSİ:", String.format("%.2f ₺", organizationAmount));
+                        addTotalRow(totalsTable, "MÜŞTERİ CARİSİ:",
+                                        String.format("%.2f ₺", outstanding.subtract(organizationAmount).max(BigDecimal.ZERO)));
+                } else {
+                        addTotalRow(totalsTable, "KALAN / CARİ:", String.format("%.2f ₺", outstanding));
+                }
                 if (warranty) {
                         addTotalRow(totalsTable, "KAPANIŞ ŞEKLİ:", "GARANTİ KAPSAMINDA");
                 } else if (ticket.getBillingParty() != null) {
@@ -1090,6 +1105,8 @@ public class ReportService {
                                         .period(month.toString())
                                         .displayPeriod(month.atDay(1).format(turkishFormat))
                                         .totalIncome(totalIncome)
+                                        .totalDiscounts(monthSales.stream().map(ServiceTicket::getEffectiveDiscountAmount)
+                                                        .reduce(BigDecimal.ZERO, BigDecimal::add))
                                         .currentAccountTransferred(currentAccountTransferred)
                                         .cashCardCollections(cashCardCollections)
                                         .currentAccountCollections(currentAccountCollections)
@@ -1244,6 +1261,15 @@ public class ReportService {
                                                                 warranty ? ACCENT_ORANGE : ACCENT_GREEN));
                                 saleParagraph.setIndentationLeft(10);
                                 document.add(saleParagraph);
+
+                                if (ticket.getEffectiveDiscountAmount().signum() > 0) {
+                                        Paragraph discountLine = new Paragraph("   Ara toplam: "
+                                                        + currencyFormat.format(ticket.getEffectiveSubtotal())
+                                                        + " ₺ | İskonto: -" + currencyFormat.format(ticket.getEffectiveDiscountAmount())
+                                                        + " ₺ (yukarıdaki net satıştan düşülmüştür)", SMALL_FONT);
+                                        discountLine.setIndentationLeft(10);
+                                        document.add(discountLine);
+                                }
 
                                 BigDecimal currentAccountTransfer = calculateCurrentAccountTransfer(ticket);
                                 if (currentAccountTransfer.signum() > 0) {
@@ -1421,6 +1447,9 @@ public class ReportService {
                 addFinancialRow(table, "Geçmiş Dönem Birikimli Kâr / Zarar:", money(summary.getCarryOver()),
                                 financialResultColor(summary.getCarryOver()));
                 addFinancialRow(table, "Satış / Ciro:", money(summary.getTotalIncome()), ACCENT_GREEN);
+                if (summary.getTotalDiscounts() != null && summary.getTotalDiscounts().signum() > 0) {
+                        addFinancialRow(table, "İskonto (cirodan düşülmüş):", money(summary.getTotalDiscounts()), ACCENT_ORANGE);
+                }
                 addFinancialRow(table, "Cariye Aktarılan:", money(summary.getCurrentAccountTransferred()), ACCENT_ORANGE);
                 addFinancialRow(table, "Servis Doğrudan Maliyeti:", money(summary.getServiceDirectCost()), ACCENT_RED);
                 addFinancialRow(table, "Diğer Faaliyet Giderleri:", money(summary.getOtherOperatingExpenses()), ACCENT_RED);

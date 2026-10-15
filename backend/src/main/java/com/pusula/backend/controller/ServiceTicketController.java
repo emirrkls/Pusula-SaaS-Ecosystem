@@ -183,7 +183,8 @@ public class ServiceTicketController {
             @RequestBody CompleteServiceRequest request) {
         ServiceTicketDTO completed = service.completeService(id, request.getCollectedAmount(),
                 request.getLaborFee(), request.getPaymentMethod(), request.getCompletionDate(),
-                request.getBillingPartyId(), request.getBillingResponsibility(), request.getBillingPartyAmount());
+                request.getBillingPartyId(), request.getBillingResponsibility(), request.getBillingPartyAmount(),
+                request.getDiscountType(), request.getDiscountValue());
         if (request.getTechnicianNote() != null && !request.getTechnicianNote().isBlank()) {
             noteService.addClosureNote(id, request.getTechnicianNote());
         }

@@ -93,6 +93,16 @@ data class ServiceTicketDTO(
     val isWarrantyCall: Boolean? = null,
     val parentTicketId: Long? = null,
     val completedAt: String? = null,
+    val partsTotal: Double? = null,
+    val laborFee: Double? = null,
+    val invoiceTotal: Double? = null,
+    val outstandingAmount: Double? = null,
+    val discountType: String? = null,
+    val discountValue: Double? = null,
+    val discountAmount: Double? = null,
+    val billingPartyId: Long? = null,
+    val billingPartyName: String? = null,
+    val billingPartyAmount: Double? = null,
     val createdAt: String? = null
 )
 

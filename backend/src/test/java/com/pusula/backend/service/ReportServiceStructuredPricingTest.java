@@ -157,6 +157,73 @@ class ReportServiceStructuredPricingTest {
     }
 
     @Test
+    void discountReducesSalesAndProfitButNotCashTwiceAndIsListedInMonthlyPdf() throws Exception {
+        LocalDate date = LocalDate.of(2026, 8, 5);
+        ServiceTicket ticket = new ServiceTicket(); ticket.setId(100L); ticket.setCompanyId(10L);
+        ticket.setCustomerId(50L); ticket.setStatus(ServiceTicket.TicketStatus.COMPLETED);
+        ticket.setCompletedAt(date.atTime(12, 0)); ticket.setCollectionDate(date);
+        ticket.setPartsTotal(new BigDecimal("500.00")); ticket.setLaborFee(BigDecimal.ZERO);
+        ticket.setDiscountType("AMOUNT"); ticket.setDiscountValue(new BigDecimal("100.00"));
+        ticket.setDiscountAmount(new BigDecimal("100.00")); ticket.setInvoiceTotal(new BigDecimal("400.00"));
+        ticket.setCollectedAmount(new BigDecimal("250.00")); ticket.setOutstandingAmount(new BigDecimal("150.00"));
+        ticket.setPaymentMethod(PaymentMethod.CASH);
+        ServiceUsedPart part = ServiceUsedPart.builder().companyId(10L).quantityUsed(1)
+                .buyingPriceSnapshot(new BigDecimal("200.00")).sellingPriceSnapshot(new BigDecimal("500.00")).build();
+        when(ticketRepository.findAll()).thenReturn(List.of(ticket));
+        when(expenseRepository.findByCompanyId(10L)).thenReturn(List.of());
+        when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(part));
+        var summary = service.getMonthlyArchives(10L).get(0);
+        assertEquals(new BigDecimal("400.00"), summary.getTotalIncome());
+        assertEquals(new BigDecimal("100.00"), summary.getTotalDiscounts());
+        assertEquals(new BigDecimal("200.00"), summary.getNetProfit());
+        assertEquals(new BigDecimal("250.00"), summary.getTotalCollected());
+        assertEquals(new BigDecimal("150.00"), summary.getCurrentAccountTransferred());
+        when(customerRepository.findById(50L)).thenReturn(Optional.of(Customer.builder().id(50L).name("Test Müşteri").build()));
+        byte[] monthlyPdf = service.generateMonthlyPDF(YearMonth.of(2026, 8), 10L);
+        savePreview("monthly-discount.pdf", monthlyPdf);
+        PdfReader reader = new PdfReader(monthlyPdf);
+        StringBuilder text = new StringBuilder();
+        try { for (int page = 1; page <= reader.getNumberOfPages(); page++) text.append(new PdfTextExtractor(reader).getTextFromPage(page)); }
+        finally { reader.close(); }
+        assertTrue(text.toString().contains("İskonto"));
+        assertTrue(text.toString().contains("net satıştan düşülmüştür"));
+    }
+
+    @Test
+    void servicePdfSeparatesDiscountInstitutionAndCustomerDebt() throws Exception {
+        ServiceTicket ticket = new ServiceTicket(); ticket.setId(100L); ticket.setCompanyId(10L); ticket.setCustomerId(50L);
+        ticket.setStatus(ServiceTicket.TicketStatus.COMPLETED); ticket.setCompletedAt(java.time.LocalDateTime.of(2026, 8, 5, 12, 0));
+        ticket.setPartsTotal(new BigDecimal("3000.00")); ticket.setLaborFee(new BigDecimal("2000.00"));
+        ticket.setDiscountType("PERCENT"); ticket.setDiscountValue(new BigDecimal("10.00")); ticket.setDiscountAmount(new BigDecimal("500.00"));
+        ticket.setInvoiceTotal(new BigDecimal("4500.00")); ticket.setCollectedAmount(new BigDecimal("1500.00"));
+        ticket.setOutstandingAmount(new BigDecimal("3000.00")); ticket.setBillingPartyAmount(new BigDecimal("2000.00"));
+        ticket.setBillingParty(com.pusula.backend.entity.AccountParty.builder().id(90L).displayName("Test Kurum").build());
+        when(ticketRepository.findById(100L)).thenReturn(Optional.of(ticket));
+        when(customerRepository.findById(50L)).thenReturn(Optional.of(Customer.builder().id(50L).name("Test Müşteri").build()));
+        when(companyRepository.findById(10L)).thenReturn(Optional.of(com.pusula.backend.entity.Company.builder().id(10L).name("Test").build()));
+        ServiceUsedPart usedPart = ServiceUsedPart.builder().companyId(10L).quantityUsed(1)
+                .sellingPriceSnapshot(new BigDecimal("3000.00")).buyingPriceSnapshot(new BigDecimal("1000.00")).build();
+        when(usedPartRepository.findByServiceTicketId(100L)).thenReturn(List.of(usedPart));
+        byte[] servicePdf = service.generateServiceReport(100L);
+        savePreview("service-discount.pdf", servicePdf);
+        PdfReader reader = new PdfReader(servicePdf);
+        StringBuilder text = new StringBuilder();
+        try { for (int page = 1; page <= reader.getNumberOfPages(); page++) text.append(new PdfTextExtractor(reader).getTextFromPage(page)); }
+        finally { reader.close(); }
+        assertTrue(text.toString().contains("ARA TOPLAM")); assertTrue(text.toString().contains("İSKONTO (%10)"));
+        assertTrue(text.toString().contains("KURUM CARİSİ")); assertTrue(text.toString().contains("MÜŞTERİ CARİSİ"));
+    }
+
+    private static void savePreview(String name, byte[] pdf) throws java.io.IOException {
+        String output = System.getProperty("collection.pdf.output");
+        if (output == null) return;
+        java.nio.file.Path directory = java.nio.file.Path.of(output);
+        java.nio.file.Files.createDirectories(directory);
+        java.nio.file.Files.write(directory.resolve(name), pdf);
+    }
+
+
+    @Test
     void monthlyReportShowsPartialCashRemainderAsCurrentAccountTransfer() {
         LocalDate completionDate = LocalDate.of(2026, 7, 23);
 

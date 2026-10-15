@@ -16,6 +16,9 @@ public class CompleteServiceRequest {
     private Long billingPartyId;
     private String billingResponsibility;
     private BigDecimal billingPartyAmount;
+    private String discountType;
+    private BigDecimal discountValue;
+    private BigDecimal expectedPartsTotal;
 
     public CompleteServiceRequest() {
     }
@@ -79,4 +82,10 @@ public class CompleteServiceRequest {
     public void setBillingResponsibility(String billingResponsibility) { this.billingResponsibility = billingResponsibility; }
     public BigDecimal getBillingPartyAmount() { return billingPartyAmount; }
     public void setBillingPartyAmount(BigDecimal billingPartyAmount) { this.billingPartyAmount = billingPartyAmount; }
+    public String getDiscountType() { return discountType; }
+    public void setDiscountType(String discountType) { this.discountType = discountType; }
+    public BigDecimal getDiscountValue() { return discountValue; }
+    public void setDiscountValue(BigDecimal discountValue) { this.discountValue = discountValue; }
+    public BigDecimal getExpectedPartsTotal() { return expectedPartsTotal; }
+    public void setExpectedPartsTotal(BigDecimal expectedPartsTotal) { this.expectedPartsTotal = expectedPartsTotal; }
 }

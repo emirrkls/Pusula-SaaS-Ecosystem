@@ -62,6 +62,10 @@ public interface ServiceTicketApi {
     @PATCH("api/tickets/{id}/complete")
     Call<ServiceTicketDTO> completeService(@Path("id") Long id, @Body java.util.Map<String, Object> request);
 
+    @POST("api/reliable-mutations/tickets/{id}/complete")
+    Call<ServiceTicketDTO> completeServiceReliable(@Path("id") Long id, @Header("Idempotency-Key") String key,
+                                                   @Body java.util.Map<String, Object> request);
+
     @PATCH("api/tickets/{id}/cancel")
     Call<ServiceTicketDTO> cancelService(@Path("id") Long id);
 
