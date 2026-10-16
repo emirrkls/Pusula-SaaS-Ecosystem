@@ -63,6 +63,7 @@ struct BarcodeScannerView: View {
                 }
                 .padding()
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle("Barkod Okuyucu")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -133,6 +134,7 @@ struct BarcodeScannerView: View {
             }
             
             Button(action: {
+                PusulaKeyboard.dismiss()
                 if isPriceChanged(from: item.sellPrice ?? 0) {
                     showPriceChangeConfirmation = true
                 } else {
@@ -201,6 +203,7 @@ struct BarcodeScannerView: View {
     }
 
     private func submit(_ item: InventoryItemDTO) {
+        PusulaKeyboard.dismiss()
         guard let price = parsedUnitPrice else { return }
         onItemSelected(item, quantity, price)
         dismiss()

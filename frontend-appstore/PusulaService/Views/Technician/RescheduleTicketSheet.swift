@@ -75,6 +75,7 @@ struct RescheduleTicketSheet: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle("İşi Yeniden Planla")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -100,6 +101,7 @@ struct RescheduleTicketSheet: View {
     }
 
     @MainActor private func save() async {
+        PusulaKeyboard.dismiss()
         guard canSave else { return }
         isSaving = true
         defer { isSaving = false }

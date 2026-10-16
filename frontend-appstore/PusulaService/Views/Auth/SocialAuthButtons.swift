@@ -52,6 +52,7 @@ struct SocialAuthButtons: View {
 
     private func signIn(apple: Bool) {
         guard !isLoading else { return }
+        PusulaKeyboard.dismiss()
         isLoading = true
         errorMessage = nil
         Task { @MainActor in

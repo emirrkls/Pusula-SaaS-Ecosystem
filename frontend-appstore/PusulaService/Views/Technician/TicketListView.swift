@@ -32,6 +32,7 @@ struct TicketListView: View {
     @State private var dateFilterEnd: Date?
     @State private var showDateFilter = false
     @State private var selectedTicket: FieldTicketDTO?
+    @State private var collectionRefresh: CollectionListRefresh?
     @State private var presentingNotificationRequest: TicketNavigationRequest?
     @State private var isScreenVisible = false
     @State private var isSheetPresented = false
@@ -138,8 +139,14 @@ struct TicketListView: View {
             }
         }
         .background(PusulaTheme.page)
+        .pusulaKeyboardDismissal()
         .navigationTitle(isAdmin ? "Operasyon" : "İşlerim")
         .task { await loadTickets() }
+        .task(id: collectionRefresh?.id) {
+            guard let refresh = collectionRefresh,
+                  session.isCurrent(refresh.session), !Task.isCancelled else { return }
+            await loadTickets(refresh: true)
+        }
         .task(id: projectionRequest) { await projectTickets(request: projectionRequest) }
         .task(id: pendingTicketTrigger) { await openPendingTicket() }
         .onAppear {
@@ -162,8 +169,26 @@ struct TicketListView: View {
             isSheetPresented = false
             presentingNotificationRequest = nil
         }) { ticket in
+            let presentingSession = session.authenticatedSnapshot
             NavigationStack {
-                TicketDetailView(ticket: ticket, isAdmin: isAdmin, technicians: technicians) {
+                TicketDetailView(ticket: ticket, isAdmin: isAdmin, technicians: technicians,
+                                 onCollected: { completed in
+                    guard let presentingSession, session.isCurrent(presentingSession),
+                          completed.id == ticket.id else { return }
+                    // Reads started before this write cannot overwrite its result.
+                    loadRequest.invalidate()
+                    isLoading = false; isRefreshing = false
+                    loadError = nil
+                    var updated = tickets
+                    if let index = updated.firstIndex(where: { $0.id == completed.id }) {
+                        updated[index] = completed
+                    } else {
+                        updated.append(completed)
+                    }
+                    replaceTickets(updated)
+                    selectedTicket = nil
+                    collectionRefresh = CollectionListRefresh(session: presentingSession)
+                }) {
                     await loadTickets(refresh: true)
                 }
             }
@@ -477,6 +502,11 @@ struct TicketListView: View {
     private func replaceTickets(_ values: [FieldTicketDTO]) {
         tickets = values
         ticketRevision = UUID()
+    }
+
+    private struct CollectionListRefresh {
+        let id = UUID()
+        let session: AuthenticatedSessionSnapshot
     }
 
     private func projectTickets(request: TicketProjectionRequest) async {
@@ -980,6 +1010,7 @@ struct CreateTicketSheet: View {
                     }
                 }
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle("Servis Fişi Oluştur")
             .interactiveDismissDisabled(isSaving)
             .navigationBarTitleDisplayMode(.inline)
@@ -1021,6 +1052,7 @@ struct CreateTicketSheet: View {
     }
     
     private func createTicket() async {
+        PusulaKeyboard.dismiss()
         guard !isSaving else { return }
         guard let customerId = selectedCustomerId else { return }
         guard let start = combinedSchedule(day: scheduledDay, time: scheduledStart),

@@ -45,9 +45,10 @@ struct LoginView: View {
                 .padding(.bottom, 32)
                 .frame(maxWidth: .infinity)
             }
-            .scrollDismissesKeyboard(.interactively)
+            .pusulaKeyboardDismissal()
             .background(PusulaTheme.page.ignoresSafeArea())
             .animation(.easeInOut(duration: 0.2), value: selectedTab)
+            .onChange(of: selectedTab) { _, _ in PusulaKeyboard.dismiss() }
             .sheet(isPresented: $showRegister) {
                 RegisterView()
             }
@@ -148,7 +149,7 @@ struct LoginView: View {
             HStack(spacing: 10) {
                 Text("Yeni misiniz?")
                     .foregroundStyle(.secondary)
-                Button("Hesap Oluştur") { showRegister = true }
+                Button("Hesap Oluştur") { PusulaKeyboard.dismiss(); showRegister = true }
                     .disabled(isLoading)
                     .fontWeight(.semibold)
                     .foregroundStyle(PusulaTheme.accent)
@@ -159,6 +160,7 @@ struct LoginView: View {
     }
 
     private func handleLogin() {
+        PusulaKeyboard.dismiss()
         guard isFormValid, !isLoading else { return }
         isLoading = true
         errorMessage = nil

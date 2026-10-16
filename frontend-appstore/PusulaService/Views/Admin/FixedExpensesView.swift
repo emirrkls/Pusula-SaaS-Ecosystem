@@ -97,6 +97,7 @@ private struct FixedExpenseEditorSheet: View {
                 Stepper("Ödeme günü: \(day)", value: $day, in: 1...28)
                 TextField("Açıklama", text: $description, axis: .vertical)
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle(expense == nil ? "Sabit Gider Ekle" : "Sabit Gideri Düzenle")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
@@ -108,6 +109,7 @@ private struct FixedExpenseEditorSheet: View {
     }
     private var parsedAmount: Double { Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0 }
     private func save() async {
+        PusulaKeyboard.dismiss()
         let dto = FixedExpenseDefinitionDTO(id: expense?.id, name: name, defaultAmount: parsedAmount, category: category.rawValue, dayOfMonth: day, description: description, paidThisMonth: expense?.paidThisMonth, paidAmountThisMonth: expense?.paidAmountThisMonth, frequency: frequency, linkedExpenseId: expense?.linkedExpenseId, linkedExpenseName: expense?.linkedExpenseName, linkedPaymentsThisMonth: expense?.linkedPaymentsThisMonth)
         do { if expense == nil { _ = try await FinanceService.createFixedExpense(dto) } else { _ = try await FinanceService.updateFixedExpense(dto) }; await onSaved(); dismiss() } catch { errorMessage = error.localizedDescription }
     }
@@ -124,6 +126,7 @@ private struct FixedExpensePaymentSheet: View {
                 TextField("Ödenen tutar", text: $amount).keyboardType(.decimalPad)
                 DatePicker("Ödeme tarihi", selection: $date, displayedComponents: .date)
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle("Sabit Gider Ödemesi")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
@@ -134,5 +137,5 @@ private struct FixedExpensePaymentSheet: View {
         }
     }
     private var parsedAmount: Double { Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0 }
-    private func pay() async { guard let id = expense.id else { return }; do { _ = try await FinanceService.payFixedExpense(id: id, date: financeDate(date), amount: parsedAmount); await onSaved(); dismiss() } catch { errorMessage = error.localizedDescription } }
+    private func pay() async { PusulaKeyboard.dismiss(); guard let id = expense.id else { return }; do { _ = try await FinanceService.payFixedExpense(id: id, date: financeDate(date), amount: parsedAmount); await onSaved(); dismiss() } catch { errorMessage = error.localizedDescription } }
 }

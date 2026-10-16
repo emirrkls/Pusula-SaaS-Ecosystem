@@ -34,7 +34,7 @@ struct ServicePhotoView: View {
                     TextField("Görsel notu (örn. İç ünite 2, seri no…)", text: $note, axis: .vertical)
                         .lineLimit(2...4)
                         .textFieldStyle(.roundedBorder)
-                    Button { showSourcePicker = true } label: {
+                    Button { PusulaKeyboard.dismiss(); showSourcePicker = true } label: {
                         Label("Görsel Ekle", systemImage: "camera.fill")
                             .frame(maxWidth: .infinity).padding(.vertical, 8)
                     }
@@ -62,6 +62,7 @@ struct ServicePhotoView: View {
             }.padding()
         }
         .background(PusulaTheme.page)
+        .pusulaKeyboardDismissal()
         .navigationTitle("Servis Görselleri").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Tamam") { dismiss() }.disabled(isUploading) } }
         .interactiveDismissDisabled(isUploading)

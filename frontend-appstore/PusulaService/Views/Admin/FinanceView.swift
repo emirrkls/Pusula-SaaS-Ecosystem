@@ -759,6 +759,7 @@ struct AddExpenseSheet: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle("Gider Ekle")
             .interactiveDismissDisabled(isSaving)
             .toolbar {
@@ -788,6 +789,7 @@ struct AddExpenseSheet: View {
     }
 
     private func save() async {
+        PusulaKeyboard.dismiss()
         guard !isSaving else { return }
         guard parsedAmount.isFinite, parsedAmount > 0,
               !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -835,6 +837,7 @@ struct PayDebtSheet: View {
                 }
                 TextField("Tahsilat notu", text: $notes, axis: .vertical)
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle("Borç Tahsilatı")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
@@ -857,6 +860,7 @@ struct PayDebtSheet: View {
     }
 
     private func payDebt() async {
+        PusulaKeyboard.dismiss()
         guard let accountId = account.id else {
             errorMessage = "Cari hesap kimliği bulunamadı."
             return

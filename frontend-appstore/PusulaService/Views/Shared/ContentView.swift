@@ -223,6 +223,7 @@ struct TechnicianTabView: View {
         }
         .tint(PusulaTheme.accent)
         .onAppear { routePendingTicketOrOnboarding() }
+        .onChange(of: selectedTab) { _, _ in PusulaKeyboard.dismiss() }
         .onChange(of: ticketRouteSignal) { _, request in
             if request != nil { selectedTab = .jobs }
         }
@@ -295,6 +296,7 @@ struct AdminTabView: View {
         }
         .tint(PusulaTheme.accent)
         .onChange(of: selectedTab) { oldValue, newValue in
+            PusulaKeyboard.dismiss()
             if newValue == .more {
                 showQuickActions = true
                 selectedTab = lastRealTab

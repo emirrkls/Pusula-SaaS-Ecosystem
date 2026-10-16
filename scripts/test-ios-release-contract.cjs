@@ -9,6 +9,112 @@ const app = 'frontend-appstore/PusulaService/';
 const store = read(app + 'Services/StoreKitManager.swift');
 const session = read(app + 'Core/SessionManager.swift');
 
+test('collection replay is an explicit failure state, never the presence of a frozen payload', () => {
+  const state = read(app + 'Core/Billing/CollectionSubmissionState.swift');
+  assert.match(state, /var showsRetry: Bool \{ phase == \.unconfirmed \}/);
+  assert.match(state, /var canSubmit: Bool \{ phase == \.idle \|\| phase == \.unconfirmed \}/);
+  assert.match(state, /guard canSubmit else \{ return nil \}/);
+  assert.match(state, /if payload == nil \{ payload = makePayload\(\) \}/);
+  assert.equal((state.match(/requestID = UUID\(\)/g) || []).length, 2, 'Only initial/corrected attempts get a key');
+  assert.match(state, /guard phase == \.submitting else \{ return \}/);
+  const view = read(app + 'Views/Technician/CollectionView.swift');
+  assert.match(view, /if submission\.showsRetry/);
+  assert.match(view, /submission\.isProcessing \? "Tahsilat kaydediliyor/);
+  assert.match(view, /\.interactiveDismissDisabled\(submission\.isProcessing\)/);
+  assert.match(view, /guard submission\.canSubmit else \{ return \}/);
+  assert.doesNotMatch(view, /pendingRequest|400\.\.\.499/);
+});
+
+test('a confirmed collection hands off its DTO synchronously and cannot await a list read', () => {
+  const view = read(app + 'Views/Technician/CollectionView.swift');
+  assert.match(view, /let onComplete: @MainActor \(FieldTicketDTO\) -> Void/);
+  assert.match(view, /let completed = try await submit\(request\)\s+submission\.succeed\(\)\s+guard isSubmissionSessionCurrent else \{ return \}\s+onComplete\(completed\)\s+dismiss\(\)/);
+  assert.doesNotMatch(view, /await onComplete|loadTickets\(/);
+  assert.match(view, /requestId: submission\.requestID, authToken: submissionSession\?\.token/);
+  const service = read(app + 'Services/TicketService.swift');
+  assert.match(service, /path: "\/api\/reliable-mutations\/tickets\/\\\(ticketId\)\/complete", body: request,\s+authTokenOverride: authToken, idempotencyKey: requestId/);
+});
+
+test('collection dismissal precedes parent-owned refresh and invalidates stale list snapshots', () => {
+  const detail = read(app + 'Views/Technician/TicketDetailView.swift');
+  assert.match(detail, /sheet\(isPresented: \$showCollection, onDismiss: finishCollectionPresentation\)/);
+  assert.match(detail, /currentTicket = completed\s+completedCollection = completed/);
+  assert.match(detail, /guard let completed = completedCollection else \{ return \}/);
+  assert.match(detail, /if let onCollected \{\s+onCollected\(completed\)/);
+  const list = read(app + 'Views/Technician/TicketListView.swift');
+  assert.match(list, /\.task\(id: collectionRefresh\?\.id\)/);
+  assert.match(list, /session\.isCurrent\(refresh\.session\), !Task\.isCancelled/);
+  const start = list.indexOf('onCollected: { completed in');
+  const handoff = list.indexOf('collectionRefresh = CollectionListRefresh', start);
+  const callback = list.slice(start, list.indexOf('\n', handoff));
+  assert.match(callback, /session\.isCurrent\(presentingSession\)/);
+  assert.ok(callback.indexOf('loadRequest.invalidate()') < callback.indexOf('replaceTickets(updated)'));
+  assert.ok(callback.indexOf('replaceTickets(updated)') < callback.indexOf('selectedTicket = nil'));
+  assert.match(callback, /collectionRefresh = CollectionListRefresh\(session: presentingSession\)/);
+  assert.doesNotMatch(callback, /await /);
+});
+
+test('audited forms expose keyboard Done once per destination and resign without wiping input', () => {
+  const design = read(app + 'Core/PusulaDesignSystem.swift');
+  const modifier = design.slice(design.indexOf('func pusulaKeyboardDismissal'));
+  assert.match(modifier, /scrollDismissesKeyboard\(\.interactively\)/);
+  assert.equal((modifier.match(/placement: \.keyboard/g) || []).length, 1);
+  assert.match(modifier, /Button\("common.keyboard_done"\) \{ PusulaKeyboard\.dismiss\(\) \}/);
+  assert.match(modifier, /UIApplication\.shared\.sendAction\(#selector\(UIResponder\.resignFirstResponder\)/);
+  assert.doesNotMatch(modifier, /onTapGesture|simultaneousGesture|= ""|Task\s*\{/);
+  const expected = {
+    'Admin/AccountPartiesView': 1, 'Admin/BusinessAssetsView': 1, 'Admin/CatalogView': 2,
+    'Admin/CompanyDebtsView': 3, 'Admin/CustomerView': 3, 'Admin/FinanceView': 2,
+    'Admin/FixedExpensesView': 2, 'Admin/ProposalView': 2, 'Admin/ServiceNetworkView': 4,
+    'Admin/SettingsView': 3, 'Auth/LoginView': 1, 'Auth/RegisterView': 1,
+    'Shared/DesktopPasswordSetupView': 1, 'Technician/CollectionView': 1,
+    'Technician/TicketDetailView': 2, 'Technician/TicketListView': 2,
+    'Technician/InventoryPartPickerView': 2, 'Technician/BarcodeScannerView': 1,
+    'Technician/RescheduleTicketSheet': 1, 'Technician/ServicePhotoView': 1
+  };
+  for (const [file, count] of Object.entries(expected)) {
+    assert.equal((read(app + `Views/${file}.swift`).match(/\.pusulaKeyboardDismissal\(\)/g) || []).length, count, file);
+  }
+  assert.equal((read(app + 'Views/Shared/ContentView.swift').match(/PusulaKeyboard\.dismiss\(\)/g) || []).length, 2);
+});
+
+test('actual collection regressions cover slow submit, delayed failed refresh, cancel and rejection', () => {
+  const ui = read('frontend-appstore/PusulaServiceScreenshots/CollectionPresentationTests.swift');
+  for (const name of ['testSlowSubmitShowsProcessingNotRetryAndSavesOnlyOnce',
+                     'testSlowFailedListRefreshDoesNotHoldCollectionOrDetailOpen',
+                     'testCancellingCollectionKeepsTicketDetailOpen',
+                     'testDefinitiveRejectionAllowsEditingAndDoesNotOfferUnconfirmedReplay']) {
+    assert.ok(ui.includes(`func ${name}()`), name);
+  }
+  assert.match(ui, /on: refresh, timeout: 3/);
+  assert.match(ui, /collection\.fixture\.attempts/);
+  const fixture = read(app + 'ScreenshotSupport/CollectionFixture.swift');
+  assert.ok(fixture.startsWith('#if DEBUG'));
+  assert.match(fixture, /#if targetEnvironment\(simulator\)/);
+  assert.match(fixture, /Task\.sleep\(nanoseconds: 6_000_000_000\)/);
+  assert.match(fixture, /TicketDetailView\(ticket: CollectionFixture\.ticket, onCollected:/);
+  assert.doesNotMatch(fixture, /NetworkManager\.|KeychainHelper\.|configureSession\(/);
+  assert.ok(read('frontend-appstore/BillingTests/CollectionSubmissionStateTests.swift').includes('testConfirmedSuccessIsTerminalEvenIfRefreshFailsOrIsSlow'));
+});
+
+test('keyboard regression checks preserve numeric, phone, plain and multiline text with localized Done', () => {
+  for (const [locale, value] of [['tr', 'Bitti'], ['en', 'Done']]) {
+    const source = read(app + `${locale}.lproj/Localizable.strings`);
+    const entries = [...source.matchAll(/^"common.keyboard_done"\s*=\s*"([^"]+)";/gm)];
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0][1], value);
+  }
+  const ui = read('frontend-appstore/PusulaServiceScreenshots/CollectionPresentationTests.swift');
+  for (const name of ['testCollectionDecimalKeyboardCanBeDismissedWithoutLosingAmount',
+                     'testCustomerPhoneKeyboardDonePreservesPhoneAndCancelIsReachable',
+                     'testExpenseDecimalKeyboardDonePreservesAmountAndTextStillAcceptsInput',
+                     'testMultilineClosingNoteDonePreservesTextAndDoesNotSubmit']) {
+    assert.ok(ui.includes(`func ${name}()`), name);
+  }
+  assert.match(ui, /matching\(identifier: "keyboard\.done"\)\.count, 1/);
+  assert.match(ui, /exists == false.*on: app\.keyboards\.firstMatch/);
+});
+
 test('large-list UI gates assert the projected count independently of localized number grouping', () => {
   const list = read(app + 'Views/Technician/TicketListView.swift');
   const ui = read('frontend-appstore/PusulaServiceScreenshots/TicketListPerformanceTests.swift');

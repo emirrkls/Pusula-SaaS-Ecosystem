@@ -126,6 +126,7 @@ struct ProposalView: View {
             }
             .refreshable { await load() }
         }
+        .pusulaKeyboardDismissal()
         .navigationTitle("Teklifler")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -531,6 +532,7 @@ struct ProposalEditorSheet: View {
                     }
                 }
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle(proposal == nil ? "Yeni Teklif" : "Teklif Düzenle")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
@@ -553,6 +555,7 @@ struct ProposalEditorSheet: View {
     }
 
     private func addOrUpdateItem() {
+        PusulaKeyboard.dismiss()
         let description = itemDescription.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !description.isEmpty else {
             errorMessage = "Kalem açıklaması boş bırakılamaz."
@@ -609,6 +612,7 @@ struct ProposalEditorSheet: View {
     }
     
     private func save() async {
+        PusulaKeyboard.dismiss()
         guard let selectedCustomerId else {
             errorMessage = "Lütfen teklif için bir müşteri seçin."
             return

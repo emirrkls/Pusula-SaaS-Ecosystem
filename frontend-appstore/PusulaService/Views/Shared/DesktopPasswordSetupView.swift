@@ -44,6 +44,7 @@ struct DesktopPasswordSetupView: View {
                 .frame(maxWidth: .infinity)
             }
             .background(PusulaTheme.page.ignoresSafeArea())
+            .pusulaKeyboardDismissal()
             .navigationTitle("auth.desktop_password.title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -57,6 +58,7 @@ struct DesktopPasswordSetupView: View {
         .interactiveDismissDisabled(isSaving)
     }
     private func save() {
+        PusulaKeyboard.dismiss()
         guard isValid, !isSaving else { return }
         isSaving = true
         Task { @MainActor in

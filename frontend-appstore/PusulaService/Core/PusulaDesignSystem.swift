@@ -261,4 +261,25 @@ extension View {
     func pusulaCard(padding: CGFloat = 16) -> some View {
         modifier(PusulaCardModifier(padding: padding))
     }
+
+    /// Attach once to each form destination, not to individual fields or the
+    /// app root. Numeric/phone keyboards have no native Return/Done key.
+    func pusulaKeyboardDismissal() -> some View {
+        scrollDismissesKeyboard(.interactively)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("common.keyboard_done") { PusulaKeyboard.dismiss() }
+                        .accessibilityIdentifier("keyboard.done")
+                }
+            }
+    }
+}
+
+enum PusulaKeyboard {
+    @MainActor static func dismiss() {
+        // Only resign focus. Do not clear text, submit, or intercept form taps.
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                        to: nil, from: nil, for: nil)
+    }
 }

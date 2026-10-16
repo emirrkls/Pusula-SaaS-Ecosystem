@@ -133,3 +133,4 @@
 "diagnostics.close" = "Close";
 "diagnostics.cancel" = "Cancel";
 "account.delete_explanation" = "Your account, sign-in credentials, social sign-in links, signature and device notification registrations will be removed; personal profile information will be anonymized. Shared business service and financial records may be retained for legal and operational reasons. This action cannot be undone. Deleting your account does not automatically cancel an Apple subscription. If you have one, cancel it first using Manage Apple Subscription. Do you want to continue?";
+"common.keyboard_done" = "Done";

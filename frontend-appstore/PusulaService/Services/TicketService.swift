@@ -71,9 +71,10 @@ enum TicketService {
         try await NetworkManager.shared.request(.PATCH, path: "/api/tickets/\(ticketId)/resume")
     }
     
-    static func completeService(ticketId: Int, request: CollectionRequest, requestId: UUID) async throws -> FieldTicketDTO {
-        try await NetworkManager.shared.post(
-            "/api/reliable-mutations/tickets/\(ticketId)/complete", body: request, idempotencyKey: requestId)
+    static func completeService(ticketId: Int, request: CollectionRequest, requestId: UUID, authToken: String? = nil) async throws -> FieldTicketDTO {
+        try await NetworkManager.shared.request(.POST,
+            path: "/api/reliable-mutations/tickets/\(ticketId)/complete", body: request,
+            authTokenOverride: authToken, idempotencyKey: requestId)
     }
 
     static func getBillingOrganizations() async throws -> [AccountPartyOptionDTO] {

@@ -93,6 +93,7 @@ private struct BusinessAssetEditorSheet: View {
                 Section("Değer") { TextField("Birim alış fiyatı", text: $price).keyboardType(.decimalPad); Toggle("Alış tarihi", isOn: $hasPurchaseDate); if hasPurchaseDate { DatePicker("Tarih", selection: $purchaseDate, displayedComponents: .date) } }
                 Section("Not") { TextField("Notlar", text: $notes, axis: .vertical) }
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle(asset == nil ? "Demirbaş Ekle" : "Demirbaşı Düzenle")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Kaydet") { Task { await save() } }.disabled(name.trimmingCharacters(in: .whitespaces).isEmpty) } }
             .onAppear { populate() }
@@ -102,6 +103,7 @@ private struct BusinessAssetEditorSheet: View {
     private var parsedPrice: Double { Double(price.replacingOccurrences(of: ",", with: ".")) ?? 0 }
     private func populate() { guard let asset else { return }; name = asset.assetName; category = asset.category ?? ""; quantity = asset.quantity ?? 1; condition = asset.condition ?? "ACTIVE"; serial = asset.serialNumber ?? ""; location = asset.location ?? ""; assignedTo = asset.assignedTo ?? ""; price = String(asset.purchasePrice ?? 0); notes = asset.notes ?? ""; if let date = parseFinanceDate(asset.purchaseDate) { purchaseDate = date; hasPurchaseDate = true } }
     private func save() async {
+        PusulaKeyboard.dismiss()
         let value = BusinessAssetDTO(id: asset?.id, assetName: name.trimmingCharacters(in: .whitespacesAndNewlines), category: category.isEmpty ? nil : category, quantity: quantity, condition: condition, serialNumber: serial.isEmpty ? nil : serial, location: location.isEmpty ? nil : location, assignedTo: assignedTo.isEmpty ? nil : assignedTo, purchaseDate: hasPurchaseDate ? financeDate(purchaseDate) : nil, purchasePrice: parsedPrice, notes: notes.isEmpty ? nil : notes)
         do { if asset == nil { _ = try await FinanceService.createBusinessAsset(value) } else { _ = try await FinanceService.updateBusinessAsset(value) }; await onSaved(); dismiss() } catch { errorMessage = error.localizedDescription }
     }

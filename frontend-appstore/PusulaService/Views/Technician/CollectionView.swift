@@ -4,7 +4,9 @@ import SwiftUI
 struct CollectionView: View {
     let ticket: FieldTicketDTO
     let partsTotal: Decimal
-    let onComplete: () async -> Void
+    // Synchronous handoff of the confirmed result. List reads must not delay
+    // dismissal or turn a successful payment into a replayable failure.
+    let onComplete: @MainActor (FieldTicketDTO) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var laborFee = ""
     @State private var collectedAmount = ""
@@ -19,17 +21,15 @@ struct CollectionView: View {
     @State private var selectedBillingPartyId: Int?
     @State private var organizationsError: String?
     @State private var technicianNote = ""
-    @State private var isProcessing = false
+    @State private var submission = CollectionSubmissionState<CollectionRequest>()
+    @State private var submissionSession: AuthenticatedSessionSnapshot?
     @State private var errorMessage: String?
     @State private var showDebtConfirmation = false
-    // An ambiguous response must be retried with exactly the same key and payload.
-    @State private var requestId = UUID()
-    @State private var pendingRequest: CollectionRequest?
 #if DEBUG
     var testLoaders: CollectionTestLoaders?
 #endif
 
-    init(ticket: FieldTicketDTO, partsTotal: Decimal, onComplete: @escaping () async -> Void) {
+    init(ticket: FieldTicketDTO, partsTotal: Decimal, onComplete: @escaping @MainActor (FieldTicketDTO) -> Void) {
         self.ticket = ticket; self.partsTotal = partsTotal; self.onComplete = onComplete
         func text(_ value: Double?) -> String { value.map { NSDecimalNumber(decimal: CollectionPricing.round(Decimal(string: String($0)) ?? 0)).stringValue } ?? "" }
         _laborFee = State(initialValue: text(ticket.laborFee))
@@ -91,6 +91,7 @@ struct CollectionView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             TextField("Yapılan işlem / kapanış notu", text: $technicianNote, axis: .vertical)
                                 .lineLimit(2...6).textFieldStyle(.roundedBorder)
+                                .accessibilityIdentifier("collection.note")
                             Toggle("Garanti kapsamında kapat", isOn: $warranty)
                             Text("İşletme garantisinde satış oluşmaz; kurum garantisinde fişin tamamı kurum carisine yazılır. Ücretsiz normal işlem için iskonto kullanın.")
                                 .font(.caption).foregroundStyle(.secondary)
@@ -101,31 +102,41 @@ struct CollectionView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     if let validation { Text(validation).font(.caption).foregroundStyle(.red) }
-                    if let errorMessage { Text(errorMessage).font(.caption).foregroundStyle(.red) }
-                    if pendingRequest != nil {
+                    if let errorMessage {
+                        Text(errorMessage).font(.caption).foregroundStyle(.red)
+                            .accessibilityIdentifier("collection.error")
+                    }
+                    if submission.showsRetry {
                         Text("İşlem sonucu henüz teyit edilemedi. Aynı bilgilerle tekrar deneyin; ikinci tahsilat oluşturulmaz.")
                             .font(.caption).foregroundStyle(.orange)
+                            .accessibilityIdentifier("collection.unconfirmed")
                     }
-                }.padding().disabled(isProcessing || pendingRequest != nil)
+                }.padding().disabled(!submission.canEdit)
             }
-            .scrollDismissesKeyboard(.interactively)
+            .pusulaKeyboardDismissal()
             .background(PusulaTheme.page)
             .navigationTitle("Tahsilat").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarLeading) { Button("İptal") { dismiss() }.disabled(isProcessing) } }
+            .toolbar { ToolbarItem(placement: .topBarLeading) { Button("İptal") { dismiss() }.disabled(submission.isProcessing) } }
+            .interactiveDismissDisabled(submission.isProcessing)
             .safeAreaInset(edge: .bottom) {
                 Button {
-                    if pendingRequest != nil { Task { await processPayment() } }
+                    PusulaKeyboard.dismiss()
+                    if submission.showsRetry { Task { await processPayment() } }
                     else if (totals?.customerDebt ?? 0) > 0 || organization > 0 { showDebtConfirmation = true }
                     else { Task { await processPayment() } }
                 } label: {
                     HStack {
-                        if isProcessing { ProgressView().tint(.white) }
-                        Text(pendingRequest != nil ? "Aynı İşlemi Tekrar Dene" : "Tahsilatı Kaydet ve İşi Tamamla")
+                        if submission.isProcessing { ProgressView().tint(.white) }
+                        Text(submission.isProcessing ? "Tahsilat kaydediliyor…"
+                             : submission.showsRetry ? "Aynı İşlemi Tekrar Dene"
+                             : submission.phase == .succeeded ? "Tahsilat kaydedildi"
+                             : "Tahsilatı Kaydet ve İşi Tamamla")
                             .font(.headline).multilineTextAlignment(.center)
                     }.frame(maxWidth: .infinity).padding(.vertical, 14)
                 }
                 .buttonStyle(.borderedProminent).tint(PusulaTheme.accent)
-                .disabled(isProcessing || (pendingRequest == nil && validation != nil))
+                .accessibilityIdentifier("collection.submit")
+                .disabled(!submission.canSubmit || (submission.canEdit && validation != nil))
                 .padding().background(PusulaTheme.page)
             }
             .alert("Cari aktarımı onayla", isPresented: $showDebtConfirmation) {
@@ -174,7 +185,7 @@ struct CollectionView: View {
                     Button("Kurumları Tekrar Yükle") { Task { await loadOrganizations() } }
                 }
                 moneyField("Kuruma aktarılacak tutar", text: $billingPartyAmount)
-                Button("Fişin tamamını aktar") { billingPartyAmount = raw(pricing?.net ?? 0) }
+                Button("Fişin tamamını aktar") { PusulaKeyboard.dismiss(); billingPartyAmount = raw(pricing?.net ?? 0) }
                     .font(.caption.weight(.semibold))
                 Text("Bu tutar kurumun borcudur; alınmış ödeme değildir.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -197,7 +208,7 @@ struct CollectionView: View {
                 }
                 if !noCollection {
                     moneyField("Tahsil edilen tutar", text: $collectedAmount)
-                    Button("Müşteri payının tamamı") { collectedAmount = raw(max(0, (pricing?.net ?? 0) - organization)) }
+                    Button("Müşteri payının tamamı") { PusulaKeyboard.dismiss(); collectedAmount = raw(max(0, (pricing?.net ?? 0) - organization)) }
                         .font(.caption.weight(.semibold))
                 }
             }
@@ -241,9 +252,17 @@ struct CollectionView: View {
         catch { if !(error is CancellationError) { organizationsError = "Kurumlar yüklenemedi. Tekrar deneyin." } }
     }
     @MainActor private func processPayment() async {
-        guard !isProcessing else { return }
-        if pendingRequest == nil {
+        guard submission.canSubmit else { return }
+        PusulaKeyboard.dismiss()
+        if submission.canEdit {
             guard validation == nil else { errorMessage = validation; return }
+            submissionSession = SessionManager.shared.authenticatedSnapshot
+        }
+        guard isSubmissionSessionCurrent else {
+            errorMessage = String(localized: "session.restore_retry_message")
+            return
+        }
+        guard let request = submission.begin(makePayload: {
             var request = CollectionRequest(collectedAmount: NSDecimalNumber(decimal: collected).doubleValue,
                 paymentMethod: warranty ? "WARRANTY" : selectedMethod.apiValue,
                 laborFee: NSDecimalNumber(decimal: labor).doubleValue,
@@ -254,33 +273,47 @@ struct CollectionView: View {
             request.discountType = warranty ? "AMOUNT" : discountType.rawValue
             request.discountValue = discount
             request.expectedPartsTotal = partsTotal
-            pendingRequest = request
-        }
-        guard let request = pendingRequest else { return }
-        isProcessing = true; errorMessage = nil
-        defer { isProcessing = false }
+            return request
+        }) else { return }
+        errorMessage = nil
         do {
-            _ = try await submit(request)
-            await onComplete()
+            let completed = try await submit(request)
+            submission.succeed()
+            guard isSubmissionSessionCurrent else { return }
+            onComplete(completed)
             dismiss()
         } catch {
+            guard isSubmissionSessionCurrent else {
+                submission.fail(allowsCorrection: false)
+                return
+            }
             errorMessage = error.localizedDescription
             switch error {
             case NetworkError.badRequest, NetworkError.forbidden, NetworkError.unauthorized,
                  NetworkError.quotaExceeded, NetworkError.payloadTooLarge:
-                pendingRequest = nil; requestId = UUID()
-            case NetworkError.serverError(let status) where (400...499).contains(status):
-                pendingRequest = nil; requestId = UUID()
-            default: break
+                submission.fail(allowsCorrection: true)
+            default:
+                // In particular, 408 and idempotency conflicts (409) do not
+                // prove that no payment was committed. Never mint a new key.
+                submission.fail(allowsCorrection: false)
             }
         }
     }
 
+    @MainActor private var isSubmissionSessionCurrent: Bool {
+#if DEBUG
+        if testLoaders != nil { return true }
+#endif
+        guard let submissionSession else { return false }
+        return SessionManager.shared.isCurrent(submissionSession)
+    }
+
     @MainActor private func submit(_ request: CollectionRequest) async throws -> FieldTicketDTO {
 #if DEBUG
-        if let testLoaders { return try await testLoaders.complete(request, requestId) }
+        if let testLoaders { return try await testLoaders.complete(request, submission.requestID) }
 #endif
-        return try await TicketService.completeService(ticketId: ticket.id, request: request, requestId: requestId)
+        return try await TicketService.completeService(ticketId: ticket.id, request: request,
+            requestId: submission.requestID, authToken: submissionSession?.token)
     }
 }
 

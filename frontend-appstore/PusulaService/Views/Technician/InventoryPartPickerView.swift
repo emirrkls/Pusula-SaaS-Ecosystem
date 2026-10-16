@@ -109,6 +109,7 @@ struct InventoryPartPickerView: View {
                 }
             }
             .refreshable { await loadInventory() }
+            .pusulaKeyboardDismissal()
             .navigationTitle("Yedek Parça Seç")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -211,6 +212,7 @@ private struct InventoryPartQuantitySheet: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle("Parçayı Ekle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -219,6 +221,7 @@ private struct InventoryPartQuantitySheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Ekle") {
+                        PusulaKeyboard.dismiss()
                         if isPriceChanged {
                             showPriceChangeConfirmation = true
                         } else {
@@ -254,6 +257,7 @@ private struct InventoryPartQuantitySheet: View {
     }
 
     private func submit() {
+        PusulaKeyboard.dismiss()
         guard isValid, let price = parsedUnitPrice else { return }
         onSubmit(item, quantity, price)
     }

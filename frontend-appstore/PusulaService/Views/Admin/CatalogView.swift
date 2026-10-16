@@ -24,6 +24,7 @@ struct CatalogView: View {
 
     var body: some View {
         catalogContent
+        .pusulaKeyboardDismissal()
         .navigationTitle("Katalog Yönetimi")
         .searchable(text: $searchText, prompt: "Parça, marka veya barkod ara")
         .toolbar {
@@ -379,6 +380,7 @@ private struct InventoryEditorSheet: View {
                     }
                 }
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle(item == nil ? "Yeni Stok Kalemi" : "Stok Kalemini Düzenle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -406,6 +408,7 @@ private struct InventoryEditorSheet: View {
     }
 
     private func save() async {
+        PusulaKeyboard.dismiss()
         guard !isSaving else { return }
         guard let parsedQuantity = nonNegativeDecimal(quantity) else { return }
         let parsedCriticalLevel = optionalNonNegativeDecimal(criticalLevel)

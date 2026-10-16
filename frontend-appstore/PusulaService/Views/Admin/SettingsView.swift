@@ -64,6 +64,7 @@ struct SettingsView: View {
         }
         .background(PusulaTheme.page)
         .navigationTitle("Ayarlar")
+        .onChange(of: selectedTab) { _, _ in PusulaKeyboard.dismiss() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: { Task { await load(refresh: true) } }) {
@@ -297,6 +298,7 @@ struct SettingsView: View {
             }
             .readOnlyProtected()
         }
+        .pusulaKeyboardDismissal()
     }
 
     private var accountTab: some View {
@@ -625,6 +627,7 @@ struct SettingsView: View {
     }
 
     private func saveCompany() async {
+        PusulaKeyboard.dismiss()
         isSavingCompany = true
         defer { isSavingCompany = false }
         do {
@@ -673,6 +676,7 @@ struct UserEditorSheet: View {
                 }
                 SecureField(user == nil ? "Şifre" : "Yeni Şifre (opsiyonel)", text: $password)
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle(user == nil ? "Kullanıcı Ekle" : "Kullanıcı Düzenle")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
@@ -694,6 +698,7 @@ struct UserEditorSheet: View {
     }
     
     private func save() async {
+        PusulaKeyboard.dismiss()
         let dto = UserDTO(
             id: user?.id,
             username: username.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -738,6 +743,7 @@ struct VehicleEditorSheet: View {
                 TextField("Sürücü", text: $driver)
                 Toggle("Aktif", isOn: $isActive)
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle(vehicle == nil ? "Araç Ekle" : "Araç Düzenle")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
@@ -759,6 +765,7 @@ struct VehicleEditorSheet: View {
     }
     
     private func save() async {
+        PusulaKeyboard.dismiss()
         let dto = VehicleDTO(
             id: vehicle?.id,
             companyId: vehicle?.companyId,

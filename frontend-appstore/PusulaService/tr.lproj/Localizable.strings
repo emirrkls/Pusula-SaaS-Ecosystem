@@ -133,3 +133,4 @@
 "diagnostics.close" = "Kapat";
 "diagnostics.cancel" = "Vazgeç";
 "account.delete_explanation" = "Hesabınız, giriş bilgileriniz, sosyal giriş bağlantılarınız, imzanız ve cihaz bildirim kayıtlarınız kaldırılır; kişisel profil bilgileriniz anonimleştirilir. İşletmeye ait ortak servis ve finans kayıtları yasal ve operasyonel nedenlerle korunabilir. Bu işlem geri alınamaz. Apple aboneliğiniz hesap silinince otomatik iptal olmaz; varsa önce Apple Aboneliğini Yönet bölümünden iptal edin. Devam etmek istiyor musunuz?";
+"common.keyboard_done" = "Bitti";

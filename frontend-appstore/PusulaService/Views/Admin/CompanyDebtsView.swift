@@ -155,6 +155,7 @@ private struct DebtEditorSheet: View {
                 TextField("Telefon", text: $phone).keyboardType(.phonePad)
                 TextField("Not", text: $notes, axis: .vertical)
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle(debt == nil ? "Borç Ekle" : "Borcu Düzenle")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
@@ -180,6 +181,7 @@ private struct DebtEditorSheet: View {
         if let date = parseFinanceDate(debt.dueDate) { dueDate = date; hasDueDate = true }
     }
     private func save() async {
+        PusulaKeyboard.dismiss()
         isSaving = true; defer { isSaving = false }
         var value = debt ?? CompanyDebtDTO()
         value.partyId = debt?.partyId ?? presetParty?.partyId
@@ -301,6 +303,7 @@ private struct PayablePartyPaymentSheet: View {
                 Text("Ödeme, seçilen tarihte mevcut olan en eski açık alımdan başlayarak otomatik dağıtılır.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle("Tedarikçi Ödemesi")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
@@ -318,6 +321,7 @@ private struct PayablePartyPaymentSheet: View {
 
     private var parsedAmount: Double { Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0 }
     private func save() async {
+        PusulaKeyboard.dismiss()
         isSaving = true; defer { isSaving = false }
         do {
             _ = try await FinanceService.payPayableParty(partyId: party.partyId,
@@ -422,6 +426,7 @@ private struct DebtMovementSheet: View, Identifiable {
                 DatePicker(mode == .payment ? "Ödeme tarihi" : "İlave tarihi", selection: $date, displayedComponents: .date)
                 TextField("Not", text: $notes, axis: .vertical)
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle(mode == .payment ? "Borç Ödemesi" : "Borç İlavesi")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
@@ -432,6 +437,7 @@ private struct DebtMovementSheet: View, Identifiable {
     }
     private var parsedAmount: Double { Double(amount.replacingOccurrences(of: ",", with: ".")) ?? 0 }
     private func save() async {
+        PusulaKeyboard.dismiss()
         guard let id = debt.id else { return }
         do {
             if mode == .payment { _ = try await FinanceService.payCompanyDebt(id: id, request: .init(amount: parsedAmount, paymentDate: financeDate(date), notes: notes.isEmpty ? nil : notes)) }

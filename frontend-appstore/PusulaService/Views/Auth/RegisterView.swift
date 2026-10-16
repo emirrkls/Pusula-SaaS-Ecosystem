@@ -45,7 +45,7 @@ struct RegisterView: View {
                 .padding(.bottom, 32)
                 .frame(maxWidth: .infinity)
             }
-            .scrollDismissesKeyboard(.interactively)
+            .pusulaKeyboardDismissal()
             .background(PusulaTheme.page.ignoresSafeArea())
             .navigationTitle("Hesap Oluştur")
             .navigationBarTitleDisplayMode(.inline)
@@ -166,6 +166,7 @@ struct RegisterView: View {
     }
 
     private func handleRegister() {
+        PusulaKeyboard.dismiss()
         guard isFormValid, !isLoading else { return }
         isLoading = true
         errorMessage = nil

@@ -260,6 +260,7 @@ private struct NetworkMemberForm: View {
                 }
             }
         }
+        .pusulaKeyboardDismissal()
         .navigationTitle(create ? "Yeni Alt Servis" : "İşletme Daveti")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(receipt == nil ? "Vazgeç" : "Bitti") { dismiss() }.disabled(busy) }
@@ -269,6 +270,7 @@ private struct NetworkMemberForm: View {
         }.disabled(busy).interactiveDismissDisabled(busy)
     }
     private func save() async {
+        PusulaKeyboard.dismiss()
         busy = true; error = nil; defer { busy = false }
         do {
             if create {
@@ -366,7 +368,7 @@ private struct NetworkDispatchForm: View {
                 TextField("İşle ilgili ön bilgi", text: $instruction, axis: .vertical).lineLimit(3...8)
                 Text("Bu alan müşteri PDF'ine yazılmaz.").font(.caption)
             }
-        }.navigationTitle("Ağ İş Emri")
+        }.pusulaKeyboardDismissal().navigationTitle("Ağ İş Emri")
         .environment(\.timeZone, TimeZone(identifier: "Europe/Istanbul")!)
         .disabled(busy).navigationBarBackButtonHidden(busy)
         .toolbar { ToolbarItem(placement: .confirmationAction) {
@@ -374,6 +376,7 @@ private struct NetworkDispatchForm: View {
         } }
     }
     private func save() async {
+        PusulaKeyboard.dismiss()
         guard !useEnd || end > date else { error = "Bitiş başlangıçtan sonra olmalıdır."; return }
         busy = true; error = nil; defer { busy = false }
         do {
@@ -541,7 +544,7 @@ private struct NetworkAcceptForm: View {
                     ForEach(technicians) { Text($0.fullName ?? "Teknisyen #\($0.id)").tag(Optional($0.id)) }
                 }
             }
-        }.navigationTitle("İşi Kabul Et")
+        }.pusulaKeyboardDismissal().navigationTitle("İşi Kabul Et")
         .disabled(busy).navigationBarBackButtonHidden(busy)
         .toolbar { ToolbarItem(placement: .confirmationAction) {
             Button("Kabul Et") { Task { await accept() } }.disabled(busy || (existing && customerId == nil))
@@ -568,6 +571,7 @@ private struct NetworkAcceptForm: View {
         }
     }
     private func accept() async {
+        PusulaKeyboard.dismiss()
         busy = true; error = nil; defer { busy = false }
         do {
             let _: ServiceNetworkOrder = try await ServiceNetworkAPI.post("/orders/\(order.id)/accept", ServiceNetworkAccept(customerId: existing ? customerId : nil, technicianId: technicianId))
@@ -591,12 +595,13 @@ private struct NetworkNoteForm: View {
             Text(explanation).font(.caption)
             TextField("Not / gerekçe", text: $note, axis: .vertical).lineLimit(4...12)
             Text("\(note.count) / 1000 karakter").font(.caption).foregroundStyle(.secondary)
-        }.navigationTitle(title)
+        }.pusulaKeyboardDismissal().navigationTitle(title)
         .disabled(busy).interactiveDismissDisabled(busy)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Vazgeç") { dismiss() }.disabled(busy) }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Kaydet") {
+                    PusulaKeyboard.dismiss()
                     busy = true; error = nil
                     Task { defer { busy = false }; do { try await save(note); dismiss() } catch { self.error = error.localizedDescription } }
                 }.disabled(busy || note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || note.count > 1000)

@@ -89,6 +89,7 @@ private struct AddAccountPartySheet: View {
                     TextField("Ödeme vadesi (gün)", text: $paymentTermDays).keyboardType(.numberPad)
                 }
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle("Yeni Kurum Cari Kartı")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() } }
@@ -104,6 +105,7 @@ private struct AddAccountPartySheet: View {
     }
 
     private func save() async {
+        PusulaKeyboard.dismiss()
         isSaving = true; defer { isSaving = false }
         do {
             _ = try await FinanceService.createAccountParty(.init(

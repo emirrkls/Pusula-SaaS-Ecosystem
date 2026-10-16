@@ -112,6 +112,7 @@ struct CustomerView: View {
             }
         }
         .background(PusulaTheme.page)
+        .pusulaKeyboardDismissal()
         .navigationTitle("Müşteriler")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -766,6 +767,7 @@ struct CustomerEditorSheet: View {
                 TextField("Telefon", text: $phone).keyboardType(.phonePad)
                 TextField("Adres", text: $address, axis: .vertical).lineLimit(2...4)
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle(customer == nil ? "Yeni Müşteri" : "Müşteri Düzenle")
             .interactiveDismissDisabled(isSaving)
             .toolbar {
@@ -790,6 +792,7 @@ struct CustomerEditorSheet: View {
     }
 
     private func save() async {
+        PusulaKeyboard.dismiss()
         guard !isSaving else { return }
         isSaving = true
         defer { isSaving = false }
@@ -832,6 +835,7 @@ struct CreateTicketFromCustomerSheet: View {
                     TextField("Notlar", text: $notes, axis: .vertical)
                 }
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle("Servis Fişi")
             .interactiveDismissDisabled(isCreating)
             .toolbar {
@@ -851,6 +855,7 @@ struct CreateTicketFromCustomerSheet: View {
     }
 
     private func createTicket() async {
+        PusulaKeyboard.dismiss()
         guard !isCreating else { return }
         guard let customerId = customer.id else {
             errorMessage = "Müşteri kimliği bulunamadı."

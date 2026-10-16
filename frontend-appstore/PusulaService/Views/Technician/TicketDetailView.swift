@@ -6,6 +6,7 @@ struct TicketDetailView: View {
     var isAdmin: Bool = false
     var technicians: [TechnicianDTO] = []
     let onComplete: () async -> Void
+    let onCollected: ((FieldTicketDTO) -> Void)?
     
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var navigation = AppNavigation.shared
@@ -15,6 +16,7 @@ struct TicketDetailView: View {
 #if DEBUG
     // Only supplied by the offline simulator harness; never establishes a session.
     var testLoaders: TicketDetailTestLoaders?
+    var collectionTestLoaders: CollectionTestLoaders?
 #endif
     @State private var newTechnicianNote = ""
     @State private var isSavingTechnicianNote = false
@@ -24,6 +26,8 @@ struct TicketDetailView: View {
     @State private var editingPart: UsedPartDTO?
     @State private var partPendingDeletion: UsedPartDTO?
     @State private var showCollection = false
+    @State private var completedCollection: FieldTicketDTO?
+    @State private var collectionSession: AuthenticatedSessionSnapshot?
     @State private var showSignature = false
     @State private var showPhotos = false
     @State private var showReschedule = false
@@ -42,12 +46,14 @@ struct TicketDetailView: View {
         ticket: FieldTicketDTO,
         isAdmin: Bool = false,
         technicians: [TechnicianDTO] = [],
+        onCollected: ((FieldTicketDTO) -> Void)? = nil,
         onComplete: @escaping () async -> Void
     ) {
         self.ticket = ticket
         self.isAdmin = isAdmin
         self.technicians = technicians
         self.onComplete = onComplete
+        self.onCollected = onCollected
         _currentTicket = State(initialValue: ticket)
     }
     
@@ -136,6 +142,7 @@ struct TicketDetailView: View {
             .padding()
         }
         .background(PusulaTheme.page)
+        .pusulaKeyboardDismissal()
         .navigationTitle("İş Emri #\(ticket.id)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -161,18 +168,8 @@ struct TicketDetailView: View {
                 try await updatePart(part, quantity: quantity, unitPrice: unitPrice)
             }
         }
-        .sheet(isPresented: $showCollection) {
-            CollectionView(
-                ticket: currentTicket,
-                partsTotal: CollectionPricing.round(usedParts.reduce(Decimal.zero) { sum, part in
-                    sum + (Decimal(string: String(part.quantityUsed)) ?? 0)
-                        * (Decimal(string: String(part.sellingPriceSnapshot)) ?? 0)
-                }),
-                onComplete: {
-                    await onComplete()
-                    dismiss()
-                }
-            )
+        .sheet(isPresented: $showCollection, onDismiss: finishCollectionPresentation) {
+            collectionView
         }
         .sheet(isPresented: $showSignature) {
             SignatureView(ticketId: ticket.id)
@@ -230,6 +227,42 @@ struct TicketDetailView: View {
         } message: { part in
             Text("\(part.partName) kaydı kaldırılacak ve kullanılan miktar stoğa geri eklenecek.")
         }
+    }
+
+    private var collectionView: CollectionView {
+        var view = CollectionView(
+            ticket: currentTicket,
+            partsTotal: CollectionPricing.round(usedParts.reduce(Decimal.zero) { sum, part in
+                sum + (Decimal(string: String(part.quantityUsed)) ?? 0)
+                    * (Decimal(string: String(part.sellingPriceSnapshot)) ?? 0)
+            }),
+            onComplete: { completed in
+                currentTicket = completed
+                completedCollection = completed
+                collectionSession = SessionManager.shared.authenticatedSnapshot
+            }
+        )
+#if DEBUG
+        view.testLoaders = collectionTestLoaders
+#endif
+        return view
+    }
+
+    private func finishCollectionPresentation() {
+        guard let completed = completedCollection else { return } // Cancel keeps the detail open.
+        completedCollection = nil
+        if let onCollected {
+            onCollected(completed) // Owner patches its list and owns the refresh task.
+        } else {
+            // Customer/finance details also close without waiting for a read.
+            let expectedSession = collectionSession
+            dismiss()
+            Task {
+                guard let expectedSession, SessionManager.shared.isCurrent(expectedSession) else { return }
+                await onComplete()
+            }
+        }
+        collectionSession = nil
     }
 
     private func acknowledgeRepeatNotification() {
@@ -647,7 +680,7 @@ struct TicketDetailView: View {
     
     private var primaryActions: some View {
         VStack(spacing: 10) {
-            Button(action: { showCollection = true }) {
+            Button(action: { PusulaKeyboard.dismiss(); showCollection = true }) {
                 Label("Servisi Tamamla & Tahsilat", systemImage: "checkmark.circle.fill")
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: PusulaTheme.controlHeight)
@@ -814,6 +847,7 @@ struct TicketDetailView: View {
     }
 
     private func saveTechnicianNote() async {
+        PusulaKeyboard.dismiss()
         let content = newTechnicianNote.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty, !isSavingTechnicianNote, notesState.isLoaded,
               let snapshot = SessionManager.shared.authenticatedSnapshot else { return }
@@ -1135,6 +1169,7 @@ private struct UsedPartEditorSheet: View {
                     }
                 }
             }
+            .pusulaKeyboardDismissal()
             .navigationTitle("Kullanılan Parçayı Düzenle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1160,6 +1195,7 @@ private struct UsedPartEditorSheet: View {
 
     @MainActor
     private func save() async {
+        PusulaKeyboard.dismiss()
         guard let quantity = parsedQuantity, let unitPrice = parsedUnitPrice, isValid else { return }
         isSaving = true
         defer { isSaving = false }
