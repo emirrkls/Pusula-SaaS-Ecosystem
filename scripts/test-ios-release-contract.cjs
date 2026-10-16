@@ -9,6 +9,19 @@ const app = 'frontend-appstore/PusulaService/';
 const store = read(app + 'Services/StoreKitManager.swift');
 const session = read(app + 'Core/SessionManager.swift');
 
+test('collection footer has its own layout area and payment helpers cannot tap through it', () => {
+  const view = read(app + 'Views/Technician/CollectionView.swift');
+  assert.match(view, /VStack\(spacing: 0\) \{\s+ScrollView/);
+  assert.match(view, /accessibilityIdentifier\("collection\.form"\)/);
+  assert.match(view, /private var submitFooter: some View/);
+  assert.doesNotMatch(view, /safeAreaInset/);
+  const ui = read('frontend-appstore/PusulaServiceScreenshots/CollectionPresentationTests.swift');
+  assert.match(ui, /visible\.contains\(full\.frame\) && !save\.frame\.intersects\(full\.frame\)/);
+  assert.match(ui, /collection\.input\.Tahsil edilen tutar.*value as\? String, "3000"/);
+  assert.match(ui, /Filling an amount must not trigger collection/);
+  assert.match(ui, /on: app\.navigationBars\["Tahsilat"\], timeout: 3/);
+});
+
 test('collection replay is an explicit failure state, never the presence of a frozen payload', () => {
   const state = read(app + 'Core/Billing/CollectionSubmissionState.swift');
   assert.match(state, /var showsRetry: Bool \{ phase == \.unconfirmed \}/);

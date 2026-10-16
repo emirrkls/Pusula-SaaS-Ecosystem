@@ -80,65 +80,50 @@ struct CollectionView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("Servis fişi #\(ticket.id) · \(ticket.customerName ?? "Müşteri")")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                    feesCard
-                    organizationCard
-                    collectionCard
-                    DisclosureGroup("Kapanış notu ve garanti") {
-                        VStack(alignment: .leading, spacing: 12) {
-                            TextField("Yapılan işlem / kapanış notu", text: $technicianNote, axis: .vertical)
-                                .lineLimit(2...6).textFieldStyle(.roundedBorder)
-                                .accessibilityIdentifier("collection.note")
-                            Toggle("Garanti kapsamında kapat", isOn: $warranty)
-                            Text("İşletme garantisinde satış oluşmaz; kurum garantisinde fişin tamamı kurum carisine yazılır. Ücretsiz normal işlem için iskonto kullanın.")
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("Servis fişi #\(ticket.id) · \(ticket.customerName ?? "Müşteri")")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                        feesCard
+                        organizationCard
+                        collectionCard
+                        DisclosureGroup("Kapanış notu ve garanti") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                TextField("Yapılan işlem / kapanış notu", text: $technicianNote, axis: .vertical)
+                                    .lineLimit(2...6).textFieldStyle(.roundedBorder)
+                                    .accessibilityIdentifier("collection.note")
+                                Toggle("Garanti kapsamında kapat", isOn: $warranty)
+                                Text("İşletme garantisinde satış oluşmaz; kurum garantisinde fişin tamamı kurum carisine yazılır. Ücretsiz normal işlem için iskonto kullanın.")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }.padding(.top, 8)
+                        }.pusulaCard()
+                        if let previous = ticket.customerBalance, previous != 0 {
+                            Text("Önceki cari bakiye: \(money(Decimal(string: String(previous)) ?? 0)). Bu fişin toplamına dahil değildir.")
                                 .font(.caption).foregroundStyle(.secondary)
-                        }.padding(.top, 8)
-                    }.pusulaCard()
-                    if let previous = ticket.customerBalance, previous != 0 {
-                        Text("Önceki cari bakiye: \(money(Decimal(string: String(previous)) ?? 0)). Bu fişin toplamına dahil değildir.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    if let validation { Text(validation).font(.caption).foregroundStyle(.red) }
-                    if let errorMessage {
-                        Text(errorMessage).font(.caption).foregroundStyle(.red)
-                            .accessibilityIdentifier("collection.error")
-                    }
-                    if submission.showsRetry {
-                        Text("İşlem sonucu henüz teyit edilemedi. Aynı bilgilerle tekrar deneyin; ikinci tahsilat oluşturulmaz.")
-                            .font(.caption).foregroundStyle(.orange)
-                            .accessibilityIdentifier("collection.unconfirmed")
-                    }
-                }.padding().disabled(!submission.canEdit)
+                        }
+                        if let validation { Text(validation).font(.caption).foregroundStyle(.red) }
+                        if let errorMessage {
+                            Text(errorMessage).font(.caption).foregroundStyle(.red)
+                                .accessibilityIdentifier("collection.error")
+                        }
+                        if submission.showsRetry {
+                            Text("İşlem sonucu henüz teyit edilemedi. Aynı bilgilerle tekrar deneyin; ikinci tahsilat oluşturulmaz.")
+                                .font(.caption).foregroundStyle(.orange)
+                                .accessibilityIdentifier("collection.unconfirmed")
+                        }
+                    }.padding().disabled(!submission.canEdit)
+                }
+                .accessibilityIdentifier("collection.form")
+                // Keep hit-testing and accessibility frames out of the fixed
+                // action's area, including on compact phones and with a keyboard.
+                submitFooter
             }
             .pusulaKeyboardDismissal()
             .background(PusulaTheme.page)
             .navigationTitle("Tahsilat").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarLeading) { Button("İptal") { dismiss() }.disabled(submission.isProcessing) } }
             .interactiveDismissDisabled(submission.isProcessing)
-            .safeAreaInset(edge: .bottom) {
-                Button {
-                    PusulaKeyboard.dismiss()
-                    if submission.showsRetry { Task { await processPayment() } }
-                    else if (totals?.customerDebt ?? 0) > 0 || organization > 0 { showDebtConfirmation = true }
-                    else { Task { await processPayment() } }
-                } label: {
-                    HStack {
-                        if submission.isProcessing { ProgressView().tint(.white) }
-                        Text(submission.isProcessing ? "Tahsilat kaydediliyor…"
-                             : submission.showsRetry ? "Aynı İşlemi Tekrar Dene"
-                             : submission.phase == .succeeded ? "Tahsilat kaydedildi"
-                             : "Tahsilatı Kaydet ve İşi Tamamla")
-                            .font(.headline).multilineTextAlignment(.center)
-                    }.frame(maxWidth: .infinity).padding(.vertical, 14)
-                }
-                .buttonStyle(.borderedProminent).tint(PusulaTheme.accent)
-                .accessibilityIdentifier("collection.submit")
-                .disabled(!submission.canSubmit || (submission.canEdit && validation != nil))
-                .padding().background(PusulaTheme.page)
-            }
             .alert("Cari aktarımı onayla", isPresented: $showDebtConfirmation) {
                 Button("Vazgeç", role: .cancel) {}
                 Button("Onayla ve Tamamla") { Task { await processPayment() } }
@@ -147,6 +132,31 @@ struct CollectionView: View {
             }
             .task { await loadOrganizations() }
         }
+    }
+
+    private var submitFooter: some View {
+        VStack(spacing: 0) {
+            Divider()
+            Button {
+                PusulaKeyboard.dismiss()
+                if submission.showsRetry { Task { await processPayment() } }
+                else if (totals?.customerDebt ?? 0) > 0 || organization > 0 { showDebtConfirmation = true }
+                else { Task { await processPayment() } }
+            } label: {
+                HStack {
+                    if submission.isProcessing { ProgressView().tint(.white) }
+                    Text(submission.isProcessing ? "Tahsilat kaydediliyor…"
+                         : submission.showsRetry ? "Aynı İşlemi Tekrar Dene"
+                         : submission.phase == .succeeded ? "Tahsilat kaydedildi"
+                         : "Tahsilatı Kaydet ve İşi Tamamla")
+                        .font(.headline).multilineTextAlignment(.center)
+                }.frame(maxWidth: .infinity).padding(.vertical, 14)
+            }
+            .buttonStyle(.borderedProminent).tint(PusulaTheme.accent)
+            .accessibilityIdentifier("collection.submit")
+            .disabled(!submission.canSubmit || (submission.canEdit && validation != nil))
+            .padding().background(PusulaTheme.page)
+        }.background(PusulaTheme.page)
     }
 
     private var feesCard: some View {

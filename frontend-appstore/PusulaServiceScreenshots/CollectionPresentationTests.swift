@@ -17,9 +17,7 @@ final class CollectionPresentationTests: XCTestCase {
         let app = launch()
         let labor = app.textFields["collection.input.Servis / işçilik bedeli"]
         XCTAssertTrue(labor.waitForExistence(timeout: 10))
-        let full = app.buttons["Müşteri payının tamamı"]
-        for _ in 0..<4 { if full.isHittable { break }; app.scrollViews.firstMatch.swipeUp() }
-        XCTAssertTrue(full.isHittable); full.tap()
+        payFullAmount(in: app)
         app.buttons["Tahsilatı Kaydet ve İşi Tamamla"].tap()
         let retry = app.buttons["Aynı İşlemi Tekrar Dene"]
         XCTAssertTrue(retry.waitForExistence(timeout: 10))
@@ -37,7 +35,7 @@ final class CollectionPresentationTests: XCTestCase {
         XCTAssertFalse(app.buttons["Aynı İşlemi Tekrar Dene"].exists)
         XCTAssertTrue(app.staticTexts["collection.fixture.completed"].waitForExistence(timeout: 10))
         XCTAssertEqual(app.staticTexts["collection.fixture.attempts"].label, "1")
-        XCTAssertFalse(app.navigationBars["Tahsilat"].exists)
+        wait(NSPredicate(format: "exists == false"), on: app.navigationBars["Tahsilat"], timeout: 3)
     }
 
     func testSlowFailedListRefreshDoesNotHoldCollectionOrDetailOpen() {
@@ -152,9 +150,19 @@ final class CollectionPresentationTests: XCTestCase {
 
     private func payFullAmount(in app: XCUIApplication) {
         let full = app.buttons["Müşteri payının tamamı"]
-        for _ in 0..<6 { if full.isHittable { break }; app.scrollViews.firstMatch.swipeUp() }
-        XCTAssertTrue(full.isHittable)
+        let form = app.scrollViews["collection.form"]
+        XCTAssertTrue(form.waitForExistence(timeout: 5))
+        let save = app.buttons["collection.submit"]
+        func safelyVisible() -> Bool {
+            guard full.exists, full.isHittable else { return false }
+            let visible = form.frame.insetBy(dx: 0, dy: 8)
+            return visible.contains(full.frame) && !save.frame.intersects(full.frame)
+        }
+        for _ in 0..<8 { if safelyVisible() { break }; form.swipeUp() }
+        XCTAssertTrue(safelyVisible(), "The full-payment helper must be entirely inside the form, not under Save")
         full.tap()
+        XCTAssertFalse(app.alerts["Cari aktarımı onayla"].exists, "Filling an amount must not trigger collection")
+        XCTAssertEqual(app.textFields["collection.input.Tahsil edilen tutar"].value as? String, "3000")
     }
 
     private func dismissKeyboard(in app: XCUIApplication) {
