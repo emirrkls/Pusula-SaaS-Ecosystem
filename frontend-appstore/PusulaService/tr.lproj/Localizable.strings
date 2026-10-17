@@ -160,7 +160,7 @@
 "support.subject" = "Konu (en fazla 120 karakter)";
 "support.category" = "Talep türü";
 "support.description" = "Açıklama (en fazla 4000 karakter)";
-"support.privacy_hint" = "Parola, oturum anahtarı veya müşteri/finans kaydı paylaşmayın. Ekler isteğe bağlıdır. Ekler 30 gün, çözülen talepler 180 gün saklanır.";
+"support.privacy_hint" = "Parola, oturum anahtarı veya müşteri/finans kaydı paylaşmayın. Görseldeki hassas alanları göndermeden önce kendiniz kapatın. Ekler isteğe bağlıdır. Ekler 30 gün, çözülen talepler 180 gün saklanır.";
 "support.add_photo" = "Ekran görüntüsü ekle";
 "support.add_report" = "Pusula bağlantı raporu seç";
 "support.report" = "Teknik rapor";

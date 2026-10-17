@@ -160,7 +160,7 @@
 "support.subject" = "Subject (up to 120 characters)";
 "support.category" = "Request type";
 "support.description" = "Description (up to 4000 characters)";
-"support.privacy_hint" = "Do not share passwords, tokens or customer/financial records. Attachments are optional. Attachments are kept for 30 days and resolved requests for 180 days.";
+"support.privacy_hint" = "Do not share passwords, tokens or customer/financial records. Cover sensitive areas in screenshots yourself before sending. Attachments are optional. Attachments are kept for 30 days and resolved requests for 180 days.";
 "support.add_photo" = "Add screenshot";
 "support.add_report" = "Select Pusula connection report";
 "support.report" = "Technical report";

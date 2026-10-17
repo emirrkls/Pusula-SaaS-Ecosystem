@@ -178,7 +178,7 @@ struct SupportCenterView: View {
     @MainActor private func refresh() async {
         guard let snapshot,isCurrent(snapshot),!busy else{return};busy=true;defer{busy=false}
         do {let result=try await loadList(token:snapshot.token);guard isCurrent(snapshot) else{return};tickets=result.items;hasNext=result.hasNext;error=nil}
-        catch {if isCurrent(snapshot),!RefreshRequestState.isCancellation(error){self.error=String(localized:"support.connection_fallback")}}
+        catch {if isCurrent(snapshot),!LoadCancellationPolicy.isCancellation(error){self.error=String(localized:"support.connection_fallback")}}
     }
     @MainActor private func open(_ id:Int,before:Int?=nil) async {
         guard let snapshot,isCurrent(snapshot),!busy else{return};busy=true;defer{busy=false}
