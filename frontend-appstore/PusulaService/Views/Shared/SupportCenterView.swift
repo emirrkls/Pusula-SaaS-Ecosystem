@@ -135,7 +135,7 @@ struct SupportCenterView: View {
             } label: { Label("support.new",systemImage:"plus.bubble.fill").font(.headline).frame(maxWidth:.infinity).padding(.vertical,10) }
                 .buttonStyle(.borderedProminent).disabled(busy).accessibilityIdentifier("support.new")
             HStack {
-                Text("support.hub.requests").font(.title3.bold())
+                Text("support.hub.requests").font(.title3.bold()).accessibilityIdentifier("support.requests")
                 Spacer()
                 Button { Task { await refresh() } } label: { Label("support.refresh",systemImage:"arrow.clockwise").font(.subheadline) }
                     .disabled(busy).accessibilityIdentifier("support.refresh")
@@ -167,7 +167,7 @@ struct SupportCenterView: View {
                 Spacer()
                 if hasNext { Button("support.next") { page+=1;Task { await refresh() } }.disabled(busy) }
             }
-        }.accessibilityIdentifier("support.requests").guideTourTarget("support-requests")
+        }.guideTourTarget("support-requests")
     }
     private var contactCard: some View {
         VStack(alignment:.leading,spacing:12) {

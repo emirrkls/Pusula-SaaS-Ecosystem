@@ -125,15 +125,21 @@ struct ServicePhotoView: View {
             }
         }
         .fullScreenCover(item: $selectedPhoto) { ServicePhotoViewer(photo: $0) }
-        .confirmationDialog("Yüklenemeyen görseller var", isPresented: $showLeaveWarning, titleVisibility: .visible) {
-            Button("Burada Kal", role: .cancel) {}
-            Button("Bekleyenleri Bırak ve Çık", role: .destructive) { batch = nil; batchOwner = nil; dismiss() }
+        .alert(showLeaveWarning ? "Yüklenemeyen görseller var" : "Hata",
+               isPresented: Binding(get: { showLeaveWarning || errorMessage != nil }, set: {
+                   if !$0 { showLeaveWarning = false; errorMessage = nil }
+               })) {
+            if showLeaveWarning {
+                Button("Burada Kal", role: .cancel) { showLeaveWarning = false }
+                Button("Bekleyenleri Bırak ve Çık", role: .destructive) { batch = nil; batchOwner = nil; dismiss() }
+            } else {
+                Button("Tamam", role: .cancel) { errorMessage = nil }
+            }
         } message: {
-            Text("Yüklenen görseller korunur. Yanıtı alınamayan bir görsel sunucuya kaydedilmiş olabilir. Çıkarsanız yeniden eklemeden önce görsel listesini kontrol edin.")
+            Text(showLeaveWarning
+                ? "Yüklenen görseller korunur. Yanıtı alınamayan bir görsel sunucuya kaydedilmiş olabilir. Çıkarsanız yeniden eklemeden önce görsel listesini kontrol edin."
+                : errorMessage ?? "")
         }
-        .alert("Hata", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
-            Button("Tamam", role: .cancel) { errorMessage = nil }
-        } message: { Text(errorMessage ?? "") }
     }
 
     private func photoRow(_ photo: ServicePhotoDTO) -> some View {

@@ -90,8 +90,10 @@ test('old Continue footer is fixed and coach layout no longer estimates card hei
 });
 test('iOS tours present real screens above the account tab and retain fixed-footer regressions', () => {
   const screen=read(ios+'Views/Shared/GuideCenterView.swift');
-  assert.match(screen,/fullScreenCover\(isPresented:\$isLessonPresented/);
-  assert.match(screen,/GuideTourHost\(topic:topic/);
+  assert.match(screen,/fullScreenCover\(item:\$activeTour/);
+  assert.match(screen,/GuideTourHost\(topic:presentation.topic/);
+  assert.match(screen,/activeTour = GuideTourPresentation\(id:lease,topic:topic\)/);
+  assert.doesNotMatch(screen,/if let topic=selectedTopic,let lease=tourLease/);
   const host=read(ios+'Views/Shared/GuideTourHost.swift');
   assert.match(host,/allowsHitTesting\(false\).accessibilityHidden\(true\)/);
   assert.match(host,/customer=value/);
@@ -100,6 +102,7 @@ test('iOS tours present real screens above the account tab and retain fixed-foot
   assert.doesNotMatch(host,/\.first!|tickets\.first|customers\.first/);
   assert.match(host,/private func close\(\) \{ save\(\);dismiss\(\) \}/);
   assert.match(screen,/onDismiss:\{GuideTourRuntime.shared.end\(tourLease\)/);
+  assert.doesNotMatch(host,/\.onChange\(of:session.authenticatedSnapshot\?\.revision\)[^\n]*\n\s*\.accessibilityIdentifier\("guide.tour"\)/);
   assert.match(read(android+'java/com/pusula/service/ui/guide/GuideTourHost.kt'),/derivedStateOf\{state.layoutInfo.totalItemsCount\}/);
   assert.doesNotMatch(screen,/\.sheet\(item: \$selectedTopic\)/);
   assert.match(screen,/private func open\(_ topic: GuideTopic\)[\s\S]*PusulaKeyboard.dismiss\(\)/);

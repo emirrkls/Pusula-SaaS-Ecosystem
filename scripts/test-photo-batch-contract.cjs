@@ -35,6 +35,9 @@ test('failed batches retain intent, cannot silently leave, and pin account crede
   assert.match(swift, /currentPhotoOwner == owner/);
   assert.match(swift, /requestId: id, authToken: owner.token/);
   assert.match(swift, /kCGImageSourceThumbnailMaxPixelSize: 2_048/);
+  assert.match(swift, /\.alert\(showLeaveWarning \?/);
+  assert.match(swift, /Button\("Burada Kal", role: \.cancel\)/);
+  assert.doesNotMatch(swift, /confirmationDialog\("Yüklenemeyen/);
   const screen = read(android + 'ui/technician/ServicePhotoScreen.kt');
   assert.match(screen, /BackHandler\(onBack = leave\)/);
   assert.match(screen, /Bekleyenleri Bırak ve Çık/);

@@ -2,6 +2,14 @@ import XCTest
 
 final class SupportFlowTests:XCTestCase {
     override func setUpWithError() throws {continueAfterFailure=false}
+    override func tearDownWithError() throws {
+        if (testRun?.failureCount ?? 0)>0 {
+            let app=XCUIApplication()
+            let screen=XCTAttachment(screenshot:app.screenshot());screen.name="Support failure screen";screen.lifetime = .keepAlways;add(screen)
+            let tree=XCTAttachment(string:app.debugDescription);tree.name="Support failure accessibility hierarchy";tree.lifetime = .keepAlways;add(tree)
+        }
+        try super.tearDownWithError()
+    }
     func testCompanyAdminOpensSupportFromActualAccountSettings() {
         let app=launch("normal",entry:"admin")
         openAdminAccount(app)
@@ -86,6 +94,18 @@ final class SupportFlowTests:XCTestCase {
     }
     private func dismissKeyboard(_ app:XCUIApplication) {let done=app.buttons["keyboard.done"];if done.exists && done.isHittable {done.tap()}else if app.buttons["Bitti"].exists {app.buttons["Bitti"].tap()}}
     private func reveal(_ identifier:String,in app:XCUIApplication)->XCUIElement {
-        let element=app.buttons[identifier];for _ in 0..<10 {if element.exists && element.isHittable {break};app.swipeUp()};XCTAssertTrue(element.waitForExistence(timeout:10),identifier);XCTAssertTrue(element.isHittable,identifier);return element
+        let element=app.buttons[identifier]
+        XCTAssertTrue(element.waitForExistence(timeout:12),identifier)
+        for _ in 0..<10 {
+            if element.isHittable {break}
+            // Eager native cards can be above OR below the viewport. Do not
+            // swipe past the CTA while its async contact/draft read is loading.
+            if element.frame.midY<app.windows.firstMatch.frame.midY {app.swipeDown()} else {app.swipeUp()}
+        }
+        let ready=XCTNSPredicateExpectation(predicate:NSPredicate { _,_ in
+            element.exists&&element.isHittable&&element.isEnabled
+        },object:nil)
+        XCTAssertEqual(XCTWaiter.wait(for:[ready],timeout:12),.completed,identifier)
+        return element
     }
 }

@@ -53,6 +53,13 @@ final class GuideFlowTests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 12), .completed,
                        "\(id): exists=\(button.exists), hittable=\(button.exists && button.isHittable)")
         button.tap()
+        if id == "guide.quick-start" || id.hasPrefix("guide.topic.") {
+            XCTAssertTrue(app.buttons["guide.next"].waitForExistence(timeout:12),"The selected real-screen tour must be presented")
+            XCTAssertTrue(app.staticTexts["guide.step.progress"].exists)
+        } else if id == "guide.close" {
+            let closed = XCTNSPredicateExpectation(predicate:NSPredicate { _,_ in !app.buttons["guide.next"].exists },object:nil)
+            XCTAssertEqual(XCTWaiter.wait(for:[closed],timeout:12),.completed)
+        }
     }
     func testAdminActualAccountEntry() {
         let app = launch("admin-entry")

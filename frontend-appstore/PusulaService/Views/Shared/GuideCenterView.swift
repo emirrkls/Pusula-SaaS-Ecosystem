@@ -44,6 +44,11 @@ struct GuideCenterDestination: View {
     }
 }
 
+private struct GuideTourPresentation: Identifiable {
+    let id: UUID
+    let topic: GuideTopic
+}
+
 struct GuideCenterView: View {
     let role: String
     let features: [String: Bool]
@@ -53,8 +58,7 @@ struct GuideCenterView: View {
     @State private var search = ""
     @State private var category: String?
     @State private var unfinishedOnly = false
-    @State private var selectedTopic: GuideTopic?
-    @State private var isLessonPresented = false
+    @State private var activeTour: GuideTourPresentation?
     @State private var tourLease: UUID?
     @FocusState private var searchFocused: Bool
     init(scope: String, role: String, features: [String: Bool], defaults: UserDefaults = .standard) {
@@ -146,10 +150,9 @@ struct GuideCenterView: View {
         .navigationTitle("Uygulama Rehberi")
         .pusulaKeyboardDismissal()
         .task { await load() }
-        .fullScreenCover(isPresented:$isLessonPresented,onDismiss:{GuideTourRuntime.shared.end(tourLease);tourLease=nil}) {
-            if let topic=selectedTopic,let lease=tourLease {
-                GuideTourHost(topic:topic,progress:progress,role:role,features:features,lease:lease).id(topic.id)
-            }
+        .fullScreenCover(item:$activeTour,onDismiss:{GuideTourRuntime.shared.end(tourLease);tourLease=nil}) { presentation in
+            GuideTourHost(topic:presentation.topic,progress:progress,role:role,features:features,lease:presentation.id)
+                .id(presentation.id)
         }
     }
     private func open(_ topic: GuideTopic) {
@@ -157,8 +160,9 @@ struct GuideCenterView: View {
         PusulaKeyboard.dismiss()
         guard let lease=GuideTourRuntime.shared.begin() else{return}
         tourLease=lease
-        selectedTopic = topic
-        isLessonPresented = true
+        // A single item carries the destination and read-only lease into the
+        // presentation. Never present an empty cover from separately-captured state.
+        activeTour = GuideTourPresentation(id:lease,topic:topic)
     }
     private func categoryButton(_ title: String, id: String?) -> some View {
         Button { category = id } label: { Text(title).font(.caption.weight(category == id ? .bold : .regular)) }

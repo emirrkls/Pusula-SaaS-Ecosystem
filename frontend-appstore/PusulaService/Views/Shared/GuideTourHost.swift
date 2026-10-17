@@ -105,6 +105,7 @@ struct GuideTourHost: View {
         VStack(spacing:0) {
             HStack(alignment:.center,spacing:10) {
                 Label("Salt okunur tur",systemImage:"lock.shield.fill").font(.caption.weight(.semibold)).foregroundStyle(PusulaTheme.accent)
+                    .accessibilityIdentifier("guide.tour")
                 Spacer()
                 Button("Kapat") { close() }.font(.subheadline.weight(.semibold)).accessibilityIdentifier("guide.close")
             }.padding(.horizontal,18).padding(.vertical,12).background(PusulaTheme.surface)
@@ -136,7 +137,6 @@ struct GuideTourHost: View {
         .task(id:route.screen) { await loadContext() }
         .onChange(of:session.onboardingAccountIdentifier) { _, value in if value != account { close() } }
         .onChange(of:session.authenticatedSnapshot?.revision) { _, _ in close() }
-        .accessibilityIdentifier("guide.tour")
     }
     @ViewBuilder private var actualScreen: some View {
         switch route.screen {
