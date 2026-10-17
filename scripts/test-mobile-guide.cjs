@@ -58,6 +58,18 @@ test('old Continue footer is fixed and coach layout no longer estimates card hei
   assert.doesNotMatch(source,/estimatedHalfHeight|TabView\(selection: \$page\)/);
   assert.match(source,/activeSteps = steps\(for: role\).filter/);
 });
+test('iOS lessons use destination navigation and large-text tests never swipe the fixed footer', () => {
+  const screen=read(ios+'Views/Shared/GuideCenterView.swift');
+  assert.match(screen,/navigationDestination\(isPresented: \$isLessonPresented\)/);
+  assert.doesNotMatch(screen,/\.sheet\(item: \$selectedTopic\)/);
+  assert.match(screen,/private func open\(_ topic: GuideTopic\)[\s\S]*PusulaKeyboard.dismiss\(\)/);
+  assert.match(screen,/\.contentShape\(Rectangle\(\)\)/);
+  const ui=read('frontend-appstore/PusulaServiceScreenshots/GuideFlowTests.swift');
+  assert.match(ui,/if needsReveal/);
+  assert.match(ui,/for iteration in 0\.\.<3/);
+  assert.match(ui,/next.frame.maxY, screen.maxY/);
+  assert.match(ui,/Guide failure accessibility hierarchy/);
+});
 test('Android guide uses the system-inset-aware sheet and a separately fixed footer', () => {
   const screen=read(android+'java/com/pusula/service/ui/guide/GuideCenterScreen.kt');
   assert.match(screen,/ModalBottomSheet/);

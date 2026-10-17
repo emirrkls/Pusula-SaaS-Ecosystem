@@ -2,6 +2,21 @@ import XCTest
 
 final class GuideFlowTests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
+    override func tearDownWithError() throws {
+        if (testRun?.failureCount ?? 0) > 0 {
+            // These tests only launch the offline simulator fixture.
+            let app = XCUIApplication()
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Guide failure screen"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "Guide failure accessibility hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+        }
+        try super.tearDownWithError()
+    }
     private func launch(_ scenario: String = "hub", role: String = "COMPANY_ADMIN", reset: Bool = true, account: String = "fixture-user-a", large: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--app-store-screenshots", "-AppleLanguages", "(tr)", "-AppleLocale", "tr_TR"]
@@ -16,15 +31,21 @@ final class GuideFlowTests: XCTestCase {
     }
     private func tap(_ id: String, _ app: XCUIApplication) {
         let button = app.buttons[id]
-        // Allow local catalog loading to finish, but do not require lazy rows to
-        // already exist before scrolling to them.
-        _ = button.waitForExistence(timeout: 2)
-        for _ in 0..<12 {
-            if button.exists && button.isHittable { break }
-            app.swipeUp()
+        let needsReveal = id.hasPrefix("guide.topic.") || id == "settings.guide.open" || id == "account.guide.open"
+        if needsReveal {
+            // Lazy catalog/menu rows can legitimately need scrolling. Never
+            // swipe a destination while waiting for its fixed footer to appear.
+            _ = button.waitForExistence(timeout: 2)
+            for _ in 0..<12 {
+                if button.exists && button.isHittable { break }
+                app.swipeUp()
+            }
         }
-        XCTAssertTrue(button.waitForExistence(timeout: 5), id)
-        XCTAssertTrue(button.isHittable, id)
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            button.exists && button.isHittable
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 12), .completed,
+                       "\(id): exists=\(button.exists), hittable=\(button.isHittable), frame=\(button.frame)")
         button.tap()
     }
     func testAdminActualAccountEntry() {
@@ -35,10 +56,18 @@ final class GuideFlowTests: XCTestCase {
         tap("settings.guide.open", app)
         XCTAssertTrue(app.buttons["guide.quick-start"].waitForExistence(timeout: 12))
         XCTAssertTrue(app.images["pusula.brand"].exists)
+        tap("guide.quick-start", app)
+        tap("guide.next", app)
+        tap("guide.close", app)
+        XCTAssertTrue(app.buttons["guide.quick-start"].waitForExistence(timeout: 12))
     }
     func testTechnicianActualProfileEntryAndRoleFilter() {
         let app = launch("technician-entry", role: "TECHNICIAN")
         tap("account.guide.open", app)
+        XCTAssertTrue(app.buttons["guide.quick-start"].waitForExistence(timeout: 12))
+        tap("guide.quick-start", app)
+        tap("guide.next", app)
+        tap("guide.close", app)
         XCTAssertTrue(app.buttons["guide.quick-start"].waitForExistence(timeout: 12))
         let search = app.searchFields.firstMatch
         search.tap(); search.typeText("firma ayar")
@@ -66,13 +95,32 @@ final class GuideFlowTests: XCTestCase {
         XCTAssertTrue(other.staticTexts["guide.progress"].label.hasPrefix("0 /"))
     }
     func testSearchAndLargeTextFooter() {
-        let app = launch(large: true)
-        let search = app.searchFields.firstMatch
-        XCTAssertTrue(search.waitForExistence(timeout: 12))
-        search.tap(); search.typeText("iskonto\n")
-        tap("guide.topic.discount", app)
-        tap("guide.next", app)
-        XCTAssertTrue(app.staticTexts["guide.step.progress"].label.hasPrefix("2 /"))
+        // Independent cold launches catch presentation/focus races rather than
+        // accepting a single lucky transition on the Cloud simulator.
+        for iteration in 0..<3 {
+            let app = launch(large: true)
+            let search = app.searchFields.firstMatch
+            XCTAssertTrue(search.waitForExistence(timeout: 12))
+            search.tap(); search.typeText(iteration == 1 ? "iskonto" : "iskonto\n")
+            tap("guide.topic.discount", app)
+            XCTAssertTrue(app.staticTexts["guide.step.title"].waitForExistence(timeout: 12))
+            let noKeyboard = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                app.keyboards.count == 0
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [noKeyboard], timeout: 5), .completed)
+            let next = app.buttons["guide.next"]
+            let footerReady = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                next.exists && next.isHittable && next.frame.height > 0
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [footerReady], timeout: 12), .completed)
+            let screen = app.windows.firstMatch.frame
+            XCTAssertGreaterThanOrEqual(next.frame.minY, screen.minY)
+            XCTAssertLessThanOrEqual(next.frame.maxY, screen.maxY)
+            XCTAssertGreaterThan(next.frame.height, 0)
+            tap("guide.next", app)
+            XCTAssertTrue(app.staticTexts["guide.step.progress"].label.hasPrefix("2 /"))
+            app.terminate()
+        }
     }
     func testIntroContinueAndFinishAtLargeText() {
         let app = launch("intro", large: true)

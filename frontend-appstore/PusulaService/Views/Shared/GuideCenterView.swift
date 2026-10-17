@@ -55,6 +55,7 @@ struct GuideCenterView: View {
     @State private var category: String?
     @State private var unfinishedOnly = false
     @State private var selectedTopic: GuideTopic?
+    @State private var isLessonPresented = false
     init(scope: String, role: String, features: [String: Bool], defaults: UserDefaults = .standard) {
         self.role = role; self.features = features
         _progress = StateObject(wrappedValue: GuideProgressStore(scope: scope, role: role, defaults: defaults))
@@ -76,7 +77,7 @@ struct GuideCenterView: View {
                     ProgressView(value: Double(completed), total: Double(max(1, visible.count)))
                     Text("\(completed) / \(visible.count) konu tamamlandı").font(.caption).accessibilityIdentifier("guide.progress")
                     if search.isEmpty, category == nil, let quick = visible.first(where: { $0.category == "start" && $0.id.hasPrefix("quick-start-") }) {
-                        Button { selectedTopic = quick } label: { Label("Hızlı Başlangıç", systemImage: "play.circle.fill").frame(maxWidth: .infinity).padding(.vertical, 6) }
+                        Button { open(quick) } label: { Label("Hızlı Başlangıç", systemImage: "play.circle.fill").frame(maxWidth: .infinity).padding(.vertical, 6) }
                             .buttonStyle(.borderedProminent).accessibilityIdentifier("guide.quick-start")
                     }
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -89,7 +90,7 @@ struct GuideCenterView: View {
                     let results = catalog.visibleTopics(role: role, platform: "ios", category: category, query: search).filter { !unfinishedOnly || !progress.record($0).isComplete($0) }
                     if results.isEmpty { ContentUnavailableView("Konu bulunamadı", systemImage: "magnifyingglass", description: Text("Arama veya kategori filtresini değiştirin.")) }
                     ForEach(results) { topic in
-                        Button { selectedTopic = topic } label: {
+                        Button { open(topic) } label: {
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack {
                                     Text(topic.title).font(.headline)
@@ -103,6 +104,7 @@ struct GuideCenterView: View {
                                     if let feature = topic.requiredFeature, features[feature] != true { Text("• Paket / yetkiye bağlı") }
                                 }.font(.caption).foregroundStyle(.secondary)
                             }.frame(maxWidth: .infinity, alignment: .leading).padding().pusulaCard()
+                                .contentShape(Rectangle())
                         }.buttonStyle(.plain).accessibilityIdentifier("guide.topic.\(topic.id)")
                     }
                 } else if loadFailed {
@@ -117,7 +119,19 @@ struct GuideCenterView: View {
         .onSubmit(of: .search) { PusulaKeyboard.dismiss() }
         .pusulaKeyboardDismissal()
         .task { await load() }
-        .sheet(item: $selectedTopic) { topic in NavigationStack { GuideLessonView(topic: topic, progress: progress) } }
+        // Keep the lesson in the existing navigation stack, not in a sheet over
+        // the active search controller. Its fixed footer then owns the normal
+        // destination safe area, including at accessibility text sizes.
+        .navigationDestination(isPresented: $isLessonPresented) {
+            if let topic = selectedTopic {
+                GuideLessonView(topic: topic, progress: progress).id(topic.id)
+            }
+        }
+    }
+    private func open(_ topic: GuideTopic) {
+        PusulaKeyboard.dismiss()
+        selectedTopic = topic
+        isLessonPresented = true
     }
     private func categoryButton(_ title: String, id: String?) -> some View {
         Button { category = id } label: { Text(title).font(.caption.weight(category == id ? .bold : .regular)) }
