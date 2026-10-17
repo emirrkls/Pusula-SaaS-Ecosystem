@@ -117,6 +117,12 @@ final class GuideFlowTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(next.frame.minY, screen.minY)
             XCTAssertLessThanOrEqual(next.frame.maxY, screen.maxY)
             XCTAssertGreaterThan(next.frame.height, 0)
+            if iteration == 0 {
+                let screenshot = XCTAttachment(screenshot: app.screenshot())
+                screenshot.name = "Guide lesson at accessibility XXXL"
+                screenshot.lifetime = .keepAlways
+                add(screenshot)
+            }
             tap("guide.next", app)
             XCTAssertTrue(app.staticTexts["guide.step.progress"].label.hasPrefix("2 /"))
             app.terminate()
