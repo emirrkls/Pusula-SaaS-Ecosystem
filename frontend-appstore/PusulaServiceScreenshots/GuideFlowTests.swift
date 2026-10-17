@@ -38,14 +38,15 @@ final class GuideFlowTests: XCTestCase {
             _ = button.waitForExistence(timeout: 2)
             for _ in 0..<12 {
                 if button.exists && button.isHittable { break }
-                app.swipeUp()
+                if app.scrollViews["guide.catalog"].exists { app.scrollViews["guide.catalog"].swipeUp() }
+                else { app.swipeUp() }
             }
         }
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             button.exists && button.isHittable
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 12), .completed,
-                       "\(id): exists=\(button.exists), hittable=\(button.isHittable), frame=\(button.frame)")
+                       "\(id): exists=\(button.exists), hittable=\(button.exists && button.isHittable)")
         button.tap()
     }
     func testAdminActualAccountEntry() {
@@ -69,7 +70,7 @@ final class GuideFlowTests: XCTestCase {
         tap("guide.next", app)
         tap("guide.close", app)
         XCTAssertTrue(app.buttons["guide.quick-start"].waitForExistence(timeout: 12))
-        let search = app.searchFields.firstMatch
+        let search = app.textFields["guide.search"]
         search.tap(); search.typeText("firma ayar")
         XCTAssertFalse(app.buttons["guide.topic.company-settings"].exists)
     }
@@ -99,9 +100,11 @@ final class GuideFlowTests: XCTestCase {
         // accepting a single lucky transition on the Cloud simulator.
         for iteration in 0..<3 {
             let app = launch(large: true)
-            let search = app.searchFields.firstMatch
+            let search = app.textFields["guide.search"]
             XCTAssertTrue(search.waitForExistence(timeout: 12))
             search.tap(); search.typeText(iteration == 1 ? "iskonto" : "iskonto\n")
+            XCTAssertTrue(app.buttons["guide.topic.discount"].waitForExistence(timeout: 12))
+            XCTAssertEqual(app.scrollViews["guide.catalog"].buttons.firstMatch.identifier, "guide.topic.discount")
             tap("guide.topic.discount", app)
             XCTAssertTrue(app.staticTexts["guide.step.title"].waitForExistence(timeout: 12))
             let noKeyboard = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
@@ -125,6 +128,11 @@ final class GuideFlowTests: XCTestCase {
             }
             tap("guide.next", app)
             XCTAssertTrue(app.staticTexts["guide.step.progress"].label.hasPrefix("2 /"))
+            if iteration == 0 {
+                tap("guide.close", app)
+                tap("guide.search.clear", app)
+                XCTAssertTrue(app.buttons["guide.quick-start"].waitForExistence(timeout: 12))
+            }
             app.terminate()
         }
     }

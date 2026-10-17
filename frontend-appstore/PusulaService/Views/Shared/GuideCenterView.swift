@@ -56,13 +56,31 @@ struct GuideCenterView: View {
     @State private var unfinishedOnly = false
     @State private var selectedTopic: GuideTopic?
     @State private var isLessonPresented = false
+    @FocusState private var searchFocused: Bool
     init(scope: String, role: String, features: [String: Bool], defaults: UserDefaults = .standard) {
         self.role = role; self.features = features
         _progress = StateObject(wrappedValue: GuideProgressStore(scope: scope, role: role, defaults: defaults))
     }
     var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Özellik veya konu ara", text: $search)
+                    .focused($searchFocused)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .submitLabel(.search)
+                    .onSubmit { searchFocused = false }
+                    .accessibilityIdentifier("guide.search")
+                if !search.isEmpty {
+                    Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }
+                        .accessibilityLabel("Aramayı temizle")
+                        .accessibilityIdentifier("guide.search.clear")
+                }
+            }.padding(12).background(PusulaTheme.raisedSurface, in: RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal).padding(.vertical, 8)
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
+                if search.isEmpty {
                 HStack(spacing: 12) {
                     PusulaBrandMark(size: 48)
                     VStack(alignment: .leading, spacing: 4) {
@@ -71,9 +89,11 @@ struct GuideCenterView: View {
                     }
                 }
                 Text("Rehber bilgilendirme içindir. Kayıt oluşturmaz, silmez, ödeme veya mesaj göndermez.").font(.caption).foregroundStyle(.secondary)
+                }
                 if let catalog {
                     let visible = catalog.visibleTopics(role: role, platform: "ios")
                     let completed = visible.filter { progress.record($0).isComplete($0) }.count
+                    if search.isEmpty {
                     ProgressView(value: Double(completed), total: Double(max(1, visible.count)))
                     Text("\(completed) / \(visible.count) konu tamamlandı").font(.caption).accessibilityIdentifier("guide.progress")
                     if search.isEmpty, category == nil, let quick = visible.first(where: { $0.category == "start" && $0.id.hasPrefix("quick-start-") }) {
@@ -87,7 +107,14 @@ struct GuideCenterView: View {
                         }
                     }
                     Toggle("Yalnızca tamamlanmayanlar", isOn: $unfinishedOnly).font(.subheadline).accessibilityIdentifier("guide.unfinished")
-                    let results = catalog.visibleTopics(role: role, platform: "ios", category: category, query: search).filter { !unfinishedOnly || !progress.record($0).isComplete($0) }
+                    } else if category != nil || unfinishedOnly {
+                        Button("Arama filtrelerini temizle") { category = nil; unfinishedOnly = false }
+                            .font(.subheadline)
+                    }
+                    let matches = catalog.visibleTopics(role: role, platform: "ios", category: category, query: search).filter { !unfinishedOnly || !progress.record($0).isComplete($0) }
+                    // Keep catalog order within each group; direct title hits
+                    // precede mentions buried in another lesson's explanation.
+                    let results = search.isEmpty ? matches : matches.filter { $0.titleMatches(search) } + matches.filter { !$0.titleMatches(search) }
                     if results.isEmpty { ContentUnavailableView("Konu bulunamadı", systemImage: "magnifyingglass", description: Text("Arama veya kategori filtresini değiştirin.")) }
                     ForEach(results) { topic in
                         Button { open(topic) } label: {
@@ -113,15 +140,14 @@ struct GuideCenterView: View {
                 } else { ProgressView("Rehber yükleniyor…") }
             }.padding()
         }
+        .accessibilityIdentifier("guide.catalog")
+        }
         .background(PusulaTheme.page)
         .navigationTitle("Uygulama Rehberi")
-        .searchable(text: $search, prompt: "Özellik veya konu ara")
-        .onSubmit(of: .search) { PusulaKeyboard.dismiss() }
         .pusulaKeyboardDismissal()
         .task { await load() }
-        // Keep the lesson in the existing navigation stack, not in a sheet over
-        // the active search controller. Its fixed footer then owns the normal
-        // destination safe area, including at accessibility text sizes.
+        // A pushed lesson owns the normal destination safe area, including at
+        // accessibility text sizes. Search focus is explicitly released below.
         .navigationDestination(isPresented: $isLessonPresented) {
             if let topic = selectedTopic {
                 GuideLessonView(topic: topic, progress: progress).id(topic.id)
@@ -129,6 +155,7 @@ struct GuideCenterView: View {
         }
     }
     private func open(_ topic: GuideTopic) {
+        searchFocused = false
         PusulaKeyboard.dismiss()
         selectedTopic = topic
         isLessonPresented = true

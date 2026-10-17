@@ -26,6 +26,10 @@ public struct GuideTopic: Codable, Identifiable, Sendable {
         let query = Self.normalized(query.trimmingCharacters(in: .whitespacesAndNewlines))
         return query.isEmpty || Self.normalized(([title, summary] + Array(locations.values) + steps.flatMap { [$0.title, $0.body] }).joined(separator: " ")).contains(query)
     }
+    public func titleMatches(_ query: String) -> Bool {
+        let query = Self.normalized(query.trimmingCharacters(in: .whitespacesAndNewlines))
+        return !query.isEmpty && Self.normalized(title).contains(query)
+    }
     private static func normalized(_ text: String) -> String {
         text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX")).replacingOccurrences(of: "ı", with: "i")
     }

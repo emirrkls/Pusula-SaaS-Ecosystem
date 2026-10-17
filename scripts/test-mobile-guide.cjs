@@ -64,11 +64,18 @@ test('iOS lessons use destination navigation and large-text tests never swipe th
   assert.doesNotMatch(screen,/\.sheet\(item: \$selectedTopic\)/);
   assert.match(screen,/private func open\(_ topic: GuideTopic\)[\s\S]*PusulaKeyboard.dismiss\(\)/);
   assert.match(screen,/\.contentShape\(Rectangle\(\)\)/);
+  assert.match(screen,/@FocusState private var searchFocused/);
+  assert.match(screen,/\.accessibilityIdentifier\("guide.search"\)/);
+  assert.match(screen,/searchFocused = false/);
+  assert.doesNotMatch(screen,/\.searchable\(/);
+  assert.match(screen,/matches.filter \{ \$0.titleMatches\(search\) \}/);
   const ui=read('frontend-appstore/PusulaServiceScreenshots/GuideFlowTests.swift');
   assert.match(ui,/if needsReveal/);
   assert.match(ui,/for iteration in 0\.\.<3/);
   assert.match(ui,/next.frame.maxY, screen.maxY/);
   assert.match(ui,/Guide failure accessibility hierarchy/);
+  assert.match(ui,/app.textFields\["guide.search"\]/);
+  assert.match(ui,/app.scrollViews\["guide.catalog"\].swipeUp\(\)/);
 });
 test('Android guide uses the system-inset-aware sheet and a separately fixed footer', () => {
   const screen=read(android+'java/com/pusula/service/ui/guide/GuideCenterScreen.kt');

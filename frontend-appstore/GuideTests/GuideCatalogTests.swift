@@ -40,6 +40,16 @@ final class GuideCatalogTests: XCTestCase {
         XCTAssertEqual(GuideCursor(count: 3, index: -3).index, 0)
         XCTAssertEqual(GuideCursor(count: 3, index: 99).index, 2)
     }
+    func testDirectTitleHitsCanPrecedeMentionsInOtherLessons() throws {
+        let catalog = try GuideCatalog.decode(data())
+        let discount = try XCTUnwrap(catalog.topics.first { $0.id == "discount" })
+        let quickStart = try XCTUnwrap(catalog.topics.first { $0.id == "quick-start-admin" })
+        XCTAssertTrue(discount.titleMatches(" ISKONTO "))
+        XCTAssertTrue(discount.titleMatches("İSKONTO"))
+        XCTAssertFalse(discount.titleMatches("  "))
+        XCTAssertTrue(quickStart.matches("iskonto"))
+        XCTAssertFalse(quickStart.titleMatches("iskonto"))
+    }
     func testResumeReplayAndNewRevision() throws {
         let topic = try GuideCatalog.decode(data()).topics[0]
         XCTAssertEqual(GuideRecord(step: 1).startIndex(topic), 1)
