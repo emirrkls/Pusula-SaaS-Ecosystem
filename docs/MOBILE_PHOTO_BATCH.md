@@ -23,6 +23,7 @@ Backend kodu bu istemci değişikliğinde değişmez. Canlı JAR'ın önceki do�
 
 ## Son doğrulama / dağıtım durumu
 
+- **18 Ekim son dağıtım:** iOS **1.0 (73)** (`982eae8`), Xcode Cloud Test / Archive / TestFlight Internal Testing başarılı. 139 Swift testi ve üç saat dilimindeki 17'şer tarih/liste testi geçti. Çoklu görselin iki native senaryosu dahil 51/51 arayüz testi hem iPhone 17 hem iPad Air 11-inch (M3) üzerinde geçti; toplam 102 çalışma, 0 hata / 0 atlanan. Apple processing ve mevcut beş kişilik Pusula Internal Testers grubuna dağıtım doğrulandı. Türkçe pilot notları kayıtlıdır. Build 54 ve manuel mağaza yayını değiştirilmedi. Aşağıdaki build 68/69 kayıtları önceki başarısız denemelerdir; test kapıları atlanmadı.
 - Android 1.3.8 (32): 25 birim + 12 cihaz testi, imzalı APK/AAB, 16 KB ZIP/ELF/RELRO kontrolleri ve soğuk açılış başarılı. Kullanıcının seçimi APK paylaşımıdır; Google Play'e yayın yapılmaz.
 - Backend: 23 denetleyici + 20 izole H2 entegrasyon testi, 0 hata / 0 atlanan. Dört yeni multipart denetleyici testi; içerik/fiş/kategori/not özeti, tekrar denemede eski fotoğrafın dönmesi, yetki iptali ve zorunlu anahtarı sınar. Bu testler canlı veriye erişmez; üretim sunucu kodu değişmez.
 - Tam backend seçkisi de yeniden çalıştırıldı: 450 keşfedilen, 439 geçen, 0 hata, 11 koşullu atlanan (ayrı PostgreSQL test veritabanları yapılandırılmadığı için). Bu çalıştırma PostgreSQL'e özgü migration veya kilitleme davranışının yeni doğrulaması değildir.

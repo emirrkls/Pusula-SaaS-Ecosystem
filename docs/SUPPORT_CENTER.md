@@ -6,6 +6,8 @@ Bu modül masaüstü, iOS ve Android'den gelen soruları, hata bildirimlerini ve
 
 ### Mobil arayüz revizyonu — 17 Ekim
 
+**Sonuç — 18 Ekim:** Birleşik iOS build **1.0 (73)** (`982eae8`) Xcode Cloud Test / Archive / TestFlight iç dağıtımını geçti. Destek merkezinin sekiz senaryosu dahil 51/51 test iki zorunlu hedefte başarılıdır (102 çalışma, 0 hata / 0 atlanan). Gerçek formda konu taslağını yeniden açma, kayıp yanıtı aynı anahtarla tekrar gönderme, hesap ayrımı ve erişilebilir XXXL yazıda alanları gerçekten görünür kılıp yazma doğrulandı. Mevcut Pusula Internal Testers grubunda 5 tester ve Türkçe test notları teyit edildi; build 54 / manuel yayın ayarı korunur. Android 1.3.8 (32) imzalı APK'nın kodu sonraki iOS düzeltmelerinde değişmedi. Bu testler gerçek cihaz galeri/klavye ve gerçek hesap pilotunun yerine geçmez.
+
 iOS ve Android destek merkezi; markalı giriş kartı, belirgin yeni talep eylemi, durum rozetleri ve okunabilir tarihler içeren talep kartlarıyla yenilendi. Konuşma ve mesaj yazma görünümleri listeden ayrıldı; ekip/kullanıcı mesajları farklı hizalı balonlar halinde gösterilir. Gönderme eylemi formdan ayrı alt alandadır. Dondurulmuş gönderim anahtarı, hesap ayrımı, taslak saklama, özel ekler ve belirsiz sonuçta aynı gönderimi tekrar deneme kuralları korunur. SaaS istemcisinin çevrimdışı e-posta yedeği `destek@pusulaiklimlendirme.store` adresidir; `.com/destek` sayfasının Gmail adresi değiştirilmez.
 
 Salt okunur uygulama turunda gerçek destek taslağı geri yüklenmez; taslağa veya okunma durumuna yazılmaz. İşlem yapan HTTP yolları taşıma katmanında da engellenir. Önceki dağıtım sonuçları yeni revizyona aktarılmaz.
