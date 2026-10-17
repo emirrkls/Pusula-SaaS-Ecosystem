@@ -57,7 +57,7 @@
 - **Tenant-scoped WhatsApp notifications:** Optional approved-template messages for service creation and completion, restricted to explicitly allowed companies.
 - **Payment webhooks:** Iyzico webhook signature validation (optional / future-compatible).
 - **Super-admin operations:** Company management, quota status, diagnostic packages, operations dashboard.
-- **Support center (local, feature-gated):** Private questions/bugs/suggestions across Windows, iOS and Android, with a dedicated super-admin inbox. See [support setup and release gates](docs/SUPPORT_CENTER.md).
+- **Support center:** Backend, private super-admin inbox and SMTP alerts are live; Windows/iOS/Android client distribution remains a separate release gate. See [support setup and release gates](docs/SUPPORT_CENTER.md).
 
 ### Clients
 - **Desktop:** Full office/dispatch management, modern responsive dialogs, finance and asset tooling, service-photo browser, service-network administration, PDF reports, and verified MSI auto-update.

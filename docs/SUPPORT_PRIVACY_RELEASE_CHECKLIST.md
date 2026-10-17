@@ -1,6 +1,6 @@
 # Destek merkezi gizlilik kontrolü
 
-Bu kontrol listesi yeni destek sürümünün yayın hazırlığıdır. İncelemedeki build 54'ün başvurusu veya yayımlanmış App Store beyanı bu çalışma sırasında değiştirilmez. Yerel gizlilik sayfası destek mesajı, isteğe bağlı ekler, korumalı taslak, saklama süresi ve hesap silmeyi açıklar; web yayını ayrı onay gerektirir.
+Bu kontrol listesi yeni destek istemci sürümünün yayın hazırlığıdır. İncelemedeki build 54'ün başvurusu veya yayımlanmış App Store beyanı bu çalışma sırasında değiştirilmedi. Kullanıcı onayıyla 17 Ekim 2026'da web gizlilik sayfası destek mesajı, isteğe bağlı ekler, korumalı taslak, saklama süresi ve hesap silmeyi açıklayacak şekilde yayımlandı; backend ve yönetim paneli canlıdır. Bu, aşağıdaki mobil mağaza beyanı kontrolünün yerine geçmez.
 
 ## Yeni özelliğin veri eşlemesi
 

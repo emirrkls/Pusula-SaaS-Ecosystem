@@ -21,4 +21,5 @@ export const PRERENDER_ROUTES = [
     '/referanslarimiz',
     '/iletisim',
     '/privacy',
+    '/destek',
 ];

@@ -1,6 +1,18 @@
 # Pusula destek merkezi
 
-Bu modül masaüstü, iOS ve Android'den gelen soruları, hata bildirimlerini ve geliştirme önerilerini ortak backend üzerinden Süper Admin paneline taşır. Özellik varsayılan olarak kapalıdır; backend, masaüstü, Android ve panel geliştirmeleri yereldedir. 17 Ekim doğrulamasında yalnızca iOS destek dosyaları ayrı `codex/support-center-validation` dalına gönderildi; `main` ve incelemedeki build 54 değiştirilmedi. GitHub Actions kullanılmadan ayrı, dağıtımsız Xcode Cloud test akışı kuruldu. Üretim uygulaması yeniden yayımlanmadı/başlatılmadı; kullanıcı onayıyla e-posta rumuzu ve bir sonraki yayın için korumalı VPS SMTP ayarları hazırlandı.
+Bu modül masaüstü, iOS ve Android'den gelen soruları, hata bildirimlerini ve geliştirme önerilerini ortak backend üzerinden Süper Admin paneline taşır. **17 Ekim 2026 canlı kurulumunda backend, yönetim destek kutusu, SMTP kuyruğu ve web gizlilik/destek sayfaları yayımlandı.** Kod varsayılanı kapalıdır; canlıda pilot sonrası özellik bayrağı açıktır. Mobil mağaza gönderimleri ve masaüstü istemci dağıtımı bu kurulumun dışındadır. `main`, GitHub Actions ve incelemedeki build 54'ün başvurusu değiştirilmedi.
+
+## Canlı kurulum ve pilot sonucu
+
+- Backend kaynak `c41b8ff`, ayrı `codex/support-center-release` dalında; temiz çalışma kopyasından derlendi. 435 test: 424 geçen, 11 koşullu atlanan, 0 hata. Önceden yapılan ayrı gerçek PostgreSQL doğrulaması 10/10 geçti.
+- Üretim JAR/veritabanı yedeği korumalı alanda alındı. Dolu yedek ayrı geçici veritabanına geri yüklendi; V49, beş tablo ve benzersiz/partial indeksler doğrulandı; mevcut kullanıcı/işletme sayıları değişmedi. Geçici prova veritabanı kaldırıldı. Canlı Flyway V49 başarılıdır; otomatik aşağı migration yapılmaz.
+- Yönetim: [admin.pusulaiklimlendirme.cloud](https://admin.pusulaiklimlendirme.cloud). Ayrı panel deposu `ae537bb`; yalnız destek portalı yayımlandı. Diğer yerel panel refaktörleri bu pakete alınmadı. Token yalnız sekme belleğinde tutulur; sayfa yenilenince yeniden giriş gerekir. Yeni kalıcı yönetici hesabı veya yetki verilmedi.
+- DNS'te yalnız `admin` A kaydı eklendi. HTTPS sertifikası ve mevcut yenileme görevi hazırdır. Aynı origin üzerinde yalnız giriş ve destek yönetim API yolları aktarılır; farklı origin reddedilir, diğer yönetim/finans yolları bu hostta açılmaz. Backend'in genel CORS izinleri genişletilmedi. Güvenlik başlıkları, indeksleme yasağı ve giriş hız sınırı vardır.
+- API'nin eski 6 MiB yükleme sınırı, üç destek ekinin base64 JSON gövdesini kesiyordu. Yalnız `/api/support/` için 9 MiB kenar sınırı tanımlandı; uygulamanın 8.500.000 bayt sınırı ve operasyonel yükleme yolları değişmedi. Gerçek HTTPS pilotunda 6 MiB üstü üç PNG kabul edildi ve özel JPEG eklerine dönüştü.
+- Canlı sentetik pilotta 24 kontrol geçti: aynı anahtar/içerik tekrarı, değişmiş içerikte 409, kullanıcı/işletme ayrımı, salt okunur abonelik ve destek yetkilisi, temsili oturum reddi, gizli dahili not/ek, güvenli rapor alanları, okunmamış sayaçları, çözülmüş talebin yeniden açılması ve hesap silmede konuşma/kuyruk temizliği.
+- `DST-000001` pilotunda iki benzersiz kullanıcı mesajı iki outbox kaydı üretti; yönetici mesajları e-posta üretmedi. Bekleyen kuyrukla yeniden başlatma sonrası iki e-posta da ilk denemede SMTP tarafından kabul edildi ve bilgi kutusunda görüldü. Sonraki worker geçişinde deneme sayıları 1 kaldı. Mail yalnız referans içerdi. Geçici pilot konuşmaları/ekleri/kuyrukları temizlendi, test kullanıcıları ve işletmeleri devre dışı bırakıldı; gerçek servis/finans kaydı oluşturulmadı.
+- [Gizlilik](https://www.pusulaiklimlendirme.com/privacy) ve [destek](https://www.pusulaiklimlendirme.com/destek) sayfaları mevcut web sitesinde yayımlandı. `.store` pazarlama sitesinin tümünün kurulumu bu yayın değildir.
+- Kanıtlar makineye özel, Git dışındaki `outputs/support-release-20261017/` içindedir. Üretim yedeği ve SMTP parolası buraya veya Git'e alınmadı. Mobil App Privacy kontrolü ve gerçek cihaz pilotu aşağıdaki ayrı yayın kapılarıdır.
 
 ## Kullanıcı ve yönetici akışı
 
@@ -23,7 +35,7 @@ Bu modül masaüstü, iOS ve Android'den gelen soruları, hata bildirimlerini ve
 | Android | `ui/support/` |
 | Süper Admin | Ayrı `Pusula-Super-Admin-Panel` deposundaki `support-center.js` ve `support-center.css` |
 
-Süper Admin klasörü ana deponun `.gitignore` kapsamındadır. İleride yayın onayı verildiğinde iki deponun değişiklikleri ayrı kontrol edilmelidir; ana depo push'u panel dosyalarını içermez.
+Süper Admin klasörü ana deponun `.gitignore` kapsamındadır. İki depo ayrı kontrol edilir; ana depo push'u panel dosyalarını içermez. Canlı destek portalının girişi ayrı depodaki `support.html` / `support-portal.js` ve `support.vite.config.js` dosyalarıdır; mevcut `index.html` / `main.js` yerel genel yönetim geliştirmeleri korunmuştur.
 
 ## API ve kayıt modeli
 
@@ -67,11 +79,11 @@ Hedef kurulum `pusulaiklimlendirme.store` üzerinde ürün/pazarlama/destek, `ad
 
 17 Ekim 2026'da kullanıcı onayıyla `destek@pusulaiklimlendirme.store`, aktif `bilgi@pusulaiklimlendirme.store` kutusuna rumuz olarak bağlandı; ikinci kutu alınmadı. `QA-20261017-A7C2` yapay test mesajı bu rumuz üzerinden bilgi kutusuna ulaştı. Destek rumuzundan gönderilen yanıt Gmail gelen kutusuna ulaştı; alıcı sunucu SPF, DKIM ve DMARC için `pass` bildirdi. DMARC politikası `p=none` olduğundan bu yalnızca izleme politikasıdır.
 
-Hostinger planı **16 Kasım 2026'ya kadar deneme** durumundadır. Ödeme/yenileme değiştirilmedi; kesintisiz kullanım için kullanıcı yenilemeyi ayrıca yönetmelidir. Yerel backend iletişim varsayılanı doğrulanmış destek adresidir. API erişilemezse eski istemci sabiti hâlâ çalışan kurumsal Gmail adresidir; backend yayımlanınca alınan iletişim yanıtı destek adresini gösterecektir. Canlı backend ayarına bu oturumda müdahale edilmedi.
+Hostinger planı **16 Kasım 2026'ya kadar deneme** durumundadır. Ödeme/yenileme değiştirilmedi; kesintisiz kullanım için kullanıcı yenilemeyi ayrıca yönetmelidir. Backend iletişim varsayılanı doğrulanmış destek adresidir. API erişilemezse eski istemci sabiti hâlâ çalışan kurumsal Gmail adresidir; canlı iletişim API'si artık destek adresini gösterir.
 
-`admin.pusulaiklimlendirme.cloud` henüz DNS'te tanımlı değildir. Yönetim panelinin yeni alan adına yayını, TLS/CORS ve yönetici erişimi ayrı yayın onayı gerektirir.
+`admin.pusulaiklimlendirme.cloud`, 17 Ekim kullanıcı onayıyla mevcut VPS'e bağlandı ve HTTPS destek portalı yayımlandı. Ana `.cloud` adresi, `.com` DNS'i ve e-posta kayıtları korunmuştur.
 
-Kullanıcı mevcut posta parolasını Hostinger VPS terminalindeki gizli `getpass` alanına kendisi girdi; parola sohbetten alınmadı, repoya/loga yazılmadı. VPS'ten zorunlu STARTTLS ve sertifika doğrulamasıyla SMTP kimlik doğrulaması geçti; `QA-20261017-SMTP1` yapay mesajı Gmail gelen kutusuna ulaştı. Ayarlar `/etc/pusula-support-smtp.env` dosyasında `0600 root`, systemd bağlantısı `40-support-smtp.conf` içinde hazırlandı. Ana `/etc/pusula-backend.env` dosyası değiştirilmedi. Yalnızca `daemon-reload` yapıldı; mevcut backend süreci yeniden başlatılmadı. Ayarlar bir sonraki onaylı yeniden başlatma/yayında yüklenir ve `APP_SUPPORT_ENABLED=false` kalır. Bu SMTP testi, henüz yayımlanmayan destek outbox akışının uçtan uca testi değildir.
+Kullanıcı mevcut posta parolasını Hostinger VPS terminalindeki gizli `getpass` alanına kendisi girdi; parola sohbetten alınmadı, repoya/loga yazılmadı. İlk SMTP kurulumunda `QA-20261017-SMTP1` yapay mesajı Gmail gelen kutusuna ulaştı. Ayarlar `/etc/pusula-support-smtp.env` dosyasında `0600 root`, systemd bağlantısı `40-support-smtp.conf` içindedir. Ana `/etc/pusula-backend.env` değiştirilmedi. Canlı yayında servis bu ayarlarla yeniden başlatıldı; ayrı korumalı yayın override'ı özellik bayrağını açtı. Gerçek outbox doğrulaması yukarıdaki pilotla ayrıca tamamlandı.
 
 Admin uyarıları dayanıklı `support_mail_outbox` kuyruğudur. SMTP ve alıcı yapılandırılmadığında gönderim yapılmaz. Mesaj yalnızca talep referansı içerir; kullanıcının metni veya ekleri e-postaya taşınmaz. Sekiz deneme ve sınırlı artan bekleme uygulanır. Teslimat en az bir kez ilkesindedir; SMTP kabulü ile DB kaydı arasındaki kesintide uyarı e-postası yinelenebilir, destek mesajı yinelenmez. Kullanıcının doğrulanmamış işletme e-postasına otomatik yanıt gönderilmez.
 

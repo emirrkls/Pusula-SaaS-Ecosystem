@@ -1,6 +1,9 @@
 // Offline UI fixture only. No production proxy, credentials, persistent data or outbound API requests.
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
-const root=path.resolve(__dirname,'../Pusula-Super-Admin-Panel/dist');
+const root=path.resolve(process.env.SUPPORT_PREVIEW_ROOT||path.join(__dirname,'../Pusula-Super-Admin-Panel/dist'));
+const entry=process.env.SUPPORT_PREVIEW_ENTRY==='support.html'?'support.html':'index.html';
+const port=Number(process.env.SUPPORT_PREVIEW_PORT||8574);
+if(!Number.isInteger(port)||port<1024||port>65535)throw Error('Invalid local preview port');
 let ticket={id:1,number:'DST-000001',companyId:101,companyName:'Yerel Demo İşletmesi',userId:7,requester:'Demo Kullanıcı',subject:'Tahsilat sonrası ekran kapanışı',category:'BUG',status:'NEW',priority:'NORMAL',platform:'IOS',appVersion:'1.0 (59)',createdAt:'2026-10-17T08:00:00Z',updatedAt:'2026-10-17T08:00:00Z',unread:true};
 let messages=[{id:1,body:'Tahsilat sırasında bağlantı kesildi. Taslak korundu; sonucu kontrol etmek istiyorum.',staff:false,internalNote:false,createdAt:ticket.createdAt,attachments:[]}],keys=new Map();
 const server=http.createServer(async(req,res)=>{
@@ -21,7 +24,7 @@ const server=http.createServer(async(req,res)=>{
     }
     return json({message:'Yerel fixture: bu uç nokta tanımlı değil.'},404);
   }
-  const target=path.resolve(root,'.'+(url.pathname==='/'?'/index.html':url.pathname));
+  const target=path.resolve(root,'.'+(url.pathname==='/'?'/'+entry:url.pathname));
   if(!target.startsWith(root+path.sep)){res.writeHead(403);return res.end();}
   try{
     let data=fs.readFileSync(target);const type=path.extname(target);
@@ -29,4 +32,4 @@ const server=http.createServer(async(req,res)=>{
     res.writeHead(200,{'Content-Type':({'.html':'text/html;charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml'})[type]||'application/octet-stream'});res.end(data);
   }catch{res.writeHead(404);res.end();}
 });
-server.listen(8574,'127.0.0.1',()=>console.log('Offline support preview: http://127.0.0.1:8574'));
+server.listen(port,'127.0.0.1',()=>console.log('Offline support preview: http://127.0.0.1:'+port));

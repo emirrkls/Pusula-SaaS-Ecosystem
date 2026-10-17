@@ -1,9 +1,13 @@
 import React from 'react';
 import { Mail, Phone, Clock } from 'lucide-react';
+import { PageSeo } from '../seo/PageSeo';
 
 const Support = () => {
   return (
     <section className="pt-36 pb-20 bg-gray-50 min-h-screen">
+      <PageSeo title="Destek | Pusula Servis Yönetimi"
+        description="Pusula Servis Yönetimi teknik destek, hesap soruları ve geliştirme önerileri için iletişim kanalları."
+        path="/destek" />
       <div className="container mx-auto px-4 md:px-8 max-w-4xl">
         <div className="bg-white rounded-2xl shadow-xs border border-gray-100 p-6 md:p-10">
           <h1 className="text-3xl md:text-4xl font-bold text-brand-dark mb-4">Destek</h1>
