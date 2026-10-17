@@ -28,3 +28,11 @@ Backend kodu bu istemci değişikliğinde değişmez. Canlı JAR'ın önceki do�
 - Tam backend seçkisi de yeniden çalıştırıldı: 450 keşfedilen, 439 geçen, 0 hata, 11 koşullu atlanan (ayrı PostgreSQL test veritabanları yapılandırılmadığı için). Bu çalıştırma PostgreSQL'e özgü migration veya kilitleme davranışının yeni doğrulaması değildir.
 - Xcode Cloud build 69, kaynak `4bf7b52`: 139 Swift testi, test derlemesi, Archive ve processing başarılı. Çoklu görselin iki native senaryosu da iki hedefte geçti. Tam arayüz kapısı diğer rehber/destek senaryolarından dolayı iPhone 48/51 ve iPad 49/51 ile başarısız oldu; iç dağıtım çalışmadı. Build 68'de kısmi yükleme senaryosu iki hedefte geçti, çıkış uyarısı testi başarısız oldu; kapı atlanmadı ve gruba dağıtılmadı. Build 69 kaynağı çıkış uyarısını açık iptal düğmeli ortak alert olarak düzeltir. Sonraki Cloud kapısı ayrıca geçmelidir.
 - Gerçek cihazda Photos izinleri, 1–10 seçim, kamera, yönlendirme ve Wi-Fi/mobil veri geçişi ayrıca pilotta denenmelidir. Simülatör başarıları aralıklı operatör/TLS sorununun giderildiği anlamına gelmez.
+
+## Gerçek cihaz pilotu
+
+Demo hesabında mevcut bir servis fişinin Görseller ekranını kullanın. Önce tek görsel, sonra bir grupta 2–10 görsel seçin; her birinin bir kez listelendiğini ve ortak kategori/notu taşıdığını kontrol edin. Kamera ile tek fotoğraf yolunu ayrıca deneyin. İzin reddedildiğinde uygulama çökmemeli veya sahte başarı göstermemelidir.
+
+Bekleyen grup varken yeniden seçim yapılmamalı; ayrılma uyarısında **Burada Kal** kuyruğu korumalıdır. Gerçek bir kısmi hata olursa başarılı fotoğrafları not edin ve **bekleyenleri tekrar dene** eylemini kullanın; tamamlananlar yeniden yüklenmemelidir. Bağlantı sonucunun belirsiz olduğu anda ekranı kapatırsanız yeniden seçimden önce sunucu listesini kontrol edin. Ekran ömrü dışındaki kalıcı/arka plan kuyruğu bu sürümün kapsamı değildir.
+
+Yükleme sırasında hesap değişirse eski kuyruğun yeni hesaba taşınmadığını doğrulayın. Ağ güzergâhı testlerini aynı telefon/aynı demo fişiyle Wi-Fi ve mobil veri üzerinde ayrı yapın; raporları saat ve ağ türüyle etiketleyin. Bu pilot için incelemedeki/mağazada seçili build 54 değiştirilmez.

@@ -106,7 +106,7 @@ test('iOS tours present real screens above the account tab and retain fixed-foot
   assert.match(host,/allowsHitTesting\(false\).accessibilityHidden\(true\)/);
   assert.match(host,/customer=value/);
   assert.match(host,/ticket=value/);
-  assert.match(host,/coach\(height:min\(360,max\(210,viewport\.size\.height\*0\.46\)\)\)/);
+  assert.match(host,/coach\(height:needsContext \? min\(210,viewport\.size\.height\*0\.30\) : min\(360,max\(210,viewport\.size\.height\*0\.46\)\)\)/);
   assert.doesNotMatch(host,/safeAreaInset\(edge:.bottom/);
   assert.doesNotMatch(host,/\.first!|tickets\.first|customers\.first/);
   assert.match(host,/private func close\(\) \{ save\(\);dismiss\(\) \}/);
@@ -137,6 +137,10 @@ test('tour content and coach occupy separate layout areas with a scrollable boun
   assert.match(host,/\.padding\(18\)\.frame\(height:height\)/);
   const tests=read('frontend-appstore/PusulaServiceScreenshots/GuideFlowTests.swift');
   assert.match(tests,/record\.frame\.maxY<=area\.maxY/);
+  assert.match(tests,/let delta=record\.frame\.midY-area\.midY/);
+  assert.match(tests,/start\.press\(forDuration:0\.05,thenDragTo:end\)/);
+  assert.match(tests,/XCTAssertGreaterThanOrEqual\(record\.frame\.minY,picker\.frame\.minY\)/);
+  assert.match(tests,/XCTAssertLessThanOrEqual\(record\.frame\.maxY,picker\.frame\.maxY/);
 });
 test('Android guide uses the system-inset-aware sheet and a separately fixed footer', () => {
   const screen=read(android+'java/com/pusula/service/ui/guide/GuideCenterScreen.kt');

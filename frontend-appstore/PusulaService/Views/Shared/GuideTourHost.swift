@@ -139,7 +139,11 @@ struct GuideTourHost: View {
             }.frame(maxWidth:.infinity,maxHeight:.infinity).clipped()
             // Reserve real layout space: the record picker must never extend
             // under a safe-area overlay that can intercept its visible taps.
-            coach(height:min(360,max(210,viewport.size.height*0.46)))
+            // At accessibility XXXL a record card can be taller than the
+            // remaining viewport (292pt versus 243pt on iPhone 17). Reserve
+            // more room while choosing the record; the lesson can be read in
+            // the coach's own scroller, then expands once context is ready.
+            coach(height:needsContext ? min(210,viewport.size.height*0.30) : min(360,max(210,viewport.size.height*0.46)))
         }.frame(maxWidth:.infinity,maxHeight:.infinity)
         }
         .background(PusulaTheme.page)

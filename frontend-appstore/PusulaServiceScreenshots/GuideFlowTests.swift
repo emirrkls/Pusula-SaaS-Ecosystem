@@ -43,7 +43,15 @@ final class GuideFlowTests: XCTestCase {
             for _ in 0..<10 {
                 let area=picker.frame.insetBy(dx:4,dy:4)
                 if record.isHittable && record.frame.minY>=area.minY && record.frame.maxY<=area.maxY {break}
-                if record.frame.midY<area.midY {picker.swipeDown()} else {picker.swipeUp()}
+                // A page-sized swipe can oscillate past the narrow valid
+                // range for a large card. Drag the visible outer gutter by
+                // the measured distance, just as a user scrolls the picker.
+                let delta=record.frame.midY-area.midY
+                let distance=min(area.height*0.55,max(-area.height*0.55,delta))
+                let start=picker.coordinate(withNormalizedOffset:CGVector(dx:0,dy:0))
+                    .withOffset(CGVector(dx:10,dy:picker.frame.height/2))
+                let end=start.withOffset(CGVector(dx:0,dy:-distance))
+                start.press(forDuration:0.05,thenDragTo:end)
             }
             XCTAssertTrue(record.isHittable,"The user-selected record must be visible")
             XCTAssertGreaterThanOrEqual(record.frame.minY,picker.frame.minY)
