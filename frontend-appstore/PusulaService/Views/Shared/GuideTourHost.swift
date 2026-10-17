@@ -206,6 +206,7 @@ struct GuideTourHost: View {
                 }
             }.padding(20)
         }
+        .accessibilityIdentifier("guide.context")
     }
     private var coach: some View {
         VStack(alignment:.leading,spacing:12) {

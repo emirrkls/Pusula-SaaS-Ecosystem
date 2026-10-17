@@ -27,6 +27,14 @@ test('support has bounded private attachments and authenticated download routes,
 test('offline preview binds loopback and cannot forward calls to production',()=>{const preview=read('scripts/preview-support-local.cjs');assert.match(preview,/listen\(port,'127.0.0.1'/);assert.match(preview,/SUPPORT_PREVIEW_PORT\|\|8574/);assert.match(preview,/Number.isInteger\(port\)/);assert.match(preview,/port<1024\|\|port>65535/);assert.doesNotMatch(preview,/https:\/\/api.pusula|fetch\(|http.request\(/);});
 test('SMTP transport is bounded and cannot fall back to unverified plaintext',()=>{const config=read('backend/src/main/resources/application.properties');for(const property of ['connectiontimeout=5000','timeout=10000','writetimeout=10000','starttls.required=true','ssl.checkserveridentity=true'])assert.ok(config.includes('spring.mail.properties.mail.smtp.'+property));assert.ok(config.includes('app.support.enabled=${APP_SUPPORT_ENABLED:false}'));});
 test('support refresh uses the actual shared cancellation policy',()=>{const source=read('frontend-appstore/PusulaService/Views/Shared/SupportCenterView.swift');assert.match(source,/LoadCancellationPolicy.isCancellation\(error\)/);assert.doesNotMatch(source,/RefreshRequestState.isCancellation/);});
+test('iOS support autosave follows the visible composer and rejects stale account or draft completions',()=>{
+    const source=read('frontend-appstore/PusulaService/Views/Shared/SupportCenterView.swift');
+    const composer=source.slice(source.indexOf('private var composer:'),source.indexOf('@State private var lastFrozen'));
+    assert.match(composer,/\.task\(id:draft\)\s*\{ await persistDraft\(\) \}/);
+    assert.match(composer,/safeAreaInset\(edge:\.bottom\)[\s\S]*support\.draft\.saved/);
+    assert.match(source,/guard !tourMode,restored,let captured=snapshot,isCurrent\(captured\),let key=draftKey/);
+    assert.match(source,/!Task\.isCancelled,isCurrent\(captured\),draftKey==key,draft==value/);
+});
 test('support UI regression transport is simulator-only and never configures a real session',()=>{const fixture=read('frontend-appstore/PusulaService/ScreenshotSupport/SupportFlowFixture.swift');assert.match(fixture,/#if DEBUG/);assert.match(fixture,/#if targetEnvironment\(simulator\)/);assert.match(fixture,/AppStoreScreenshotMode.isEnabled/);assert.doesNotMatch(fixture,/\.configure\(|(?:AuthService|NetworkManager|URLSession|Keychain)\s*\./);assert.match(read('frontend-appstore/PusulaServiceScreenshots/SupportFlowTests.swift'),/testLostResponseRetriesTheSameIntentWithoutSecondWrite/);});
 test('desktop packaging runs verification and uses the application version with a stable upgrade identity',()=>{
     const script=read('frontend-desktop/build_exe.ps1');

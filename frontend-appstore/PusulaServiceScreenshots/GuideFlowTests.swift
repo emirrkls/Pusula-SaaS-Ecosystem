@@ -33,7 +33,17 @@ final class GuideFlowTests: XCTestCase {
         if id == "guide.next",app.buttons["guide.context.ticket.701"].waitForExistence(timeout: 1) {
             // Record choice is explicit; the tour must never auto-pick a ticket.
             XCTAssertFalse(app.buttons[id].isEnabled)
-            app.buttons["guide.context.ticket.701"].tap()
+            let record=app.buttons["guide.context.ticket.701"]
+            let picker=app.scrollViews["guide.context"]
+            XCTAssertTrue(picker.waitForExistence(timeout:12))
+            for _ in 0..<8 {if record.isHittable {break};picker.swipeUp()}
+            XCTAssertTrue(record.isHittable,"The user-selected record must be visible")
+            record.tap()
+            let contextReady=XCTNSPredicateExpectation(predicate:NSPredicate { _,_ in
+                !record.exists && app.buttons[id].isEnabled
+            },object:nil)
+            XCTAssertEqual(XCTWaiter.wait(for:[contextReady],timeout:12),.completed,
+                           "Record selection and read-only screen preparation must finish before Next")
         }
         let button = app.buttons[id]
         let needsReveal = id.hasPrefix("guide.topic.") || id == "settings.guide.open" || id == "account.guide.open"
@@ -48,10 +58,10 @@ final class GuideFlowTests: XCTestCase {
             }
         }
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            button.exists && button.isHittable
+            button.exists && button.isHittable && button.isEnabled
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 12), .completed,
-                       "\(id): exists=\(button.exists), hittable=\(button.exists && button.isHittable)")
+                       "\(id): exists=\(button.exists), hittable=\(button.exists && button.isHittable), enabled=\(button.exists && button.isEnabled)")
         button.tap()
         if id == "guide.quick-start" || id.hasPrefix("guide.topic.") {
             XCTAssertTrue(app.buttons["guide.next"].waitForExistence(timeout:12),"The selected real-screen tour must be presented")
@@ -120,7 +130,7 @@ final class GuideFlowTests: XCTestCase {
             XCTAssertTrue(app.buttons["guide.topic.discount"].waitForExistence(timeout: 12))
             XCTAssertEqual(app.scrollViews["guide.catalog"].buttons.firstMatch.identifier, "guide.topic.discount")
             tap("guide.topic.discount", app)
-            XCTAssertTrue(app.staticTexts["guide.step.title"].waitForExistence(timeout: 12))
+            XCTAssertTrue(app.staticTexts["guide.step.title"].waitForExistence(timeout: 12),"The large-text lesson title must remain visible")
             let noKeyboard = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
                 app.keyboards.count == 0
             }, object: nil)
@@ -141,7 +151,11 @@ final class GuideFlowTests: XCTestCase {
                 add(screenshot)
             }
             tap("guide.next", app)
-            XCTAssertTrue(app.staticTexts["guide.step.progress"].label.hasPrefix("2 /"))
+            let advanced=XCTNSPredicateExpectation(predicate:NSPredicate { _,_ in
+                app.staticTexts["guide.step.progress"].label.hasPrefix("2 /")
+            },object:nil)
+            XCTAssertEqual(XCTWaiter.wait(for:[advanced],timeout:5),.completed,
+                           "Next must advance after the explicitly selected record is ready")
             if iteration == 0 {
                 tap("guide.close", app)
                 tap("guide.search.clear", app)

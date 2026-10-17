@@ -87,10 +87,7 @@ struct SupportCenterView: View {
         }
         }
         .task { await start() }
-        .task(id:draft) {
-            guard !tourMode,restored,let key=draftKey else{return};draftSaved=false
-            do {try await SupportDraftStore.shared.save(draft,key:key);if !Task.isCancelled {draftSaved=true}} catch {if !Task.isCancelled && !(error is CancellationError) {self.error=String(localized:"support.draft_failed")}}
-        }
+        .task(id:draft) { await persistDraft() }
         .onChange(of:session.token) { _,_ in clearSharedFile();tickets=[];detail=nil;draft=SupportDraft();showComposer=false;restored=false;snapshot=nil;draftKey=nil;reportPreview="";photoPreviewData=nil;previewReport=false;previewPhoto=false;photos=[] }
         .onDisappear { clearSharedFile() }
         .onChange(of:photos) { _,items in Task { await attachPhotos(items) } }
@@ -233,12 +230,11 @@ struct SupportCenterView: View {
                 Divider()
             }
             Text("support.description").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            TextField("support.description",text:$draft.body,axis:.vertical).lineLimit(5...12)
+            TextField("support.description",text:$draft.body,axis:.vertical).lineLimit(3...12)
                 .accessibilityIdentifier("support.body")
                 .disabled(draft.frozen)
             HStack {Spacer();Text("\(draft.body.count) / 4000").font(.caption.monospacedDigit()).foregroundStyle(draft.body.count>4000 ? .red : .secondary)}
             }.supportSurface().guideTourTarget("support-form")
-            if draftSaved && draft.hasContent {Text("support.draft_saved").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("support.draft.saved")}
             VStack(alignment:.leading,spacing:14) {
             Label("support.hub.attachments",systemImage:"paperclip").font(.headline)
             if !draft.frozen {
@@ -255,12 +251,14 @@ struct SupportCenterView: View {
         }.padding(20).frame(maxWidth:760).frame(maxWidth:.infinity)
         }
         .guideTourScrollable()
+        .accessibilityIdentifier("support.composer.scroll")
         .background(PusulaTheme.page)
         .navigationTitle(LocalizedStringKey(draft.ticketId==nil ? "support.new" : "support.reply"))
         .navigationBarTitleDisplayMode(.inline)
         .pusulaKeyboardDismissal()
         .safeAreaInset(edge:.bottom) {
             VStack(spacing:10) {
+            if draftSaved && draft.hasContent {Text("support.draft_saved").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("support.draft.saved")}
             Button { Task { await send() } } label: { Text(LocalizedStringKey(busy ? "support.sending" : draft.frozen ? "support.retry_same" : "support.send")).frame(maxWidth:.infinity).padding(.vertical,10) }
                 .buttonStyle(.borderedProminent).disabled(busy || draft.body.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || draft.body.count>4000 || draft.ticketId==nil && (draft.subject.isEmpty || draft.subject.count>120))
                 .accessibilityIdentifier("support.send")
@@ -268,10 +266,27 @@ struct SupportCenterView: View {
             }.padding().background(.regularMaterial).guideTourTarget("support-submit")
         }
         .disabled(busy)
+        // The list's task disappears when this navigation destination opens.
+        // Autosave must follow the visible editor, not only its presenting list.
+        .task(id:draft) { await persistDraft() }
         // Only inputs freeze; the same-intent retry button must remain usable.
         .onChange(of:draft.body) { _,new in if draft.frozen,let frozen=lastFrozen { draft=frozen } }
     }
     @State private var lastFrozen: SupportDraft?
+    @MainActor private func persistDraft() async {
+        guard !tourMode,restored,let captured=snapshot,isCurrent(captured),let key=draftKey else{return}
+        let value=draft
+        draftSaved=false
+        do {
+            try await SupportDraftStore.shared.save(value,key:key)
+            guard !Task.isCancelled,isCurrent(captured),draftKey==key,draft==value else{return}
+            draftSaved=true
+        } catch {
+            guard !Task.isCancelled,isCurrent(captured),draftKey==key,draft==value,
+                  !(error is CancellationError) else{return}
+            self.error=String(localized:"support.draft_failed")
+        }
+    }
     @MainActor private func start(retry:Bool=false) async {
         guard !restored || retry else { return }
         snapshot=activeSnapshot

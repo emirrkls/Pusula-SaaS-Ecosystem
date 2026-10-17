@@ -35,7 +35,7 @@ test('tour safety checks cover physical sends, retries and isolated support tran
 });
 test('support tours cannot load or overwrite a real local draft',()=>{
   const support=read(ios+'Views/Shared/SupportCenterView.swift');
-  assert.match(support,/guard !tourMode,restored,let key=draftKey/);
+  assert.match(support,/guard !tourMode,restored,let captured=snapshot,isCurrent\(captured\),let key=draftKey/);
   assert.match(support,/if !tourMode,let snapshot,let key=SupportService.accountKey/);
   assert.match(support,/guard !tourMode,let snapshot,isCurrent\(snapshot\),!busy/);
   assert.match(read(android+'java/com/pusula/service/ui/support/SupportViewModel.kt'),/val saved=if\(com.pusula.service.core.GuideReadOnlyGate.active.value\) null/);

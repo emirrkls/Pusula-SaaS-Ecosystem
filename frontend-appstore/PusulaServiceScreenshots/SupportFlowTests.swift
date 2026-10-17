@@ -75,8 +75,12 @@ final class SupportFlowTests:XCTestCase {
         reveal("support.new",in:app).tap()
         let subject=app.textFields["support.subject"];XCTAssertTrue(subject.waitForExistence(timeout:10))
         subject.tap();subject.typeText("Synthetic QA")
+        dismissKeyboard(app)
+        XCTAssertEqual(subject.value as? String,"Synthetic QA")
         let body=app.descendants(matching:.any).matching(identifier:"support.body").firstMatch
-        for _ in 0..<10 {if body.exists && body.isHittable{break};app.scrollViews.firstMatch.swipeUp()}
+        let editor=app.scrollViews["support.composer.scroll"]
+        XCTAssertTrue(editor.waitForExistence(timeout:10))
+        for _ in 0..<10 {if body.exists && body.isHittable{break};editor.swipeUp()}
         XCTAssertTrue(body.isHittable);body.tap();body.typeText("Synthetic support layout")
         dismissKeyboard(app)
         let send=app.buttons["support.send"]
@@ -92,7 +96,12 @@ final class SupportFlowTests:XCTestCase {
         if large {app.launchArguments += ["-UIPreferredContentSizeCategoryName","UICTContentSizeCategoryAccessibilityXXXL"]}
         app.launchEnvironment["PUSULA_SUPPORT_FIXTURE"]=scenario;app.launchEnvironment["PUSULA_SUPPORT_RESET_DRAFT"]="1";app.launchEnvironment["PUSULA_SUPPORT_ENTRY"]=entry;app.launch();return app
     }
-    private func dismissKeyboard(_ app:XCUIApplication) {let done=app.buttons["keyboard.done"];if done.exists && done.isHittable {done.tap()}else if app.buttons["Bitti"].exists {app.buttons["Bitti"].tap()}}
+    private func dismissKeyboard(_ app:XCUIApplication) {
+        let done=app.buttons["keyboard.done"]
+        if done.exists && done.isHittable {done.tap()}else if app.buttons["Bitti"].exists {app.buttons["Bitti"].tap()}
+        let closed=XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in app.keyboards.count==0},object:nil)
+        XCTAssertEqual(XCTWaiter.wait(for:[closed],timeout:5),.completed)
+    }
     private func reveal(_ identifier:String,in app:XCUIApplication)->XCUIElement {
         let element=app.buttons[identifier]
         XCTAssertTrue(element.waitForExistence(timeout:12),identifier)
