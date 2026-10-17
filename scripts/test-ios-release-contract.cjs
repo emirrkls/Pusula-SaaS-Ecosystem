@@ -183,6 +183,19 @@ test('privacy manifest covers first-party preferences and linked, non-tracking p
   assert.match(push, /authTokenOverride: snapshot\.token/);
 });
 
+test('support messages and explicitly shared connection reports are declared as linked, functionality-only data', () => {
+  const manifest = read(app + 'PrivacyInfo.xcprivacy');
+  for (const category of ['CustomerSupport', 'OtherDiagnosticData']) {
+    const declarations = [...manifest.matchAll(/<dict>\s*<key>NSPrivacyCollectedDataType<\/key>\s*<string>([^<]+)<\/string>([\s\S]*?)<\/dict>/g)]
+      .filter(match => match[1] === `NSPrivacyCollectedDataType${category}`);
+    assert.equal(declarations.length, 1, category);
+    assert.match(declarations[0][2], /NSPrivacyCollectedDataTypeLinked<\/key>\s*<true\/>/);
+    assert.match(declarations[0][2], /NSPrivacyCollectedDataTypeTracking<\/key>\s*<false\/>/);
+    assert.match(declarations[0][2], /NSPrivacyCollectedDataTypePurposes<\/key>\s*<array><string>NSPrivacyCollectedDataTypePurposeAppFunctionality<\/string><\/array>/);
+  }
+  assert.match(manifest, /NSPrivacyTracking<\/key>\s*<false\/>/);
+});
+
 test('new release messages have unique and complete Turkish/English resources', () => {
   const catalogs = ['tr', 'en'].map(lang => {
     const entries = [...read(app + `${lang}.lproj/Localizable.strings`).matchAll(/^"([^"]+)"\s*=\s*"((?:[^"\\]|\\.)*)";/gm)];
