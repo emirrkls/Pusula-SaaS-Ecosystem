@@ -106,6 +106,7 @@ struct GuideTourHost: View {
             || route.screen == .collection && partsTotal == nil
     }
     var body: some View {
+        GeometryReader { viewport in
         VStack(spacing:0) {
             HStack(alignment:.center,spacing:10) {
                 Label("Salt okunur tur",systemImage:"lock.shield.fill").font(.caption.weight(.semibold)).foregroundStyle(PusulaTheme.accent)
@@ -113,6 +114,7 @@ struct GuideTourHost: View {
                 Spacer()
                 Button("Kapat") { close() }.font(.subheadline.weight(.semibold)).accessibilityIdentifier("guide.close")
             }.padding(.horizontal,18).padding(.vertical,12).background(PusulaTheme.surface)
+            Group {
             if locked {
                 ContentUnavailableView("Paket veya yetki gerekli",systemImage:"lock",description:Text("Bu özellik için mevcut yetkileriniz değişmez. Tur bir paket veya erişim hakkı vermez."))
             } else if needsContext { contextPicker }
@@ -134,8 +136,12 @@ struct GuideTourHost: View {
                     }.allowsHitTesting(false).accessibilityHidden(true)
                 }.onPreferenceChange(GuideTourFrames.self) { frames=$0 }
             }
+            }.frame(maxWidth:.infinity,maxHeight:.infinity).clipped()
+            // Reserve real layout space: the record picker must never extend
+            // under a safe-area overlay that can intercept its visible taps.
+            coach(height:min(360,max(210,viewport.size.height*0.46)))
+        }.frame(maxWidth:.infinity,maxHeight:.infinity)
         }
-        .safeAreaInset(edge:.bottom,spacing:0) { coach }
         .background(PusulaTheme.page)
         .interactiveDismissDisabled()
         .task(id:contextLoadKey) { await loadContext() }
@@ -190,8 +196,8 @@ struct GuideTourHost: View {
     private var contextPicker: some View {
         ScrollView {
             VStack(alignment:.leading,spacing:16) {
-                Label("Kayıt seçin · yalnızca görüntülenecek",systemImage:"hand.tap").font(.headline)
-                Text("Tur hiçbir kaydı değiştirmez. İncelemek istediğiniz mevcut kaydı siz seçin.").font(.subheadline).foregroundStyle(.secondary)
+                Label("Kayıt seçin",systemImage:"hand.tap").font(.headline)
+                Text("Mevcut bir kayıt seçin. Tur değişiklik yapmaz.").font(.subheadline).foregroundStyle(.secondary)
                 if loading { ProgressView() }
                 if let contextError { Text(contextError).foregroundStyle(.orange);Button("Tekrar Dene") { Task { await loadContext(force:true) } } }
                 if route.screen.needsCustomer(role:role) {
@@ -201,7 +207,7 @@ struct GuideTourHost: View {
                 } else if ticket == nil {
                     ForEach(tickets) { value in
                         Button { ticket=value;partsTotal=nil } label: {
-                            VStack(alignment:.leading,spacing:4) {Text("#\(value.id) · \(value.customerName ?? "Servis fişi")").font(.headline);Text(value.description ?? "").font(.subheadline).foregroundStyle(.secondary)}.frame(maxWidth:.infinity,alignment:.leading).padding()
+                            VStack(alignment:.leading,spacing:4) {Text("#\(value.id) · \(value.customerName ?? "Servis fişi")").font(.headline).lineLimit(2);Text(value.description ?? "").font(.subheadline).foregroundStyle(.secondary).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading).padding()
                         }.buttonStyle(.bordered).accessibilityIdentifier("guide.context.ticket.\(value.id)")
                     }
                 }
@@ -212,21 +218,21 @@ struct GuideTourHost: View {
         }
         .accessibilityIdentifier("guide.context")
     }
-    private var coach: some View {
+    private func coach(height:CGFloat)->some View {
         VStack(alignment:.leading,spacing:12) {
-            HStack {Text(topic.title).font(.caption.weight(.semibold)).foregroundStyle(.secondary);Spacer();Text("\(cursor.index+1) / \(cursor.count)").font(.caption.monospacedDigit()).accessibilityIdentifier("guide.step.progress")}
-            Text(topic.locations["ios"] ?? "").font(.caption2).foregroundStyle(PusulaTheme.accent).accessibilityIdentifier("guide.tour.screen").accessibilityValue(route.screen.rawValue)
             ScrollView {
                 VStack(alignment:.leading,spacing:8) {
+                    HStack {Text(topic.title).font(.caption.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1);Spacer();Text("\(cursor.index+1) / \(cursor.count)").font(.caption.monospacedDigit()).accessibilityIdentifier("guide.step.progress")}
                     Text(step.title).font(.headline).accessibilityIdentifier("guide.step.title")
+                    Text(topic.locations["ios"] ?? "").font(.caption2).foregroundStyle(PusulaTheme.accent).accessibilityIdentifier("guide.tour.screen").accessibilityValue(route.screen.rawValue)
                     Text(step.body).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
                 }.frame(maxWidth:.infinity,alignment:.leading)
-            }.frame(maxHeight:170)
+            }.id(cursor.index).frame(maxWidth:.infinity,maxHeight:.infinity)
             ViewThatFits(in:.horizontal) {
                 HStack {backButton;Spacer(minLength:12);nextButton}
                 VStack(spacing:8) {nextButton.frame(maxWidth:.infinity);backButton.frame(maxWidth:.infinity)}
             }
-        }.padding(18).background(.regularMaterial)
+        }.padding(18).frame(height:height).background(.regularMaterial)
     }
     private var backButton: some View { Button("Geri") {cursor.back();save()}.buttonStyle(.bordered).disabled(cursor.index==0).accessibilityIdentifier("guide.back") }
     private var nextButton: some View {

@@ -10,7 +10,11 @@ final class GuideFlowTests: XCTestCase {
             screenshot.name = "Guide failure screen"
             screenshot.lifetime = .keepAlways
             add(screenshot)
-            let hierarchy = XCTAttachment(string: app.debugDescription)
+            let tree = app.debugDescription
+            // Simulator-only synthetic fixture. Keep failure geometry readable
+            // in Cloud logs as well as the Mac-only xcresult attachment.
+            print("GUIDE_OFFLINE_FAILURE_HIERARCHY\n\(tree)")
+            let hierarchy = XCTAttachment(string: tree)
             hierarchy.name = "Guide failure accessibility hierarchy"
             hierarchy.lifetime = .keepAlways
             add(hierarchy)
@@ -36,8 +40,14 @@ final class GuideFlowTests: XCTestCase {
             let record=app.buttons["guide.context.ticket.701"]
             let picker=app.scrollViews["guide.context"]
             XCTAssertTrue(picker.waitForExistence(timeout:12))
-            for _ in 0..<8 {if record.isHittable {break};picker.swipeUp()}
+            for _ in 0..<10 {
+                let area=picker.frame.insetBy(dx:4,dy:4)
+                if record.isHittable && record.frame.minY>=area.minY && record.frame.maxY<=area.maxY {break}
+                if record.frame.midY<area.midY {picker.swipeDown()} else {picker.swipeUp()}
+            }
             XCTAssertTrue(record.isHittable,"The user-selected record must be visible")
+            XCTAssertGreaterThanOrEqual(record.frame.minY,picker.frame.minY)
+            XCTAssertLessThanOrEqual(record.frame.maxY,picker.frame.maxY,"Record selection cannot be covered by the guide coach")
             record.tap()
             let contextReady=XCTNSPredicateExpectation(predicate:NSPredicate { _,_ in
                 !record.exists && app.buttons[id].isEnabled

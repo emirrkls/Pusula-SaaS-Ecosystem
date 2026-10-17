@@ -6,7 +6,9 @@ final class SupportFlowTests:XCTestCase {
         if (testRun?.failureCount ?? 0)>0 {
             let app=XCUIApplication()
             let screen=XCTAttachment(screenshot:app.screenshot());screen.name="Support failure screen";screen.lifetime = .keepAlways;add(screen)
-            let tree=XCTAttachment(string:app.debugDescription);tree.name="Support failure accessibility hierarchy";tree.lifetime = .keepAlways;add(tree)
+            let description=app.debugDescription
+            print("SUPPORT_OFFLINE_FAILURE_HIERARCHY\n\(description)")
+            let tree=XCTAttachment(string:description);tree.name="Support failure accessibility hierarchy";tree.lifetime = .keepAlways;add(tree)
         }
         try super.tearDownWithError()
     }
