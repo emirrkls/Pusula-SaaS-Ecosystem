@@ -1,6 +1,6 @@
 # Pusula destek merkezi
 
-Bu modül masaüstü, iOS ve Android'den gelen soruları, hata bildirimlerini ve geliştirme önerilerini ortak backend üzerinden Süper Admin paneline taşır. **17 Ekim 2026 canlı kurulumunda backend, yönetim destek kutusu, SMTP kuyruğu ve web gizlilik/destek sayfaları yayımlandı.** Kod varsayılanı kapalıdır; canlıda pilot sonrası özellik bayrağı açıktır. Mobil mağaza gönderimleri ve masaüstü istemci dağıtımı bu kurulumun dışındadır. `main`, GitHub Actions ve incelemedeki build 54'ün başvurusu değiştirilmedi.
+Bu modül masaüstü, iOS ve Android'den gelen soruları, hata bildirimlerini ve geliştirme önerilerini ortak backend üzerinden Süper Admin paneline taşır. **17 Ekim 2026 canlı kurulumunda backend, yönetim destek kutusu, SMTP kuyruğu ve web gizlilik sayfası yayımlandı.** Kod varsayılanı kapalıdır; canlıda pilot sonrası özellik bayrağı açıktır. İstemci paketlerinin ayrı dağıtım hazırlığı aşağıdadır. `main`, GitHub Actions ve incelemedeki build 54'ün başvurusu değiştirilmedi.
 
 ## Canlı kurulum ve pilot sonucu
 
@@ -13,6 +13,16 @@ Bu modül masaüstü, iOS ve Android'den gelen soruları, hata bildirimlerini ve
 - `DST-000001` pilotunda iki benzersiz kullanıcı mesajı iki outbox kaydı üretti; yönetici mesajları e-posta üretmedi. Bekleyen kuyrukla yeniden başlatma sonrası iki e-posta da ilk denemede SMTP tarafından kabul edildi ve bilgi kutusunda görüldü. Sonraki worker geçişinde deneme sayıları 1 kaldı. Mail yalnız referans içerdi. Geçici pilot konuşmaları/ekleri/kuyrukları temizlendi, test kullanıcıları ve işletmeleri devre dışı bırakıldı; gerçek servis/finans kaydı oluşturulmadı.
 - [Gizlilik](https://www.pusulaiklimlendirme.com/privacy) sayfası yayımlandı. Kullanıcı ayrımı gereği [.com/destek](https://www.pusulaiklimlendirme.com/destek) **iklimlendirme işletmesine** aittir; Gmail iletişimi kullanır, SaaS destek merkezi değildir. `.store` pazarlama/destek web sitesinin kurulumu ayrı iştir.
 - Kanıtlar makineye özel, Git dışındaki `outputs/support-release-20261017/` içindedir. Üretim yedeği ve SMTP parolası buraya veya Git'e alınmadı. Mobil App Privacy kontrolü ve gerçek cihaz pilotu aşağıdaki ayrı yayın kapılarıdır.
+
+## 17 Ekim istemci dağıtım hazırlığı
+
+Masaüstü ve Android kaynakları `codex/support-client-distribution` dalında, ilgisiz yerel değişiklikler alınmadan hazırlandı. iOS kaynağı `codex/support-center-release` dalındadır. Bu dallara normal push yapılır; PR, `main` push'u veya GitHub Actions tetiklemesi yapılmaz.
+
+- Windows **3.8.14 MSI**: 55 testin 52'si geçti, üç ilgisiz koşullu test atlandı; gerçek JavaFX/DPAPI destek senaryolarının üçü de geçti. Sürüm uygulama kaynağından okunur, paketlemeden önce `clean verify` zorunludur, test bağımlılıkları kuruluma girmez. Mevcut MSI upgrade UUID'si korunur. Kullanılabilir kod imzalama sertifikası bulunmadığından bu çıktı **imzasızdır**; otomatik güncellemeye açılmadı ve gerçek kullanıcı kurulumunun üzerine denenmedi. Kontrollü kurulum/yükseltme pilotu ayrıca gereklidir.
+- Android **1.3.6 (30), APK + AAB**: mevcut yükleme anahtarıyla imzalandı; API 36, AGP 8.10.1 ve checksum ile sabitlenmiş Gradle 8.11.1 kullanılır. API 36 gereksinimi [Google Play hedef API kurallarından](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en), araç eşleşmesi [AGP 8.10 notlarından](https://developer.android.com/build/releases/agp-8-10-0-release-notes) doğrulandı. Ayrı kaynakta 12 birim testi ve Android 16/16 KB emülatöründe beş cihaz testi geçti: üç gerçek destek ekranı senaryosu, dört JNI kitaplığının yüklenmesi ve yapay görselle barkod işleme. APK imzası, 16 KB ZIP/ELF/RELRO hizası, AAB imzası, resmi bundletool doğrulaması ve `PAGE_ALIGNMENT_16K` kontrol edildi. Son Release APK soğuk açılışı geçti; çökme tamponu boştu. Bu, fiziksel arm64 cihaz testi değildir.
+- AAB Play Console'a gönderilmedi. Yüklemeden önce sürüm kodunun kullanılabilirliği ve Data Safety beyanı kontrol edilmelidir. APK mevcut upload sertifikasıyla imzalıdır; Play App Signing ile dağıtılmış uygulamanın sertifikası farklı olabilir. İmza uyuşmazlığını aşmak için kullanıcıya uygulamayı/verilerini sildirmeyin; Play iç test dağıtımıyla ilerleyin.
+- İstemci testlerinde gerçek kullanıcı hesabı veya üretim finans kaydı kullanılmadı. Geçici Android imzalama ayarı kopyası testten sonra kaldırıldı; özgün yerel ayarlar ve keystore korundu. Test anahtarı, parola, MSI/APK/AAB ve derleme çıktıları Git'e eklenmedi.
+- iOS için Xcode Cloud `TestFlight Release` akışı, iki zorunlu cihaz testi ve ayrı Archive/App Store Connect adımı kullanır. TestFlight dağıtımı mevcut iç test grubuna gider; mağazada seçili sürüm ve build 54 değiştirilmez. Nihai Cloud sonucu makineye özel `outputs/support-client-distribution-20261017/release-report.json` dosyasına kaydedilir. Genel App Store/Play Store yayını öncesi gizlilik beyanı ve gerçek cihaz pilotu ayrı kapılardır.
 
 ## Kullanıcı ve yönetici akışı
 
