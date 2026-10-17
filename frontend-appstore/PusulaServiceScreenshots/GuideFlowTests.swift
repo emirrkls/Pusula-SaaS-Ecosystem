@@ -1,9 +1,10 @@
 import XCTest
 
 final class GuideFlowTests: XCTestCase {
+    override func setUpWithError() throws { continueAfterFailure = false }
     private func launch(_ scenario: String = "hub", role: String = "COMPANY_ADMIN", reset: Bool = true, account: String = "fixture-user-a", large: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--app-store-screenshots"]
+        app.launchArguments = ["--app-store-screenshots", "-AppleLanguages", "(tr)", "-AppleLocale", "tr_TR"]
         if large { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
         app.launchEnvironment["PUSULA_GUIDE_TEST"] = "1"
         app.launchEnvironment["PUSULA_GUIDE_SCENARIO"] = scenario
@@ -15,8 +16,11 @@ final class GuideFlowTests: XCTestCase {
     }
     private func tap(_ id: String, _ app: XCUIApplication) {
         let button = app.buttons[id]
-        XCTAssertTrue(button.waitForExistence(timeout: 12), id)
-        for _ in 0..<8 where !button.isHittable { app.swipeUp() }
+        for _ in 0..<12 {
+            if button.exists && button.isHittable { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(button.waitForExistence(timeout: 5), id)
         XCTAssertTrue(button.isHittable, id)
         button.tap()
     }
@@ -62,7 +66,7 @@ final class GuideFlowTests: XCTestCase {
         let app = launch(large: true)
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 12))
-        search.tap(); search.typeText("iskonto")
+        search.tap(); search.typeText("iskonto\n")
         tap("guide.topic.discount", app)
         tap("guide.next", app)
         XCTAssertTrue(app.staticTexts["guide.step.progress"].label.hasPrefix("2 /"))

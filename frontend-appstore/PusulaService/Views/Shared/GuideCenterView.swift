@@ -114,6 +114,7 @@ struct GuideCenterView: View {
         .background(PusulaTheme.page)
         .navigationTitle("Uygulama Rehberi")
         .searchable(text: $search, prompt: "Özellik veya konu ara")
+        .onSubmit(of: .search) { PusulaKeyboard.dismiss() }
         .pusulaKeyboardDismissal()
         .task { await load() }
         .sheet(item: $selectedTopic) { topic in NavigationStack { GuideLessonView(topic: topic, progress: progress) } }

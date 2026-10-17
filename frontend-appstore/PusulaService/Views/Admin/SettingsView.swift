@@ -308,6 +308,21 @@ struct SettingsView: View {
 
     private var accountTab: some View {
         Form {
+            Section("Yardım") {
+                NavigationLink { supportDestination } label: {
+                    Label("support.title", systemImage: "questionmark.bubble")
+                }
+                .accessibilityIdentifier("settings.support.open")
+                NavigationLink { ConnectionDiagnosticsView() } label: {
+                    Label("diagnostics.title", systemImage: "network")
+                }
+                .accessibilityIdentifier("settings.diagnostics.open")
+                NavigationLink { GuideCenterDestination() } label: {
+                    Label("Uygulama Rehberi", systemImage: "book.closed")
+                }.accessibilityIdentifier("settings.guide.open")
+            }
+
+
             Section("Hesap Bilgileri") {
                 accountInfoRow("Ad Soyad", value: session.fullName.isEmpty ? "Kullanıcı" : session.fullName)
                 accountInfoRow("Firma", value: session.companyName ?? "-")
@@ -343,20 +358,6 @@ struct SettingsView: View {
                 Link(destination: AppLinks.termsOfUse) {
                     Label("Kullanım Koşulları", systemImage: "doc.text")
                 }
-            }
-
-            Section("Yardım") {
-                NavigationLink { supportDestination } label: {
-                    Label("support.title", systemImage: "questionmark.bubble")
-                }
-                .accessibilityIdentifier("settings.support.open")
-                NavigationLink { ConnectionDiagnosticsView() } label: {
-                    Label("diagnostics.title", systemImage: "network")
-                }
-                .accessibilityIdentifier("settings.diagnostics.open")
-                NavigationLink { GuideCenterDestination() } label: {
-                    Label("Uygulama Rehberi", systemImage: "book.closed")
-                }.accessibilityIdentifier("settings.guide.open")
             }
 
             Section {
