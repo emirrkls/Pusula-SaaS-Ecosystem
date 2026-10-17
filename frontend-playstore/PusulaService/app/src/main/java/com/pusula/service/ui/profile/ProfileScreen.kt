@@ -57,6 +57,10 @@ fun ProfileScreen(
 ) {
     val session by sessionManager.state.collectAsState()
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var showSupport by remember { mutableStateOf(false) }
+    if (showSupport) androidx.compose.ui.window.Dialog(onDismissRequest={showSupport=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
+        com.pusula.service.ui.support.SupportCenterScreen(onClose={showSupport=false})
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -143,6 +147,7 @@ fun ProfileScreen(
             AppDashboardSection(title = "Güvenlik") {
                 AppGhostCard {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        com.pusula.service.ui.support.SupportEntry(onOpen={showSupport=true})
                         Button(
                             onClick = onLogout,
                             modifier = Modifier.fillMaxWidth(),

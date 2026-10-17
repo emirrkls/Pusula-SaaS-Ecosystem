@@ -12,7 +12,8 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepository @Inject constructor(
     private val apiService: ApiService,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val supportRepository: com.pusula.service.ui.support.SupportRepository
 ) {
     suspend fun login(username: String, password: String): AuthResponse {
         val response = apiService.authenticate(
@@ -53,8 +54,10 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun deleteAccount() {
+        val captured = sessionManager.state.value
         apiService.deleteAccount()
-        sessionManager.logout()
+        captured.token?.let { supportRepository.clear(supportRepository.accountKey(it,captured.companyId)) }
+        if (sessionManager.state.value.supportRevision == captured.supportRevision) sessionManager.logout()
     }
 
     suspend fun authenticateWithGoogle(idToken: String, preferredUsername: String?): AuthResponse {

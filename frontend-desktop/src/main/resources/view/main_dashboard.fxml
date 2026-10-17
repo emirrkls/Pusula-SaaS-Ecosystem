@@ -56,6 +56,7 @@
                         <VBox fx:id="managementNavGroup" styleClass="sidebar-nav-group">
                            <children>
                               <Label fx:id="managementNavLabel" styleClass="sidebar-section-label" text="YÖNETİM" />
+                              <Button fx:id="navSupport" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showSupport" styleClass="nav-button" text="Yardım ve Destek" />
                               <Button fx:id="btnSettings" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showSettings" styleClass="nav-button" text="%menu.settings" />
                               <Button fx:id="btnActivityLog" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showActivityLog" styleClass="nav-button" text="%menu.activity_log" />
                            </children>

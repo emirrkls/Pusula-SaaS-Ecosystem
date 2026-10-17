@@ -53,6 +53,10 @@ fun LoginScreen(
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var orgCode by remember { mutableStateOf("") }
+    var showSupport by remember { mutableStateOf(false) }
+    if (showSupport) androidx.compose.ui.window.Dialog(onDismissRequest={showSupport=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
+        com.pusula.service.ui.support.SupportCenterScreen(onClose={showSupport=false})
+    }
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = BrandCyan,
@@ -72,6 +76,7 @@ fun LoginScreen(
                 .padding(horizontal = Spacing.xl, vertical = Spacing.xxl),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
+            TextButton(onClick={showSupport=true}) { Text("Giriş yapamıyorum / Destek al") }
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(
                     text = "Pusula",

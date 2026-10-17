@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 data class SessionState(
+    val supportRevision: String = "",
     val isAuthenticated: Boolean = false,
     val token: String? = null,
     val role: String = "",
@@ -140,6 +141,7 @@ class SessionManager @Inject constructor(
         _state.update {
             it.copy(
                 isAuthenticated = true,
+                supportRevision = java.util.UUID.randomUUID().toString(),
                 token = response.token,
                 role = response.role,
                 fullName = response.fullName.orEmpty(),
@@ -170,6 +172,7 @@ class SessionManager @Inject constructor(
         _state.update {
             it.copy(
                 isAuthenticated = true,
+                supportRevision = java.util.UUID.randomUUID().toString(),
                 token = token,
                 role = cachedRole
             )

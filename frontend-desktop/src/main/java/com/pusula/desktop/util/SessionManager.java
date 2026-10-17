@@ -4,6 +4,8 @@ import java.util.Collections;
 import java.util.Map;
 
 public class SessionManager {
+    private static volatile long supportRevision;
+    public static long getSupportRevision() { return supportRevision; }
     private static volatile String authToken;
     private static volatile String username;
     private static volatile String userRole;
@@ -19,6 +21,7 @@ public class SessionManager {
 
     public static synchronized void setSession(String token, String user, String role, Long cId,
             String plan, Map<String, Boolean> planFeatures) {
+        supportRevision++;
         authToken = token;
         username = user;
         userRole = role;
@@ -82,6 +85,7 @@ public class SessionManager {
     }
 
     private static void clearSessionState() {
+        supportRevision++;
         authToken = null;
         username = null;
         userRole = null;

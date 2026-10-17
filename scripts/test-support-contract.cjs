@@ -11,3 +11,19 @@ test('offline preview binds loopback and cannot forward calls to production',()=
 test('SMTP transport is bounded and cannot fall back to unverified plaintext',()=>{const config=read('backend/src/main/resources/application.properties');for(const property of ['connectiontimeout=5000','timeout=10000','writetimeout=10000','starttls.required=true','ssl.checkserveridentity=true'])assert.ok(config.includes('spring.mail.properties.mail.smtp.'+property));assert.ok(config.includes('app.support.enabled=${APP_SUPPORT_ENABLED:false}'));});
 test('support refresh uses the actual shared cancellation policy',()=>{const source=read('frontend-appstore/PusulaService/Views/Shared/SupportCenterView.swift');assert.match(source,/LoadCancellationPolicy.isCancellation\(error\)/);assert.doesNotMatch(source,/RefreshRequestState.isCancellation/);});
 test('support UI regression transport is simulator-only and never configures a real session',()=>{const fixture=read('frontend-appstore/PusulaService/ScreenshotSupport/SupportFlowFixture.swift');assert.match(fixture,/#if DEBUG/);assert.match(fixture,/#if targetEnvironment\(simulator\)/);assert.match(fixture,/AppStoreScreenshotMode.isEnabled/);assert.doesNotMatch(fixture,/\.configure\(|(?:AuthService|NetworkManager|URLSession|Keychain)\s*\./);assert.match(read('frontend-appstore/PusulaServiceScreenshots/SupportFlowTests.swift'),/testLostResponseRetriesTheSameIntentWithoutSecondWrite/);});
+test('desktop packaging runs verification and uses the application version with a stable upgrade identity',()=>{
+    const script=read('frontend-desktop/build_exe.ps1');
+    assert.match(script,/clean verify/);assert.doesNotMatch(script,/-DskipTests/);
+    assert.match(script,/app-version\.properties/);assert.match(script,/--app-version \$appVersion/);
+    assert.match(script,/A35C7210-561A-4BB9-A499-5D4047EC0CF3/);
+    assert.match(script,/ReparsePoint/);assert.match(read('frontend-desktop/pom.xml'),/<includeScope>runtime<\/includeScope>/);
+    assert.match(read('frontend-desktop/build_exe.bat'),/build_exe\.ps1/);
+});
+test('Android release targets API 36 with a pinned compatible build toolchain',()=>{
+    const app=read('frontend-playstore/PusulaService/app/build.gradle.kts');
+    assert.match(app,/compileSdk = 36/);assert.match(app,/targetSdk = 36/);
+    assert.match(read('frontend-playstore/PusulaService/build.gradle.kts'),/com\.android\.application"\) version "8\.10\.1"/);
+    const wrapper=read('frontend-playstore/PusulaService/gradle/wrapper/gradle-wrapper.properties');
+    assert.match(wrapper,/gradle-8\.11\.1-bin\.zip/);
+    assert.match(wrapper,/distributionSha256Sum=f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6/);
+});

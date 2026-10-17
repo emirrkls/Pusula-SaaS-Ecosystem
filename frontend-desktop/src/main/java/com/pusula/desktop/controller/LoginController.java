@@ -85,6 +85,15 @@ public class LoginController {
         checkForUpdates();
     }
 
+    @FXML private void showSupport() {
+        var dialog = new javafx.scene.control.Dialog<Void>();
+        dialog.setTitle("Yardım ve Destek");
+        dialog.getDialogPane().setContent(new SupportCenterView());
+        dialog.getDialogPane().setPrefSize(650, 600);
+        dialog.getDialogPane().getButtonTypes().add(javafx.scene.control.ButtonType.CLOSE);
+        dialog.showAndWait();
+    }
+
     private void checkForUpdates() {
         UpdateApi updateApi = RetrofitClient.getClient().create(UpdateApi.class);
         updateApi.getLatestVersion().enqueue(new Callback<UpdateInfoDTO>() {

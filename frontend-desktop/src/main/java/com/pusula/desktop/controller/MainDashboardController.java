@@ -99,6 +99,7 @@ public class MainDashboardController {
     @FXML
     private Button navServicePhotos;
     @FXML private Button navServiceNetwork;
+    @FXML private Button navSupport;
     @FXML
     private Button navInventory;
     @FXML
@@ -117,6 +118,7 @@ public class MainDashboardController {
     private boolean isDark = false;
     private Button activeNavButton;
     private Timeline notificationRefreshTimer;
+    private Timeline supportRefreshTimer;
     private boolean sidebarCollapsed;
 
     // Load saved theme preference
@@ -138,6 +140,7 @@ public class MainDashboardController {
         SessionManager.setSessionExpiredHandler(this::handleSessionExpired);
         setupUserProfile();
         setupNavigationIcons();
+        setupSupportBadge();
         setupThemeToggleIcon();
         setupSidebar();
         if (SessionManager.isAdmin()) {
@@ -242,6 +245,7 @@ public class MainDashboardController {
         setNavIcon(navTickets, MaterialDesignC.CLIPBOARD_TEXT);
         setNavIcon(navServicePhotos, MaterialDesignI.IMAGE_MULTIPLE);
         setNavIcon(navServiceNetwork, MaterialDesignA.ACCOUNT_MULTIPLE);
+        setNavIcon(navSupport, MaterialDesignC.COMMENT_QUESTION_OUTLINE);
         setNavIcon(navInventory, MaterialDesignP.PACKAGE_VARIANT);
         setNavIcon(navCustomers, MaterialDesignA.ACCOUNT_MULTIPLE);
         setNavIcon(btnCommercial, MaterialDesignA.AIR_CONDITIONER);
@@ -250,6 +254,25 @@ public class MainDashboardController {
         setNavIcon(btnSettings, MaterialDesignC.COG);
         setNavIcon(btnActivityLog, MaterialDesignH.HISTORY);
         setNavIcon(logoutButton, MaterialDesignL.LOGOUT);
+    }
+
+    private void setupSupportBadge() {
+        var capturedToken=SessionManager.getToken();var capturedRevision=SessionManager.getSupportRevision();
+        var api=RetrofitClient.getClient().newBuilder().client(new okhttp3.OkHttpClient()).build().create(com.pusula.desktop.support.SupportApi.class);
+        api.contact().enqueue(new retrofit2.Callback<>() {
+            public void onResponse(retrofit2.Call<com.pusula.desktop.support.SupportModels.Contact> call,retrofit2.Response<com.pusula.desktop.support.SupportModels.Contact> response) {
+                if(!response.isSuccessful()||response.body()==null||!response.body().enabled())return;
+                javafx.application.Platform.runLater(()->{if(capturedRevision!=SessionManager.getSupportRevision())return;
+                    Runnable refresh=()->{if(navSupport.getScene()==null||navSupport.getScene().getWindow()==null||!navSupport.getScene().getWindow().isFocused())return;
+                        api.unread("Bearer "+capturedToken).enqueue(new retrofit2.Callback<>(){
+                            public void onResponse(retrofit2.Call<java.util.Map<String,Long>> c,retrofit2.Response<java.util.Map<String,Long>> r){if(r.isSuccessful()&&r.body()!=null)javafx.application.Platform.runLater(()->{if(capturedRevision==SessionManager.getSupportRevision()){long count=r.body().getOrDefault("count",0L);navSupport.setText("Yardım ve Destek"+(count>0?" ("+count+")":""));}});}
+                            public void onFailure(retrofit2.Call<java.util.Map<String,Long>> c,Throwable error){}
+                        });};
+                    refresh.run();supportRefreshTimer=new Timeline(new KeyFrame(Duration.seconds(60),e->refresh.run()));supportRefreshTimer.setCycleCount(Timeline.INDEFINITE);supportRefreshTimer.play();
+                });
+            }
+            public void onFailure(retrofit2.Call<com.pusula.desktop.support.SupportModels.Contact> call,Throwable error){}
+        });
     }
 
     private void setupSidebar() {
@@ -316,7 +339,7 @@ public class MainDashboardController {
     private java.util.List<Button> navigationButtons() {
         return java.util.List.of(navDashboard, navTickets, navServicePhotos, navServiceNetwork,
                 navCustomers, btnProposals, btnCommercial, navInventory, btnFinance,
-                btnSettings, btnActivityLog, logoutButton);
+                btnSettings, btnActivityLog, navSupport, logoutButton);
     }
 
     private java.util.List<Label> navigationSectionLabels() {
@@ -642,6 +665,10 @@ public class MainDashboardController {
         }
     }
 
+    @FXML private void showSupport() {
+        loadContent(new SupportCenterView(), "Yardım ve Destek", "Sorular, hatalar ve geliştirme önerileri", navSupport);
+    }
+
     @FXML
     private void showActivityLog() {
         // Double authentication for Activity Log (Admin only)
@@ -747,6 +774,7 @@ public class MainDashboardController {
     }
 
     private void stopSessionServices() {
+        if(supportRefreshTimer!=null){supportRefreshTimer.stop();supportRefreshTimer=null;}
         if (notificationRefreshTimer != null) {
             notificationRefreshTimer.stop();
             notificationRefreshTimer = null;

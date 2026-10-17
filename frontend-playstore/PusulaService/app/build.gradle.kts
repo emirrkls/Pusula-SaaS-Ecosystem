@@ -55,7 +55,8 @@ val googleWebClientId = (
         ?: ""
 ).trim()
 val releaseKeystorePath = (
-    localProperties.getProperty("release.keystore.path")
+    providers.gradleProperty("release.keystore.path").orNull
+        ?: localProperties.getProperty("release.keystore.path")
         ?: providers.environmentVariable("RELEASE_KEYSTORE_PATH").orNull
         ?: ""
 ).trim()
@@ -83,14 +84,14 @@ val hasReleaseSigning = listOf(
 
 android {
     namespace = "com.pusula.service"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.pusula.service"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 29
-        versionName = "1.3.5"
+        targetSdk = 36
+        versionCode = 30
+        versionName = "1.3.6"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
         manifestPlaceholders["googleMapsApiKey"] = googleMapsApiKey
 
@@ -213,4 +214,6 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2025.02.00"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }

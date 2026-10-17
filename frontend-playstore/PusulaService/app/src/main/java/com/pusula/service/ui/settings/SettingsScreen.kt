@@ -91,6 +91,10 @@ fun SettingsScreen(
     val session by sessionManager.state.collectAsState()
     val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(settingsTabs.first()) }
+    var showSupport by remember { mutableStateOf(false) }
+    if (showSupport) androidx.compose.ui.window.Dialog(onDismissRequest={showSupport=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
+        com.pusula.service.ui.support.SupportCenterScreen(onClose={showSupport=false})
+    }
     var editingUser by remember { mutableStateOf<UserDTO?>(null) }
     var editingVehicle by remember { mutableStateOf<VehicleDTO?>(null) }
     var showUserDialog by remember { mutableStateOf(false) }
@@ -298,6 +302,7 @@ fun SettingsScreen(
                         AppDashboardSection(title = "Hesap İşlemleri") {
                             AppGhostCard {
                                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                                    com.pusula.service.ui.support.SupportEntry(onOpen={showSupport=true})
                                     AppPrimaryButton(text = "Çıkış Yap", onClick = onLogout, modifier = Modifier.fillMaxWidth())
                                     AppDestructiveButton(
                                         text = "Hesabımı Sil",

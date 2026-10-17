@@ -65,6 +65,7 @@
                   <Button fx:id="loginButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleLogin" styleClass="login-primary-button" text="%login.button" />
                   <Label fx:id="messageLabel" styleClass="label-muted" />
                   <Label fx:id="appVersionLabel" styleClass="login-version-tag" text="v0.0.0" />
+                  <Button mnemonicParsing="false" onAction="#showSupport" text="Giriş yapamıyorum / Destek al" />
                </children>
             </VBox>
          </children>

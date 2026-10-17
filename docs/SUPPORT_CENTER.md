@@ -11,7 +11,7 @@ Bu modül masaüstü, iOS ve Android'den gelen soruları, hata bildirimlerini ve
 - API'nin eski 6 MiB yükleme sınırı, üç destek ekinin base64 JSON gövdesini kesiyordu. Yalnız `/api/support/` için 9 MiB kenar sınırı tanımlandı; uygulamanın 8.500.000 bayt sınırı ve operasyonel yükleme yolları değişmedi. Gerçek HTTPS pilotunda 6 MiB üstü üç PNG kabul edildi ve özel JPEG eklerine dönüştü.
 - Canlı sentetik pilotta 24 kontrol geçti: aynı anahtar/içerik tekrarı, değişmiş içerikte 409, kullanıcı/işletme ayrımı, salt okunur abonelik ve destek yetkilisi, temsili oturum reddi, gizli dahili not/ek, güvenli rapor alanları, okunmamış sayaçları, çözülmüş talebin yeniden açılması ve hesap silmede konuşma/kuyruk temizliği.
 - `DST-000001` pilotunda iki benzersiz kullanıcı mesajı iki outbox kaydı üretti; yönetici mesajları e-posta üretmedi. Bekleyen kuyrukla yeniden başlatma sonrası iki e-posta da ilk denemede SMTP tarafından kabul edildi ve bilgi kutusunda görüldü. Sonraki worker geçişinde deneme sayıları 1 kaldı. Mail yalnız referans içerdi. Geçici pilot konuşmaları/ekleri/kuyrukları temizlendi, test kullanıcıları ve işletmeleri devre dışı bırakıldı; gerçek servis/finans kaydı oluşturulmadı.
-- [Gizlilik](https://www.pusulaiklimlendirme.com/privacy) ve [destek](https://www.pusulaiklimlendirme.com/destek) sayfaları mevcut web sitesinde yayımlandı. `.store` pazarlama sitesinin tümünün kurulumu bu yayın değildir.
+- [Gizlilik](https://www.pusulaiklimlendirme.com/privacy) sayfası yayımlandı. Kullanıcı ayrımı gereği [.com/destek](https://www.pusulaiklimlendirme.com/destek) **iklimlendirme işletmesine** aittir; Gmail iletişimi kullanır, SaaS destek merkezi değildir. `.store` pazarlama/destek web sitesinin kurulumu ayrı iştir.
 - Kanıtlar makineye özel, Git dışındaki `outputs/support-release-20261017/` içindedir. Üretim yedeği ve SMTP parolası buraya veya Git'e alınmadı. Mobil App Privacy kontrolü ve gerçek cihaz pilotu aşağıdaki ayrı yayın kapılarıdır.
 
 ## Kullanıcı ve yönetici akışı
@@ -76,6 +76,8 @@ Aboneliği salt okunur hale gelen kullanıcı desteğe yazabilir; istisna yalnı
 ## Alan adları ve e-posta
 
 Hedef kurulum `pusulaiklimlendirme.store` üzerinde ürün/pazarlama/destek, `admin.pusulaiklimlendirme.cloud` üzerinde yönetim panelidir. Mevcut `.com` sitesi ve `https://api.pusulaiklimlendirme.com` API adresi değiştirilmez.
+
+İklimlendirme işletmesi ile SaaS ürünü aynı destek kanalı değildir. `.com/destek` adresinde `pusulaiklimlendirme.didim@gmail.com` korunur. SaaS talepleri uygulama içi merkezden veya `destek@pusulaiklimlendirme.store` üzerinden izlenir. İstemcilerdeki eski Gmail çevrimdışı yedeği, ayrı `.store` web sayfası hazır olunca ayrıca taşınmalıdır; bu değişiklik incelemedeki iOS build 54'ü değiştirmez.
 
 17 Ekim 2026'da kullanıcı onayıyla `destek@pusulaiklimlendirme.store`, aktif `bilgi@pusulaiklimlendirme.store` kutusuna rumuz olarak bağlandı; ikinci kutu alınmadı. `QA-20261017-A7C2` yapay test mesajı bu rumuz üzerinden bilgi kutusuna ulaştı. Destek rumuzundan gönderilen yanıt Gmail gelen kutusuna ulaştı; alıcı sunucu SPF, DKIM ve DMARC için `pass` bildirdi. DMARC politikası `p=none` olduğundan bu yalnızca izleme politikasıdır.
 
