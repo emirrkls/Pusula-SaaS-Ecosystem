@@ -256,13 +256,31 @@ struct SupportCenterView: View {
         .navigationTitle(LocalizedStringKey(draft.ticketId==nil ? "support.new" : "support.reply"))
         .navigationBarTitleDisplayMode(.inline)
         .pusulaKeyboardDismissal()
+        .toolbar {
+            if !draft.frozen {
+                ToolbarItem(placement:.topBarTrailing) {
+                    Button("support.done") {
+                        PusulaKeyboard.dismiss()
+                        Task {
+                            await persistDraft()
+                            if draftSaved || !draft.hasContent {showComposer=false}
+                        }
+                    }.disabled(busy)
+                        .accessibilityLabel(Text("support.close_draft"))
+                        .accessibilityIdentifier("support.draft.close")
+                }
+            }
+        }
         .safeAreaInset(edge:.bottom) {
             VStack(spacing:10) {
-            if draftSaved && draft.hasContent {Text("support.draft_saved").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("support.draft.saved")}
+            if draftSaved && draft.hasContent {
+                Text("support.draft_saved_short").font(.caption).foregroundStyle(.secondary)
+                    .accessibilityLabel(Text("support.draft_saved"))
+                    .accessibilityIdentifier("support.draft.saved")
+            }
             Button { Task { await send() } } label: { Text(LocalizedStringKey(busy ? "support.sending" : draft.frozen ? "support.retry_same" : "support.send")).frame(maxWidth:.infinity).padding(.vertical,10) }
                 .buttonStyle(.borderedProminent).disabled(busy || draft.body.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || draft.body.count>4000 || draft.ticketId==nil && (draft.subject.isEmpty || draft.subject.count>120))
                 .accessibilityIdentifier("support.send")
-            if !draft.frozen {Button("support.close_draft"){showComposer=false}.accessibilityIdentifier("support.draft.close")}
             }.padding().background(.regularMaterial).guideTourTarget("support-submit")
         }
         .disabled(busy)

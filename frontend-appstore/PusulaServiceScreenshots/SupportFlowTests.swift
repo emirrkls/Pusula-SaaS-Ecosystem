@@ -80,11 +80,12 @@ final class SupportFlowTests:XCTestCase {
         let body=app.descendants(matching:.any).matching(identifier:"support.body").firstMatch
         let editor=app.scrollViews["support.composer.scroll"]
         XCTAssertTrue(editor.waitForExistence(timeout:10))
-        for _ in 0..<10 {if body.exists && body.isHittable{break};editor.swipeUp()}
+        revealComposerField(body,in:app)
         XCTAssertTrue(body.isHittable);body.tap();body.typeText("Synthetic support layout")
         dismissKeyboard(app)
+        XCTAssertEqual(body.value as? String,"Synthetic support layout")
         let send=app.buttons["support.send"]
-        let ready=XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in send.exists && send.isHittable && app.keyboards.count==0},object:nil)
+        let ready=XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in send.exists && send.isHittable && send.isEnabled && app.keyboards.count==0},object:nil)
         XCTAssertEqual(XCTWaiter.wait(for:[ready],timeout:10),.completed)
         let screen=app.windows.firstMatch.frame
         XCTAssertGreaterThan(send.frame.height,0);XCTAssertGreaterThanOrEqual(send.frame.minY,screen.minY);XCTAssertLessThanOrEqual(send.frame.maxY,screen.maxY)
@@ -101,6 +102,28 @@ final class SupportFlowTests:XCTestCase {
         if done.exists && done.isHittable {done.tap()}else if app.buttons["Bitti"].exists {app.buttons["Bitti"].tap()}
         let closed=XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in app.keyboards.count==0},object:nil)
         XCTAssertEqual(XCTWaiter.wait(for:[closed],timeout:5),.completed)
+    }
+    private func revealComposerField(_ field:XCUIElement,in app:XCUIApplication) {
+        let window=app.windows.firstMatch
+        let origin=window.coordinate(withNormalizedOffset:CGVector(dx:0,dy:0))
+        for _ in 0..<10 {
+            let screen=window.frame
+            let top=max(screen.minY,app.navigationBars.firstMatch.frame.maxY)+12
+            let saved=app.staticTexts["support.draft.saved"]
+            let footerTop=saved.exists ? min(saved.frame.minY,app.buttons["support.send"].frame.minY) : app.buttons["support.send"].frame.minY
+            let bottom=min(screen.maxY,footerTop)-12
+            XCTAssertGreaterThan(bottom-top,field.frame.height,"The editable field must fit above the fixed action area")
+            if field.isHittable && field.frame.minY>=top && field.frame.maxY<=bottom {return}
+            // isHittable alone can be true beneath a SwiftUI safeAreaInset.
+            // Drag the outer gutter, not the text field's own inner scroller.
+            let center=(top+bottom)/2
+            let limit=(bottom-top)*0.55
+            let delta=max(-limit,min(limit,field.frame.midY-center))
+            let start=origin.withOffset(CGVector(dx:10,dy:center+delta/2-screen.minY))
+            let end=origin.withOffset(CGVector(dx:10,dy:center-delta/2-screen.minY))
+            start.press(forDuration:0.05,thenDragTo:end)
+        }
+        XCTFail("The text field is still obscured by navigation or the action area")
     }
     private func reveal(_ identifier:String,in app:XCUIApplication)->XCUIElement {
         let element=app.buttons[identifier]

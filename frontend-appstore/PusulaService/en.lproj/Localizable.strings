@@ -175,6 +175,7 @@
 "support.close_draft" = "Save draft and close";
 "support.draft_failed" = "The draft could not be saved on this device. You can share a copy before sending.";
 "support.draft_saved" = "Draft saved on this device.";
+"support.draft_saved_short" = "Saved";
 "support.connection_fallback" = "Unable to connect. Existing information and draft are preserved. Retry or contact us by email.";
 "support.sent" = "Your support request/message was saved.";
 "support.value.QUESTION" = "Question";

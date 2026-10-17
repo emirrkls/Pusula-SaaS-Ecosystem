@@ -35,6 +35,16 @@ test('iOS support autosave follows the visible composer and rejects stale accoun
     assert.match(source,/guard !tourMode,restored,let captured=snapshot,isCurrent\(captured\),let key=draftKey/);
     assert.match(source,/!Task\.isCancelled,isCurrent\(captured\),draftKey==key,draft==value/);
 });
+test('large-text support keeps close in navigation and verifies fields outside the fixed footer',()=>{
+    const source=read('frontend-appstore/PusulaService/Views/Shared/SupportCenterView.swift');
+    assert.match(source,/ToolbarItem\(placement:\.topBarTrailing\)[\s\S]*support\.draft\.close/);
+    const footer=source.slice(source.indexOf('.safeAreaInset(edge:.bottom)',source.indexOf('private var composer:')),source.indexOf('@State private var lastFrozen'));
+    assert.doesNotMatch(footer,/Button\("support\.close_draft"\)/);
+    assert.match(footer,/Text\("support\.draft_saved_short"\)/);
+    const tests=read('frontend-appstore/PusulaServiceScreenshots/SupportFlowTests.swift');
+    assert.match(tests,/field\.frame\.maxY<=bottom/);
+    assert.match(tests,/send\.isHittable && send\.isEnabled/);
+});
 test('support UI regression transport is simulator-only and never configures a real session',()=>{const fixture=read('frontend-appstore/PusulaService/ScreenshotSupport/SupportFlowFixture.swift');assert.match(fixture,/#if DEBUG/);assert.match(fixture,/#if targetEnvironment\(simulator\)/);assert.match(fixture,/AppStoreScreenshotMode.isEnabled/);assert.doesNotMatch(fixture,/\.configure\(|(?:AuthService|NetworkManager|URLSession|Keychain)\s*\./);assert.match(read('frontend-appstore/PusulaServiceScreenshots/SupportFlowTests.swift'),/testLostResponseRetriesTheSameIntentWithoutSecondWrite/);});
 test('desktop packaging runs verification and uses the application version with a stable upgrade identity',()=>{
     const script=read('frontend-desktop/build_exe.ps1');

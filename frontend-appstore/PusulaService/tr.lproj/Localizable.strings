@@ -175,6 +175,7 @@
 "support.close_draft" = "Taslağı saklayıp kapat";
 "support.draft_failed" = "Taslak cihazda saklanamadı. Göndermeden önce paylaşarak yedekleyebilirsiniz.";
 "support.draft_saved" = "Taslak cihazda saklandı.";
+"support.draft_saved_short" = "Kaydedildi";
 "support.connection_fallback" = "Bağlantı kurulamadı. Mevcut bilgiler ve taslak korunuyor. Tekrar deneyin veya e-posta ile ulaşın.";
 "support.sent" = "Destek talebiniz/mesajınız kaydedildi.";
 "support.value.QUESTION" = "Soru";
