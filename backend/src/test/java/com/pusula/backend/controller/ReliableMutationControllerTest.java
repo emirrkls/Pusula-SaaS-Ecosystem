@@ -79,6 +79,68 @@ class ReliableMutationControllerTest {
         verifyNoInteractions(reliable);
     }
 
+    @Test void noteWriteBindsNormalizedContentTargetAndImportantFlagToTheReceipt() throws Exception {
+        var saved = new com.pusula.backend.dto.ServiceTicketNoteDTO(); saved.setId(501L);
+        when(reliable.execute(anyString(), eq("ticket.note.create"), any(), any(), any(), any()))
+                .thenAnswer(call -> {
+                    assertEquals(Map.of("ticketId", 999L, "content", "Synthetic note", "important", true), call.getArgument(2));
+                    return ((Supplier<?>) call.getArgument(3)).get();
+                });
+        when(notes.addWorkLog(999L, "Synthetic note", true)).thenReturn(saved);
+        mvc.perform(post("/api/reliable-mutations/tickets/999/technician-notes").with(actor("TECHNICIAN"))
+                .header("Idempotency-Key", UUID.randomUUID()).contentType("application/json")
+                .content("{\"content\":\"  Synthetic note  \",\"important\":true,\"companyId\":999,\"authorUserId\":999}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(501));
+        verify(notes).checkTicketAccess(999L);
+        verify(features).checkFeature(1L, "SERVICE_TICKETS");
+    }
+
+    @Test void noteReplayRechecksAccessAndOnlyReloadsTheOriginalScopedNote() throws Exception {
+        var saved = new com.pusula.backend.dto.ServiceTicketNoteDTO(); saved.setId(501L);
+        when(reliable.execute(anyString(), eq("ticket.note.create"), any(), any(), any(), any()))
+                .thenAnswer(call -> ((LongFunction<?>) call.getArgument(5)).apply(501L));
+        when(notes.getNoteForReplay(999L, 501L)).thenReturn(saved);
+        mvc.perform(post("/api/reliable-mutations/tickets/999/technician-notes").with(actor("TECHNICIAN"))
+                .header("Idempotency-Key", UUID.randomUUID()).contentType("application/json")
+                .content("{\"content\":\"Synthetic\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(501));
+        verify(notes).checkTicketAccess(999L);
+        verify(notes).getNoteForReplay(999L, 501L);
+        verify(notes, never()).addWorkLog(anyLong(), anyString(), anyBoolean());
+    }
+
+    @Test void notesRejectBlankMissingOrUnkeyedInputBeforeAnyMutation() throws Exception {
+        for (String json : List.of("{}", "{\"content\":null}", "{\"content\":\" \\n \"}")) {
+            mvc.perform(post("/api/reliable-mutations/tickets/999/technician-notes").with(actor("TECHNICIAN"))
+                    .header("Idempotency-Key", UUID.randomUUID()).contentType("application/json").content(json))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(post("/api/reliable-mutations/tickets/999/technician-notes").with(actor("TECHNICIAN"))
+                .contentType("application/json").content("{\"content\":\"Synthetic\"}"))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(notes, reliable);
+    }
+
+    @Test void revokedNoteAccessCannotReachTheReceiptOrReturnItsResult() throws Exception {
+        doThrow(new org.springframework.security.access.AccessDeniedException("Reassigned ticket"))
+                .when(notes).checkTicketAccess(999L);
+        mvc.perform(post("/api/reliable-mutations/tickets/999/technician-notes").with(actor("TECHNICIAN"))
+                .header("Idempotency-Key", UUID.randomUUID()).contentType("application/json")
+                .content("{\"content\":\"Synthetic\"}"))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(reliable);
+    }
+
+    @Test void readOnlyCompanyCannotCreateOrReplayATechnicianNote() throws Exception {
+        Company company = new Company(); company.setId(1L); company.setIsReadOnly(true);
+        when(companies.findById(1L)).thenReturn(Optional.of(company));
+        mvc.perform(post("/api/reliable-mutations/tickets/999/technician-notes").with(actor("TECHNICIAN"))
+                .header("Idempotency-Key", UUID.randomUUID()).contentType("application/json")
+                .content("{\"content\":\"Synthetic\"}"))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(notes, reliable);
+    }
+
     private RequestPostProcessor actor(String role) {
         User user = new User(); user.setId(10L); user.setCompanyId(1L); user.setRole(role);
         return authentication(new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));

@@ -93,6 +93,8 @@
 "ticket.detail.amount_unavailable" = "Unavailable";
 "ticket.detail.parts.reload_before_edit" = "Reload the used parts before continuing.";
 "ticket.detail.retry" = "Try Again";
+"ticket.notes.add" = "Add Note";
+"ticket.notes.save_unconfirmed" = "The note could not be confirmed. Your text is preserved; you can safely retry the same note.";
 "ticket.detail.interrupted" = "Loading did not finish. You can try again.";
 "ticket.detail.cached_records" = "Previously loaded records are shown; the current state has not been verified yet.";
 "ticket.detail.connection_error" = "Check your internet connection and try again.";

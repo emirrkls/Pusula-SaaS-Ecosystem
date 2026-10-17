@@ -85,10 +85,12 @@ enum TicketService {
         try await NetworkManager.shared.request(.GET, path: "/api/tickets/\(ticketId)/technician-notes", authTokenOverride: authToken)
     }
 
-    static func addTechnicianNote(ticketId: Int, content: String, important: Bool = false) async throws -> TechnicianNoteDTO {
-        try await NetworkManager.shared.post(
-            "/api/tickets/\(ticketId)/technician-notes",
-            body: AddTechnicianNoteRequest(content: content.trimmingCharacters(in: .whitespacesAndNewlines), important: important)
+    static func addTechnicianNote(ticketId: Int, content: String, important: Bool = false,
+                                  requestId: UUID, authToken: String) async throws -> TechnicianNoteDTO {
+        try await NetworkManager.shared.request(.POST,
+            path: "/api/reliable-mutations/tickets/\(ticketId)/technician-notes",
+            body: AddTechnicianNoteRequest(content: content.trimmingCharacters(in: .whitespacesAndNewlines), important: important),
+            authTokenOverride: authToken, idempotencyKey: requestId
         )
     }
     

@@ -27,6 +27,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @DataJpaTest(showSql = false, properties = {"spring.flyway.enabled=false",
         "spring.jpa.hibernate.ddl-auto=create-drop", "spring.sql.init.mode=never"})
@@ -37,7 +39,7 @@ class ReliableMutationServiceIntegrationTest {
     @SpringBootConfiguration @EnableAutoConfiguration
     @EntityScan("com.pusula.backend.entity")
     @EnableJpaRepositories("com.pusula.backend.repository")
-    @Import({ReliableMutationService.class, FinanceService.class, AuditLogService.class})
+    @Import({ReliableMutationService.class, FinanceService.class, AuditLogService.class, ServiceTicketNoteService.class})
     static class Application { @Bean ObjectMapper mapper() { return new ObjectMapper().findAndRegisterModules(); } }
 
     @DynamicPropertySource static void database(DynamicPropertyRegistry registry) {
@@ -58,13 +60,18 @@ class ReliableMutationServiceIntegrationTest {
     @Autowired DailyClosingRepository closings;
     @Autowired AuditLogRepository audits;
     @Autowired FinanceService finance;
+    @Autowired ServiceTicketNoteService notes;
+    @Autowired ServiceTicketNoteRepository noteRepository;
+    @Autowired ServiceTicketRepository ticketRepository;
+    @MockBean AdminNotificationService adminNotifications;
     @MockBean FeatureService features;
     @Autowired JdbcTemplate jdbc;
     final AtomicInteger writes = new AtomicInteger();
     User actor;
 
     @BeforeEach void setup() {
-        receipts.deleteAll(); customers.deleteAll(); expenses.deleteAll(); closings.deleteAll(); audits.deleteAll(); writes.set(0);
+        receipts.deleteAll(); noteRepository.deleteAll(); ticketRepository.deleteAll();
+        customers.deleteAll(); expenses.deleteAll(); closings.deleteAll(); audits.deleteAll(); writes.set(0);
         actor = user(10L, 1L); login(actor);
     }
     @AfterEach void logout() { SecurityContextHolder.clearContext(); }
@@ -253,5 +260,99 @@ class ReliableMutationServiceIntegrationTest {
         assertNotEquals(first,expense(UUID.randomUUID().toString(),expenseInput("125.50")).getId());
         assertEquals(2,expenses.count()); assertEquals(2,auditCount("CREATE","EXPENSE"));
         assertEquals(0,new BigDecimal("251.00").compareTo(finance.getDailySummary(1L,LocalDate.of(2026,10,14)).getTotalExpense()));
+    }
+
+    private ServiceTicket openTicket() {
+        actor.setRole("TECHNICIAN"); login(actor);
+        ServiceTicket ticket = new ServiceTicket(); ticket.setCompanyId(1L); ticket.setCustomerId(1L);
+        ticket.setAssignedTechnicianId(actor.getId()); ticket.setStatus(ServiceTicket.TicketStatus.ASSIGNED);
+        return ticketRepository.saveAndFlush(ticket);
+    }
+
+    private com.pusula.backend.dto.ServiceTicketNoteDTO note(String key, Long ticketId, String content, boolean important) {
+        notes.checkTicketAccess(ticketId);
+        String normalized = content.trim();
+        return reliable.execute(key, "ticket.note.create", Map.of("ticketId", ticketId,
+                "content", normalized, "important", important),
+                () -> notes.addWorkLog(ticketId, normalized, important),
+                com.pusula.backend.dto.ServiceTicketNoteDTO::getId,
+                id -> notes.getNoteForReplay(ticketId, id));
+    }
+
+    @Test void concurrentImportantNoteCopiesCreateOneNoteAuditAndNotification() throws Exception {
+        Long ticketId = openTicket().getId(); String key = UUID.randomUUID().toString();
+        ExecutorService pool = Executors.newFixedThreadPool(8);
+        CountDownLatch ready = new CountDownLatch(8), start = new CountDownLatch(1);
+        try {
+            List<Future<Long>> results = new ArrayList<>();
+            for (int i=0; i<8; i++) results.add(pool.submit(() -> {
+                login(actor); ready.countDown(); assertTrue(start.await(10, TimeUnit.SECONDS));
+                try { return note(key, ticketId, "Synthetic note", true).getId(); } finally { logout(); }
+            }));
+            assertTrue(ready.await(10, TimeUnit.SECONDS)); start.countDown();
+            Set<Long> ids = new HashSet<>();
+            for (Future<Long> result : results) ids.add(result.get(20, TimeUnit.SECONDS));
+            assertEquals(1, ids.size()); assertEquals(1, noteRepository.count()); assertEquals(1, receipts.count());
+            assertEquals(1, auditCount("NOTE", "TICKET"));
+            verify(adminNotifications, times(1)).notifyCompanyAdmins(eq(1L), anyString(), anyString(),
+                    eq(Notification.NotificationType.WARNING), eq(Notification.NotificationCategory.IMPORTANT_NOTE),
+                    eq("TICKET"), eq(ticketId), eq(actor.getId()));
+        } finally { start.countDown(); pool.shutdownNow(); }
+    }
+
+    @Test void lostNoteResponseCanReplayAfterTicketCompletionWithoutAddingAnotherNote() {
+        ServiceTicket ticket = openTicket(); String key = UUID.randomUUID().toString();
+        Long first = note(key, ticket.getId(), " Synthetic note ", false).getId();
+        ticket.setStatus(ServiceTicket.TicketStatus.COMPLETED); ticketRepository.saveAndFlush(ticket);
+        assertEquals(first, note(key, ticket.getId(), "Synthetic note", false).getId());
+        assertEquals(1, noteRepository.count()); assertEquals(1, auditCount("NOTE", "TICKET"));
+        assertThrows(IllegalStateException.class,
+                () -> note(UUID.randomUUID().toString(), ticket.getId(), "Another note", false));
+        assertEquals(1, receipts.count());
+    }
+
+    @Test void noteReceiptCannotChangeTextImportantFlagOrTicket() {
+        Long ticketId = openTicket().getId(), otherTicket = openTicket().getId();
+        String key = UUID.randomUUID().toString(); note(key, ticketId, "Synthetic note", false);
+        for (Runnable mutation : List.<Runnable>of(
+                () -> note(key, ticketId, "Changed note", false),
+                () -> note(key, ticketId, "Synthetic note", true),
+                () -> note(key, otherTicket, "Synthetic note", false))) {
+            assertEquals("IDEMPOTENCY_MISMATCH", assertThrows(MutationConflictException.class, mutation::run).getCode());
+        }
+        assertEquals(1, noteRepository.count()); assertEquals(1, auditCount("NOTE", "TICKET"));
+    }
+
+    @Test void reassignedOrForeignTicketCannotExposeAnExistingNoteReceipt() {
+        ServiceTicket ticket = openTicket(); String key = UUID.randomUUID().toString();
+        note(key, ticket.getId(), "Synthetic note", false);
+        ticket.setAssignedTechnicianId(11L); ticketRepository.saveAndFlush(ticket);
+        assertThrows(AccessDeniedException.class, () -> note(key, ticket.getId(), "Synthetic note", false));
+        login(user(10L, 2L));
+        assertThrows(IllegalArgumentException.class, () -> note(key, ticket.getId(), "Synthetic note", false));
+        assertEquals(1, noteRepository.count()); assertEquals(1, receipts.count());
+    }
+
+    @Test void deletedNoteResultDoesNotCreateAReplacementButANewIntentMayRepeatText() {
+        Long ticketId = openTicket().getId(); String key = UUID.randomUUID().toString();
+        Long first = note(key, ticketId, "Synthetic note", false).getId();
+        assertNotEquals(first, note(UUID.randomUUID().toString(), ticketId, "Synthetic note", false).getId());
+        noteRepository.deleteById(first);
+        assertEquals("IDEMPOTENCY_RESULT_UNAVAILABLE", assertThrows(MutationConflictException.class,
+                () -> note(key, ticketId, "Synthetic note", false)).getCode());
+        assertEquals(1, noteRepository.count()); assertEquals(2, auditCount("NOTE", "TICKET"));
+    }
+
+    @Test void noteAndAuditRollbackWithTheReceiptThenTheSameKeyCanSucceedOnce() {
+        Long ticketId = openTicket().getId(); String key = UUID.randomUUID().toString();
+        Map<String,Object> input = Map.of("ticketId", ticketId, "content", "Synthetic note", "important", false);
+        assertThrows(IllegalStateException.class, () -> reliable.execute(key, "ticket.note.create", input, () -> {
+            notes.addWorkLog(ticketId, "Synthetic note", false);
+            throw new IllegalStateException("Synthetic failure after note and audit");
+        }, com.pusula.backend.dto.ServiceTicketNoteDTO::getId, id -> null));
+        assertEquals(0, noteRepository.count()); assertEquals(0, audits.count()); assertEquals(0, receipts.count());
+        Long saved = note(key, ticketId, "Synthetic note", false).getId();
+        assertEquals(saved, note(key, ticketId, "Synthetic note", false).getId());
+        assertEquals(1, noteRepository.count()); assertEquals(1, auditCount("NOTE", "TICKET"));
     }
 }

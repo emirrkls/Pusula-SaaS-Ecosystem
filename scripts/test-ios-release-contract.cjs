@@ -338,15 +338,32 @@ test('automatic write replay requires the explicit server-enforced mutation cont
   assert.doesNotMatch(policy, /URLCredential|serverTrust|useCredential|allowsAnyHTTPSCertificate/);
   const controller = read('backend/src/main/java/com/pusula/backend/controller/ReliableMutationController.java');
   assert.match(controller, /@RequestMapping\("\/api\/reliable-mutations"\)/);
-  assert.equal((controller.match(/@RequestHeader\("Idempotency-Key"\)/g) || []).length, 6);
+  assert.equal((controller.match(/@RequestHeader\("Idempotency-Key"\)/g) || []).length, 7);
   assert.match(controller, /@PostMapping\("\/tickets\/\{ticketId\}\/complete"\)/);
   assert.match(controller, /reliable\.execute\(key, "ticket\.complete"/);
+  assert.match(controller, /@PostMapping\("\/tickets\/\{ticketId\}\/technician-notes"\)/);
+  assert.match(controller, /reliable\.execute\(key, "ticket\.note\.create"/);
   for (const service of ['Services/TicketService.swift', 'Services/BusinessServices.swift']) {
     const source = read(app + service);
     assert.doesNotMatch(source, /\.post\("\/api\/(?:tickets|customers|inventory|finance\/expenses)"/);
     assert.match(source, /idempotencyKey: requestId/);
     assert.doesNotMatch(source, /requestId: UUID = UUID\(\)/);
   }
+});
+
+test('technician note retry keeps a frozen intent and the captured account token', () => {
+  const state = read(app + 'Core/Tickets/TechnicianNoteSubmissionState.swift');
+  assert.match(state, /guard !isSubmitting else \{ return nil \}/);
+  assert.match(state, /intent\.ticketID == ticketID, intent\.sessionRevision == sessionRevision/);
+  const service = read(app + 'Services/TicketService.swift');
+  assert.match(service, /path: "\/api\/reliable-mutations\/tickets\/\\\(ticketId\)\/technician-notes"/);
+  assert.match(service, /authTokenOverride: authToken, idempotencyKey: requestId/);
+  const view = read(app + 'Views/Technician/TicketDetailView.swift');
+  assert.match(view, /requestId: noteSubmission\.requestID, authToken: snapshot\.token/);
+  assert.match(view, /if !technicianNotes\.contains\(where: \{ \$0\.id == saved\.id \}\)/);
+  assert.match(view, /\.disabled\(!noteSubmission\.canEdit\)/);
+  assert.match(view, /\.interactiveDismissDisabled\(isSavingTechnicianNote\)/);
+  assert.match(view, /noteSubmission\.fail\(allowsCorrection: false\)/);
 });
 
 test('mutation forms keep their key and suppress concurrent submits, retries obey account changes', () => {

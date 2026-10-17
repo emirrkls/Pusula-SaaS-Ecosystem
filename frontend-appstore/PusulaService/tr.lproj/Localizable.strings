@@ -93,6 +93,8 @@
 "ticket.detail.amount_unavailable" = "Bilgi alınamadı";
 "ticket.detail.parts.reload_before_edit" = "İşleme devam etmeden önce kullanılan parçaları yeniden yükleyin.";
 "ticket.detail.retry" = "Tekrar Dene";
+"ticket.notes.add" = "Not Ekle";
+"ticket.notes.save_unconfirmed" = "Notun kaydı doğrulanamadı. Metniniz korundu; aynı notu güvenle tekrar deneyebilirsiniz.";
 "ticket.detail.interrupted" = "Yükleme tamamlanmadı. Tekrar deneyebilirsiniz.";
 "ticket.detail.cached_records" = "Son alınan bilgiler gösteriliyor; güncel durum henüz doğrulanamadı.";
 "ticket.detail.connection_error" = "İnternet bağlantınızı kontrol edip tekrar deneyin.";

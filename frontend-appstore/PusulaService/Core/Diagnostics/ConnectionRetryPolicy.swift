@@ -18,7 +18,7 @@ enum ConnectionRetryPolicy {
         let parts = url.path.split(separator: "/")
         return parts.count == 5 && parts[0] == "api" && parts[1] == "reliable-mutations"
             && parts[2] == "tickets" && !parts[3].isEmpty && parts[3].allSatisfy(\.isNumber)
-            && ["photos", "complete"].contains(String(parts[4]))
+            && ["photos", "complete", "technician-notes"].contains(String(parts[4]))
     }
 
     static func isTransient(_ error: Error) -> Bool {

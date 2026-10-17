@@ -59,10 +59,39 @@ final class ConnectionRetryTests: XCTestCase {
         XCTAssertFalse(ConnectionRetryPolicy.permitsReplay(request("/api/reliable-mutations/tickets/1/photos/extra")))
         XCTAssertTrue(ConnectionRetryPolicy.permitsReplay(request("/api/reliable-mutations/tickets/123/photos")))
         XCTAssertTrue(ConnectionRetryPolicy.permitsReplay(request("/api/reliable-mutations/tickets/123/complete")))
+        XCTAssertTrue(ConnectionRetryPolicy.permitsReplay(request("/api/reliable-mutations/tickets/999/technician-notes")))
+        XCTAssertFalse(ConnectionRetryPolicy.permitsReplay(request("/api/reliable-mutations/tickets/999/technician-notes", keyed: false)))
+        XCTAssertFalse(ConnectionRetryPolicy.permitsReplay(request("/api/tickets/999/technician-notes")))
+        XCTAssertFalse(ConnectionRetryPolicy.permitsReplay(request("/api/reliable-mutations/tickets/999/technician-notes/1")))
         XCTAssertFalse(ConnectionRetryPolicy.permitsReplay(request("/api/tickets/123/complete", method: "PATCH")))
         XCTAssertTrue(ConnectionRetryPolicy.permitsReplay(request("/api/customers", method: "GET", keyed: false)))
         var external = request(); external.url = URL(string: "https://other.invalid/api/reliable-mutations/tickets")
         XCTAssertFalse(ConnectionRetryPolicy.permitsReplay(external))
+    }
+
+    func testTechnicianNoteAbruptTLSRetriesOnceWithIdenticalIntentAndFreshDiagnosticID() async throws {
+        RetryTestProtocol.configure([.failure(abruptTLS()), .http(200)])
+        let session = session(); defer { session.invalidateAndCancel() }
+        let original = request("/api/reliable-mutations/tickets/999/technician-notes")
+        _ = try await ConnectionReliableTransport.data(for: original, operation: .api,
+            session: session, backoffNanoseconds: 0)
+        let sent = RetryTestProtocol.requests
+        XCTAssertEqual(sent.count, 2)
+        XCTAssertEqual(sent[0].httpBody, sent[1].httpBody)
+        XCTAssertEqual(sent[0].value(forHTTPHeaderField: "Idempotency-Key"), sent[1].value(forHTTPHeaderField: "Idempotency-Key"))
+        XCTAssertNotEqual(sent[0].value(forHTTPHeaderField: "X-Pusula-Diagnostic-ID"), sent[1].value(forHTTPHeaderField: "X-Pusula-Diagnostic-ID"))
+    }
+
+    func testTechnicianNoteRepeatedLostConnectionStopsAfterOneAutomaticRetry() async throws {
+        RetryTestProtocol.configure([.failure(URLError(.networkConnectionLost) as NSError),
+                                     .failure(URLError(.networkConnectionLost) as NSError), .http(200)])
+        let session = session(); defer { session.invalidateAndCancel() }
+        do {
+            _ = try await ConnectionReliableTransport.data(for: request("/api/reliable-mutations/tickets/999/technician-notes"),
+                operation: .api, session: session, backoffNanoseconds: 0)
+            XCTFail("Expected unconfirmed failure")
+        } catch { XCTAssertEqual((error as NSError).code, -1005) }
+        XCTAssertEqual(RetryTestProtocol.requests.count, 2)
     }
 
     func testExpenseTimeoutReplaysOnlyVersionedKeyedWriteWithSameIntent() async throws {
