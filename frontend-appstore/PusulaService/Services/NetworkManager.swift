@@ -138,7 +138,7 @@ actor NetworkManager {
         let _: EmptyResponse = try await request(.DELETE, path: path)
     }
     
-    func downloadData(_ path: String, requiresAuth: Bool = true) async throws -> Data {
+    func downloadData(_ path: String, requiresAuth: Bool = true, authTokenOverride: String? = nil) async throws -> Data {
         guard let url = URL(string: baseURL + path) else {
             throw NetworkError.invalidURL
         }
@@ -147,7 +147,7 @@ actor NetworkManager {
         request.httpMethod = HTTPMethod.GET.rawValue
         request.timeoutInterval = 60
         
-        let requestToken = requiresAuth ? authToken : nil
+        let requestToken = requiresAuth ? (authTokenOverride ?? authToken) : nil
         if let token = requestToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }

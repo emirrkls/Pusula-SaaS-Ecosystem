@@ -7,6 +7,8 @@ struct ProfileView: View {
     @State private var isDeletingAccount = false
     @State private var deleteError: String?
     @State private var showDesktopPasswordSetup = false
+    @State private var supportUnread = 0
+    @Environment(\.scenePhase) private var supportScenePhase
     
     var body: some View {
         ScrollView {
@@ -39,6 +41,11 @@ struct ProfileView: View {
 
                 PusulaAppearancePicker()
                     .pusulaCard()
+
+                NavigationLink { SupportCenterView() } label: {
+                    HStack { Label("support.title", systemImage: "questionmark.bubble"); if supportUnread > 0 { Text("\(supportUnread)").font(.caption.bold()).foregroundStyle(PusulaTheme.accent) } }
+                        .frame(maxWidth: .infinity).padding(.vertical, 14)
+                }.buttonStyle(.bordered).accessibilityIdentifier("account.support.open")
 
                 NavigationLink { ConnectionDiagnosticsView() } label: {
                     Label("diagnostics.title", systemImage: "network")
@@ -108,6 +115,15 @@ struct ProfileView: View {
         }
         .background(PusulaTheme.page)
         .navigationTitle("Hesap")
+        .task(id: "\(supportScenePhase)-\(session.authenticatedSnapshot?.revision.uuidString ?? "")") {
+            supportUnread=0
+            guard supportScenePhase == .active, let captured=session.authenticatedSnapshot else{return}
+            guard let contact=try? await SupportService.contact(),contact.enabled else{return}
+            while !Task.isCancelled, session.isCurrent(captured) {
+                if let count=try? await SupportService.unread(token:captured.token),session.isCurrent(captured) {supportUnread=count}
+                do {try await Task.sleep(for:.seconds(60))} catch {return}
+            }
+        }
         .sheet(isPresented: $showPlanUpgrade) {
             NavigationStack { PlanUpgradeView() }
         }

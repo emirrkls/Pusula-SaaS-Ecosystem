@@ -31,6 +31,9 @@ struct LoginView: View {
                         }
                     }
                     accountActions
+                    NavigationLink { SupportCenterView() } label: {
+                        Label("support.title", systemImage: "questionmark.bubble").font(.caption).frame(maxWidth: .infinity)
+                    }.accessibilityIdentifier("login.support.open")
                     NavigationLink { ConnectionDiagnosticsView() } label: {
                         Label("diagnostics.title", systemImage: "network")
                             .font(.caption)

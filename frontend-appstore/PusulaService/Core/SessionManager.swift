@@ -159,6 +159,7 @@ final class SessionManager: ObservableObject {
     func deleteAccount() async throws {
         guard let snapshot = authenticatedSnapshot else { throw NetworkError.unauthorized }
         try await AuthService.deleteAccount(authToken: snapshot.token)
+        if let supportKey=SupportService.accountKey(snapshot.token,company:snapshot.companyId) { await SupportDraftStore.shared.clear(supportKey) }
         guard isCurrent(snapshot) else { return }
         logout()
     }
