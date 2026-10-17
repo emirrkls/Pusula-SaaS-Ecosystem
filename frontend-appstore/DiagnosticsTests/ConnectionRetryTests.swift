@@ -6,6 +6,27 @@ import FoundationNetworking
 @testable import PusulaDiagnostics
 
 final class ConnectionRetryTests: XCTestCase {
+    func testBeforeSendBarrierPreventsEvenTheInitialPhysicalRequest() async throws {
+        RetryTestProtocol.configure([.http(200)])
+        let session=session();defer{session.invalidateAndCancel()}
+        do {
+            _ = try await ConnectionReliableTransport.data(for:request(),operation:.api,session:session,
+                beforeSend:{throw URLError(.cancelled)})
+            XCTFail("Expected safety barrier")
+        } catch { XCTAssertEqual((error as NSError).code,-999) }
+        XCTAssertTrue(RetryTestProtocol.requests.isEmpty)
+    }
+    func testBeforeSendBarrierIsCheckedAgainOnPhysicalRetry() async throws {
+        RetryTestProtocol.configure([.http(503),.http(200)])
+        let session=session();defer{session.invalidateAndCancel()}
+        let counter=SendBarrierCounter()
+        do {
+            _ = try await ConnectionReliableTransport.data(for:request(),operation:.api,session:session,backoffNanoseconds:0,
+                beforeSend:{if counter.next()>1 {throw URLError(.cancelled)}})
+            XCTFail("Expected retry safety barrier")
+        } catch { XCTAssertEqual((error as NSError).code,-999) }
+        XCTAssertEqual(RetryTestProtocol.requests.count,1)
+    }
     private let metadata = ConnectionReportMetadata(appVersion: "1.0", build: "55", osVersion: "26", deviceFamily: "iPhone")
     private func request(_ path: String = "/api/reliable-mutations/tickets", method: String = "POST", keyed: Bool = true) -> URLRequest {
         var value = URLRequest(url: URL(string: "https://api.pusulaiklimlendirme.com" + path)!)
@@ -176,6 +197,10 @@ final class ConnectionRetryTests: XCTestCase {
     }
 }
 
+private final class SendBarrierCounter: @unchecked Sendable {
+    private let lock=NSLock();private var count=0
+    func next()->Int {lock.lock();defer{lock.unlock()};count+=1;return count}
+}
 private final class RetryTestProtocol: URLProtocol, @unchecked Sendable {
     enum Result { case failure(NSError), http(Int) }
     private static let lock = NSLock()

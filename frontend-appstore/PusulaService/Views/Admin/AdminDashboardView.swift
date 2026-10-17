@@ -2,6 +2,7 @@ import SwiftUI
 import UserNotifications
 
 struct AdminDashboardView: View {
+    @Environment(\.guideTourMode) private var guideTourMode
     @ObservedObject private var navigation = AppNavigation.shared
     @State private var kpis: DashboardKPIs?
     @State private var techStats: [TechnicianStat] = []
@@ -18,10 +19,10 @@ struct AdminDashboardView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 22) {
-                headerSection
+                headerSection.guideTourTarget("overview")
 
                 if let kpis {
-                    kpiSection(kpis)
+                    kpiSection(kpis).guideTourTarget("overview")
                         .onboardingTarget(.overviewContent)
                 }
 
@@ -41,9 +42,10 @@ struct AdminDashboardView: View {
             .padding(.horizontal, PusulaTheme.pagePadding)
             .padding(.vertical, 16)
         }
+        .guideTourScrollable()
         .background(PusulaTheme.page)
         .navigationTitle("Genel Bakış")
-        .navigationDestination(item: $navigation.networkDestination) { NetworkNotificationDestination(route: $0) }
+        .navigationDestination(item: Binding(get:{guideTourMode ? nil : navigation.networkDestination},set:{if !guideTourMode {navigation.networkDestination=$0}})) { NetworkNotificationDestination(route: $0) }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -353,7 +355,7 @@ struct AdminDashboardView: View {
         if let count = try? await AdminNotificationService.unreadCount() {
             await MainActor.run {
                 unreadNotificationCount = count
-                UNUserNotificationCenter.current().setBadgeCount(count) { _ in }
+                if !guideTourMode { UNUserNotificationCenter.current().setBadgeCount(count) { _ in } }
             }
         }
     }

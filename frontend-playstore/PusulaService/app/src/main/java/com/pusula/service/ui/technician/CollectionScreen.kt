@@ -20,11 +20,13 @@ import com.pusula.service.ui.components.AppGhostCard
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.util.Locale
+import com.pusula.service.ui.guide.*
 
 @Composable
 fun CollectionScreen(ticketId: Long, onBack: () -> Unit, onDone: () -> Unit,
                      viewModel: TicketViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
+    val guideList=rememberGuideListState(mapOf("collection-fees" to 1,"collection-discount" to 1,"collection-summary" to 1,"collection-allocation" to 2,"collection-payment" to 3,"collection-warranty" to 4))
     val session by viewModel.sessionManager.state.collectAsState()
     var laborText by rememberSaveable(ticketId) { mutableStateOf("") }
     var discountEnabled by rememberSaveable(ticketId) { mutableStateOf(false) }
@@ -39,6 +41,12 @@ fun CollectionScreen(ticketId: Long, onBack: () -> Unit, onDone: () -> Unit,
     var extras by rememberSaveable(ticketId) { mutableStateOf(false) }
     var note by rememberSaveable(ticketId) { mutableStateOf("") }
     var confirm by remember { mutableStateOf(false) }
+    val tourFocus=LocalGuideFocus.current;val touring=LocalGuideTour.current
+    LaunchedEffect(tourFocus) { if(touring) {
+        if(tourFocus=="collection-discount"){discountEnabled=true;warranty=false}
+        if(tourFocus=="collection-allocation")organizationEnabled=true
+        if(tourFocus=="collection-warranty")extras=true
+    } }
     val editable = !state.collecting && !state.collectionLocked
     val internalWarranty = warranty && !organizationEnabled
     val noCollection = warranty || method == "CURRENT_ACCOUNT"
@@ -91,12 +99,12 @@ fun CollectionScreen(ticketId: Long, onBack: () -> Unit, onDone: () -> Unit,
                 }
             }
         }) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp),
+        LazyColumn(state=guideList,modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)) {
             item { Text("Servis fişi #$ticketId · ${state.selectedTicket?.customerName.orEmpty()}", style = MaterialTheme.typography.bodyMedium) }
             item {
                 AppGhostCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.guideTourTarget("collection-fees").guideTourTarget("collection-discount").guideTourTarget("collection-summary"),verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("1. Ücret Bilgileri", fontWeight = FontWeight.Bold)
                         MoneyRow("Parça toplamı", parts)
                         MoneyField("Servis / işçilik bedeli", laborText, editable && !internalWarranty) { laborText = it }
@@ -118,7 +126,7 @@ fun CollectionScreen(ticketId: Long, onBack: () -> Unit, onDone: () -> Unit,
             }
             item {
                 AppGhostCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.guideTourTarget("collection-allocation"),verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("2. Ödemeyi Üstlenen", fontWeight = FontWeight.Bold)
                         CheckRow("Tamamını veya bir kısmını kurum carisine aktar", organizationEnabled, editable) { organizationEnabled = it }
                         if (organizationEnabled) {
@@ -145,7 +153,7 @@ fun CollectionScreen(ticketId: Long, onBack: () -> Unit, onDone: () -> Unit,
             }
             item {
                 AppGhostCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.guideTourTarget("collection-payment"),verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("3. Tahsilat", fontWeight = FontWeight.Bold)
                         if (!warranty) {
                             listOf("CASH" to "Nakit", "CREDIT_CARD" to "Kredi Kartı", "CURRENT_ACCOUNT" to "Şimdi ödeme alınmadı").forEach { (value, label) ->
@@ -164,7 +172,7 @@ fun CollectionScreen(ticketId: Long, onBack: () -> Unit, onDone: () -> Unit,
                 }
             }
             item {
-                TextButton(onClick = { extras = !extras }, enabled = editable) { Text("Kapanış notu ve garanti") }
+                TextButton(onClick = { extras = !extras }, enabled = editable,modifier=Modifier.guideTourTarget("collection-warranty")) { Text("Kapanış notu ve garanti") }
                 if (extras) {
                     OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("Yapılan işlem / kapanış notu") }, minLines = 2, enabled = editable, modifier = Modifier.fillMaxWidth())
                     CheckRow("Garanti kapsamında kapat", warranty, editable) { warranty = it }

@@ -77,6 +77,7 @@ import com.pusula.service.ui.theme.Info
 import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.ui.theme.Success
 import com.pusula.service.util.safeForComposeText
+import com.pusula.service.ui.guide.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,6 +102,10 @@ fun TicketDetailScreen(
     BackHandler(onBack = onBack)
 
     val ticket = uiState.selectedTicket
+    val extra=if(session.isAdmin)1 else 0
+    val guideList=rememberGuideListState(mapOf("ticket-customer" to 1,"customer-contact" to 1,"ticket-schedule" to 0,"ticket-parts" to 3+extra,
+        "ticket-notes" to 4+extra+uiState.usedParts.size,"ticket-status" to 5+extra+uiState.usedParts.size,
+        "ticket-history" to 6+extra+uiState.usedParts.size,"ticket-actions" to 7+extra+uiState.usedParts.size+uiState.ticketTimeline.size+(if(ticket?.invoiceTotal!=null)1 else 0)))
     val pdfLoading = uiState.downloadingServicePdfTicketId == ticketId
 
     Scaffold(topBar = { AppTopBar(title = "İş Emri Detayı", onBack = onBack) }) { padding ->
@@ -119,6 +124,7 @@ fun TicketDetailScreen(
         val totalAmount = uiState.usedParts.sumOf { it.sellingPriceSnapshot * it.quantityUsed }
 
         LazyColumn(
+            state=guideList,
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(
                 start = Spacing.lg,
@@ -130,6 +136,7 @@ fun TicketDetailScreen(
         ) {
             item {
                 AppHeroCard(
+                    modifier=Modifier.guideTourTarget("ticket-schedule"),
                     eyebrow = "Servis fişi #${ticket.id}",
                     title = ticket.customerName.safeForComposeText("Müşteri"),
                     subtitle = ticket.scheduledDate
@@ -147,7 +154,7 @@ fun TicketDetailScreen(
             }
 
             item {
-                AppDashboardSection(title = "Müşteri") {
+                AppDashboardSection(title = "Müşteri",modifier=Modifier.guideTourTarget("ticket-customer").guideTourTarget("customer-contact")) {
                     AppGhostCard {
                         Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                             DetailRow(
@@ -279,6 +286,7 @@ fun TicketDetailScreen(
             item {
                 AppDashboardSection(
                     title = "Kullanılan Parçalar",
+                    modifier=Modifier.guideTourTarget("ticket-parts"),
                     subtitle = if (uiState.usedParts.isEmpty()) null else "${uiState.usedParts.size} kalem"
                 ) {
                     if (uiState.usedParts.isEmpty()) {
@@ -323,7 +331,7 @@ fun TicketDetailScreen(
             item {
                 var newTechnicianNote by remember(ticketId) { mutableStateOf("") }
                 var importantNote by remember(ticketId) { mutableStateOf(false) }
-                AppDashboardSection(title = "Teknisyen Notları") {
+                AppDashboardSection(title = "Teknisyen Notları",modifier=Modifier.guideTourTarget("ticket-notes")) {
                     AppGhostCard {
                         Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                             if (uiState.technicianNotes.isEmpty()) {
@@ -374,7 +382,7 @@ fun TicketDetailScreen(
             }
 
             item {
-                AppDashboardSection(title = "Durum ve Kapatma") {
+                AppDashboardSection(title = "Durum ve Kapatma",modifier=Modifier.guideTourTarget("ticket-status")) {
                     AppGhostCard {
                         Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                             Text(
@@ -465,6 +473,7 @@ fun TicketDetailScreen(
             item {
                 AppDashboardSection(
                     title = "Fiş Geçmişi",
+                    modifier=Modifier.guideTourTarget("ticket-history"),
                     subtitle = if (uiState.ticketTimeline.isEmpty()) null else "${uiState.ticketTimeline.size} kayıt"
                 ) {
                     if (uiState.timelineLoading) {
@@ -534,7 +543,7 @@ fun TicketDetailScreen(
             }
 
             item {
-                AppDashboardSection(title = "İşlemler") {
+                AppDashboardSection(title = "İşlemler",modifier=Modifier.guideTourTarget("ticket-actions")) {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),

@@ -90,6 +90,7 @@ struct TicketListView: View {
             }
             .background(PusulaTheme.page)
             .accessibilityIdentifier("ticket.filters")
+            .guideTourTarget("ticket-filters")
             .onboardingTarget(.ticketFilters)
 
             ticketSearchAndDateFilter
@@ -134,7 +135,7 @@ struct TicketListView: View {
                         if !isSyntheticTicketList { selectedTicket = row.ticket }
                     }
                 }
-                .listStyle(.plain)
+                .listStyle(.plain).guideTourTarget("ticket-list")
                 .refreshable { await loadTickets(refresh: true) }
             }
         }
@@ -151,6 +152,7 @@ struct TicketListView: View {
         .task(id: pendingTicketTrigger) { await openPendingTicket() }
         .onAppear {
             isScreenVisible = true
+            guard !GuideReadOnlyGate.shared.isActive else { return }
             if let filter = requestedFilter ?? AppNavigation.shared.consumeOperationFilter(),
                availableFilters.contains(filter) {
                 selectedFilter = filter
@@ -977,6 +979,7 @@ struct CreateTicketSheet: View {
                         Label("Yeni Müşteri Oluştur", systemImage: "person.badge.plus")
                     }
                 }
+                .guideTourTarget("create-customer")
                 
                 Section("İş Detayı") {
                     TextField("Açıklama", text: $description, axis: .vertical)
@@ -984,6 +987,7 @@ struct CreateTicketSheet: View {
                     TextField("Notlar (opsiyonel)", text: $notes, axis: .vertical)
                         .lineLimit(2...4)
                 }
+                .guideTourTarget("create-description")
 
                 Section("Planlanan Zaman") {
                     DatePicker("Servis tarihi", selection: $scheduledDay, displayedComponents: .date)
@@ -1011,6 +1015,7 @@ struct CreateTicketSheet: View {
                 }
             }
             .pusulaKeyboardDismissal()
+            .guideTourScrollable()
             .navigationTitle("Servis Fişi Oluştur")
             .interactiveDismissDisabled(isSaving)
             .navigationBarTitleDisplayMode(.inline)
@@ -1020,6 +1025,7 @@ struct CreateTicketSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Oluştur") { Task { await createTicket() } }
+                        .guideTourTarget("create-save")
                         .disabled(selectedCustomerId == nil || description.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
                 }
             }

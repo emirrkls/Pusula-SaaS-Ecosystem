@@ -19,7 +19,7 @@ data class SupportState(val contact:SupportContact=SupportContact(),val authenti
         autosave?.cancel();actor=session.state.value;mutable.value=SupportState();val captured=actor!!
         key=captured.token?.let{repository.accountKey(it,captured.companyId)}
         mutable.update{it.copy(authenticated=captured.isAuthenticated,accountPartition=key.orEmpty())}
-        val saved=key?.let{repository.load(it)}
+        val saved=if(com.pusula.service.core.GuideReadOnlyGate.active.value) null else key?.let{repository.load(it)}
         if(!current(captured))return
         if(saved!=null) mutable.update{it.copy(draft=saved,composer=saved.hasContent)}
         runCatching{repository.api.contact()}.onSuccess{if(current(captured)) mutable.update {s->s.copy(contact=it)}}.onFailure{if(it !is CancellationException) mutable.update{s->s.copy(error="Bağlantı kurulamadı. Taslak korunuyor; e-posta ile de ulaşabilirsiniz.")}}

@@ -59,6 +59,7 @@ struct CustomerView: View {
             }
             .clipShape(RoundedRectangle(cornerRadius: PusulaTheme.radius))
             .padding()
+            .guideTourTarget("customer-search")
             
             // Keep the refreshable List mounted while its refresh action runs.
             // Replacing it with a spinner cancels the action that owns the read.
@@ -82,6 +83,7 @@ struct CustomerView: View {
             // Pull-to-refresh must also be reachable for an empty/short list.
             .scrollBounceBehavior(.always, axes: .vertical)
             .accessibilityIdentifier("customers.list")
+            .guideTourTarget("customer-list")
             .refreshable { await load() }
             .overlay {
                 if !hasLoaded && (refreshRequest.isLoading || (!hasAttemptedLoad && readSnapshot != nil)) {
@@ -300,7 +302,7 @@ struct CustomerView: View {
 }
 
 @MainActor
-private struct CustomerDetailSheet: View {
+struct CustomerDetailSheet: View {
     let customer: CustomerDTO
 #if DEBUG
     var readFixture: CustomerRefreshFixture? = nil
@@ -347,6 +349,7 @@ private struct CustomerDetailSheet: View {
                     }
                 }
 
+                .guideTourTarget("customer-contact")
                 if !isReadFixture, session.isAdmin, let customerId = customer.id {
                     Section("WhatsApp Bilgilendirme") {
                         CustomerWhatsAppConsentSection(customerId: customerId)
@@ -411,6 +414,8 @@ private struct CustomerDetailSheet: View {
                     }
                 }
             }
+            .guideTourTarget("customer-history")
+            .guideTourScrollable()
             .navigationTitle(customer.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -767,6 +772,7 @@ struct CustomerEditorSheet: View {
                 TextField("Telefon", text: $phone).keyboardType(.phonePad)
                 TextField("Adres", text: $address, axis: .vertical).lineLimit(2...4)
             }
+            .guideTourTarget("customer-fields")
             .pusulaKeyboardDismissal()
             .navigationTitle(customer == nil ? "Yeni Müşteri" : "Müşteri Düzenle")
             .interactiveDismissDisabled(isSaving)

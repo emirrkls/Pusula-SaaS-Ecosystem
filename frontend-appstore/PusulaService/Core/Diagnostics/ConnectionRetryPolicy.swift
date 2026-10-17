@@ -44,6 +44,7 @@ enum ConnectionReliableTransport {
                      session: URLSession = .shared, store: ConnectionDiagnosticsStore = .shared,
                      interface: ConnectionInterface = .unknown, appState: ConnectionAppState = .unknown,
                      backoffNanoseconds: UInt64 = 350_000_000,
+                     beforeSend: @Sendable () throws -> Void = {},
                      mayRetry: @Sendable () async -> Bool = { true }) async throws -> (Data, URLResponse) {
         let replayable = ConnectionRetryPolicy.permitsReplay(request)
         for attempt in 0...1 {
@@ -53,7 +54,7 @@ enum ConnectionReliableTransport {
                 // already-encoded body (including multipart boundary) stay identical.
                 let result = try await ConnectionDiagnosticsTransport.data(for: request,
                     operation: operation, session: session, store: store,
-                    interface: interface, appState: appState)
+                    interface: interface, appState: appState, beforeSend: beforeSend)
                 if attempt == 0 && replayable && ConnectionRetryPolicy.isTransient(result.1) {
                     guard await mayRetry() else { throw CancellationError() }
                     try await Task.sleep(nanoseconds: backoffNanoseconds)

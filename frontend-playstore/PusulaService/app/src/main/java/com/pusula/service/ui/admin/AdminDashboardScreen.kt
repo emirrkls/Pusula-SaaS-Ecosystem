@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.pusula.service.ui.guide.guideTourTarget
 import com.pusula.service.data.model.QuotaItem
 import com.pusula.service.ui.components.AppDashboardSection
 import com.pusula.service.ui.components.AppDestructiveButton
@@ -64,7 +65,7 @@ fun AdminDashboardScreen(
         if (!embedded) viewModel.loadDashboard()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().guideTourTarget("overview")) {
         Column(modifier = Modifier.fillMaxSize()) {
             if (!embedded) {
                 TopAppBar(

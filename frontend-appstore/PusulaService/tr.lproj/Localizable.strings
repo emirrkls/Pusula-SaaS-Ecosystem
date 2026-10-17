@@ -189,3 +189,14 @@
 "support.value.NORMAL" = "Normal";
 "support.value.HIGH" = "Yüksek";
 "support.value.URGENT" = "Acil";
+"support.hub.brand" = "PUSULA DESTEK";
+"support.hub.heading" = "Nasıl yardımcı olabiliriz?";
+"support.hub.subtitle" = "Sorularınızı, hata bildirimlerinizi ve önerilerinizi tek yerden takip edin.";
+"support.hub.requests" = "Talepleriniz";
+"support.hub.empty_hint" = "İlk talebinizi oluşturun; ekibimizin yanıtlarını burada takip edin.";
+"support.hub.unread" = "Yeni yanıt";
+"support.hub.other_channels" = "E-posta ile ulaşın";
+"support.hub.email_hint" = "Talep merkezine erişemediğinizde bu adresi kullanabilirsiniz.";
+"support.hub.compose_hint" = "Konuyu kısaca belirtin ve nasıl yardımcı olabileceğimizi anlatın.";
+"support.hub.reply_hint" = "Yanıtınız bu talebin konuşmasına eklenecek.";
+"support.hub.attachments" = "Ekler · İsteğe bağlı";

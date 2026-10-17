@@ -8,7 +8,14 @@ import java.util.Base64
 import java.util.Locale
 
 data class GuideCategory(val id: String, val title: String, val summary: String)
-data class GuideStep(val title: String, val body: String)
+data class GuideTourRoute(val screen: String, val target: String) {
+    fun needsTicket(role: String) = screen in setOf("ticketDetail", "reschedule", "photos", "signature", "collection", "organizations") || screen == "customerContact" && role == "TECHNICIAN"
+    fun needsCustomer(role: String) = screen == "customerDetail" || screen == "customerContact" && role != "TECHNICIAN"
+    companion object {
+        val screens = setOf("home", "customers", "customerForm", "customerDetail", "customerContact", "tickets", "ticketCreate", "ticketDetail", "reschedule", "photos", "photosArchive", "signature", "parts", "collection", "catalog", "proposals", "finance", "expenses", "accounts", "organizations", "debts", "fixedExpenses", "assets", "reports", "profit", "team", "vehicles", "company", "radar", "network", "notifications", "profile", "plans", "login", "register", "desktopPassword", "support", "supportForm", "diagnostics")
+    }
+}
+data class GuideStep(val title: String, val body: String, val tour: GuideTourRoute)
 data class GuideTopic(
     val id: String, val category: String, val title: String, val summary: String,
     val revision: Int, val roles: List<String>, val platforms: List<String>,
@@ -48,7 +55,11 @@ data class GuideCatalog(val schemaVersion: Int, val revision: Int, val categorie
                 require(platforms.isNotEmpty() && platforms.all { it in listOf("ios", "android") })
                 require(platforms.all { t.getAsJsonObject("locations")[it].asString.isNotBlank() })
                 require(t.getAsJsonArray("steps").size() in 2..6)
-                t.getAsJsonArray("steps").forEach { require(it.asJsonObject["title"].asString.isNotBlank() && it.asJsonObject["body"].asString.isNotBlank()) }
+                t.getAsJsonArray("steps").forEach {
+                    require(it.asJsonObject["title"].asString.isNotBlank() && it.asJsonObject["body"].asString.isNotBlank())
+                    val tour = it.asJsonObject.getAsJsonObject("tour")
+                    require(tour["screen"].asString in GuideTourRoute.screens && tour["target"].asString.matches(Regex("[a-z][a-z-]{0,60}")))
+                }
                 t["isNew"].asBoolean
             }
             return Gson().fromJson(root, GuideCatalog::class.java)

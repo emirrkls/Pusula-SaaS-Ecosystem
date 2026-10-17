@@ -21,14 +21,13 @@ import SwiftUI
         for role in ["COMPANY_ADMIN", "SUPER_ADMIN", "TECHNICIAN"] { defaults.removeObject(forKey: "pusula.guide.\(scope).\(role)") }
     }
 }
-
 struct GuideCenterDestination: View {
     @ObservedObject private var session = SessionManager.shared
     var body: some View {
         Group {
 #if DEBUG
             if GuideFlowFixture.isEnabled {
-                GuideCenterView(scope: GuideFlowFixture.scope, role: GuideFlowFixture.role, features: [:], defaults: GuideFlowFixture.defaults)
+                GuideCenterView(scope: GuideFlowFixture.scope, role: GuideFlowFixture.role, features: GuideFlowFixture.features, defaults: GuideFlowFixture.defaults)
             } else { authenticatedGuide }
 #else
             authenticatedGuide
@@ -56,6 +55,7 @@ struct GuideCenterView: View {
     @State private var unfinishedOnly = false
     @State private var selectedTopic: GuideTopic?
     @State private var isLessonPresented = false
+    @State private var tourLease: UUID?
     @FocusState private var searchFocused: Bool
     init(scope: String, role: String, features: [String: Bool], defaults: UserDefaults = .standard) {
         self.role = role; self.features = features
@@ -146,17 +146,17 @@ struct GuideCenterView: View {
         .navigationTitle("Uygulama Rehberi")
         .pusulaKeyboardDismissal()
         .task { await load() }
-        // A pushed lesson owns the normal destination safe area, including at
-        // accessibility text sizes. Search focus is explicitly released below.
-        .navigationDestination(isPresented: $isLessonPresented) {
-            if let topic = selectedTopic {
-                GuideLessonView(topic: topic, progress: progress).id(topic.id)
+        .fullScreenCover(isPresented:$isLessonPresented,onDismiss:{GuideTourRuntime.shared.end(tourLease);tourLease=nil}) {
+            if let topic=selectedTopic,let lease=tourLease {
+                GuideTourHost(topic:topic,progress:progress,role:role,features:features,lease:lease).id(topic.id)
             }
         }
     }
     private func open(_ topic: GuideTopic) {
         searchFocused = false
         PusulaKeyboard.dismiss()
+        guard let lease=GuideTourRuntime.shared.begin() else{return}
+        tourLease=lease
         selectedTopic = topic
         isLessonPresented = true
     }
@@ -175,43 +175,4 @@ struct GuideCenterView: View {
         guard !Task.isCancelled else { return }
         catalog = loaded; loadFailed = loaded == nil
     }
-}
-
-private struct GuideLessonView: View {
-    let topic: GuideTopic
-    @ObservedObject var progress: GuideProgressStore
-    @State private var cursor: GuideCursor
-    @Environment(\.dismiss) private var dismiss
-    init(topic: GuideTopic, progress: GuideProgressStore) {
-        self.topic = topic; self.progress = progress
-        _cursor = State(initialValue: GuideCursor(count: topic.steps.count, index: progress.record(topic).startIndex(topic)))
-    }
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                Text(topic.locations["ios"] ?? "").font(.subheadline).foregroundStyle(PusulaTheme.accent)
-                Text(topic.steps[cursor.index].title).font(.title2.bold()).accessibilityIdentifier("guide.step.title")
-                Text(topic.steps[cursor.index].body).font(.body).fixedSize(horizontal: false, vertical: true)
-                Label("Bu anlatım gerçek bir işlem gerçekleştirmez.", systemImage: "info.circle").font(.caption).foregroundStyle(.secondary)
-            }.padding()
-        }
-        .navigationTitle(topic.title).navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Kapat") { dismiss() }.accessibilityIdentifier("guide.close") } }
-        .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 12) {
-                Text("\(cursor.index + 1) / \(cursor.count)").font(.caption.monospacedDigit()).accessibilityIdentifier("guide.step.progress")
-                HStack {
-                    Button("Geri") { cursor.back(); save() }.buttonStyle(.bordered).disabled(cursor.index == 0).accessibilityIdentifier("guide.back")
-                    Spacer()
-                    Button(cursor.isLast ? "Bitir" : "Devam") {
-                        let completed = cursor.advance()
-                        progress.save(topic, index: cursor.index, completed: completed)
-                        if completed { dismiss() }
-                    }.buttonStyle(.borderedProminent).accessibilityIdentifier("guide.next")
-                }
-            }.padding().background(.regularMaterial)
-        }
-        .onDisappear { save() }
-    }
-    private func save() { progress.save(topic, index: cursor.index) }
 }

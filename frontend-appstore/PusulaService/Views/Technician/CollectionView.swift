@@ -8,6 +8,9 @@ struct CollectionView: View {
     // dismissal or turn a successful payment into a replayable failure.
     let onComplete: @MainActor (FieldTicketDTO) -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.guideTourMode) private var guideTourMode
+    @Environment(\.guideTourFocus) private var guideFocus
+    @State private var extrasExpanded = false
     @State private var laborFee = ""
     @State private var collectedAmount = ""
     @State private var selectedMethod: PaymentMethodOption = .cash
@@ -85,10 +88,11 @@ struct CollectionView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         Text("Servis fişi #\(ticket.id) · \(ticket.customerName ?? "Müşteri")")
                             .font(.subheadline).foregroundStyle(.secondary)
-                        feesCard
-                        organizationCard
-                        collectionCard
-                        DisclosureGroup("Kapanış notu ve garanti") {
+                        feesCard.guideTourTarget("collection-fees").guideTourTarget("collection-discount")
+                            .guideTourTarget("collection-summary")
+                        organizationCard.guideTourTarget("collection-allocation")
+                        collectionCard.guideTourTarget("collection-payment")
+                        DisclosureGroup("Kapanış notu ve garanti",isExpanded:$extrasExpanded) {
                             VStack(alignment: .leading, spacing: 12) {
                                 TextField("Yapılan işlem / kapanış notu", text: $technicianNote, axis: .vertical)
                                     .lineLimit(2...6).textFieldStyle(.roundedBorder)
@@ -97,7 +101,7 @@ struct CollectionView: View {
                                 Text("İşletme garantisinde satış oluşmaz; kurum garantisinde fişin tamamı kurum carisine yazılır. Ücretsiz normal işlem için iskonto kullanın.")
                                     .font(.caption).foregroundStyle(.secondary)
                             }.padding(.top, 8)
-                        }.pusulaCard()
+                        }.pusulaCard().guideTourTarget("collection-warranty")
                         if let previous = ticket.customerBalance, previous != 0 {
                             Text("Önceki cari bakiye: \(money(Decimal(string: String(previous)) ?? 0)). Bu fişin toplamına dahil değildir.")
                                 .font(.caption).foregroundStyle(.secondary)
@@ -115,6 +119,7 @@ struct CollectionView: View {
                     }.padding().disabled(!submission.canEdit)
                 }
                 .accessibilityIdentifier("collection.form")
+                .guideTourScrollable()
                 // Keep hit-testing and accessibility frames out of the fixed
                 // action's area, including on compact phones and with a keyboard.
                 submitFooter
@@ -131,7 +136,17 @@ struct CollectionView: View {
                 Text("Kurum carisine: \(money(organization))\nMüşteri carisine: \(money(totals?.customerDebt ?? 0))")
             }
             .task { await loadOrganizations() }
+            .onAppear { revealGuideSection() }
+            .onChange(of:guideFocus) { _,_ in revealGuideSection() }
         }
+    }
+
+    private func revealGuideSection() {
+        guard guideTourMode else{return}
+        // Presentation state only; no amount is invented, saved or submitted.
+        if guideFocus == "collection-discount" { discountEnabled=true;warranty=false }
+        if guideFocus == "collection-allocation" { transferToOrganization=true }
+        if guideFocus == "collection-warranty" { extrasExpanded=true }
     }
 
     private var submitFooter: some View {

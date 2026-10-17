@@ -91,8 +91,8 @@ struct TicketDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                heroCard
-                customerCard
+                heroCard.guideTourTarget("ticket-schedule")
+                customerCard.guideTourTarget("ticket-customer").guideTourTarget("customer-contact")
                 
                 if let desc = currentTicket.description, !desc.isEmpty {
                     infoCard(title: "İş Açıklaması", icon: "doc.text", content: desc)
@@ -102,7 +102,7 @@ struct TicketDetailView: View {
                     infoCard(title: "Teknisyene Özel Not", icon: "lock.fill", content: privateNote)
                 }
 
-                statusSection
+                statusSection.guideTourTarget("ticket-status")
 
                 if let progressReasonTitle {
                     VStack(alignment: .leading, spacing: 8) {
@@ -129,22 +129,25 @@ struct TicketDetailView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 
-                partsSection
+                partsSection.guideTourTarget("ticket-parts")
                 if currentTicket.statusEnum == .completed { financialSummarySection }
-                technicianNotesSection
-                timelineSection
+                technicianNotesSection.guideTourTarget("ticket-notes")
+                timelineSection.guideTourTarget("ticket-history")
                 
                 if isEditable {
                     quickActionsGrid
+                        .guideTourTarget("ticket-actions")
                         .disabled(isSavingTechnicianNote)
                     primaryActions
                         .disabled(isSavingTechnicianNote)
                 } else {
                     secondaryActions
+                        .guideTourTarget("ticket-actions")
                 }
             }
             .padding()
         }
+        .guideTourScrollable()
         .background(PusulaTheme.page)
         .pusulaKeyboardDismissal()
         .navigationTitle("İş Emri #\(ticket.id)")
@@ -272,6 +275,7 @@ struct TicketDetailView: View {
     }
 
     private func acknowledgeRepeatNotification() {
+        guard !GuideReadOnlyGate.shared.isActive else { return }
         guard let request = navigation.pendingTicketRequest,
               request.ticketId == ticket.id,
               navigation.ticketQueue.matches(request, companyId: SessionManager.shared.companyId)

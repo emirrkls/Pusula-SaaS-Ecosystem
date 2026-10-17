@@ -1,7 +1,6 @@
 package com.pusula.service.ui.technician
 
 import android.Manifest
-import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,6 +22,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,10 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.pusula.service.ui.guide.guideTourTarget
 import coil.compose.AsyncImage
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -61,9 +65,6 @@ import com.pusula.service.ui.theme.AccentPurple
 import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.util.ImageUploadHelper
 import java.io.File
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.asRequestBody
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -76,21 +77,32 @@ fun ServicePhotoScreen(
     val uiState by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
     val context = LocalContext.current
+    val appContext = context.applicationContext
     var pendingType by remember { mutableStateOf("BEFORE") }
     var pendingNote by remember { mutableStateOf("") }
     var categoryMenuExpanded by remember { mutableStateOf(false) }
     var showSourcePicker by remember { mutableStateOf(false) }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
     var cameraFile by remember { mutableStateOf<File?>(null) }
+    var showLeaveWarning by remember { mutableStateOf(false) }
+    val locked = uiState.photoUploading || uiState.photoBatch.pending > 0
+    val leave: () -> Unit = {
+        if (!uiState.photoUploading) {
+            if (uiState.photoBatch.pending > 0) showLeaveWarning = true else onBack()
+        }
+    }
     val cameraPermission = rememberPermissionState(Manifest.permission.CAMERA)
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         val uri = cameraUri
         val file = cameraFile
         if (success && (file != null || uri != null)) {
-            createMultipartFromUri(context, uri, file, "file")?.let { part ->
-                viewModel.uploadServicePhoto(ticketId, pendingType, pendingNote, part)
-            } ?: viewModel.reportPhotoPrepareError()
+            val source = file?.let { Uri.fromFile(it) } ?: uri!!
+            viewModel.uploadServicePhotos(ticketId, pendingType, pendingNote, listOf(source)) { selected ->
+                ImageUploadHelper.prepareForUpload(appContext, selected)?.also { file?.delete() }
+            }
+        } else {
+            file?.delete()
         }
         cameraUri = null
         cameraFile = null
@@ -116,17 +128,25 @@ fun ServicePhotoScreen(
         }
     }
 
-    val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) {
-            createMultipartFromUri(context, uri, sourceFile = null, partName = "file")?.let { part ->
-                viewModel.uploadServicePhoto(ticketId, pendingType, pendingNote, part)
-            } ?: viewModel.reportPhotoPrepareError()
+    val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
+        if (uris.isNotEmpty()) {
+            viewModel.uploadServicePhotos(ticketId, pendingType, pendingNote, uris) { selected ->
+                ImageUploadHelper.prepareForUpload(appContext, selected)
+            }
         }
     }
 
     LaunchedEffect(ticketId) { viewModel.loadServicePhotos(ticketId) }
 
-    BackHandler(onBack = onBack)
+    BackHandler(onBack = leave)
+
+    if (showLeaveWarning) {
+        AlertDialog(onDismissRequest = { showLeaveWarning = false },
+            title = { Text("Yüklenemeyen görseller var") },
+            text = { Text("Yüklenenler korunur. Yanıtı alınamayan bir görsel kaydedilmiş olabilir. Çıkarsanız yeniden eklemeden önce görsel listesini kontrol edin.") },
+            confirmButton = { TextButton(onClick = { viewModel.abandonServicePhotos(); showLeaveWarning = false; onBack() }) { Text("Bekleyenleri Bırak ve Çık") } },
+            dismissButton = { TextButton(onClick = { showLeaveWarning = false }) { Text("Burada Kal") } })
+    }
 
     if (showSourcePicker) {
         ImageSourcePickerDialog(
@@ -148,16 +168,18 @@ fun ServicePhotoScreen(
         )
     }
 
-    Scaffold(topBar = { AppTopBar(title = "Servis Görselleri", onBack = onBack) }) { padding ->
-        Column(
+    Scaffold(topBar = { AppTopBar(title = "Servis Görselleri", onBack = leave) }) { padding ->
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
+          item {
+           Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             Box(modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = { categoryMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = { categoryMenuExpanded = true }, enabled = !locked, modifier = Modifier.fillMaxWidth()) {
                     Text("Kategori: ${servicePhotoTypeLabel(pendingType)}")
                 }
                 DropdownMenu(expanded = categoryMenuExpanded, onDismissRequest = { categoryMenuExpanded = false }) {
@@ -175,16 +197,21 @@ fun ServicePhotoScreen(
                 label = { Text("Görsel notu") },
                 placeholder = { Text("Örn. İç ünite 2, seri no 12345") },
                 minLines = 2,
+                enabled = !locked,
                 modifier = Modifier.fillMaxWidth()
             )
             Button(
                 onClick = { showSourcePicker = true },
-                modifier = Modifier.fillMaxWidth().readOnlyProtected(session.isReadOnly)
+                enabled = !locked,
+                modifier = Modifier.fillMaxWidth().guideTourTarget("photo-add").readOnlyProtected(session.isReadOnly)
             ) { Text("Kamera veya Galeriden Görsel Ekle") }
+            Text("Galeriden en fazla 10 görsel seçebilirsiniz. Kategori ve not tüm seçilenlere uygulanır.", style = MaterialTheme.typography.bodySmall)
+           }
+          }
 
-            if (uiState.photoUploading || uiState.photosLoading) {
-                CircularProgressIndicator()
-            }
+          item {
+            ServicePhotoBatchStatus(uiState.photoBatch, uiState.photoUploading, !session.isReadOnly) { viewModel.retryServicePhotos(ticketId) }
+            if (uiState.photosLoading) CircularProgressIndicator()
 
             uiState.error?.let { message ->
                 Text(
@@ -193,18 +220,20 @@ fun ServicePhotoScreen(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
+          }
 
             if (uiState.servicePhotos.isEmpty() && !uiState.photosLoading) {
+              item {
                 AppEmptyState(
                     title = "Görsel eklenmemiş",
                     subtitle = "Cihaz etiketi, seri numarası, arıza detayı veya işlem görseli ekleyebilirsiniz.",
                     icon = Icons.Outlined.Image,
                     tint = AccentPurple
                 )
+              }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     items(uiState.servicePhotos, key = { it.id }) { photo ->
-                        AppGhostCard {
+                        AppGhostCard(modifier = Modifier.guideTourTarget("photo-list")) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(Spacing.md)
@@ -231,6 +260,7 @@ fun ServicePhotoScreen(
                                 }
                                 OutlinedButton(
                                     onClick = { viewModel.deleteServicePhoto(ticketId, photo.id) },
+                                    enabled = !uiState.photoUploading,
                                     modifier = Modifier.readOnlyProtected(session.isReadOnly)
                                 ) {
                                     Icon(Icons.Outlined.Delete, contentDescription = null)
@@ -240,11 +270,29 @@ fun ServicePhotoScreen(
                             }
                         }
                     }
-                }
             }
 
-            Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
-                Text("Geri Dön")
+            item {
+                Button(onClick = { if (uiState.photoBatch.pending > 0) showLeaveWarning = true else onDone() },
+                    enabled = !uiState.photoUploading, modifier = Modifier.fillMaxWidth()) { Text("Geri Dön") }
+            }
+        }
+    }
+}
+@Composable
+internal fun ServicePhotoBatchStatus(progress: PhotoBatchProgress, uploading: Boolean, canRetry: Boolean = true, onRetry: () -> Unit) {
+    if (progress.total == 0) return
+    AppGhostCard {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Text("${progress.confirmed} / ${progress.total} görsel yüklendi", style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.testTag("photos.batch.summary"))
+            if (uploading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Text("${progress.current} / ${progress.total} işleniyor… Lütfen bu ekranı açık tutun.", style = MaterialTheme.typography.bodySmall)
+            } else if (progress.pending > 0) {
+                Text("${progress.pending} görsel teyit edilemedi. Yüklenenler tekrar gönderilmez.", style = MaterialTheme.typography.bodySmall)
+                progress.failures.forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                Button(onClick = onRetry, enabled = canRetry, modifier = Modifier.testTag("photos.batch.retry")) { Text("Yüklenemeyenleri Tekrar Dene") }
             }
         }
     }
@@ -266,20 +314,4 @@ private fun fullPhotoUrl(url: String): String {
     } else {
         BuildConfig.API_BASE_URL.removeSuffix("/") + url
     }
-}
-
-private fun createMultipartFromUri(
-    context: Context,
-    uri: Uri?,
-    sourceFile: File?,
-    partName: String
-): MultipartBody.Part? {
-    val prepared = when {
-        sourceFile != null && sourceFile.exists() && sourceFile.length() > 0L ->
-            ImageUploadHelper.prepareForUpload(context, Uri.fromFile(sourceFile), sourceFile)
-        uri != null -> ImageUploadHelper.prepareForUpload(context, uri)
-        else -> null
-    } ?: return null
-    val requestBody = prepared.asRequestBody("image/jpeg".toMediaTypeOrNull())
-    return MultipartBody.Part.createFormData(partName, "photo.jpg", requestBody)
 }

@@ -4,6 +4,22 @@ iOS ve Android kapsamındadır; masaüstü turu değiştirilmez. İncelemedeki b
 
 ## İçerik ve kullanım
 
+### Gerçek ekran turu revizyonu — yerel çalışma, 17 Ekim
+
+Build 67'deki dersler metin sayfasıydı; arkada uygulama ekranı çizilmediği için koyu temada büyük boş alan oluşuyordu. Yeni revizyon, üretimde kullanılan SwiftUI/Compose ekranlarını salt okunur bir tur katmanında açar. iOS'ta hesap sekmesinin üzerinde tam ekran sunulur; Devam/Geri ayrı alt alandadır. Kayıt gerektiren adımda mevcut müşteri veya servis fişini kullanıcı seçer; ilk kayıt kendiliğinden seçilmez, tur için kayıt oluşturulmaz. İlgili bölüm gerçek yerleşimden vurgulanır/kaydırılır. İskonto/kurum/garanti açıklamalarında yalnız geçici form görünümü açılır; tutar uydurulmaz ve form gönderilmez.
+
+Tur açıkken gerçek ekranın dokunma ve erişilebilirlik eylemleri kapalıdır. Ortak ağ katmanında GET/HEAD dışındaki istekler reddedilir; ilk fiziksel gönderim ve tekrar denemeler de kontrol edilir. Android'in ayrı destek istemcisi aynı kapıyı kullanır. Bağımsız yaşam döngüsü anahtarları eski bir kapatma olayının başka turu açığa çıkarmasını engeller. Destek turu gerçek taslağı geri yüklemez veya üzerine yazmaz. iOS bildirim yönlendirmesi tur bitene kadar bekler. Bu koruma sunucu yetkilerinin yerine geçmez ve paket/yetki kazandırmaz.
+
+`tour.screen` / `tour.target` tüm 156 adımda kanonik katalogdan gelir. `node scripts/sync-mobile-tour.cjs` ve `node scripts/sync-mobile-guide.cjs --check` eşleşmeyi denetler. Android'de henüz gerçek hedefi bulunmayan yeniden planlama, tedarikçi borçları ve işletme mülkiyeti konuları yalnız iOS'ta gösterilir; ilgisiz bir finans sekmesine yönlendirilmez. Android müşteri geçmişi turu gerçek iş emri listesini seçilen müşteri kimliğine göre salt okunur süzer.
+
+Konu listesi çevrimdışı çalışır; gerçek kayıt ekranlarının canlı okuma için bağlantıya ihtiyacı vardır. Okuma hatasında sahte kayıt veya başarılı işlem gösterilmez. Testler çevrimdışı sentetik içerik/taşıma sınırları kullanır; gerçek sunucuya veya gerçek kayıtlara yazmaz.
+
+Bu revizyon için yeni TestFlight/Release dağıtımı yapılmadı. Build 67'nin aşağıdaki geçmiş test sonuçları yeni revizyonun iOS doğrulaması değildir. Yeni Swift paket ve iPhone/iPad arayüz kapıları Xcode Cloud'da ayrıca çalıştırılmalıdır; bu Windows ortamında Swift/Xcode yoktur. GitHub Actions, backend ve incelemedeki build 54 değiştirilmedi.
+
+Yerel doğrulama: 77 yapısal kontrolde 76 geçti, ayrı yönetim paneli çalışma kopyasına bağlı 1 kontrol koşullu atlandı; hata yok. Android Debug uygulama/test paketleri derlendi; 22 birim testi ve son çalıştırmada 9 arayüz testi geçti (API 36 / 16 KB, 4 GiB test belleği). Rehber çerçevesinin çevrimdışı testine ek olarak gerçek Hilt/üretim ekranı entegrasyonu çalıştırıldı; bu test başlamadan tüm uygulama HTTP'si engellenir ve gerçek oturum kurulmaz. Eksik kayıt bağlamında Devam kapalıdır; kayıt otomatik seçilmez.
+
+Başarısız denemeler gizlenmedi: eski API 35 emülatöründe süreç kapanışı/SIGSEGV; temiz API 36'da yetersiz test belleği; gerçek müşteri ekranı testinde doğrudan `layoutInfo` gözleminin oluşturduğu yeniden çizim döngüsü görüldü. Döngü `derivedStateOf` ile yalnız kalem sayısını gözleyerek düzeltildi ve aynı gerçek ekran testi geçti. Büyük yazı testinde ayrıca platform klavye animasyonu sırasında farklı anlardan ölçüm alma yarışı ayrıştırıldı; klavyenin kapalı ve iki çerçevenin kararlı olması beklenir, görünürlük sınırları gevşetilmez. Son dokuz senaryonun tamamı geçti. Bunlar gerçek cihaz/paket satın alma/ağ güzergâhı testlerinin yerine geçmez.
+
 Hesap ekranındaki **Uygulama Rehberi**; 10 kategori, 56 konu ve 156 kısa adımdan oluşur. Yönetici / teknisyen ve iOS / Android filtreleri gerçek yeteneklere göre uygulanır. Arama Türkçe karakter ve büyük-küçük harf farklarını tolere eder. Hızlı Başlangıç, konu seçimi, tamamlanmayanlar ve kaldığı yerden devam desteklenir. Paket gerektiren özellikler bilgilendirme olarak görülebilir; rehber yetki veya satın alma engelini kaldırmaz.
 
 Rehber kayıt oluşturmaz, ödeme almaz, mesaj göndermez veya rastgele bir müşteri fişini açmaz. Henüz sunulmayan özellikler (örneğin bakım planlama) mevcut özellikmiş gibi anlatılmaz.

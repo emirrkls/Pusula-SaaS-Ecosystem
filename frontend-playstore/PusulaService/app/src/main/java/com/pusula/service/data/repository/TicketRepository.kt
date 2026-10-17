@@ -72,11 +72,15 @@ class TicketRepository @Inject constructor(
 
     suspend fun uploadServicePhoto(
         ticketId: Long,
+        key: String,
+        token: String,
         type: String,
         note: String,
         filePart: MultipartBody.Part
     ): ServicePhotoDTO = apiService.uploadServicePhoto(
         ticketId = ticketId,
+        key = key,
+        authorization = "Bearer $token",
         type = type.toRequestBody("text/plain".toMediaType()),
         note = note.toRequestBody("text/plain".toMediaType()),
         file = filePart

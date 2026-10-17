@@ -13,7 +13,6 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,6 +32,8 @@ import androidx.compose.runtime.setValue
 import com.pusula.service.data.model.CustomerDTO
 import com.pusula.service.data.model.TechnicianDTO
 import com.pusula.service.ui.theme.Spacing
+import com.pusula.service.ui.guide.TourAwareAlertDialog as AlertDialog
+import com.pusula.service.ui.guide.guideTourTarget
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +92,7 @@ fun CreateTicketFromOperationDialog(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = customerExpanded) },
                         modifier = Modifier
                             .menuAnchor(type = MenuAnchorType.PrimaryEditable)
+                            .guideTourTarget("create-customer")
                             .fillMaxWidth()
                     )
                     ExposedDropdownMenu(
@@ -136,7 +138,7 @@ fun CreateTicketFromOperationDialog(
                     onValueChange = { description = it },
                     label = { Text("Servis fişi açıklaması") },
                     leadingIcon = { Icon(Icons.Outlined.Receipt, contentDescription = null) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().guideTourTarget("create-description")
                 )
                 OutlinedTextField(
                     value = notes,

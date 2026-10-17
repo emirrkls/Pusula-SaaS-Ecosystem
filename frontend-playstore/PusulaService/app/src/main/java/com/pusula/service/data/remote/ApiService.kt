@@ -149,9 +149,11 @@ interface ApiService {
     suspend fun uploadSignature(@Path("id") ticketId: Long, @Body request: SignatureRequest)
 
     @Multipart
-    @POST("/api/tickets/{id}/photos")
+    @POST("/api/reliable-mutations/tickets/{id}/photos")
     suspend fun uploadServicePhoto(
         @Path("id") ticketId: Long,
+        @Header("Idempotency-Key") key: String,
+        @Header("Authorization") authorization: String,
         @Part("type") type: okhttp3.RequestBody,
         @Part("note") note: okhttp3.RequestBody,
         @Part file: MultipartBody.Part

@@ -26,8 +26,11 @@ import com.pusula.service.data.model.guide.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+typealias GuideTourRenderer = @Composable (GuideTopic,Int,Map<String,Boolean>,String,()->Unit,()->Unit,()->Unit)->Unit
+private val productionTour:GuideTourRenderer = { t,i,f,r,n,b,c -> GuideTourHost(t,i,f,r,n,b,c) }
+
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable fun ApplicationGuideEntry(session: SessionState) {
+@Composable fun ApplicationGuideEntry(session: SessionState,tourRenderer:GuideTourRenderer=productionTour) {
     val scope = remember(session.token, session.companyId) { GuideIdentity.scope(session.token, session.companyId) }
     var open by rememberSaveable(scope, session.role) { mutableStateOf(false) }
     TextButton(onClick = { open = true }, enabled = scope != null, modifier = Modifier.testTag("account.guide.open")) { Text("Uygulama Rehberi") }
@@ -35,13 +38,13 @@ import kotlinx.coroutines.withContext
         ModalBottomSheet(onDismissRequest = { open = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             dragHandle = null, contentWindowInsets = { WindowInsets.safeDrawing }) {
-            GuideCenterScreen(scope, session.role, session.features, onClose = { open = false })
+            GuideCenterScreen(scope, session.role, session.features, onClose = { open = false },tourRenderer=tourRenderer)
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable fun GuideCenterScreen(scope: String, role: String, features: Map<String, Boolean>, onClose: () -> Unit) {
+@Composable fun GuideCenterScreen(scope: String, role: String, features: Map<String, Boolean>, onClose: () -> Unit,tourRenderer:GuideTourRenderer=productionTour) {
     val context = LocalContext.current
     val progress = remember(context) { GuideProgressRepository(context) }
     var catalog by remember { mutableStateOf<GuideCatalog?>(null) }
@@ -62,46 +65,26 @@ import kotlinx.coroutines.withContext
     val visible = catalog?.visible(role).orEmpty()
     val completed = remember(visible, changed) { visible.count { progress.read(scope, role, it).complete(it) } }
     val topic = visible.find { it.id == selected }
-    fun closeLesson() {
-        topic?.let { progress.save(scope, role, it, index) }
-        selected = null; changed++
+    if (topic != null) {
+        DisposableEffect(topic.id) { val lease=com.pusula.service.core.GuideReadOnlyGate.begin();onDispose{com.pusula.service.core.GuideReadOnlyGate.end(lease)} }
+        tourRenderer(topic,index,features,role,{
+            val cursor=GuideCursor(topic.steps.size,index)
+            progress.save(scope,role,topic,if(cursor.isLast)index else cursor.next().boundedIndex,completed=cursor.isLast)
+            if(cursor.isLast){selected=null;changed++} else index=cursor.next().boundedIndex
+        },{index=GuideCursor(topic.steps.size,index).back().boundedIndex;progress.save(scope,role,topic,index)},
+            {progress.save(scope,role,topic,index);selected=null;changed++})
+        return
     }
-    BackHandler { if (topic != null) closeLesson() else onClose() }
+    BackHandler { onClose() }
     Scaffold(
         modifier = Modifier.fillMaxSize().safeDrawingPadding().testTag("guide.screen"),
         topBar = {
-            TopAppBar(title = { Text(topic?.title ?: "Uygulama Rehberi") }, actions = {
-                TextButton(onClick = { if (topic != null) closeLesson() else onClose() }, modifier = Modifier.testTag("guide.close")) { Text("Kapat") }
+            TopAppBar(title = { Text("Uygulama Rehberi") }, actions = {
+                TextButton(onClick = onClose, modifier = Modifier.testTag("guide.close")) { Text("Kapat") }
             })
-        },
-        bottomBar = {
-            if (topic != null) {
-                val cursor = GuideCursor(topic.steps.size, index)
-                Surface(tonalElevation = 3.dp) {
-                    Column(Modifier.navigationBarsPadding().imePadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("${cursor.boundedIndex + 1} / ${cursor.count}", Modifier.align(Alignment.CenterHorizontally).testTag("guide.step.progress"))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            OutlinedButton(enabled = cursor.boundedIndex > 0, onClick = {
-                                index = cursor.back().boundedIndex; progress.save(scope, role, topic, index)
-                            }, modifier = Modifier.testTag("guide.back")) { Text("Geri") }
-                            Button(onClick = {
-                                progress.save(scope, role, topic, if (cursor.isLast) index else cursor.next().boundedIndex, completed = cursor.isLast)
-                                if (cursor.isLast) { selected = null; changed++ } else index = cursor.next().boundedIndex
-                            }, modifier = Modifier.testTag("guide.next")) { Text(if (cursor.isLast) "Bitir" else "Devam") }
-                        }
-                    }
-                }
-            }
         }
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding).imePadding().testTag("guide.list"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            if (topic != null) {
-                val step = topic.steps[GuideCursor(topic.steps.size, index).boundedIndex]
-                item { Text(topic.locations["android"].orEmpty(), color = MaterialTheme.colorScheme.primary) }
-                item { Text(step.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("guide.step.title")) }
-                item { Text(step.body, style = MaterialTheme.typography.bodyLarge) }
-                item { Text("Bu anlatım gerçek bir işlem gerçekleştirmez.", style = MaterialTheme.typography.bodySmall) }
-            } else {
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Image(painterResource(R.drawable.pusula_app_icon), "Pusula uygulama simgesi", Modifier.size(48.dp).testTag("pusula.brand"))
@@ -154,7 +137,6 @@ import kotlinx.coroutines.withContext
                         }
                     }
                 }
-            }
         }
     }
 }

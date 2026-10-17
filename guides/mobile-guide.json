@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 1,
+  "revision": 2,
   "categories": [
     {
       "id": "start",
@@ -59,7 +59,7 @@
       "category": "start",
       "title": "Yönetici için hızlı başlangıç",
       "summary": "İşletme yönetiminin altı temel adımı.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -77,27 +77,51 @@
       "steps": [
         {
           "title": "Genel görünüm",
-          "body": "Özet ekranında aktif işler, gelir ve kullanım limitlerini inceleyin. Gösterilen tutarların dönemini kontrol edin."
+          "body": "Özet ekranında aktif işler, gelir ve kullanım limitlerini inceleyin. Gösterilen tutarların dönemini kontrol edin.",
+          "tour": {
+            "screen": "home",
+            "target": "overview"
+          }
         },
         {
           "title": "Müşteri ve servis",
-          "body": "Diğer menüsünden müşterilerinize, Operasyon üzerinden servis fişlerine ulaşın. Yeni kayıt açarken önce mevcut müşteriyi arayın."
+          "body": "Diğer menüsünden müşterilerinize, Operasyon üzerinden servis fişlerine ulaşın. Yeni kayıt açarken önce mevcut müşteriyi arayın.",
+          "tour": {
+            "screen": "customers",
+            "target": "customer-search"
+          }
         },
         {
           "title": "Ekibi planlayın",
-          "body": "İş emrindeki tarih, saat ve teknisyen atamasını birlikte kontrol edin. Durum filtreleriyle iş yükünü izleyin."
+          "body": "İş emrindeki tarih, saat ve teknisyen atamasını birlikte kontrol edin. Durum filtreleriyle iş yükünü izleyin.",
+          "tour": {
+            "screen": "team",
+            "target": "settings-sections"
+          }
         },
         {
           "title": "Servisi belgeleyin",
-          "body": "Fişte parça, not, görsel ve müşteri imzasını ilgili alanlarda yönetin. PDF paylaşmadan önce alıcıyı kontrol edin."
+          "body": "Fişte parça, not, görsel ve müşteri imzasını ilgili alanlarda yönetin. PDF paylaşmadan önce alıcıyı kontrol edin.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-actions"
+          }
         },
         {
           "title": "Ücreti ve ödeyeni ayırın",
-          "body": "Parça ve işçilikten fiş toplamını oluşturun; varsa iskonto ve kurum payını ayırıp tahsil edilen tutarı girin."
+          "body": "Parça ve işçilikten fiş toplamını oluşturun; varsa iskonto ve kurum payını ayırıp tahsil edilen tutarı girin.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-fees"
+          }
         },
         {
           "title": "İhtiyaç duyduğunuzda geri dönün",
-          "body": "Hesap içindeki Uygulama Rehberi her konuyu ayrı anlatır. Yardım ve Destek üzerinden soru, hata ve öneri iletebilirsiniz."
+          "body": "Hesap içindeki Uygulama Rehberi her konuyu ayrı anlatır. Yardım ve Destek üzerinden soru, hata ve öneri iletebilirsiniz.",
+          "tour": {
+            "screen": "profile",
+            "target": "profile-support"
+          }
         }
       ],
       "sources": {
@@ -116,7 +140,7 @@
       "category": "start",
       "title": "Teknisyen için hızlı başlangıç",
       "summary": "Atanan işten servis kapanışına temel akış.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "TECHNICIAN"
       ],
@@ -133,23 +157,43 @@
       "steps": [
         {
           "title": "İşlerinizi bulun",
-          "body": "İşlerim ekranında uygun durum ve tarih filtresini seçin. Açacağınız fişin müşteri ve randevu bilgisini kontrol edin."
+          "body": "İşlerim ekranında uygun durum ve tarih filtresini seçin. Açacağınız fişin müşteri ve randevu bilgisini kontrol edin.",
+          "tour": {
+            "screen": "tickets",
+            "target": "ticket-filters"
+          }
         },
         {
           "title": "Fişi inceleyin",
-          "body": "Müşteri, adres, servis açıklaması ve geçmişi okuyun. Yanlış kayıtta işlem yapmayın."
+          "body": "Müşteri, adres, servis açıklaması ve geçmişi okuyun. Yanlış kayıtta işlem yapmayın.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-customer"
+          }
         },
         {
           "title": "Servisi belgeleyin",
-          "body": "İş durumunu güncelleyin; gerçekten kullanılan parçaları, teknisyen notunu, görselleri ve imzayı ilgili bölümlere ekleyin."
+          "body": "İş durumunu güncelleyin; gerçekten kullanılan parçaları, teknisyen notunu, görselleri ve imzayı ilgili bölümlere ekleyin.",
+          "tour": {
+            "screen": "photos",
+            "target": "photo-add"
+          }
         },
         {
           "title": "Tahsilatı doğrulayın",
-          "body": "Parça, işçilik, iskonto, kurum payı ve tahsil edilen tutarı birbirinden ayırın. Garanti veya kalan borç varsa açıklamalarını kontrol edin."
+          "body": "Parça, işçilik, iskonto, kurum payı ve tahsil edilen tutarı birbirinden ayırın. Garanti veya kalan borç varsa açıklamalarını kontrol edin.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-payment"
+          }
         },
         {
           "title": "Güvenli biçimde devam edin",
-          "body": "Belirsiz bağlantı sonucunda aynı işlemi tekrar dene seçeneğini kullanın. Hesap içindeki rehber ve destek bölümlerine istediğiniz zaman dönebilirsiniz."
+          "body": "Belirsiz bağlantı sonucunda aynı işlemi tekrar dene seçeneğini kullanın. Hesap içindeki rehber ve destek bölümlerine istediğiniz zaman dönebilirsiniz.",
+          "tour": {
+            "screen": "diagnostics",
+            "target": "diagnostics-report"
+          }
         }
       ],
       "sources": {
@@ -166,7 +210,7 @@
       "category": "start",
       "title": "Menüler, filtreler ve arama",
       "summary": "Ekranlar arasında kaybolmadan ilerleyin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -185,15 +229,27 @@
       "steps": [
         {
           "title": "Rolünüze uygun menü",
-          "body": "Yöneticide Özet, Operasyon, Diğer, Finans ve Hesap; teknisyende İşlerim ve Hesap bulunur. Paket ve yetki bazı modülleri sınırlar."
+          "body": "Yöneticide Özet, Operasyon, Diğer, Finans ve Hesap; teknisyende İşlerim ve Hesap bulunur. Paket ve yetki bazı modülleri sınırlar.",
+          "tour": {
+            "screen": "home",
+            "target": "content"
+          }
         },
         {
           "title": "Aramayı ve filtreyi birlikte değerlendirin",
-          "body": "Arama, durum ve tarih filtreleri sonuçları birlikte etkileyebilir. Beklediğiniz kayıt görünmüyorsa önce filtreleri kontrol edin."
+          "body": "Arama, durum ve tarih filtreleri sonuçları birlikte etkileyebilir. Beklediğiniz kayıt görünmüyorsa önce filtreleri kontrol edin.",
+          "tour": {
+            "screen": "tickets",
+            "target": "ticket-filters"
+          }
         },
         {
           "title": "Rehber gerçek işlem yapmaz",
-          "body": "Bu anlatım kayıt oluşturmaz, silmez, ödeme veya mesaj göndermez. İşlemi uygulamada siz başlatıp onaylarsınız."
+          "body": "Bu anlatım kayıt oluşturmaz, silmez, ödeme veya mesaj göndermez. İşlemi uygulamada siz başlatıp onaylarsınız.",
+          "tour": {
+            "screen": "profile",
+            "target": "profile-support"
+          }
         }
       ],
       "sources": {
@@ -210,7 +266,7 @@
       "category": "customers",
       "title": "Müşteri oluşturma, düzenleme ve silme",
       "summary": "Mükerrer kayıt açmadan müşteri kartlarını yönetin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -228,15 +284,27 @@
       "steps": [
         {
           "title": "Önce arayın",
-          "body": "Müşteriyi adı veya iletişim bilgisiyle arayın. Aynı kişiye ikinci kayıt açmadan önce mevcut kartı kontrol edin."
+          "body": "Müşteriyi adı veya iletişim bilgisiyle arayın. Aynı kişiye ikinci kayıt açmadan önce mevcut kartı kontrol edin.",
+          "tour": {
+            "screen": "customers",
+            "target": "customer-search"
+          }
         },
         {
           "title": "Bilgileri yönetin",
-          "body": "Yeni müşteri veya düzenleme formunda ad, telefon ve adresi doğrulayın. Kaydetmeden çıkmak değişiklikleri uygulamaz."
+          "body": "Yeni müşteri veya düzenleme formunda ad, telefon ve adresi doğrulayın. Kaydetmeden çıkmak değişiklikleri uygulamaz.",
+          "tour": {
+            "screen": "customerForm",
+            "target": "customer-fields"
+          }
         },
         {
           "title": "Silmeden önce kontrol edin",
-          "body": "Silme uyarısını ve bağlı kayıtların durumunu okuyun. Tur silme işlemini sizin adınıza gerçekleştirmez."
+          "body": "Silme uyarısını ve bağlı kayıtların durumunu okuyun. Tur silme işlemini sizin adınıza gerçekleştirmez.",
+          "tour": {
+            "screen": "customers",
+            "target": "customer-list"
+          }
         }
       ],
       "sources": {
@@ -253,7 +321,7 @@
       "category": "customers",
       "title": "Müşteri geçmişi ve cari bilgisi",
       "summary": "Servis ve hesap geçmişini birlikte inceleyin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -271,15 +339,27 @@
       "steps": [
         {
           "title": "Doğru kartı açın",
-          "body": "Müşteri kimliği ve telefonunu doğrulayıp geçmiş bölümünü açın."
+          "body": "Müşteri kimliği ve telefonunu doğrulayıp geçmiş bölümünü açın.",
+          "tour": {
+            "screen": "customers",
+            "target": "customer-list"
+          }
         },
         {
           "title": "Hareketleri inceleyin",
-          "body": "Servis geçmişi ile cari hareketlerin tarih ve tutarlarını ayrı değerlendirin. Önceki bakiye yeni fişin ücreti değildir."
+          "body": "Servis geçmişi ile cari hareketlerin tarih ve tutarlarını ayrı değerlendirin. Önceki bakiye yeni fişin ücreti değildir.",
+          "tour": {
+            "screen": "customerDetail",
+            "target": "customer-history"
+          }
         },
         {
           "title": "Yüklenemeyen veri boş değildir",
-          "body": "Hata veya tekrar dene görünüyorsa geçmişi yok kabul etmeyin; bağlantı geldikten sonra ilgili bölümü yenileyin."
+          "body": "Hata veya tekrar dene görünüyorsa geçmişi yok kabul etmeyin; bağlantı geldikten sonra ilgili bölümü yenileyin.",
+          "tour": {
+            "screen": "customerDetail",
+            "target": "customer-history"
+          }
         }
       ],
       "sources": {
@@ -296,7 +376,7 @@
       "category": "customers",
       "title": "Telefon, adres ve iletişim",
       "summary": "Müşteriye veya adrese doğru kanaldan ulaşın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -315,11 +395,19 @@
       "steps": [
         {
           "title": "Bilgiyi doğrulayın",
-          "body": "Arama, harita veya mesaj işlemi öncesinde numaranın ve adresin doğru müşteriye ait olduğunu kontrol edin."
+          "body": "Arama, harita veya mesaj işlemi öncesinde numaranın ve adresin doğru müşteriye ait olduğunu kontrol edin.",
+          "tour": {
+            "screen": "customerContact",
+            "target": "customer-contact"
+          }
         },
         {
           "title": "Dış uygulamayı siz açın",
-          "body": "Telefon ve harita düğmeleri ilgili cihaz uygulamasına geçebilir. Müşteri içeriğini paylaşmadan önce alıcıyı ve izni doğrulayın."
+          "body": "Telefon ve harita düğmeleri ilgili cihaz uygulamasına geçebilir. Müşteri içeriğini paylaşmadan önce alıcıyı ve izni doğrulayın.",
+          "tour": {
+            "screen": "customerContact",
+            "target": "customer-contact"
+          }
         }
       ],
       "sources": {
@@ -336,7 +424,7 @@
       "category": "customers",
       "title": "Kurumlar ve cari taraflar",
       "summary": "Müşteri ile kurumu birbirine karıştırmadan çalışın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -354,15 +442,27 @@
       "steps": [
         {
           "title": "Cari tarafı doğru seçin",
-          "body": "Kurum, müşteri ve tedarikçi aynı kavram değildir. İşlemin hangi tarafa yazılacağını kontrol edin."
+          "body": "Kurum, müşteri ve tedarikçi aynı kavram değildir. İşlemin hangi tarafa yazılacağını kontrol edin.",
+          "tour": {
+            "screen": "organizations",
+            "target": "content"
+          }
         },
         {
           "title": "Kurum payını ayrıca belirleyin",
-          "body": "Servis tahsilatında kurum seçip aktarılacak payı girin. Kalan müşteri borcunu ayrıca inceleyin."
+          "body": "Servis tahsilatında kurum seçip aktarılacak payı girin. Kalan müşteri borcunu ayrıca inceleyin.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-allocation"
+          }
         },
         {
           "title": "Tahsilat kaydını kontrol edin",
-          "body": "Kurum carisinden ödeme alırken doğru tarafı, tutarı ve hareket geçmişini doğrulayın."
+          "body": "Kurum carisinden ödeme alırken doğru tarafı, tutarı ve hareket geçmişini doğrulayın.",
+          "tour": {
+            "screen": "accounts",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -379,7 +479,7 @@
       "category": "jobs",
       "title": "Servis fişi oluşturma",
       "summary": "Müşteri, yapılacak iş ve randevuyu belirleyin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -397,15 +497,27 @@
       "steps": [
         {
           "title": "Müşteriyi seçin",
-          "body": "Mevcut müşteriyi arayın; yalnızca bulunmuyorsa yeni kart açın."
+          "body": "Mevcut müşteriyi arayın; yalnızca bulunmuyorsa yeni kart açın.",
+          "tour": {
+            "screen": "ticketCreate",
+            "target": "create-customer"
+          }
         },
         {
           "title": "İşi tarif edin",
-          "body": "Başlık ve açıklamayı yazıp servis tarihini, saatini ve atanacak teknisyeni kontrol edin."
+          "body": "Başlık ve açıklamayı yazıp servis tarihini, saatini ve atanacak teknisyeni kontrol edin.",
+          "tour": {
+            "screen": "ticketCreate",
+            "target": "create-description"
+          }
         },
         {
           "title": "Bir kez kaydedin",
-          "body": "Kaydetme sürerken yeniden dokunmayın. Sonuç belirsizse yeni fiş açmadan önce mevcut gönderimin durumunu kontrol edin."
+          "body": "Kaydetme sürerken yeniden dokunmayın. Sonuç belirsizse yeni fiş açmadan önce mevcut gönderimin durumunu kontrol edin.",
+          "tour": {
+            "screen": "ticketCreate",
+            "target": "create-save"
+          }
         }
       ],
       "sources": {
@@ -422,7 +534,7 @@
       "category": "jobs",
       "title": "Teknisyen atama ve ekip planlama",
       "summary": "İşi doğru kişiye ve zamana atayın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -440,15 +552,27 @@
       "steps": [
         {
           "title": "Uygun işi seçin",
-          "body": "Atama bekleyen veya yeniden planlanacak fişin kimliğini kontrol edin."
+          "body": "Atama bekleyen veya yeniden planlanacak fişin kimliğini kontrol edin.",
+          "tour": {
+            "screen": "tickets",
+            "target": "ticket-list"
+          }
         },
         {
           "title": "Teknisyen ve zamanı doğrulayın",
-          "body": "Atanacak personelin iş yükünü, servis tarihini ve saatini kontrol edip değişikliği kaydedin."
+          "body": "Atanacak personelin iş yükünü, servis tarihini ve saatini kontrol edip değişikliği kaydedin.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-status"
+          }
         },
         {
           "title": "Atamayı takip edin",
-          "body": "Liste ve fişteki güncel atamayı kontrol edin. Bildirim verilmesi cihaz bildirim izinlerine ve bağlantıya bağlıdır."
+          "body": "Liste ve fişteki güncel atamayı kontrol edin. Bildirim verilmesi cihaz bildirim izinlerine ve bağlantıya bağlıdır.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-history"
+          }
         }
       ],
       "sources": {
@@ -465,7 +589,7 @@
       "category": "jobs",
       "title": "Durumlar, filtreler ve iş başlangıcı",
       "summary": "Açık, atanan, devam eden ve kapanan işleri ayırın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -484,15 +608,27 @@
       "steps": [
         {
           "title": "Doğru durum grubunu seçin",
-          "body": "Seçili durum ve tarih filtrelerini kontrol edin; farklı filtreler aynı kaydı gizleyebilir."
+          "body": "Seçili durum ve tarih filtrelerini kontrol edin; farklı filtreler aynı kaydı gizleyebilir.",
+          "tour": {
+            "screen": "tickets",
+            "target": "ticket-filters"
+          }
         },
         {
           "title": "İşi fiş içinden güncelleyin",
-          "body": "Gerçek servis durumuna uygun seçeneği kullanın. Kapanmış, iptal edilmiş veya salt okunur kayıtta izin verilen işlemler farklıdır."
+          "body": "Gerçek servis durumuna uygun seçeneği kullanın. Kapanmış, iptal edilmiş veya salt okunur kayıtta izin verilen işlemler farklıdır.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-status"
+          }
         },
         {
           "title": "Güncel sonucu doğrulayın",
-          "body": "İşlemden sonra fişte ve listede durumu kontrol edin. Yükleme hatasını işlem başarılı saymayın."
+          "body": "İşlemden sonra fişte ve listede durumu kontrol edin. Yükleme hatasını işlem başarılı saymayın.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-history"
+          }
         }
       ],
       "sources": {
@@ -509,38 +645,41 @@
       "category": "jobs",
       "title": "Randevuyu yeniden planlama",
       "summary": "Servis gün ve saatini güncelleyin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
         "TECHNICIAN"
       ],
       "platforms": [
-        "ios",
-        "android"
+        "ios"
       ],
       "requiredFeature": null,
       "isNew": false,
       "locations": {
-        "ios": "Servis fişi → Yeniden Planla",
-        "android": "Servis fişi → Yeniden Planla"
+        "ios": "Servis fişi → Yeniden Planla"
       },
       "steps": [
         {
           "title": "Fişi ve mevcut zamanı okuyun",
-          "body": "Yeni randevunun doğru servis kaydına uygulanacağından emin olun."
+          "body": "Yeni randevunun doğru servis kaydına uygulanacağından emin olun.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-schedule"
+          }
         },
         {
           "title": "Yeni randevuyu belirleyin",
-          "body": "Tarih, saat ve varsa planlama notunu kontrol edip onaylayın. Kaydın yeni saatini fişten doğrulayın."
+          "body": "Tarih, saat ve varsa planlama notunu kontrol edip onaylayın. Kaydın yeni saatini fişten doğrulayın.",
+          "tour": {
+            "screen": "reschedule",
+            "target": "content"
+          }
         }
       ],
       "sources": {
         "ios": [
           "TicketDetailView.swift"
-        ],
-        "android": [
-          "TicketDetailScreen.kt"
         ]
       }
     },
@@ -549,7 +688,7 @@
       "category": "jobs",
       "title": "İş emrini iptal etme",
       "summary": "İptalin stok ve geçmiş etkisini öğrenin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -568,15 +707,27 @@
       "steps": [
         {
           "title": "İptalin nedenini değerlendirin",
-          "body": "Yanlış fiş üzerinde işlem yapmayın; kapanmış veya işleme alınmış kayıtlarda kısıtlar olabilir."
+          "body": "Yanlış fiş üzerinde işlem yapmayın; kapanmış veya işleme alınmış kayıtlarda kısıtlar olabilir.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-status"
+          }
         },
         {
           "title": "Uyarıyı okuyun",
-          "body": "İptal, kullanılan parçaların stoğa geri alınması ve geçmişe kayıt gibi etkiler doğurabilir. Onay vermeden önce uyarıyı okuyun."
+          "body": "İptal, kullanılan parçaların stoğa geri alınması ve geçmişe kayıt gibi etkiler doğurabilir. Onay vermeden önce uyarıyı okuyun.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-actions"
+          }
         },
         {
           "title": "Sonucu kontrol edin",
-          "body": "Fişte iptal durumunu ve ilgili geçmişi kontrol edin. Bu rehber gerçek iptal işlemi gerçekleştirmez."
+          "body": "Fişte iptal durumunu ve ilgili geçmişi kontrol edin. Bu rehber gerçek iptal işlemi gerçekleştirmez.",
+          "tour": {
+            "screen": "tickets",
+            "target": "ticket-filters"
+          }
         }
       ],
       "sources": {
@@ -593,7 +744,7 @@
       "category": "jobs",
       "title": "İşe devam ve takip kaydı",
       "summary": "Kalan iş veya yeni ziyaret için doğru yolu kullanın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -612,11 +763,19 @@
       "steps": [
         {
           "title": "Mevcut kaydı değerlendirin",
-          "body": "Açık işin devamı ile tamamlanmış iş için yeni takip ziyareti aynı işlem değildir."
+          "body": "Açık işin devamı ile tamamlanmış iş için yeni takip ziyareti aynı işlem değildir.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-status"
+          }
         },
         {
           "title": "Uygun seçeneği kullanın",
-          "body": "Fişte sunulan devam veya takip kaydı seçeneğini seçip açıklama ve planlanan zamanı kontrol edin."
+          "body": "Fişte sunulan devam veya takip kaydı seçeneğini seçip açıklama ve planlanan zamanı kontrol edin.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-actions"
+          }
         }
       ],
       "sources": {
@@ -633,7 +792,7 @@
       "category": "jobs",
       "title": "Teknisyen notları ve işlem geçmişi",
       "summary": "Saha açıklamalarını ve değişiklikleri izleyin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -652,15 +811,27 @@
       "steps": [
         {
           "title": "Notun kapsamını bilin",
-          "body": "Teknisyen notunu servis açıklaması ve müşteriye gönderilecek kapanış notundan ayrı değerlendirin."
+          "body": "Teknisyen notunu servis açıklaması ve müşteriye gönderilecek kapanış notundan ayrı değerlendirin.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-notes"
+          }
         },
         {
           "title": "Yükleme durumunu kontrol edin",
-          "body": "Notlar yüklenemediğinde yok kabul etmeyin. İlgili bölümdeki tekrar dene düğmesini kullanın."
+          "body": "Notlar yüklenemediğinde yok kabul etmeyin. İlgili bölümdeki tekrar dene düğmesini kullanın.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-notes"
+          }
         },
         {
           "title": "Geçmişi okuyun",
-          "body": "Durum, atama ve servis değişikliklerinin tarih ve yapan kişi bilgisini işlem geçmişinden inceleyin."
+          "body": "Durum, atama ve servis değişikliklerinin tarih ve yapan kişi bilgisini işlem geçmişinden inceleyin.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-history"
+          }
         }
       ],
       "sources": {
@@ -676,8 +847,8 @@
       "id": "service-photos",
       "category": "documents",
       "title": "Servis görselleri",
-      "summary": "Fişe fotoğraf ekleyin ve doğru kaydı paylaşın.",
-      "revision": 1,
+      "summary": "Fişe tekli veya toplu fotoğraf ekleyin; yükleme sonucunu kontrol edin.",
+      "revision": 3,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -696,15 +867,27 @@
       "steps": [
         {
           "title": "Fişi kontrol edin",
-          "body": "Fotoğrafın hangi servis kaydına ekleneceğini kontrol edin; müşteri veya özel belgeyi yanlış kayda yüklemeyin."
+          "body": "Fotoğrafın hangi servis kaydına ekleneceğini kontrol edin; müşteri veya özel belgeyi yanlış kayda yüklemeyin.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-customer"
+          }
         },
         {
           "title": "Görseli seçin",
-          "body": "Kamera veya galeriden gereken görselleri seçin. Gereksiz kişisel alanları paylaşmadan önce kapatın."
+          "body": "Kamera ile tek fotoğraf çekin veya galeriden en fazla 10 görsel seçin. Kategori ve not hepsine uygulanır. Kişisel alanları paylaşmadan önce kapatın.",
+          "tour": {
+            "screen": "photos",
+            "target": "photo-add"
+          }
         },
         {
           "title": "Yüklemeyi doğrulayın",
-          "body": "Yükleme bitmeden ekranı kapatmayın. Hata halinde aynı görseli tekrar yüklemeden önce fişte oluşup oluşmadığını kontrol edin."
+          "body": "Yüklenen / seçilen sayısını izleyin. Hata varsa Yüklenemeyenleri Tekrar Dene yalnızca bekleyenleri gönderir. Ekrandan çıkarsanız yeniden eklemeden önce listeyi kontrol edin.",
+          "tour": {
+            "screen": "photos",
+            "target": "photo-list"
+          }
         }
       ],
       "sources": {
@@ -721,7 +904,7 @@
       "category": "documents",
       "title": "Servis görsellerini toplu inceleme",
       "summary": "Yönetici olarak görsel kayıtlarını filtreleyin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -739,11 +922,19 @@
       "steps": [
         {
           "title": "Filtreleri belirleyin",
-          "body": "Tarih ve servis bilgisiyle inceleyeceğiniz kayıtları daraltın."
+          "body": "Tarih ve servis bilgisiyle inceleyeceğiniz kayıtları daraltın.",
+          "tour": {
+            "screen": "photosArchive",
+            "target": "content"
+          }
         },
         {
           "title": "Doğru kaydı açın",
-          "body": "Görseli servis fişiyle birlikte değerlendirin. Dışarı paylaşmadan önce müşteri bilgilerini ve alıcıyı kontrol edin."
+          "body": "Görseli servis fişiyle birlikte değerlendirin. Dışarı paylaşmadan önce müşteri bilgilerini ve alıcıyı kontrol edin.",
+          "tour": {
+            "screen": "photosArchive",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -760,7 +951,7 @@
       "category": "documents",
       "title": "Müşteri imzası",
       "summary": "İmzayı doğru servis kaydında alın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -779,11 +970,19 @@
       "steps": [
         {
           "title": "Kaydı müşteriye doğrulatın",
-          "body": "Servis içeriğinin ve müşteri bilgisinin doğru olduğunu kontrol edin; imzayı ilgili kişinin bilgisiyle alın."
+          "body": "Servis içeriğinin ve müşteri bilgisinin doğru olduğunu kontrol edin; imzayı ilgili kişinin bilgisiyle alın.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-customer"
+          }
         },
         {
           "title": "İmzayı kaydedin",
-          "body": "İmza alanını kullanıp kaydetme sonucunu bekleyin. Yanlış çizim varsa ekrandaki temizleme seçeneğini kullanın."
+          "body": "İmza alanını kullanıp kaydetme sonucunu bekleyin. Yanlış çizim varsa ekrandaki temizleme seçeneğini kullanın.",
+          "tour": {
+            "screen": "signature",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -800,7 +999,7 @@
       "category": "documents",
       "title": "Servis fişi PDF ve paylaşım",
       "summary": "Belgeyi inceleyip doğru kişiye iletin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -819,11 +1018,19 @@
       "steps": [
         {
           "title": "Belgeyi önizleyin",
-          "body": "Müşteri, işlem, parça, ücret, iskonto ve ödeme bilgilerinin doğru olduğunu kontrol edin."
+          "body": "Müşteri, işlem, parça, ücret, iskonto ve ödeme bilgilerinin doğru olduğunu kontrol edin.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-actions"
+          }
         },
         {
           "title": "Paylaşımı siz onaylayın",
-          "body": "Kaydet veya paylaş seçeneğini kullanın; alıcıyı doğrulayın. Rehber hiçbir müşteriye otomatik belge göndermez."
+          "body": "Kaydet veya paylaş seçeneğini kullanın; alıcıyı doğrulayın. Rehber hiçbir müşteriye otomatik belge göndermez.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-actions"
+          }
         }
       ],
       "sources": {
@@ -840,7 +1047,7 @@
       "category": "documents",
       "title": "Garanti kapsamında servis",
       "summary": "İşletme ve kurum garantisinin ücret etkisini ayırın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -859,15 +1066,27 @@
       "steps": [
         {
           "title": "Garanti türünü ayırın",
-          "body": "İşletme garantisinde satış oluşmaması ile kurumun ödediği garanti servisi farklıdır."
+          "body": "İşletme garantisinde satış oluşmaması ile kurumun ödediği garanti servisi farklıdır.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-warranty"
+          }
         },
         {
           "title": "Kurum payını kontrol edin",
-          "body": "Kurum garantisinde sistemin istediği kurum ve tutar alanlarını doldurun; fiş toplamının dağılımını doğrulayın."
+          "body": "Kurum garantisinde sistemin istediği kurum ve tutar alanlarını doldurun; fiş toplamının dağılımını doğrulayın.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-allocation"
+          }
         },
         {
           "title": "Ücretsiz normal işlem farklıdır",
-          "body": "Garanti dışındaki ücretsiz işlem için uygun iskonto akışını kullanın; ücreti tahsil edilmiş gibi göstermeyin."
+          "body": "Garanti dışındaki ücretsiz işlem için uygun iskonto akışını kullanın; ücreti tahsil edilmiş gibi göstermeyin.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-summary"
+          }
         }
       ],
       "sources": {
@@ -884,7 +1103,7 @@
       "category": "sales",
       "title": "Teklif oluşturma ve düzenleme",
       "summary": "Müşteriye ürün ve hizmet teklifi hazırlayın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -902,15 +1121,27 @@
       "steps": [
         {
           "title": "Teklifi bulun veya oluşturun",
-          "body": "Müşteri ve durum filtreleriyle mevcut teklifi arayın; yeni teklif için doğru müşteriyi seçin."
+          "body": "Müşteri ve durum filtreleriyle mevcut teklifi arayın; yeni teklif için doğru müşteriyi seçin.",
+          "tour": {
+            "screen": "proposals",
+            "target": "content"
+          }
         },
         {
           "title": "Kalemleri hazırlayın",
-          "body": "Ürün veya hizmet adı, miktar ve birim fiyatı girin. Kalemleri düzenleyip toplamı kontrol edin."
+          "body": "Ürün veya hizmet adı, miktar ve birim fiyatı girin. Kalemleri düzenleyip toplamı kontrol edin.",
+          "tour": {
+            "screen": "proposals",
+            "target": "content"
+          }
         },
         {
           "title": "Durum ve geçerliliği kontrol edin",
-          "body": "Kaydetmeden önce teklif açıklamasını, geçerlilik tarihini ve toplamı inceleyin."
+          "body": "Kaydetmeden önce teklif açıklamasını, geçerlilik tarihini ve toplamı inceleyin.",
+          "tour": {
+            "screen": "proposals",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -927,7 +1158,7 @@
       "category": "sales",
       "title": "Teklifi onaylama ve iş emrine çevirme",
       "summary": "Aynı tekliften ikinci iş emri açmayın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -945,15 +1176,27 @@
       "steps": [
         {
           "title": "Onaylanacak teklifi inceleyin",
-          "body": "Müşteri, kapsam ve tutarı doğrulayın. PDF paylaşımı ile teklif onayı aynı işlem değildir."
+          "body": "Müşteri, kapsam ve tutarı doğrulayın. PDF paylaşımı ile teklif onayı aynı işlem değildir.",
+          "tour": {
+            "screen": "proposals",
+            "target": "content"
+          }
         },
         {
           "title": "Dönüşüm uyarısını okuyun",
-          "body": "İş emrine dönüştürme yalnızca uygun durumdaki tekliflerde sunulur; uyarıdaki tek seferlik işlem bilgisini kontrol edin."
+          "body": "İş emrine dönüştürme yalnızca uygun durumdaki tekliflerde sunulur; uyarıdaki tek seferlik işlem bilgisini kontrol edin.",
+          "tour": {
+            "screen": "proposals",
+            "target": "content"
+          }
         },
         {
           "title": "Oluşan kaydı bulun",
-          "body": "Yeni iş emri numarasını kontrol edin. Belirsiz bağlantıda aynı tekliften başka fiş açmadan önce listeyi inceleyin."
+          "body": "Yeni iş emri numarasını kontrol edin. Belirsiz bağlantıda aynı tekliften başka fiş açmadan önce listeyi inceleyin.",
+          "tour": {
+            "screen": "tickets",
+            "target": "ticket-list"
+          }
         }
       ],
       "sources": {
@@ -970,7 +1213,7 @@
       "category": "sales",
       "title": "Teklif PDF ve paylaşım",
       "summary": "Teklif belgesini gönderim öncesi inceleyin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -988,11 +1231,19 @@
       "steps": [
         {
           "title": "Belgeyi kontrol edin",
-          "body": "Kalem, miktar, birim fiyat, müşteri ve geçerlilik bilgilerini önizleyin."
+          "body": "Kalem, miktar, birim fiyat, müşteri ve geçerlilik bilgilerini önizleyin.",
+          "tour": {
+            "screen": "proposals",
+            "target": "content"
+          }
         },
         {
           "title": "Alıcıyı doğrulayın",
-          "body": "Paylaşım ekranında doğru alıcıyı seçin; rehber teklif göndermez veya müşterinin yerine onay vermez."
+          "body": "Paylaşım ekranında doğru alıcıyı seçin; rehber teklif göndermez veya müşterinin yerine onay vermez.",
+          "tour": {
+            "screen": "proposals",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1009,7 +1260,7 @@
       "category": "stock",
       "title": "Stok kalemleri ve kritik stok",
       "summary": "Parça, miktar, fiyat ve barkod bilgilerini yönetin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -1027,15 +1278,27 @@
       "steps": [
         {
           "title": "Mevcut kalemi arayın",
-          "body": "Parça adı, marka veya barkodla arayın; aynı ürüne ikinci kart açmadan önce sonucu kontrol edin."
+          "body": "Parça adı, marka veya barkodla arayın; aynı ürüne ikinci kart açmadan önce sonucu kontrol edin.",
+          "tour": {
+            "screen": "catalog",
+            "target": "content"
+          }
         },
         {
           "title": "Stok kartını yönetin",
-          "body": "Miktar, birim, alış/satış fiyatı, barkod ve kritik stok seviyesini doğru girin. Silme öncesi bağlı kullanım kayıtlarını dikkate alın."
+          "body": "Miktar, birim, alış/satış fiyatı, barkod ve kritik stok seviyesini doğru girin. Silme öncesi bağlı kullanım kayıtlarını dikkate alın.",
+          "tour": {
+            "screen": "catalog",
+            "target": "content"
+          }
         },
         {
           "title": "Kritik seviyeyi izleyin",
-          "body": "Düşük stok uyarılarını ve seçili filtreleri kontrol edin. Karttaki miktar ile servis fişinde kullanılan miktarı karıştırmayın."
+          "body": "Düşük stok uyarılarını ve seçili filtreleri kontrol edin. Karttaki miktar ile servis fişinde kullanılan miktarı karıştırmayın.",
+          "tour": {
+            "screen": "catalog",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1052,7 +1315,7 @@
       "category": "stock",
       "title": "Barkodla parça bulma",
       "summary": "Kamera izni ve tarama sonucunu kontrol edin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -1071,11 +1334,19 @@
       "steps": [
         {
           "title": "İzin ve ışığı kontrol edin",
-          "body": "Kamera erişimi gerekiyorsa cihazın izin ekranını değerlendirin. İzin vermediğinizde metinle arama yolunu kullanın."
+          "body": "Kamera erişimi gerekiyorsa cihazın izin ekranını değerlendirin. İzin vermediğinizde metinle arama yolunu kullanın.",
+          "tour": {
+            "screen": "parts",
+            "target": "content"
+          }
         },
         {
           "title": "Sonucu doğrulayın",
-          "body": "Bulunan parçanın adı ve birimini kontrol edin. Barkod bulunamadığında farklı ürünü yanlışlıkla seçmeyin."
+          "body": "Bulunan parçanın adı ve birimini kontrol edin. Barkod bulunamadığında farklı ürünü yanlışlıkla seçmeyin.",
+          "tour": {
+            "screen": "parts",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1092,7 +1363,7 @@
       "category": "stock",
       "title": "Fişe parça ekleme, düzenleme ve silme",
       "summary": "Kullanılan miktar ve özel satış fiyatını kaydedin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -1111,15 +1382,27 @@
       "steps": [
         {
           "title": "Parçayı seçin",
-          "body": "Katalogdan doğru parçayı, miktarı ve birimi seçin; adet birimli üründe kesirli miktar kullanmayın."
+          "body": "Katalogdan doğru parçayı, miktarı ve birimi seçin; adet birimli üründe kesirli miktar kullanmayın.",
+          "tour": {
+            "screen": "parts",
+            "target": "content"
+          }
         },
         {
           "title": "Fiyatı doğrulayın",
-          "body": "Fişte uygulanacak özel satış fiyatı varsa kontrol edin. Parça toplamı işçilikten ayrıdır."
+          "body": "Fişte uygulanacak özel satış fiyatı varsa kontrol edin. Parça toplamı işçilikten ayrıdır.",
+          "tour": {
+            "screen": "parts",
+            "target": "content"
+          }
         },
         {
           "title": "Değişiklik etkisini okuyun",
-          "body": "Parça düzenleme veya silme stoğu ve fiş toplamını etkileyebilir. İlgili uyarıyı okuyup kaydetme sonucunu doğrulayın."
+          "body": "Parça düzenleme veya silme stoğu ve fiş toplamını etkileyebilir. İlgili uyarıyı okuyup kaydetme sonucunu doğrulayın.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-parts"
+          }
         }
       ],
       "sources": {
@@ -1136,7 +1419,7 @@
       "category": "payments",
       "title": "Ücret ve fiş toplamı",
       "summary": "Parça, işçilik ve net tutarı sırayla kontrol edin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -1155,15 +1438,27 @@
       "steps": [
         {
           "title": "Ücreti oluşturun",
-          "body": "Önce parça toplamını okuyun, sonra servis/işçilik bedelini girin. Önceki cari bakiye fiş toplamına eklenmez."
+          "body": "Önce parça toplamını okuyun, sonra servis/işçilik bedelini girin. Önceki cari bakiye fiş toplamına eklenmez.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-fees"
+          }
         },
         {
           "title": "Fiş toplamını kontrol edin",
-          "body": "Varsa iskonto sonrasındaki net fiş toplamını inceleyin; kurum payı ve tahsilat bu toplamdan ayrı alanlardır."
+          "body": "Varsa iskonto sonrasındaki net fiş toplamını inceleyin; kurum payı ve tahsilat bu toplamdan ayrı alanlardır.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-summary"
+          }
         },
         {
           "title": "Kaydetmeden önce dağılımı okuyun",
-          "body": "Kurum payı, müşteri payı ve tahsil edilen tutarı birlikte doğrulayın; kalan tutar borç oluşturabilir."
+          "body": "Kurum payı, müşteri payı ve tahsil edilen tutarı birlikte doğrulayın; kalan tutar borç oluşturabilir.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-payment"
+          }
         }
       ],
       "sources": {
@@ -1180,7 +1475,7 @@
       "category": "payments",
       "title": "TL veya yüzde iskonto",
       "summary": "İskontoyu ödeme gibi kaydetmeyin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -1199,15 +1494,27 @@
       "steps": [
         {
           "title": "İskonto türünü seçin",
-          "body": "TL veya yüzde seçip doğru değeri girin. İskonto ara toplamı aşamaz."
+          "body": "TL veya yüzde seçip doğru değeri girin. İskonto ara toplamı aşamaz.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-discount"
+          }
         },
         {
           "title": "Net tutarı doğrulayın",
-          "body": "Ara toplam, iskonto ve fiş toplamını birlikte kontrol edin. İskonto, tahsil edilen para değildir."
+          "body": "Ara toplam, iskonto ve fiş toplamını birlikte kontrol edin. İskonto, tahsil edilen para değildir.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-summary"
+          }
         },
         {
           "title": "Belge ve raporu inceleyin",
-          "body": "Kaydedilen fişin PDF ve raporlarında indirimin net gelire etkisini kontrol edin."
+          "body": "Kaydedilen fişin PDF ve raporlarında indirimin net gelire etkisini kontrol edin.",
+          "tour": {
+            "screen": "ticketDetail",
+            "target": "ticket-actions"
+          }
         }
       ],
       "sources": {
@@ -1224,7 +1531,7 @@
       "category": "payments",
       "title": "Kurum carisine pay aktarma",
       "summary": "Ücretin bir bölümünü doğru kuruma yazın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -1243,15 +1550,27 @@
       "steps": [
         {
           "title": "Kurumu seçin",
-          "body": "Ödemeden sorumlu kurum kartını seçin. Müşteri kartı ile kurum carisi farklı olabilir."
+          "body": "Ödemeden sorumlu kurum kartını seçin. Müşteri kartı ile kurum carisi farklı olabilir.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-allocation"
+          }
         },
         {
           "title": "Aktarılacak tutarı girin",
-          "body": "Kurum payı net fiş toplamını aşamaz. Kalan müşteri payını kontrol edin."
+          "body": "Kurum payı net fiş toplamını aşamaz. Kalan müşteri payını kontrol edin.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-allocation"
+          }
         },
         {
           "title": "Cari aktarımını okuyun",
-          "body": "Onay ekranında kuruma ve müşteriye yazılacak tutarları ayrı doğrulayın."
+          "body": "Onay ekranında kuruma ve müşteriye yazılacak tutarları ayrı doğrulayın.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-summary"
+          }
         }
       ],
       "sources": {
@@ -1268,7 +1587,7 @@
       "category": "payments",
       "title": "Ödeme yöntemi ve kısmi tahsilat",
       "summary": "Alınan para ile kalan borcu ayırın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -1287,15 +1606,27 @@
       "steps": [
         {
           "title": "Gerçek ödeme yöntemini seçin",
-          "body": "Ekranda sunulan nakit, kart veya cari seçeneklerinden gerçek duruma uygun olanı kullanın."
+          "body": "Ekranda sunulan nakit, kart veya cari seçeneklerinden gerçek duruma uygun olanı kullanın.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-payment"
+          }
         },
         {
           "title": "Yalnızca alınan parayı girin",
-          "body": "Tamamı ödenmediyse tahsil edilen gerçek tutarı yazın. Ücret ile tahsilat aynı alan değildir."
+          "body": "Tamamı ödenmediyse tahsil edilen gerçek tutarı yazın. Ücret ile tahsilat aynı alan değildir.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-payment"
+          }
         },
         {
           "title": "Kalan bakiyeyi doğrulayın",
-          "body": "Müşteri ve kurumda oluşacak borcu inceleyin. Fişin tamamlanması her zaman ücretin tamamının ödendiği anlamına gelmez."
+          "body": "Müşteri ve kurumda oluşacak borcu inceleyin. Fişin tamamlanması her zaman ücretin tamamının ödendiği anlamına gelmez.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-summary"
+          }
         }
       ],
       "sources": {
@@ -1312,7 +1643,7 @@
       "category": "payments",
       "title": "Bağlantı hatasında güvenli tekrar",
       "summary": "Belirsiz işlem sonucunda mükerrer kayıt açmayın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -1331,15 +1662,27 @@
       "steps": [
         {
           "title": "Önce sonucu ayırın",
-          "body": "Form reddi, bağlantı kesintisi ve sonucu belirsiz gönderim aynı şey değildir. Ekrandaki açıklamayı okuyun."
+          "body": "Form reddi, bağlantı kesintisi ve sonucu belirsiz gönderim aynı şey değildir. Ekrandaki açıklamayı okuyun.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-payment"
+          }
         },
         {
           "title": "Aynı işlemi kullanın",
-          "body": "Sunulan aynı işlemi tekrar dene seçeneği varsa onu kullanın; yeni form açıp aynı tahsilatı tekrar girmeyin."
+          "body": "Sunulan aynı işlemi tekrar dene seçeneği varsa onu kullanın; yeni form açıp aynı tahsilatı tekrar girmeyin.",
+          "tour": {
+            "screen": "collection",
+            "target": "collection-payment"
+          }
         },
         {
           "title": "Tek kayıt olduğunu doğrulayın",
-          "body": "Liste veya hareket geçmişinden sonucu kontrol edin. Emin değilseniz saat ve bağlantı raporuyla destek isteyin."
+          "body": "Liste veya hareket geçmişinden sonucu kontrol edin. Emin değilseniz saat ve bağlantı raporuyla destek isteyin.",
+          "tour": {
+            "screen": "tickets",
+            "target": "ticket-list"
+          }
         }
       ],
       "sources": {
@@ -1356,7 +1699,7 @@
       "category": "finance",
       "title": "Günlük gelir, gider ve gün kapatma",
       "summary": "Günlük toplamları ve kayıtları değerlendirin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -1374,11 +1717,19 @@
       "steps": [
         {
           "title": "Dönemi doğrulayın",
-          "body": "Gelir ve gider toplamlarının hangi güne ait olduğunu kontrol edin; seçili tarih sonucu etkiler."
+          "body": "Gelir ve gider toplamlarının hangi güne ait olduğunu kontrol edin; seçili tarih sonucu etkiler.",
+          "tour": {
+            "screen": "finance",
+            "target": "content"
+          }
         },
         {
           "title": "Kayıtları inceleyin",
-          "body": "İşlem tutarı, kategori ve açıklamayı kontrol edin. Günü kapatma seçeneği sunuluyorsa onay uyarısını okuyun."
+          "body": "İşlem tutarı, kategori ve açıklamayı kontrol edin. Günü kapatma seçeneği sunuluyorsa onay uyarısını okuyun.",
+          "tour": {
+            "screen": "finance",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1395,7 +1746,7 @@
       "category": "finance",
       "title": "Gider ekleme, düzeltme ve silme",
       "summary": "Kategori ve muhasebe etkisini doğru seçin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -1413,15 +1764,27 @@
       "steps": [
         {
           "title": "Gideri tanımlayın",
-          "body": "Tutar, açıklama, tarih ve kategoriyi girin. Muhasebe etkisini gerçek gider türüne göre seçin."
+          "body": "Tutar, açıklama, tarih ve kategoriyi girin. Muhasebe etkisini gerçek gider türüne göre seçin.",
+          "tour": {
+            "screen": "expenses",
+            "target": "content"
+          }
         },
         {
           "title": "Varsa ilişkiyi kontrol edin",
-          "body": "Sistem fiş veya başka kayıtla bağlantı öneriyorsa doğru kaydı seçtiğinizi kontrol edin."
+          "body": "Sistem fiş veya başka kayıtla bağlantı öneriyorsa doğru kaydı seçtiğinizi kontrol edin.",
+          "tour": {
+            "screen": "expenses",
+            "target": "content"
+          }
         },
         {
           "title": "Sonucu doğrulayın",
-          "body": "Kaydetme sonrasında gider listesini kontrol edin. Zaman aşımında ikinci gider açmadan önce ilk kaydın sonucunu araştırın."
+          "body": "Kaydetme sonrasında gider listesini kontrol edin. Zaman aşımında ikinci gider açmadan önce ilk kaydın sonucunu araştırın.",
+          "tour": {
+            "screen": "finance",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1438,7 +1801,7 @@
       "category": "finance",
       "title": "Cari alacak, hareketler ve tahsilat",
       "summary": "Müşteri veya kurum borcunu hareketleriyle izleyin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -1456,15 +1819,27 @@
       "steps": [
         {
           "title": "Tarafı ve bakiyeyi seçin",
-          "body": "Müşteri veya kurumun adını ve borç bakiyesini doğrulayın."
+          "body": "Müşteri veya kurumun adını ve borç bakiyesini doğrulayın.",
+          "tour": {
+            "screen": "accounts",
+            "target": "content"
+          }
         },
         {
           "title": "Geçmişi inceleyin",
-          "body": "Borcu oluşturan fiş ve tahsilat hareketlerini okuyun; yüklenemeyen geçmişi boş saymayın."
+          "body": "Borcu oluşturan fiş ve tahsilat hareketlerini okuyun; yüklenemeyen geçmişi boş saymayın.",
+          "tour": {
+            "screen": "accounts",
+            "target": "content"
+          }
         },
         {
           "title": "Ödemeyi ayrı kaydedin",
-          "body": "Gerçekten alınan tutarı girip varsa indirim bilgisini kontrol edin. İşlem sonrası yeni bakiyeyi inceleyin."
+          "body": "Gerçekten alınan tutarı girip varsa indirim bilgisini kontrol edin. İşlem sonrası yeni bakiyeyi inceleyin.",
+          "tour": {
+            "screen": "accounts",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1481,41 +1856,48 @@
       "category": "finance",
       "title": "Tedarikçiler ve işletme borçları",
       "summary": "Borç kartı, ödeme ve hareket geçmişini takip edin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
       ],
       "platforms": [
-        "ios",
-        "android"
+        "ios"
       ],
       "requiredFeature": "COMPANY_DEBT_TRACKING",
       "isNew": false,
       "locations": {
-        "ios": "Finans → İşletme Borçları",
-        "android": "Finans → İşletme Borçları"
+        "ios": "Finans → İşletme Borçları"
       },
       "steps": [
         {
           "title": "Doğru tedarikçiyi bulun",
-          "body": "Tedarikçi kartı ve borç bakiyesini kontrol edin. Kart görünmüyorsa filtre ve yükleme durumunu inceleyin."
+          "body": "Tedarikçi kartı ve borç bakiyesini kontrol edin. Kart görünmüyorsa filtre ve yükleme durumunu inceleyin.",
+          "tour": {
+            "screen": "debts",
+            "target": "content"
+          }
         },
         {
           "title": "Borç veya ödeme kaydını doğrulayın",
-          "body": "Tutar, tarih ve açıklamayı gerçek işleme göre girin; ödeme ile yeni borç oluşturmayı karıştırmayın."
+          "body": "Tutar, tarih ve açıklamayı gerçek işleme göre girin; ödeme ile yeni borç oluşturmayı karıştırmayın.",
+          "tour": {
+            "screen": "debts",
+            "target": "content"
+          }
         },
         {
           "title": "Hareketleri okuyun",
-          "body": "Ödeme sonrasında ilgili tarafın hareket geçmişini ve kalan bakiyeyi kontrol edin."
+          "body": "Ödeme sonrasında ilgili tarafın hareket geçmişini ve kalan bakiyeyi kontrol edin.",
+          "tour": {
+            "screen": "debts",
+            "target": "content"
+          }
         }
       ],
       "sources": {
         "ios": [
           "CompanyDebtsView.swift"
-        ],
-        "android": [
-          "FinanceScreen.kt"
         ]
       }
     },
@@ -1524,7 +1906,7 @@
       "category": "finance",
       "title": "Sabit giderler ve ödeme takvimi",
       "summary": "Tekrarlayan giderlerin vade ve ödemelerini yönetin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -1542,15 +1924,27 @@
       "steps": [
         {
           "title": "Sabit gideri tanımlayın",
-          "body": "Gider adı, tutar, vade ve tekrar bilgilerini kontrol edin. Hatırlatma, ödemenin yapıldığı anlamına gelmez."
+          "body": "Gider adı, tutar, vade ve tekrar bilgilerini kontrol edin. Hatırlatma, ödemenin yapıldığı anlamına gelmez.",
+          "tour": {
+            "screen": "fixedExpenses",
+            "target": "content"
+          }
         },
         {
           "title": "Vadesi gelenleri inceleyin",
-          "body": "Yaklaşan ve geciken kayıtları dönem filtresiyle değerlendirin."
+          "body": "Yaklaşan ve geciken kayıtları dönem filtresiyle değerlendirin.",
+          "tour": {
+            "screen": "fixedExpenses",
+            "target": "content"
+          }
         },
         {
           "title": "Ödemeyi doğrulayın",
-          "body": "Gerçek ödeme yapıldıktan sonra ilgili kayıt üzerinden ödeme işlemini kaydedip hareketi kontrol edin."
+          "body": "Gerçek ödeme yapıldıktan sonra ilgili kayıt üzerinden ödeme işlemini kaydedip hareketi kontrol edin.",
+          "tour": {
+            "screen": "fixedExpenses",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1567,37 +1961,40 @@
       "category": "finance",
       "title": "İşletme mülkiyeti ve demirbaşlar",
       "summary": "Mülkiyet kayıtlarını faaliyet giderinden ayırın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
       ],
       "platforms": [
-        "ios",
-        "android"
+        "ios"
       ],
       "requiredFeature": "BUSINESS_ASSETS",
       "isNew": false,
       "locations": {
-        "ios": "Finans → İşletme Mülkiyeti",
-        "android": "Finans → İşletme Mülkiyeti"
+        "ios": "Finans → İşletme Mülkiyeti"
       },
       "steps": [
         {
           "title": "Varlığı tanımlayın",
-          "body": "İşletmeye ait varlığın tür, değer ve ilgili tarih bilgilerini kontrol edin."
+          "body": "İşletmeye ait varlığın tür, değer ve ilgili tarih bilgilerini kontrol edin.",
+          "tour": {
+            "screen": "assets",
+            "target": "content"
+          }
         },
         {
           "title": "İşlem türünü doğru seçin",
-          "body": "Varlık alımı/satışı ve faaliyet gideri farklı muhasebe etkileri doğurabilir. Kaydetmeden önce açıklamayı inceleyin."
+          "body": "Varlık alımı/satışı ve faaliyet gideri farklı muhasebe etkileri doğurabilir. Kaydetmeden önce açıklamayı inceleyin.",
+          "tour": {
+            "screen": "assets",
+            "target": "content"
+          }
         }
       ],
       "sources": {
         "ios": [
           "BusinessAssetsView.swift"
-        ],
-        "android": [
-          "FinanceScreen.kt"
         ]
       }
     },
@@ -1606,7 +2003,7 @@
       "category": "finance",
       "title": "Aylık raporlar, PDF ve dışa aktarma",
       "summary": "Dönem, iskonto ve net sonucu birlikte okuyun.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -1624,15 +2021,27 @@
       "steps": [
         {
           "title": "Dönemi seçin",
-          "body": "Ay ve yıl filtrelerini doğrulayın; raporun hangi dönemi kapsadığını kontrol edin."
+          "body": "Ay ve yıl filtrelerini doğrulayın; raporun hangi dönemi kapsadığını kontrol edin.",
+          "tour": {
+            "screen": "reports",
+            "target": "content"
+          }
         },
         {
           "title": "Toplamları yorumlayın",
-          "body": "Gelir, gider, iskonto ve net kârın raporda nasıl gösterildiğini inceleyin. İskontoyu gelirden ikinci kez düşmeyin."
+          "body": "Gelir, gider, iskonto ve net kârın raporda nasıl gösterildiğini inceleyin. İskontoyu gelirden ikinci kez düşmeyin.",
+          "tour": {
+            "screen": "reports",
+            "target": "content"
+          }
         },
         {
           "title": "Belgeyi güvenli paylaşın",
-          "body": "PDF veya dışa aktarma seçeneği paketinizde varsa önizleyip alıcıyı kontrol edin. Finans dökümünü destek talebine eklemeyin."
+          "body": "PDF veya dışa aktarma seçeneği paketinizde varsa önizleyip alıcıyı kontrol edin. Finans dökümünü destek talebine eklemeyin.",
+          "tour": {
+            "screen": "reports",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1649,7 +2058,7 @@
       "category": "finance",
       "title": "Kâr analizi ve maliyet",
       "summary": "Tahsil edilen para ile faaliyet sonucunu ayırın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -1667,11 +2076,19 @@
       "steps": [
         {
           "title": "Filtreyi belirleyin",
-          "body": "İlgili dönem ve analiz kapsamını kontrol edin."
+          "body": "İlgili dönem ve analiz kapsamını kontrol edin.",
+          "tour": {
+            "screen": "profit",
+            "target": "content"
+          }
         },
         {
           "title": "Gelir ve maliyeti birlikte okuyun",
-          "body": "Parça maliyeti, işçilik, gider ve iskonto etkileri net sonucu değiştirebilir. Cari alacak ile alınan nakit aynı ölçü değildir."
+          "body": "Parça maliyeti, işçilik, gider ve iskonto etkileri net sonucu değiştirebilir. Cari alacak ile alınan nakit aynı ölçü değildir.",
+          "tour": {
+            "screen": "profit",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1688,7 +2105,7 @@
       "category": "team",
       "title": "Ekip kullanıcıları ve yetkiler",
       "summary": "Kullanıcı, rol, imza ve görev devrini yönetin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -1706,15 +2123,27 @@
       "steps": [
         {
           "title": "Kullanıcı ve rolü kontrol edin",
-          "body": "Yeni kullanıcı veya düzenleme işleminde doğru rolü ve iletişim bilgilerini seçin. Yönetici ve teknisyen yetkileri farklıdır."
+          "body": "Yeni kullanıcı veya düzenleme işleminde doğru rolü ve iletişim bilgilerini seçin. Yönetici ve teknisyen yetkileri farklıdır.",
+          "tour": {
+            "screen": "team",
+            "target": "settings-sections"
+          }
         },
         {
           "title": "İmza ve hesap işlemlerini ayırın",
-          "body": "Personel imzası yükleme ve parola işlemlerini yalnızca yetkili kişi adına yürütün; parola veya imzayı destek mesajında paylaşmayın."
+          "body": "Personel imzası yükleme ve parola işlemlerini yalnızca yetkili kişi adına yürütün; parola veya imzayı destek mesajında paylaşmayın.",
+          "tour": {
+            "screen": "team",
+            "target": "content"
+          }
         },
         {
           "title": "Silmeden önce açık işleri kontrol edin",
-          "body": "Sistem görev devri istiyorsa açık işleri uygun personele aktarın. Tur kullanıcı silmez veya yetki değiştirmez."
+          "body": "Sistem görev devri istiyorsa açık işleri uygun personele aktarın. Tur kullanıcı silmez veya yetki değiştirmez.",
+          "tour": {
+            "screen": "team",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1731,7 +2160,7 @@
       "category": "team",
       "title": "Araç yönetimi",
       "summary": "Ekip araçlarını güncel tutun.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -1749,11 +2178,19 @@
       "steps": [
         {
           "title": "Aracı bulun",
-          "body": "Mevcut araç kaydını ve tanımlayıcı bilgileri kontrol edin."
+          "body": "Mevcut araç kaydını ve tanımlayıcı bilgileri kontrol edin.",
+          "tour": {
+            "screen": "vehicles",
+            "target": "settings-sections"
+          }
         },
         {
           "title": "Bilgileri yönetin",
-          "body": "Ekleme, düzenleme veya silme işleminde doğru araçta olduğunuzu doğrulayın; bağlı operasyonları dikkate alın."
+          "body": "Ekleme, düzenleme veya silme işleminde doğru araçta olduğunuzu doğrulayın; bağlı operasyonları dikkate alın.",
+          "tour": {
+            "screen": "vehicles",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1770,7 +2207,7 @@
       "category": "team",
       "title": "Firma bilgileri, logo ve imza",
       "summary": "Belgelere yansıyacak işletme bilgilerini kontrol edin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -1788,11 +2225,19 @@
       "steps": [
         {
           "title": "İşletme bilgilerini doğrulayın",
-          "body": "Firma adı, telefon, adres ve e-posta alanlarını güncel tutun."
+          "body": "Firma adı, telefon, adres ve e-posta alanlarını güncel tutun.",
+          "tour": {
+            "screen": "company",
+            "target": "settings-sections"
+          }
         },
         {
           "title": "Görseli doğru yükleyin",
-          "body": "Firma logosu ile müşteri/personel imzasını karıştırmayın. Yeni belgeyi paylaşmadan önce firma bilgilerinin doğru göründüğünü kontrol edin."
+          "body": "Firma logosu ile müşteri/personel imzasını karıştırmayın. Yeni belgeyi paylaşmadan önce firma bilgilerinin doğru göründüğünü kontrol edin.",
+          "tour": {
+            "screen": "company",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1809,7 +2254,7 @@
       "category": "team",
       "title": "Saha radarı ve ekip durumu",
       "summary": "Ekip konumu ve iş yoğunluğunu değerlendirin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -1827,11 +2272,19 @@
       "steps": [
         {
           "title": "Ekip ve zamanı kontrol edin",
-          "body": "Gösterilen konumun ve iş durumunun ne zaman güncellendiğini inceleyin."
+          "body": "Gösterilen konumun ve iş durumunun ne zaman güncellendiğini inceleyin.",
+          "tour": {
+            "screen": "radar",
+            "target": "content"
+          }
         },
         {
           "title": "Konumu kesin varış kabul etmeyin",
-          "body": "Cihaz izni, bağlantı ve güncelleme sıklığı veriyi etkileyebilir. Konum bilgilerini yetkisiz kişilerle paylaşmayın."
+          "body": "Cihaz izni, bağlantı ve güncelleme sıklığı veriyi etkileyebilir. Konum bilgilerini yetkisiz kişilerle paylaşmayın.",
+          "tour": {
+            "screen": "radar",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1848,7 +2301,7 @@
       "category": "team",
       "title": "Servis ağı ve alt servis işleri",
       "summary": "İş gönderimi ve operasyon takibini yönetin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -1864,15 +2317,27 @@
       "steps": [
         {
           "title": "Servis ilişkisini kontrol edin",
-          "body": "Alt servis ve işletme ilişkisini inceleyin; yanlış firmaya iş göndermeyin."
+          "body": "Alt servis ve işletme ilişkisini inceleyin; yanlış firmaya iş göndermeyin.",
+          "tour": {
+            "screen": "network",
+            "target": "content"
+          }
         },
         {
           "title": "Gönderilecek işi doğrulayın",
-          "body": "İş kapsamı, atama ve varsa paylaşılacak müşteri bilgisini kontrol edin."
+          "body": "İş kapsamı, atama ve varsa paylaşılacak müşteri bilgisini kontrol edin.",
+          "tour": {
+            "screen": "network",
+            "target": "content"
+          }
         },
         {
           "title": "Ağ durumunu takip edin",
-          "body": "Gönderilen işin durumunu ağ ekranından izleyin. Bu rehber başka işletmeye iş veya veri göndermez."
+          "body": "Gönderilen işin durumunu ağ ekranından izleyin. Bu rehber başka işletmeye iş veya veri göndermez.",
+          "tour": {
+            "screen": "network",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1886,7 +2351,7 @@
       "category": "team",
       "title": "Bildirimler ve fişe yönlendirme",
       "summary": "Atama bildiriminden doğru kayda ulaşın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -1905,15 +2370,27 @@
       "steps": [
         {
           "title": "İzin ve oturumu kontrol edin",
-          "body": "Bildirim gelmesi cihaz iznine, bağlantıya ve doğru hesapla giriş yapılmasına bağlıdır."
+          "body": "Bildirim gelmesi cihaz iznine, bağlantıya ve doğru hesapla giriş yapılmasına bağlıdır.",
+          "tour": {
+            "screen": "notifications",
+            "target": "content"
+          }
         },
         {
           "title": "Atanan kaydı açın",
-          "body": "Bildirime dokununca uygulama ve oturum hazır olana kadar yönlendirme bekleyebilir. Açılan fişin numarasını doğrulayın."
+          "body": "Bildirime dokununca uygulama ve oturum hazır olana kadar yönlendirme bekleyebilir. Açılan fişin numarasını doğrulayın.",
+          "tour": {
+            "screen": "tickets",
+            "target": "ticket-list"
+          }
         },
         {
           "title": "Eski bildirimi değerlendirin",
-          "body": "Kayıt silinmiş, yetki değişmiş veya başka hesap açık olabilir. Hata halinde tekrar tekrar farklı kayıt açmak yerine destek isteyin."
+          "body": "Kayıt silinmiş, yetki değişmiş veya başka hesap açık olabilir. Hata halinde tekrar tekrar farklı kayıt açmak yerine destek isteyin.",
+          "tour": {
+            "screen": "notifications",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1930,7 +2407,7 @@
       "category": "account",
       "title": "Giriş, kayıt ve hesap seçimi",
       "summary": "Bireysel/kurumsal hesap ve ücretsiz planı ayırın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -1949,15 +2426,27 @@
       "steps": [
         {
           "title": "Doğru giriş türünü seçin",
-          "body": "Hesabınıza uygun bireysel veya kurumsal alanı kullanın. E-posta/kullanıcı adı ve parolayı üçüncü kişilerle paylaşmayın."
+          "body": "Hesabınıza uygun bireysel veya kurumsal alanı kullanın. E-posta/kullanıcı adı ve parolayı üçüncü kişilerle paylaşmayın.",
+          "tour": {
+            "screen": "login",
+            "target": "content"
+          }
         },
         {
           "title": "Kayıt bilgilerini doğrulayın",
-          "body": "Hesap oluştururken işletme ve kullanıcı bilgilerinin doğru olduğundan emin olun. Çırak planın ücretsiz kullanımını ücretli abonelik denemesiyle karıştırmayın."
+          "body": "Hesap oluştururken işletme ve kullanıcı bilgilerinin doğru olduğundan emin olun. Çırak planın ücretsiz kullanımını ücretli abonelik denemesiyle karıştırmayın.",
+          "tour": {
+            "screen": "register",
+            "target": "content"
+          }
         },
         {
           "title": "Hesapları karıştırmayın",
-          "body": "Aynı e-posta ile sosyal giriş ve parola girişinin durumunu kontrol edin; farklı hesapta şirket ve veriler değişebilir."
+          "body": "Aynı e-posta ile sosyal giriş ve parola girişinin durumunu kontrol edin; farklı hesapta şirket ve veriler değişebilir.",
+          "tour": {
+            "screen": "profile",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -1976,7 +2465,7 @@
       "category": "account",
       "title": "Google ile giriş ve kayıt",
       "summary": "Mevcut Google hesabını güvenli kullanın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -1995,11 +2484,19 @@
       "steps": [
         {
           "title": "Hesabı siz seçin",
-          "body": "Google'ın güvenli hesap seçim ekranında doğru hesabı seçin. İptal ederseniz uygulama oturum açılmış gibi davranmamalıdır."
+          "body": "Google'ın güvenli hesap seçim ekranında doğru hesabı seçin. İptal ederseniz uygulama oturum açılmış gibi davranmamalıdır.",
+          "tour": {
+            "screen": "login",
+            "target": "content"
+          }
         },
         {
           "title": "Uygulama hesabını doğrulayın",
-          "body": "Giriş sonrasında doğru işletme ve rolü kontrol edin. Google parolanızı uygulama formuna veya destek mesajına yazmayın."
+          "body": "Giriş sonrasında doğru işletme ve rolü kontrol edin. Google parolanızı uygulama formuna veya destek mesajına yazmayın.",
+          "tour": {
+            "screen": "profile",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -2016,7 +2513,7 @@
       "category": "account",
       "title": "Apple ile giriş ve kayıt",
       "summary": "Apple kimliğiyle ek parola zorunluluğu olmadan giriş yapın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -2033,11 +2530,19 @@
       "steps": [
         {
           "title": "Apple onayını kullanın",
-          "body": "Apple'ın güvenli kimlik doğrulama ekranını tamamlayın veya işlemi iptal edin."
+          "body": "Apple'ın güvenli kimlik doğrulama ekranını tamamlayın veya işlemi iptal edin.",
+          "tour": {
+            "screen": "login",
+            "target": "content"
+          }
         },
         {
           "title": "Ek parola gerekli değildir",
-          "body": "Apple ile doğrulama sonrasında mobil giriş için yerel parola oluşturmanız gerekmez. Masaüstü erişim parolası ayrı ve isteğe bağlı bir işlemdir."
+          "body": "Apple ile doğrulama sonrasında mobil giriş için yerel parola oluşturmanız gerekmez. Masaüstü erişim parolası ayrı ve isteğe bağlı bir işlemdir.",
+          "tour": {
+            "screen": "login",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -2051,7 +2556,7 @@
       "category": "account",
       "title": "İsteğe bağlı masaüstü parolası",
       "summary": "Sosyal girişten bağımsız masaüstü erişimini hazırlayın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -2068,11 +2573,19 @@
       "steps": [
         {
           "title": "Yalnızca ihtiyaç varsa açın",
-          "body": "Seçenek hesabınız için sunuluyorsa masaüstü girişini hazırlamak için kullanın. Mobil sosyal girişin zorunlu devam adımı değildir."
+          "body": "Seçenek hesabınız için sunuluyorsa masaüstü girişini hazırlamak için kullanın. Mobil sosyal girişin zorunlu devam adımı değildir.",
+          "tour": {
+            "screen": "profile",
+            "target": "content"
+          }
         },
         {
           "title": "Güvenli parola belirleyin",
-          "body": "Parolayı paylaşmadan kaydedin. Formu iptal etmek mobil oturumunuzu kapatmamalıdır."
+          "body": "Parolayı paylaşmadan kaydedin. Formu iptal etmek mobil oturumunuzu kapatmamalıdır.",
+          "tour": {
+            "screen": "desktopPassword",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -2086,7 +2599,7 @@
       "category": "account",
       "title": "Paketler, limitler ve salt okunur kullanım",
       "summary": "Ücretsiz plan ile ücretli özellikleri ayırın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -2105,15 +2618,27 @@
       "steps": [
         {
           "title": "Kapsamı inceleyin",
-          "body": "Çırak, Usta ve Patron özelliklerini; personel, müşteri, fiş ve depolama limitlerini kontrol edin."
+          "body": "Çırak, Usta ve Patron özelliklerini; personel, müşteri, fiş ve depolama limitlerini kontrol edin.",
+          "tour": {
+            "screen": "plans",
+            "target": "content"
+          }
         },
         {
           "title": "Kilitli özellik bilgi içindir",
-          "body": "Rehber bir özelliği açıklasa da paket veya rol yetkisi vermez. Salt okunur durumda görüntüleme ile kayıt değiştirme izinleri farklıdır."
+          "body": "Rehber bir özelliği açıklasa da paket veya rol yetkisi vermez. Salt okunur durumda görüntüleme ile kayıt değiştirme izinleri farklıdır.",
+          "tour": {
+            "screen": "plans",
+            "target": "content"
+          }
         },
         {
           "title": "Destek erişimi sürer",
-          "body": "Paket kısıtlarında kendi destek taleplerinize erişebilirsiniz; rehber bir satın alma veya yükseltme başlatmaz."
+          "body": "Paket kısıtlarında kendi destek taleplerinize erişebilirsiniz; rehber bir satın alma veya yükseltme başlatmaz.",
+          "tour": {
+            "screen": "profile",
+            "target": "profile-support"
+          }
         }
       ],
       "sources": {
@@ -2131,7 +2656,7 @@
       "category": "account",
       "title": "Abonelik, satın alma ve geri yükleme",
       "summary": "Mağaza işlemlerini uygulama hesabıyla eşleştirin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN"
@@ -2149,15 +2674,27 @@
       "steps": [
         {
           "title": "Gerçek mağaza fiyatını bekleyin",
-          "body": "Fiyatlar mağazadan gelir. Ürün yüklenemediğinde satın alma başarılı varsaymayın."
+          "body": "Fiyatlar mağazadan gelir. Ürün yüklenemediğinde satın alma başarılı varsaymayın.",
+          "tour": {
+            "screen": "plans",
+            "target": "content"
+          }
         },
         {
           "title": "Sonucu doğrulayın",
-          "body": "Mağaza ödemesi sonrasında uygulama sunucusu doğrulaması da tamamlanmalıdır. Hata varsa yeniden satın almak yerine mevcut işlemi kontrol edin."
+          "body": "Mağaza ödemesi sonrasında uygulama sunucusu doğrulaması da tamamlanmalıdır. Hata varsa yeniden satın almak yerine mevcut işlemi kontrol edin.",
+          "tour": {
+            "screen": "plans",
+            "target": "content"
+          }
         },
         {
           "title": "Hesap ve aboneliği ayrı yönetin",
-          "body": "Hesap silmek mağaza aboneliğini otomatik iptal etmez. Geri yükleme ve abonelik yönetimi mağaza hesabıyla ilişkilidir."
+          "body": "Hesap silmek mağaza aboneliğini otomatik iptal etmez. Geri yükleme ve abonelik yönetimi mağaza hesabıyla ilişkilidir.",
+          "tour": {
+            "screen": "profile",
+            "target": "content"
+          }
         }
       ],
       "sources": {
@@ -2174,7 +2711,7 @@
       "category": "account",
       "title": "Görünüm, büyük yazı ve klavye",
       "summary": "Formları rahat kullanın, yazdıklarınızı koruyun.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -2193,15 +2730,27 @@
       "steps": [
         {
           "title": "Görünümü değerlendirin",
-          "body": "Açık/koyu tema ve cihaz yazı boyutu ekranın düzenini değiştirebilir. Uygulamada görünüm seçeneği sunuluyorsa oradan değiştirebilirsiniz."
+          "body": "Açık/koyu tema ve cihaz yazı boyutu ekranın düzenini değiştirebilir. Uygulamada görünüm seçeneği sunuluyorsa oradan değiştirebilirsiniz.",
+          "tour": {
+            "screen": "profile",
+            "target": "content"
+          }
         },
         {
           "title": "Klavyeyi güvenle kapatın",
-          "body": "Bitti veya klavyeyi kapatma seçeneğini kullanın; bu işlem formu kaydetmek ya da silmek değildir."
+          "body": "Bitti veya klavyeyi kapatma seçeneğini kullanın; bu işlem formu kaydetmek ya da silmek değildir.",
+          "tour": {
+            "screen": "customerForm",
+            "target": "customer-fields"
+          }
         },
         {
           "title": "Rehber adımları kaydırılabilir",
-          "body": "Metin ekrana sığmıyorsa adım içeriğini kaydırın. Devam ve geri düğmeleri ayrı eylem alanındadır."
+          "body": "Metin ekrana sığmıyorsa adım içeriğini kaydırın. Devam ve geri düğmeleri ayrı eylem alanındadır.",
+          "tour": {
+            "screen": "profile",
+            "target": "profile-support"
+          }
         }
       ],
       "sources": {
@@ -2218,7 +2767,7 @@
       "category": "account",
       "title": "Destek talebi oluşturma",
       "summary": "Soru, hata veya geliştirme önerisi iletin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -2237,15 +2786,27 @@
       "steps": [
         {
           "title": "Talep türünü seçin",
-          "body": "Soru, Hata veya Öneri seçip kısa bir konu ve açıklama yazın. Parola veya müşteri/finans dökümü paylaşmayın."
+          "body": "Soru, Hata veya Öneri seçip kısa bir konu ve açıklama yazın. Parola veya müşteri/finans dökümü paylaşmayın.",
+          "tour": {
+            "screen": "supportForm",
+            "target": "support-form"
+          }
         },
         {
           "title": "Taslağı ve ekleri kontrol edin",
-          "body": "Taslak cihazda saklandı bilgisini bekleyin. Görsellerde hassas alanları kendiniz kapatın; ek göndermek zorunlu değildir."
+          "body": "Taslak cihazda saklandı bilgisini bekleyin. Görsellerde hassas alanları kendiniz kapatın; ek göndermek zorunlu değildir.",
+          "tour": {
+            "screen": "supportForm",
+            "target": "support-attachments"
+          }
         },
         {
           "title": "Sonucu doğrulayın",
-          "body": "Gönderim sonrası DST numarasını kontrol edin. Sonuç belirsizse yeni talep açmak yerine aynı gönderimi tekrar deneyin."
+          "body": "Gönderim sonrası DST numarasını kontrol edin. Sonuç belirsizse yeni talep açmak yerine aynı gönderimi tekrar deneyin.",
+          "tour": {
+            "screen": "supportForm",
+            "target": "support-submit"
+          }
         }
       ],
       "sources": {
@@ -2262,7 +2823,7 @@
       "category": "account",
       "title": "Destek yanıtları ve yeniden açma",
       "summary": "Aynı konuşmadan iletişimi sürdürün.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -2281,15 +2842,27 @@
       "steps": [
         {
           "title": "Konuşmayı yenileyin",
-          "body": "Talepler listesine dönüp yenileyin ve ilgili DST numarasını açın. Önceki mesajlar bağlantısı daha eski yazışmaları getirir."
+          "body": "Talepler listesine dönüp yenileyin ve ilgili DST numarasını açın. Önceki mesajlar bağlantısı daha eski yazışmaları getirir.",
+          "tour": {
+            "screen": "support",
+            "target": "support-requests"
+          }
         },
         {
           "title": "Aynı talepten yanıtlayın",
-          "body": "İlgili konuda yeni talep açmak yerine aynı konuşmaya yanıt verin. Çözülen talebe yeni mesaj göndermek yeniden açılmasını sağlar."
+          "body": "İlgili konuda yeni talep açmak yerine aynı konuşmaya yanıt verin. Çözülen talebe yeni mesaj göndermek yeniden açılmasını sağlar.",
+          "tour": {
+            "screen": "support",
+            "target": "support-requests"
+          }
         },
         {
           "title": "Bildirim beklentisini doğru kurun",
-          "body": "Bu sürüm destek yanıtı için arka plan push bildirimi göndermez. Uygulama açıkken sayaç ve yenileme üzerinden kontrol edin."
+          "body": "Bu sürüm destek yanıtı için arka plan push bildirimi göndermez. Uygulama açıkken sayaç ve yenileme üzerinden kontrol edin.",
+          "tour": {
+            "screen": "support",
+            "target": "support-requests"
+          }
         }
       ],
       "sources": {
@@ -2306,7 +2879,7 @@
       "category": "account",
       "title": "Destek ekleri ve gizlilik",
       "summary": "Görsel veya Pusula raporunu kontrollü paylaşın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -2325,15 +2898,27 @@
       "steps": [
         {
           "title": "Uygun eki seçin",
-          "body": "Bir mesajda en fazla üç ek seçin. JPEG/PNG görsel ve en fazla 256 KB Pusula bağlantı raporu kabul edilir."
+          "body": "Bir mesajda en fazla üç ek seçin. JPEG/PNG görsel ve en fazla 256 KB Pusula bağlantı raporu kabul edilir.",
+          "tour": {
+            "screen": "supportForm",
+            "target": "support-attachments"
+          }
         },
         {
           "title": "Göndermeden önce inceleyin",
-          "body": "Görseli önizleyip hassas alanları kapatın. Rastgele JSON veya parola/token içeren döküm yüklemeyin."
+          "body": "Görseli önizleyip hassas alanları kapatın. Rastgele JSON veya parola/token içeren döküm yüklemeyin.",
+          "tour": {
+            "screen": "supportForm",
+            "target": "support-attachments"
+          }
         },
         {
           "title": "Saklama süresini bilin",
-          "body": "Ekler 30 gün, çözülen talepler kapanıştan 180 gün sonra temizlenir. Destek eki herkese açık bir dosya bağlantısı değildir."
+          "body": "Ekler 30 gün, çözülen talepler kapanıştan 180 gün sonra temizlenir. Destek eki herkese açık bir dosya bağlantısı değildir.",
+          "tour": {
+            "screen": "supportForm",
+            "target": "support-attachments"
+          }
         }
       ],
       "sources": {
@@ -2350,7 +2935,7 @@
       "category": "account",
       "title": "Bağlantı tanılama ve rapor paylaşma",
       "summary": "Hatanın zamanını ve teknik sonucunu destekle paylaşın.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -2367,15 +2952,27 @@
       "steps": [
         {
           "title": "Hatayı not edin",
-          "body": "Hata saati, işlem ve kullanılan ağ türünü kaydedin. Wi-Fi/mobil veri karşılaştırmasını aynı cihazda yapın."
+          "body": "Hata saati, işlem ve kullanılan ağ türünü kaydedin. Wi-Fi/mobil veri karşılaştırmasını aynı cihazda yapın.",
+          "tour": {
+            "screen": "diagnostics",
+            "target": "diagnostics-report"
+          }
         },
         {
           "title": "Raporu inceleyin",
-          "body": "Bağlantı tanılama ekranında kayıtları ve rapor önizlemesini kontrol edin. Teknik rapor müşteri veya ödeme belgesi yerine geçmez."
+          "body": "Bağlantı tanılama ekranında kayıtları ve rapor önizlemesini kontrol edin. Teknik rapor müşteri veya ödeme belgesi yerine geçmez.",
+          "tour": {
+            "screen": "diagnostics",
+            "target": "diagnostics-report"
+          }
         },
         {
           "title": "Kontrollü paylaşın",
-          "body": "Raporu destek talebine isteğe bağlı ekleyin. İsterseniz cihazdaki tanılama kayıtlarını temizleyebilirsiniz."
+          "body": "Raporu destek talebine isteğe bağlı ekleyin. İsterseniz cihazdaki tanılama kayıtlarını temizleyebilirsiniz.",
+          "tour": {
+            "screen": "diagnostics",
+            "target": "diagnostics-report"
+          }
         }
       ],
       "sources": {
@@ -2389,7 +2986,7 @@
       "category": "account",
       "title": "Çıkış, hesap silme ve yasal bilgiler",
       "summary": "Geri alınamaz işlemleri bilinçli yönetin.",
-      "revision": 1,
+      "revision": 2,
       "roles": [
         "COMPANY_ADMIN",
         "SUPER_ADMIN",
@@ -2408,15 +3005,27 @@
       "steps": [
         {
           "title": "Çıkış ve silme farklıdır",
-          "body": "Çıkış oturumu kapatır. Hesap silme geri alınamaz kişisel veri temizliği sürecidir; ortak işletme ve yasal saklama kayıtları farklı kurallara tabidir."
+          "body": "Çıkış oturumu kapatır. Hesap silme geri alınamaz kişisel veri temizliği sürecidir; ortak işletme ve yasal saklama kayıtları farklı kurallara tabidir.",
+          "tour": {
+            "screen": "profile",
+            "target": "content"
+          }
         },
         {
           "title": "Aboneliği ayrıca kontrol edin",
-          "body": "Mağaza aboneliği hesap silmeyle kendiliğinden iptal olmaz. Gerekirse mağazanın abonelik yönetimini kullanın."
+          "body": "Mağaza aboneliği hesap silmeyle kendiliğinden iptal olmaz. Gerekirse mağazanın abonelik yönetimini kullanın.",
+          "tour": {
+            "screen": "plans",
+            "target": "content"
+          }
         },
         {
           "title": "Uyarıları okuyun",
-          "body": "Gizlilik ve kullanım koşullarını inceleyin. Bu rehber hesap silmez, abonelik iptal etmez ve onay vermez."
+          "body": "Gizlilik ve kullanım koşullarını inceleyin. Bu rehber hesap silmez, abonelik iptal etmez ve onay vermez.",
+          "tour": {
+            "screen": "profile",
+            "target": "profile-delete"
+          }
         }
       ],
       "sources": {

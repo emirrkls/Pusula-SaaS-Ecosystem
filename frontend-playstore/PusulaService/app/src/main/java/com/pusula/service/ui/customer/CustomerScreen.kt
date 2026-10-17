@@ -20,7 +20,6 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PersonOff
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Receipt
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -61,17 +60,22 @@ import com.pusula.service.ui.theme.AccentCyan
 import com.pusula.service.ui.theme.AccentPurple
 import com.pusula.service.ui.theme.Info
 import com.pusula.service.ui.theme.Spacing
+import com.pusula.service.ui.guide.TourAwareAlertDialog as AlertDialog
+import com.pusula.service.ui.guide.guideTourTarget
+import com.pusula.service.ui.guide.rememberGuideListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerScreen(
-    viewModel: CustomerViewModel = hiltViewModel()
+    viewModel: CustomerViewModel = hiltViewModel(),
+    tourCustomer: CustomerDTO? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val guideList=rememberGuideListState(mapOf("customer-contact" to Int.MAX_VALUE,"customer-list" to 2,"customer-search" to 1))
     var query by remember { mutableStateOf("") }
     var editingCustomer by remember { mutableStateOf<CustomerDTO?>(null) }
     var isCreateMode by remember { mutableStateOf(false) }
-    var selectedCustomer by remember { mutableStateOf<CustomerDTO?>(null) }
+    var selectedCustomer by remember { mutableStateOf(tourCustomer) }
     var showCreateTicketDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.loadCustomers() }
@@ -112,7 +116,7 @@ fun CustomerScreen(
                     modifier = Modifier.fillMaxSize().padding(padding)
                 ) {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
+                        state=guideList,modifier = Modifier.fillMaxSize().guideTourTarget("customer-list"),
                         contentPadding = PaddingValues(
                             start = Spacing.lg,
                             end = Spacing.lg,
@@ -148,7 +152,7 @@ fun CustomerScreen(
                                             cornerRadius = 8.dp
                                         )
                                     },
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth().guideTourTarget("customer-search")
                                 )
                                 Spacer(Modifier.height(Spacing.sm))
                                 Button(
@@ -213,7 +217,7 @@ fun CustomerScreen(
 
                         selectedCustomer?.let { customer ->
                             item {
-                                AppDashboardSection(title = "Müşteri Detayı") {
+                                AppDashboardSection(title = "Müşteri Detayı",modifier=Modifier.guideTourTarget("customer-contact")) {
                                     AppGhostCard {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
@@ -375,7 +379,7 @@ private fun CustomerRow(
 }
 
 @Composable
-private fun CustomerFormDialog(
+internal fun CustomerFormDialog(
     initial: CustomerDTO?,
     saving: Boolean,
     onDismiss: () -> Unit,

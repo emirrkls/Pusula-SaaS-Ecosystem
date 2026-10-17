@@ -2,6 +2,13 @@ import XCTest
 @testable import PusulaSupport
 
 final class SupportDraftTests: XCTestCase {
+    func testDisplayDatesRespectOffsetsNaiveBusinessTimeAndInvalidInput() {
+        let expected=SupportPresentation.displayDate("2026-10-17T16:20:00Z")
+        XCTAssertEqual(expected,SupportPresentation.displayDate("2026-10-17T19:20:00+03:00"))
+        XCTAssertEqual(expected,SupportPresentation.displayDate("2026-10-17T19:20:00.000000"))
+        XCTAssertNotEqual(expected,"2026-10-17T16:20:00Z")
+        XCTAssertEqual(SupportPresentation.displayDate("invalid"),"invalid")
+    }
     func testFrozenDraftRoundTripKeepsSameIdentityContentAndAttachment() throws {
         var draft=SupportDraft();draft.subject="TLS";draft.body="Bağlantı kurulamadı";draft.frozen=true;draft.ticketId=7
         draft.attachments=[SupportUpload(mediaType:"application/json",dataBase64:"e30=")]

@@ -189,3 +189,14 @@
 "support.value.NORMAL" = "Normal";
 "support.value.HIGH" = "High";
 "support.value.URGENT" = "Urgent";
+"support.hub.brand" = "PUSULA SUPPORT";
+"support.hub.heading" = "How can we help?";
+"support.hub.subtitle" = "Keep track of your questions, issue reports and suggestions in one place.";
+"support.hub.requests" = "Your requests";
+"support.hub.empty_hint" = "Create your first request and follow our team's replies here.";
+"support.hub.unread" = "New reply";
+"support.hub.other_channels" = "Contact us by email";
+"support.hub.email_hint" = "Use this address if you cannot access the request center.";
+"support.hub.compose_hint" = "Add a short subject and tell us how we can help.";
+"support.hub.reply_hint" = "Your reply will be added to this conversation.";
+"support.hub.attachments" = "Attachments · Optional";

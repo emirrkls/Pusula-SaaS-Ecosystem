@@ -30,6 +30,11 @@ final class GuideFlowTests: XCTestCase {
         return app
     }
     private func tap(_ id: String, _ app: XCUIApplication) {
+        if id == "guide.next",app.buttons["guide.context.ticket.701"].waitForExistence(timeout: 1) {
+            // Record choice is explicit; the tour must never auto-pick a ticket.
+            XCTAssertFalse(app.buttons[id].isEnabled)
+            app.buttons["guide.context.ticket.701"].tap()
+        }
         let button = app.buttons[id]
         let needsReveal = id.hasPrefix("guide.topic.") || id == "settings.guide.open" || id == "account.guide.open"
         if needsReveal {
@@ -58,7 +63,9 @@ final class GuideFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["guide.quick-start"].waitForExistence(timeout: 12))
         XCTAssertTrue(app.images["pusula.brand"].exists)
         tap("guide.quick-start", app)
+        XCTAssertEqual(app.staticTexts["guide.tour.screen"].value as? String,"home")
         tap("guide.next", app)
+        XCTAssertEqual(app.staticTexts["guide.tour.screen"].value as? String,"customers")
         tap("guide.close", app)
         XCTAssertTrue(app.buttons["guide.quick-start"].waitForExistence(timeout: 12))
     }

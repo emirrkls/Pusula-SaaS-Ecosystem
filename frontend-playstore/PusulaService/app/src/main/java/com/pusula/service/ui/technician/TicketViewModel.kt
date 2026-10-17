@@ -22,6 +22,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import okhttp3.MultipartBody
 import java.util.UUID
+import java.io.File
+import android.net.Uri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.asRequestBody
 
 data class TicketUiState(
     val loading: Boolean = false,
@@ -53,6 +61,7 @@ data class TicketUiState(
     val servicePhotos: List<ServicePhotoDTO> = emptyList(),
     val photosLoading: Boolean = false,
     val photoUploading: Boolean = false,
+    val photoBatch: PhotoBatchProgress = PhotoBatchProgress(),
     val ticketTimeline: List<com.pusula.service.data.model.AuditLogDTO> = emptyList(),
     val timelineLoading: Boolean = false,
     val statusUpdating: Boolean = false,
@@ -72,6 +81,28 @@ class TicketViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(TicketUiState())
     val uiState: StateFlow<TicketUiState> = _uiState.asStateFlow()
     private var pendingCollection: Triple<Long, String, com.pusula.service.data.model.CollectionRequest>? = null
+    private var photoBatch: ServicePhotoUploadBatch<Uri, File>? = null
+    private var photoOwner: com.pusula.service.core.SessionState? = null
+    private var photoTicketId: Long? = null
+    private var photoJob: Job? = null
+    private var photoPrepare: (suspend (Uri) -> File?)? = null
+    private var photoGeneration = 0L
+
+    init {
+        viewModelScope.launch {
+            sessionManager.state.collect { state ->
+                val owner = photoOwner
+                if (owner != null && !samePhotoAccount(owner, state)) {
+                    photoJob?.cancel()
+                    clearPhotoBatch()
+                    _uiState.update { it.copy(photoUploading = false, servicePhotos = emptyList()) }
+                }
+            }
+        }
+    }
+
+    private fun samePhotoAccount(a: com.pusula.service.core.SessionState, b: com.pusula.service.core.SessionState) =
+        b.isAuthenticated && a.supportRevision == b.supportRevision && a.token == b.token && a.companyId == b.companyId
 
     fun loadBillingOrganizations() = viewModelScope.launch {
         runCatching { repository.getBillingOrganizations() }
@@ -431,26 +462,84 @@ class TicketViewModel @Inject constructor(
         }
     }
 
-    fun uploadServicePhoto(ticketId: Long, type: String, note: String, filePart: MultipartBody.Part) = viewModelScope.launch {
+    fun uploadServicePhotos(ticketId: Long, type: String, note: String, sources: List<Uri>, prepare: suspend (Uri) -> File?) {
+        if (_uiState.value.photoUploading || photoBatch?.pendingIds?.isNotEmpty() == true || sources.isEmpty() ||
+            com.pusula.service.core.GuideReadOnlyGate.active.value) return
+        val owner = sessionManager.state.value
+        if (!owner.isAuthenticated || owner.token.isNullOrBlank()) return
+        photoBatch = ServicePhotoUploadBatch.create(sources.distinct(), type, note)
+        photoOwner = owner
+        photoTicketId = ticketId
+        photoPrepare = prepare
+        retryServicePhotos(ticketId)
+    }
+
+    fun retryServicePhotos(ticketId: Long) {
+        val owner = photoOwner ?: return
+        if (_uiState.value.photoUploading || ticketId != photoTicketId || !samePhotoAccount(owner, sessionManager.state.value)) return
+        val pending = photoBatch?.pendingIds ?: return
+        val generation = photoGeneration
         _uiState.update { it.copy(photoUploading = true, error = null) }
-        runCatching { repository.uploadServicePhoto(ticketId, type, note, filePart) }
-            .onSuccess { created ->
-                _uiState.update { state ->
-                    state.copy(
-                        photoUploading = false,
-                        servicePhotos = listOf(created) + state.servicePhotos,
-                        error = null
-                    )
+        publishPhotoProgress()
+        photoJob = viewModelScope.launch {
+            try {
+                for (id in pending) {
+                    if (!samePhotoAccount(owner, sessionManager.state.value)) return@launch
+                    val batch = photoBatch ?: return@launch
+                    val index = batch.items.indexOfFirst { it.id == id }
+                    val entry = batch.items.getOrNull(index) ?: continue
+                    publishPhotoProgress(index + 1)
+                    try {
+                        if (entry.payload == null) {
+                            val source = entry.source ?: continue
+                            val prepared = withContext(Dispatchers.IO) { photoPrepare?.invoke(source) }
+                                ?: throw java.io.IOException("Görsel okunamadı. Tekrar deneyin.")
+                            if (!samePhotoAccount(owner, sessionManager.state.value)) { prepared.delete(); return@launch }
+                            photoBatch = photoBatch?.prepare(id, prepared)
+                        }
+                        val file = photoBatch?.items?.firstOrNull { it.id == id }?.payload ?: continue
+                        val part = MultipartBody.Part.createFormData("file", "photo.jpg", file.asRequestBody("image/jpeg".toMediaType()))
+                        val created = repository.uploadServicePhoto(ticketId, id, requireNotNull(owner.token), batch.type, batch.note, part)
+                        if (!samePhotoAccount(owner, sessionManager.state.value)) return@launch
+                        photoBatch = photoBatch?.succeed(id)
+                        file.delete()
+                        _uiState.update { it.copy(servicePhotos = listOf(created) + it.servicePhotos.filterNot { old -> old.id == created.id }) }
+                    } catch (failure: Exception) {
+                        if (failure is CancellationException) throw failure
+                        if (!samePhotoAccount(owner, sessionManager.state.value)) return@launch
+                        photoBatch = photoBatch?.fail(id, failure.toUserMessage("Görsel yüklenemedi"))
+                    }
+                    publishPhotoProgress(index + 1)
+                }
+            } finally {
+                if (generation == photoGeneration) {
+                    _uiState.update { it.copy(photoUploading = false) }
+                    publishPhotoProgress()
                 }
             }
-            .onFailure { throwable ->
-                _uiState.update {
-                    it.copy(
-                        photoUploading = false,
-                        error = throwable.toUserMessage("Görsel yüklenemedi")
-                    )
-                }
-            }
+        }
+    }
+
+    private fun publishPhotoProgress(current: Int = 0) {
+        val batch = photoBatch
+        _uiState.update { it.copy(photoBatch = if (batch == null) PhotoBatchProgress() else PhotoBatchProgress(
+            batch.items.size, batch.confirmedCount, current,
+            batch.items.mapIndexedNotNull { index, item -> item.error?.let { "Görsel ${index + 1}: $it" } })) }
+    }
+
+    fun abandonServicePhotos() { if (!_uiState.value.photoUploading) clearPhotoBatch() }
+
+    private fun clearPhotoBatch() {
+        photoGeneration++
+        photoBatch?.items?.forEach { it.payload?.delete() }
+        photoBatch = null; photoOwner = null; photoTicketId = null; photoPrepare = null
+        publishPhotoProgress()
+    }
+
+    override fun onCleared() {
+        photoJob?.cancel()
+        clearPhotoBatch()
+        super.onCleared()
     }
 
     fun deleteServicePhoto(ticketId: Long, photoId: Long) = viewModelScope.launch {

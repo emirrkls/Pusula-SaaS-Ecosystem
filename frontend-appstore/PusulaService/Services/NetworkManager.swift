@@ -180,7 +180,8 @@ actor NetworkManager {
         mimeType: String,
         fieldName: String = "file",
         textFields: [String: String] = [:],
-        idempotencyKey: UUID? = nil
+        idempotencyKey: UUID? = nil,
+        authTokenOverride: String? = nil
     ) async throws -> T {
         let data = try await uploadMultipartData(
             path: path,
@@ -189,7 +190,8 @@ actor NetworkManager {
             mimeType: mimeType,
             fieldName: fieldName,
             textFields: textFields,
-            idempotencyKey: idempotencyKey
+            idempotencyKey: idempotencyKey,
+            authTokenOverride: authTokenOverride
         )
 
         if data.isEmpty, T.self == EmptyResponse.self {
@@ -225,7 +227,8 @@ actor NetworkManager {
         mimeType: String,
         fieldName: String,
         textFields: [String: String],
-        idempotencyKey: UUID? = nil
+        idempotencyKey: UUID? = nil,
+        authTokenOverride: String? = nil
     ) async throws -> Data {
         guard let url = URL(string: baseURL + path) else {
             throw NetworkError.invalidURL
@@ -238,7 +241,7 @@ actor NetworkManager {
         request.timeoutInterval = 120
         if let idempotencyKey { request.setValue(idempotencyKey.uuidString, forHTTPHeaderField: "Idempotency-Key") }
         
-        let requestToken = authToken
+        let requestToken = authTokenOverride ?? authToken
         if let token = requestToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
@@ -298,14 +301,27 @@ actor NetworkManager {
     }
 
     private func observedData(for request: URLRequest, operation: ConnectionOperation) async throws -> (Data, URLResponse) {
+        // Covers JSON, multipart and every transport retry. Tour screens never
+        // gain a write exemption, including support, photos and collection.
+        try GuideReadOnlyGate.shared.validate(method: request.httpMethod ?? "GET")
+#if DEBUG
+        // Real production views may be mounted by the offline guide UI suite.
+        // Never let that harness contact a live tenant, even for GET requests.
+        if GuideFlowFixture.isEnabled && GuideReadOnlyGate.shared.isActive { throw URLError(.notConnectedToInternet) }
+#endif
         let generation = credentialGeneration
         let authorization = request.value(forHTTPHeaderField: "Authorization")
         guard mayRetry(generation: generation, authorization: authorization) else { throw CancellationError() }
         let context = await ConnectionDiagnosticEnvironment.context()
         guard mayRetry(generation: generation, authorization: authorization) else { throw CancellationError() }
+        try GuideReadOnlyGate.shared.validate(method: request.httpMethod ?? "GET")
         let result = try await ConnectionReliableTransport.data(for: request, operation: operation,
             interface: context.0, appState: context.1,
-            mayRetry: { await self.mayRetry(generation: generation, authorization: authorization) })
+            beforeSend: { try GuideReadOnlyGate.shared.validate(method: request.httpMethod ?? "GET") },
+            mayRetry: {
+                guard GuideReadOnlyGate.shared.allows(method: request.httpMethod ?? "GET") else { return false }
+                return await self.mayRetry(generation: generation, authorization: authorization)
+            })
         guard mayRetry(generation: generation, authorization: authorization) else { throw CancellationError() }
         return result
     }

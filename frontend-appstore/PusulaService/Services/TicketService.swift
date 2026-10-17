@@ -140,14 +140,15 @@ enum TicketService {
     }
     
     static func uploadServicePhoto(ticketId: Int, type: String, note: String, imageData: Data,
-                                   requestId: UUID) async throws -> ServicePhotoDTO {
+                                   requestId: UUID, authToken: String? = nil) async throws -> ServicePhotoDTO {
         try await NetworkManager.shared.uploadMultipart(
             path: "/api/reliable-mutations/tickets/\(ticketId)/photos",
             fileData: imageData,
             fileName: "photo.jpg",
             mimeType: "image/jpeg",
             textFields: ["type": type, "note": note],
-            idempotencyKey: requestId
+            idempotencyKey: requestId,
+            authTokenOverride: authToken
         )
     }
     

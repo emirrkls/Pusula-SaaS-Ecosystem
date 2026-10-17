@@ -10,6 +10,36 @@ const ios = 'frontend-appstore/PusulaService/';
 const android = 'frontend-playstore/PusulaService/app/src/main/';
 function files(dir) { return fs.readdirSync(path.join(root,dir),{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(dir+'/'+e.name):[dir+'/'+e.name]); }
 test('native catalogs are byte-identical to canonical source', () => execFileSync(process.execPath, ['scripts/sync-mobile-guide.cjs', '--check'], {cwd:root}));
+
+test('all 156 guided steps have reviewed real-screen routes and registered iOS targets',()=>{
+  execFileSync(process.execPath,['scripts/sync-mobile-tour.cjs'],{cwd:root});
+  const sources=files(ios+'Views').filter(f=>f.endsWith('.swift')).map(read).join('\n');
+  const targets=new Set([...sources.matchAll(/guideTourTarget\("([a-z-]+)"\)/g)].map(m=>m[1]));
+  assert.equal(catalog.topics.reduce((n,t)=>n+t.steps.length,0),156);
+  for(const topic of catalog.topics)for(const step of topic.steps){
+    assert.ok(targets.has(step.tour.target),topic.id+':'+step.tour.target);
+    assert.ok(!/[/?]/.test(step.tour.screen));
+  }
+});
+test('tour safety checks cover physical sends, retries and isolated support transport',()=>{
+  const network=read(ios+'Services/NetworkManager.swift');
+  assert.match(network,/beforeSend: \{ try GuideReadOnlyGate.shared.validate/);
+  const diagnostics=read(ios+'Core/Diagnostics/ConnectionDiagnosticsTransport.swift');
+  assert.ok(diagnostics.indexOf('try beforeSend()')<diagnostics.indexOf('session.data(for: request'));
+  assert.match(read(ios+'Core/Diagnostics/ConnectionRetryPolicy.swift'),/appState: appState, beforeSend: beforeSend/);
+  for(const file of ['di/AppModule.kt','ui/support/SupportRepository.kt']) {
+    const source=read(android+'java/com/pusula/service/'+file);
+    assert.match(source,/addInterceptor\(com.pusula.service.core.GuideReadOnlyInterceptor\(\)\)/);
+    assert.match(source,/addNetworkInterceptor\(com.pusula.service.core.GuideReadOnlyInterceptor\(\)\)/);
+  }
+});
+test('support tours cannot load or overwrite a real local draft',()=>{
+  const support=read(ios+'Views/Shared/SupportCenterView.swift');
+  assert.match(support,/guard !tourMode,restored,let key=draftKey/);
+  assert.match(support,/if !tourMode,let snapshot,let key=SupportService.accountKey/);
+  assert.match(support,/guard !tourMode,let snapshot,isCurrent\(snapshot\),!busy/);
+  assert.match(read(android+'java/com/pusula/service/ui/support/SupportViewModel.kt'),/val saved=if\(com.pusula.service.core.GuideReadOnlyGate.active.value\) null/);
+});
 test('complete catalog, valid roles, categories, locations and short lessons', () => {
   assert.equal(catalog.schemaVersion,1); assert.equal(catalog.categories.length,10); assert.equal(catalog.topics.length,56);
   assert.equal(new Set(catalog.topics.map(t=>t.id)).size,56);
@@ -58,9 +88,19 @@ test('old Continue footer is fixed and coach layout no longer estimates card hei
   assert.doesNotMatch(source,/estimatedHalfHeight|TabView\(selection: \$page\)/);
   assert.match(source,/activeSteps = steps\(for: role\).filter/);
 });
-test('iOS lessons use destination navigation and large-text tests never swipe the fixed footer', () => {
+test('iOS tours present real screens above the account tab and retain fixed-footer regressions', () => {
   const screen=read(ios+'Views/Shared/GuideCenterView.swift');
-  assert.match(screen,/navigationDestination\(isPresented: \$isLessonPresented\)/);
+  assert.match(screen,/fullScreenCover\(isPresented:\$isLessonPresented/);
+  assert.match(screen,/GuideTourHost\(topic:topic/);
+  const host=read(ios+'Views/Shared/GuideTourHost.swift');
+  assert.match(host,/allowsHitTesting\(false\).accessibilityHidden\(true\)/);
+  assert.match(host,/customer=value/);
+  assert.match(host,/ticket=value/);
+  assert.match(host,/safeAreaInset\(edge:.bottom/);
+  assert.doesNotMatch(host,/\.first!|tickets\.first|customers\.first/);
+  assert.match(host,/private func close\(\) \{ save\(\);dismiss\(\) \}/);
+  assert.match(screen,/onDismiss:\{GuideTourRuntime.shared.end\(tourLease\)/);
+  assert.match(read(android+'java/com/pusula/service/ui/guide/GuideTourHost.kt'),/derivedStateOf\{state.layoutInfo.totalItemsCount\}/);
   assert.doesNotMatch(screen,/\.sheet\(item: \$selectedTopic\)/);
   assert.match(screen,/private func open\(_ topic: GuideTopic\)[\s\S]*PusulaKeyboard.dismiss\(\)/);
   assert.match(screen,/\.contentShape\(Rectangle\(\)\)/);
@@ -82,6 +122,6 @@ test('Android guide uses the system-inset-aware sheet and a separately fixed foo
   assert.match(screen,/ModalBottomSheet/);
   assert.match(screen,/skipPartiallyExpanded = true/);
   assert.match(screen,/WindowInsets.safeDrawing/);
-  assert.match(screen,/bottomBar =/);
+  assert.match(read(android+'java/com/pusula/service/ui/guide/GuideTourHost.kt'),/bottomBar=/);
   assert.match(read(android.replace('src/main/','src/androidTest/')+'java/com/pusula/service/guide/GuideFlowInstrumentedTest.kt'),/next.bottom <= screen.bottom/);
 });

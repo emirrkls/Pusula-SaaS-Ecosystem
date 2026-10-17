@@ -4,6 +4,8 @@ import UniformTypeIdentifiers
 import ImageIO
 
 struct SupportCenterView: View {
+    var tourComposer = false
+    @Environment(\.guideTourMode) private var tourMode
 #if DEBUG
     var flowFixture: SupportFlowFixture? = nil
 #endif
@@ -49,68 +51,44 @@ struct SupportCenterView: View {
         return session.isCurrent(captured)
     }
     var body: some View {
+        Group {
+        if tourMode && tourComposer { composer }
+        else {
         ScrollView {
-            VStack(alignment:.leading,spacing:18) {
-                Text("support.intro").foregroundStyle(.secondary)
-                HStack {
-                    Link("support.email",destination:URL(string:"mailto:\(email)")!)
-                    ShareLink(item:draft.body) { Label("support.share_draft",systemImage:"square.and.arrow.up") }
-                }
-                Text(email).font(.caption).textSelection(.enabled)
-                if let success { Text(success).foregroundStyle(.green).accessibilityIdentifier("support.success") }
-                if let error { Text(error).foregroundStyle(.orange).accessibilityIdentifier("support.error") }
-                if busy { ProgressView("support.loading") }
-                if !authenticated { Text("support.login_help").accessibilityIdentifier("support.login_help") }
-                else if contact?.enabled != true { Text("support.not_enabled") }
-                else {
-                    HStack {
-                        Button("support.new") { if draft.ticketId==nil {showComposer=true;detail=nil} else {error=String(localized:"support.finish_draft")} }.accessibilityIdentifier("support.new")
-                        Spacer()
-                        Button("support.refresh") { Task { await refresh() } }.disabled(busy).accessibilityIdentifier("support.refresh")
-                    }
-                    if let detail {
-                        Text(detail.ticket.number+" · "+detail.ticket.subject).font(.headline)
-                        Text(SupportPresentation.label(detail.ticket.status)).foregroundStyle(.secondary)
-                        if let before=detail.nextBefore { Button("support.older") { Task { await open(detail.ticket.id,before:before) } } }
-                        ForEach(detail.messages) { message in
-                            VStack(alignment:.leading,spacing:8) {
-                                Text(LocalizedStringKey(message.staff ? "support.team" : "support.you")).font(.caption.bold())
-                                Text(message.body).textSelection(.enabled)
-                                Text(message.createdAt).font(.caption2).foregroundStyle(.secondary)
-                                ForEach(message.attachments) { attachment in
-                                    Button(attachment.fileName) { Task { await download(attachment) } }
-                                }
-                            }.frame(maxWidth:.infinity,alignment:.leading).padding().background(message.staff ? PusulaTheme.accent.opacity(0.08) : PusulaTheme.surface).clipShape(RoundedRectangle(cornerRadius:14))
-                        }
-                        Button("support.reply") {
-                            if !draft.hasContent { draft=SupportDraft();draft.ticketId=detail.ticket.id;showComposer=true }
-                            else if draft.ticketId==detail.ticket.id {showComposer=true}
-                            else {error=String(localized:"support.finish_draft")}
-                        }
-                        Button("support.back_list") { self.detail=nil;showComposer=false }
-                    } else if !showComposer {
-                        ForEach(tickets) { ticket in
-                            Button { Task { await open(ticket.id) } } label: {
-                                VStack(alignment:.leading,spacing:5) {
-                                    Text((ticket.unread ? "● " : "")+ticket.number+" · "+ticket.subject).font(.headline)
-                                    Text(SupportPresentation.label(ticket.status)).font(.caption)
-                                }.frame(maxWidth:.infinity,alignment:.leading).padding().pusulaCard()
-                            }.buttonStyle(.plain).accessibilityIdentifier("support.ticket.\(ticket.id)")
-                        }
-                        if tickets.isEmpty && !busy { Text("support.empty") }
-                        HStack { if page>0 {Button("support.previous") {page-=1;Task{await refresh()}}};if hasNext {Button("support.next") {page+=1;Task{await refresh()}}} }
-                    }
-                    if showComposer { composer }
-                    if let attachmentToShare { ShareLink(item:attachmentToShare) { Label("support.share_attachment",systemImage:"square.and.arrow.up") } }
-                }
-            }.padding()
+            VStack(alignment:.leading,spacing:20) {
+                if detail == nil { supportHero }
+                feedback
+                if busy { ProgressView("support.loading").frame(maxWidth:.infinity) }
+                if !authenticated {
+                    Label("support.login_help",systemImage:"person.crop.circle.badge.exclamationmark")
+                        .foregroundStyle(.secondary).supportSurface().accessibilityIdentifier("support.login_help")
+                } else if contact?.enabled != true {
+                    if contact == nil && error == nil { ProgressView("support.loading").frame(maxWidth:.infinity) }
+                    else if contact == nil { Button("support.refresh") { Task { await start(retry:true) } } }
+                    else { Label("support.not_enabled",systemImage:"info.circle").supportSurface() }
+                } else if let detail { conversation(detail) }
+                else { requestList }
+                contactCard
+                if let attachmentToShare { ShareLink(item:attachmentToShare) { Label("support.share_attachment",systemImage:"square.and.arrow.up") } }
+            }.padding(20).frame(maxWidth:760).frame(maxWidth:.infinity)
         }
-        .pusulaKeyboardDismissal()
+        .guideTourScrollable()
+        .safeAreaInset(edge:.bottom) {
+            if detail != nil && !showComposer {
+                Button { reply() } label: { Label("support.reply",systemImage:"arrowshape.turn.up.left").frame(maxWidth:.infinity).padding(.vertical,8) }
+                    .buttonStyle(.borderedProminent).disabled(busy).padding().background(.regularMaterial)
+            }
+        }
         .background(PusulaTheme.page)
         .navigationTitle("support.title")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden,for:.tabBar)
+        .navigationDestination(isPresented:$showComposer) { composer }
+        }
+        }
         .task { await start() }
         .task(id:draft) {
-            guard restored,let key=draftKey else{return};draftSaved=false
+            guard !tourMode,restored,let key=draftKey else{return};draftSaved=false
             do {try await SupportDraftStore.shared.save(draft,key:key);if !Task.isCancelled {draftSaved=true}} catch {if !Task.isCancelled && !(error is CancellationError) {self.error=String(localized:"support.draft_failed")}}
         }
         .onChange(of:session.token) { _,_ in clearSharedFile();tickets=[];detail=nil;draft=SupportDraft();showComposer=false;restored=false;snapshot=nil;draftKey=nil;reportPreview="";photoPreviewData=nil;previewReport=false;previewPhoto=false;photos=[] }
@@ -133,41 +111,174 @@ struct SupportCenterView: View {
             }
         }
     }
-    private var composer: some View {
+    private var supportHero: some View {
         VStack(alignment:.leading,spacing:14) {
-            if draft.ticketId==nil {
-                TextField("support.subject",text:$draft.subject).textFieldStyle(.roundedBorder).disabled(draft.frozen).accessibilityIdentifier("support.subject")
-                Picker("support.category",selection:$draft.category) { ForEach(["QUESTION","BUG","SUGGESTION"],id:\.self){Text(SupportPresentation.label($0)).tag($0)} }.disabled(draft.frozen)
+            HStack(spacing:10) {
+                Image(systemName:"headphones.circle.fill").font(.system(size:34)).foregroundStyle(PusulaTheme.brandCyan)
+                Text("support.hub.brand").font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.85))
             }
-            TextField("support.description",text:$draft.body,axis:.vertical).lineLimit(5...12).textFieldStyle(.roundedBorder)
+            Text("support.hub.heading").font(.title2.bold()).foregroundStyle(.white)
+            Text("support.hub.subtitle").font(.subheadline).foregroundStyle(.white.opacity(0.78)).fixedSize(horizontal:false,vertical:true)
+        }.frame(maxWidth:.infinity,alignment:.leading).padding(22)
+            .background(LinearGradient(colors:[PusulaTheme.brandNavy,Color(red:0.08,green:0.28,blue:0.42)],startPoint:.topLeading,endPoint:.bottomTrailing),in:RoundedRectangle(cornerRadius:24))
+            .accessibilityIdentifier("support.hero")
+    }
+    @ViewBuilder private var feedback: some View {
+        if let success { Label(success,systemImage:"checkmark.circle.fill").foregroundStyle(.green).font(.subheadline).supportSurface().accessibilityIdentifier("support.success") }
+        if let error { Label(error,systemImage:"exclamationmark.triangle.fill").foregroundStyle(.orange).font(.subheadline).supportSurface().accessibilityIdentifier("support.error") }
+    }
+    private var requestList: some View {
+        VStack(alignment:.leading,spacing:16) {
+            Button {
+                if draft.ticketId==nil { showComposer=true;detail=nil }
+                else { error=String(localized:"support.finish_draft") }
+            } label: { Label("support.new",systemImage:"plus.bubble.fill").font(.headline).frame(maxWidth:.infinity).padding(.vertical,10) }
+                .buttonStyle(.borderedProminent).disabled(busy).accessibilityIdentifier("support.new")
+            HStack {
+                Text("support.hub.requests").font(.title3.bold())
+                Spacer()
+                Button { Task { await refresh() } } label: { Label("support.refresh",systemImage:"arrow.clockwise").font(.subheadline) }
+                    .disabled(busy).accessibilityIdentifier("support.refresh")
+            }
+            if tickets.isEmpty && !busy {
+                ContentUnavailableView("support.empty",systemImage:"tray",description:Text("support.hub.empty_hint"))
+                    .supportSurface().accessibilityIdentifier("support.empty")
+            }
+            ForEach(tickets) { ticket in
+                Button { Task { await open(ticket.id) } } label: {
+                    VStack(alignment:.leading,spacing:12) {
+                        HStack(alignment:.top) {
+                            Image(systemName:categoryIcon(ticket.category)).font(.title3).foregroundStyle(PusulaTheme.accent)
+                                .padding(10).background(PusulaTheme.accent.opacity(0.10),in:RoundedRectangle(cornerRadius:12))
+                            VStack(alignment:.leading,spacing:5) {
+                                Text(ticket.number).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                                Text(ticket.subject).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                            }
+                            Spacer(minLength:4)
+                            Image(systemName:"chevron.right").font(.caption.bold()).foregroundStyle(.tertiary)
+                        }
+                        HStack { statusBadge(ticket.status);Spacer();Text(SupportPresentation.displayDate(ticket.updatedAt)).font(.caption).foregroundStyle(.secondary) }
+                        if ticket.unread { Label("support.hub.unread",systemImage:"circle.fill").font(.caption.weight(.semibold)).foregroundStyle(PusulaTheme.accent) }
+                    }.supportSurface()
+                }.buttonStyle(.plain).accessibilityIdentifier("support.ticket.\(ticket.id)")
+            }
+            HStack {
+                if page>0 { Button("support.previous") { page-=1;Task { await refresh() } }.disabled(busy) }
+                Spacer()
+                if hasNext { Button("support.next") { page+=1;Task { await refresh() } }.disabled(busy) }
+            }
+        }.accessibilityIdentifier("support.requests").guideTourTarget("support-requests")
+    }
+    private var contactCard: some View {
+        VStack(alignment:.leading,spacing:12) {
+            Label("support.hub.other_channels",systemImage:"envelope").font(.subheadline.weight(.semibold))
+            Text("support.hub.email_hint").font(.caption).foregroundStyle(.secondary)
+            Link(destination:URL(string:"mailto:\(email)")!) { HStack {Text(email).font(.subheadline);Spacer();Image(systemName:"arrow.up.right")} }
+                .accessibilityIdentifier("support.email")
+        }.supportSurface()
+    }
+    private func conversation(_ value:SupportDetailDTO)->some View {
+        VStack(alignment:.leading,spacing:18) {
+            Button { detail=nil;showComposer=false } label: {Label("support.back_list",systemImage:"chevron.left").font(.subheadline)}
+            VStack(alignment:.leading,spacing:12) {
+                HStack {Text(value.ticket.number).font(.caption.weight(.semibold)).foregroundStyle(.secondary);Spacer();statusBadge(value.ticket.status)}
+                Text(value.ticket.subject).font(.title2.bold()).textSelection(.enabled)
+                Label(SupportPresentation.label(value.ticket.category),systemImage:categoryIcon(value.ticket.category)).font(.caption).foregroundStyle(.secondary)
+            }.supportSurface()
+            if let before=value.nextBefore { Button("support.older") { Task { await open(value.ticket.id,before:before) } }.frame(maxWidth:.infinity) }
+            ForEach(value.messages) { message in
+                HStack(alignment:.top,spacing:10) {
+                    if !message.staff { Spacer(minLength:20) }
+                    VStack(alignment:.leading,spacing:10) {
+                        Label(LocalizedStringKey(message.staff ? "support.team" : "support.you"),systemImage:message.staff ? "headphones" : "person.crop.circle")
+                            .font(.caption.weight(.semibold)).foregroundStyle(message.staff ? PusulaTheme.accent : .secondary)
+                        Text(message.body).font(.body).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)
+                        ForEach(message.attachments) { attachment in
+                            Button { Task { await download(attachment) } } label: {Label(attachment.fileName,systemImage:"paperclip").font(.subheadline)}
+                        }
+                        Text(SupportPresentation.displayDate(message.createdAt)).font(.caption2).foregroundStyle(.secondary)
+                    }.frame(maxWidth:.infinity,alignment:.leading).padding(16)
+                        .background(message.staff ? PusulaTheme.accent.opacity(0.09) : PusulaTheme.surface,in:RoundedRectangle(cornerRadius:18))
+                    if message.staff { Spacer(minLength:20) }
+                }
+            }
+        }.accessibilityIdentifier("support.conversation")
+    }
+    private func statusBadge(_ status:String)->some View {
+        let color:Color = status == "RESOLVED" ? .green : status == "WAITING_USER" ? .orange : PusulaTheme.accent
+        return Text(SupportPresentation.label(status)).font(.caption.weight(.semibold))
+            .foregroundStyle(color).padding(.horizontal,10).padding(.vertical,6).background(color.opacity(0.12),in:Capsule())
+    }
+    private func categoryIcon(_ category:String)->String {
+        switch category {case "BUG":"ladybug";case "SUGGESTION":"lightbulb";default:"questionmark.bubble"}
+    }
+    private func reply() {
+        guard let detail else{return}
+        if !draft.hasContent {draft=SupportDraft();draft.ticketId=detail.ticket.id;showComposer=true}
+        else if draft.ticketId==detail.ticket.id {showComposer=true}
+        else {error=String(localized:"support.finish_draft")}
+    }
+    private var composer: some View {
+        ScrollView {
+        VStack(alignment:.leading,spacing:20) {
+            Label(LocalizedStringKey(draft.ticketId==nil ? "support.hub.compose_hint" : "support.hub.reply_hint"),systemImage:"bubble.left.and.text.bubble.right")
+                .font(.subheadline).foregroundStyle(.secondary)
+            feedback
+            VStack(alignment:.leading,spacing:16) {
+            if draft.ticketId==nil {
+                Text("support.subject").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                TextField("support.subject",text:$draft.subject).font(.headline).disabled(draft.frozen).accessibilityIdentifier("support.subject")
+                Divider()
+                Picker("support.category",selection:$draft.category) { ForEach(["QUESTION","BUG","SUGGESTION"],id:\.self){Text(SupportPresentation.label($0)).tag($0)} }.pickerStyle(.menu).disabled(draft.frozen)
+                Divider()
+            }
+            Text("support.description").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            TextField("support.description",text:$draft.body,axis:.vertical).lineLimit(5...12)
                 .accessibilityIdentifier("support.body")
                 .disabled(draft.frozen)
-            Text("support.privacy_hint").font(.caption).foregroundStyle(.secondary)
+            HStack {Spacer();Text("\(draft.body.count) / 4000").font(.caption.monospacedDigit()).foregroundStyle(draft.body.count>4000 ? .red : .secondary)}
+            }.supportSurface().guideTourTarget("support-form")
             if draftSaved && draft.hasContent {Text("support.draft_saved").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("support.draft.saved")}
+            VStack(alignment:.leading,spacing:14) {
+            Label("support.hub.attachments",systemImage:"paperclip").font(.headline)
             if !draft.frozen {
                 PhotosPicker(selection:$photos,maxSelectionCount:max(1,3-draft.attachments.count),matching:.images) { Label("support.add_photo",systemImage:"photo") }.disabled(draft.attachments.count>=3 || busy)
                 Button("support.add_report") {importReport=true}.disabled(draft.attachments.count>=3 || busy)
                 ForEach(Array(draft.attachments.enumerated()),id:\.offset) { index,file in
-                    HStack {Text(LocalizedStringKey(file.mediaType=="application/json" ? "support.report" : "support.photo"));Button("support.preview") {if let data=Data(base64Encoded:file.dataBase64) {if file.mediaType=="application/json" {reportPreview=String(decoding:data,as:UTF8.self);previewReport=true}else{photoPreviewData=data;previewPhoto=true}}};Button("support.remove",role:.destructive){draft.attachments.remove(at:index)}}
+                    VStack(alignment:.leading,spacing:8) {Label(LocalizedStringKey(file.mediaType=="application/json" ? "support.report" : "support.photo"),systemImage:file.mediaType=="application/json" ? "doc.text":"photo");HStack {Button("support.preview") {if let data=Data(base64Encoded:file.dataBase64) {if file.mediaType=="application/json" {reportPreview=String(decoding:data,as:UTF8.self);previewReport=true}else{photoPreviewData=data;previewPhoto=true}}};Spacer();Button("support.remove",role:.destructive){draft.attachments.remove(at:index)}}}.font(.subheadline)
                 }
             }
+            Text("support.privacy_hint").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            }.supportSurface().guideTourTarget("support-attachments")
+            ShareLink(item:draft.body) {Label("support.share_draft",systemImage:"square.and.arrow.up").font(.subheadline)}
             if draft.frozen { Text("support.unconfirmed").foregroundStyle(.orange) }
+        }.padding(20).frame(maxWidth:760).frame(maxWidth:.infinity)
+        }
+        .guideTourScrollable()
+        .background(PusulaTheme.page)
+        .navigationTitle(LocalizedStringKey(draft.ticketId==nil ? "support.new" : "support.reply"))
+        .navigationBarTitleDisplayMode(.inline)
+        .pusulaKeyboardDismissal()
+        .safeAreaInset(edge:.bottom) {
+            VStack(spacing:10) {
             Button { Task { await send() } } label: { Text(LocalizedStringKey(busy ? "support.sending" : draft.frozen ? "support.retry_same" : "support.send")).frame(maxWidth:.infinity).padding(.vertical,10) }
                 .buttonStyle(.borderedProminent).disabled(busy || draft.body.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || draft.body.count>4000 || draft.ticketId==nil && (draft.subject.isEmpty || draft.subject.count>120))
                 .accessibilityIdentifier("support.send")
             if !draft.frozen {Button("support.close_draft"){showComposer=false}.accessibilityIdentifier("support.draft.close")}
+            }.padding().background(.regularMaterial).guideTourTarget("support-submit")
         }
         .disabled(busy)
         // Only inputs freeze; the same-intent retry button must remain usable.
         .onChange(of:draft.body) { _,new in if draft.frozen,let frozen=lastFrozen { draft=frozen } }
     }
     @State private var lastFrozen: SupportDraft?
-    @MainActor private func start() async {
+    @MainActor private func start(retry:Bool=false) async {
+        guard !restored || retry else { return }
         snapshot=activeSnapshot
 #if DEBUG
         if SupportFlowFixture.isEnabled,let flowFixture,flowFixture.resetDraft {await SupportDraftStore.shared.clear(flowFixture.draftKey)}
 #endif
-        if let snapshot,let key=SupportService.accountKey(snapshot.token,company:snapshot.companyId) {
+        if !tourMode,let snapshot,let key=SupportService.accountKey(snapshot.token,company:snapshot.companyId) {
             draftKey=key
             if let saved=await SupportDraftStore.shared.load(key),isCurrent(snapshot) {draft=saved;lastFrozen=saved.frozen ? saved:nil;showComposer=saved.hasContent}
         }
@@ -184,11 +295,11 @@ struct SupportCenterView: View {
         guard let snapshot,isCurrent(snapshot),!busy else{return};busy=true;defer{busy=false}
         do{let value=try await loadDetail(id:id,before:before,token:snapshot.token);guard isCurrent(snapshot) else{return};
             if before != nil,let old=detail {detail=SupportDetailDTO(ticket:value.ticket,messages:value.messages+old.messages,nextBefore:value.nextBefore)}else{detail=value;showComposer=false}
-            try? await markRead(id:id,token:snapshot.token)
+            if !tourMode { try? await markRead(id:id,token:snapshot.token) }
         }catch{if isCurrent(snapshot){self.error=String(localized:"support.connection_fallback")}}
     }
     @MainActor private func send() async {
-        guard let snapshot,isCurrent(snapshot),!busy else{return}
+        guard !tourMode,let snapshot,isCurrent(snapshot),!busy else{return}
         PusulaKeyboard.dismiss();busy=true;defer{busy=false}
         if !draft.frozen {draft.appVersion=String(Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "")+" ("+String(Bundle.main.object(forInfoDictionaryKey:"CFBundleVersion") as? String ?? "")+")";draft.frozen=true;lastFrozen=draft}
         do {
@@ -266,5 +377,13 @@ struct SupportCenterView: View {
         if SupportFlowFixture.isEnabled,flowFixture != nil {throw URLError(.fileDoesNotExist)}
 #endif
         return try await NetworkManager.shared.downloadData("/api/support/attachments/\(id)",authTokenOverride:token)
+    }
+}
+
+private extension View {
+    func supportSurface()->some View {
+        frame(maxWidth:.infinity,alignment:.leading).padding(18)
+            .background(PusulaTheme.surface,in:RoundedRectangle(cornerRadius:20))
+            .overlay {RoundedRectangle(cornerRadius:20).stroke(PusulaTheme.border.opacity(0.55),lineWidth:1)}
     }
 }

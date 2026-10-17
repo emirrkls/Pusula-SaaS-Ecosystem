@@ -5,6 +5,7 @@ struct ContentView: View {
     @StateObject private var session = SessionManager.shared
     @StateObject private var onboarding = OnboardingManager.shared
     @ObservedObject private var navigation = AppNavigation.shared
+    @ObservedObject private var guideTour = GuideTourRuntime.shared
     @State private var showPlanUpgrade = false
     @State private var isRootSheetPresented = false
     @State private var onboardingTargetFrames: [OnboardingTarget: CGRect] = [:]
@@ -47,6 +48,7 @@ struct ContentView: View {
         }
         .task { session.tryRestoreSession() }
         .onChange(of: rootReadiness) { _, _ in updateNavigationReadiness() }
+        .onChange(of:guideTour.isActive) { _,_ in updateNavigationReadiness() }
         .onDisappear {
             navigation.updateReadiness(authenticated: false, restoring: true, blocked: true)
         }
@@ -55,6 +57,7 @@ struct ContentView: View {
                 startOnboardingIfNeeded()
             } else {
                 onboarding.cancelRoleTour()
+                guideTour.end(guideTour.activeLease)
             }
         }
         .onChange(of: onboarding.isShowingIntro) { _, isShowingIntro in
@@ -71,7 +74,7 @@ struct ContentView: View {
             isSceneActive: navigation.isSceneActive,
             isScreenVisible: true,
             isPresentationBlocked: onboarding.isShowingIntro || onboarding.isTourActive
-                || showPlanUpgrade || isRootSheetPresented
+                || showPlanUpgrade || isRootSheetPresented || guideTour.isActive
         )
     }
 

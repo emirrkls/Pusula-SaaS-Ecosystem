@@ -28,7 +28,9 @@ object AppModule {
     @Singleton
     fun provideOkHttp(authInterceptor: AuthInterceptor): OkHttpClient {
         return OkHttpClient.Builder()
+            .addInterceptor(com.pusula.service.core.GuideReadOnlyInterceptor())
             .addInterceptor(authInterceptor)
+            .addNetworkInterceptor(com.pusula.service.core.GuideReadOnlyInterceptor())
             .apply {
                 if (BuildConfig.DEBUG) {
                     addInterceptor(

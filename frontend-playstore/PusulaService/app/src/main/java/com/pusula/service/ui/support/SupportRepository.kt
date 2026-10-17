@@ -35,7 +35,10 @@ interface SupportApi {
     internal constructor(context:Context,api:SupportApi):this(context,Gson(),api)
     private companion object {
     // Isolated client: no body logger and no interceptor that can substitute a newer account's token.
-        fun isolatedApi(retrofit:Retrofit):SupportApi=retrofit.newBuilder().client(OkHttpClient.Builder().connectTimeout(10,java.util.concurrent.TimeUnit.SECONDS).readTimeout(30,java.util.concurrent.TimeUnit.SECONDS).build()).build().create(SupportApi::class.java)
+        fun isolatedApi(retrofit:Retrofit):SupportApi=retrofit.newBuilder().client(OkHttpClient.Builder()
+            .addInterceptor(com.pusula.service.core.GuideReadOnlyInterceptor())
+            .addNetworkInterceptor(com.pusula.service.core.GuideReadOnlyInterceptor())
+            .connectTimeout(10,java.util.concurrent.TimeUnit.SECONDS).readTimeout(30,java.util.concurrent.TimeUnit.SECONDS).build()).build().create(SupportApi::class.java)
     }
     private val mutex=Mutex()
     private val preferences by lazy { EncryptedSharedPreferences.create(context,"pusula_support_drafts",MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM) }

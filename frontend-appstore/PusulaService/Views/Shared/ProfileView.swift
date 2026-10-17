@@ -49,6 +49,7 @@ struct ProfileView: View {
                     HStack { Label("support.title", systemImage: "questionmark.bubble"); if supportUnread > 0 { Text("\(supportUnread)").font(.caption.bold()).foregroundStyle(PusulaTheme.accent) } }
                         .frame(maxWidth: .infinity).padding(.vertical, 14)
                 }.buttonStyle(.bordered).accessibilityIdentifier("account.support.open")
+                    .guideTourTarget("profile-support")
 
                 NavigationLink { ConnectionDiagnosticsView() } label: {
                     Label("diagnostics.title", systemImage: "network")
@@ -107,9 +108,11 @@ struct ProfileView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(isDeletingAccount)
+                .guideTourTarget("profile-delete")
             }
             .padding()
         }
+        .guideTourScrollable()
         .background(PusulaTheme.page)
         .navigationTitle("Hesap")
         .task(id: "\(supportScenePhase)-\(session.authenticatedSnapshot?.revision.uuidString ?? "")") {

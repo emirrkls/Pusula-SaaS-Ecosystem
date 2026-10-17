@@ -3,6 +3,7 @@ import PhotosUI
 import UIKit
 
 struct SettingsView: View {
+    var guideSection:Int? = nil
 #if DEBUG
     var supportFlowFixture: SupportFlowFixture? = nil
 #endif
@@ -47,6 +48,7 @@ struct SettingsView: View {
             .accessibilityIdentifier("settings.sections")
             .padding()
             .onboardingTarget(.settingsSections)
+            .guideTourTarget("settings-sections")
             
             if isLoading && !hasLoaded && selectedTab != 3 {
                 Spacer()
@@ -78,6 +80,7 @@ struct SettingsView: View {
             }
         }
         .task { await load() }
+        .onAppear {if GuideReadOnlyGate.shared.isActive,let guideSection {selectedTab=guideSection}}
         .onDisappear { loadRequest.invalidate(); isLoading = false }
         .sheet(isPresented: $showUserForm) {
             UserEditorSheet(user: editingUser) { await load(refresh: true) }

@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.pusula.service.ui.guide.guideTourTarget
 import com.pusula.service.data.model.FieldTicketDTO
 import com.pusula.service.data.model.TechnicianDTO
 import com.pusula.service.ui.components.AppDropdownField
@@ -202,7 +203,8 @@ fun TicketListScreen(
     onOpenTicket: (Long) -> Unit,
     requestedFilter: String? = null,
     onRequestedFilterApplied: () -> Unit = {},
-    viewModel: TicketViewModel = hiltViewModel()
+    viewModel: TicketViewModel = hiltViewModel(),
+    tourCustomerId: Long? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
@@ -221,7 +223,7 @@ fun TicketListScreen(
     }
 
     LaunchedEffect(Unit) { viewModel.loadTickets() }
-    LaunchedEffect(session.isAdmin) { selectedFilter = defaultFilter }
+    LaunchedEffect(session.isAdmin) { selectedFilter = if(com.pusula.service.core.GuideReadOnlyGate.active.value&&tourCustomerId!=null)"Tümü" else defaultFilter }
     LaunchedEffect(requestedFilter, session.isAdmin) {
         if (!requestedFilter.isNullOrBlank() && requestedFilter in availableFilters) {
             selectedFilter = requestedFilter
@@ -263,6 +265,7 @@ fun TicketListScreen(
             else -> {
                 val filtered = sortTicketsForCategory(uiState.tickets.filter {
                     ticketMatchesFilter(it, selectedFilter, session.isAdmin) &&
+                        (tourCustomerId==null||!com.pusula.service.core.GuideReadOnlyGate.active.value||it.customerId==tourCustomerId) &&
                         ticketMatchesSearch(it, searchQuery)
                 }, selectedFilter)
                 val pendingUnassigned = pendingUnassignedTickets(uiState.tickets)
@@ -274,7 +277,7 @@ fun TicketListScreen(
                     }
                 }
 
-                Column(modifier = Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.fillMaxSize().guideTourTarget("ticket-list").guideTourTarget("customer-history")) {
                     if (uiState.refreshing) {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
@@ -302,11 +305,11 @@ fun TicketListScreen(
                             )
                         }
                         item {
-                            FilterRow(
+                            Box(Modifier.guideTourTarget("ticket-filters")) { FilterRow(
                                 filters = availableFilters,
                                 selectedFilter = selectedFilter,
                                 onSelect = { selectedFilter = it }
-                            )
+                            ) }
                         }
                         item {
                             OutlinedTextField(

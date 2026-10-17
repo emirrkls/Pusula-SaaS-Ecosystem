@@ -39,5 +39,16 @@ struct SupportReplyRequest: Encodable {
 }
 enum SupportPresentation {
     static func label(_ value: String) -> String { NSLocalizedString("support.value." + value, comment: "Support status/category") }
-    static let fallbackEmail = "pusulaiklimlendirme.didim@gmail.com"
+    static let fallbackEmail = "destek@pusulaiklimlendirme.store"
+    static func displayDate(_ raw:String)->String {
+        let parser=ISO8601DateFormatter()
+        let candidate=raw.range(of:"(Z|[+-][0-9]{2}:[0-9]{2})$",options:.regularExpression)==nil ? raw+"+03:00" : raw
+        parser.formatOptions=[.withInternetDateTime,.withFractionalSeconds]
+        var date=parser.date(from:candidate)
+        if date==nil {parser.formatOptions=[.withInternetDateTime];date=parser.date(from:candidate)}
+        guard let date else{return raw}
+        let formatter=DateFormatter();formatter.locale=Locale(identifier:"tr_TR");formatter.timeZone=TimeZone(identifier:"Europe/Istanbul")
+        formatter.dateFormat="d MMM · HH:mm"
+        return formatter.string(from:date)
+    }
 }

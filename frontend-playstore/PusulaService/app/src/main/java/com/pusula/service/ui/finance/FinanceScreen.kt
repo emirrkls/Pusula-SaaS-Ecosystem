@@ -171,7 +171,8 @@ private fun financeHeaderInfo(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FinanceScreen(
-    viewModel: FinanceViewModel = hiltViewModel()
+    viewModel: FinanceViewModel = hiltViewModel(),
+    tourTab: String? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var amountText by remember { mutableStateOf("") }
@@ -180,7 +181,7 @@ fun FinanceScreen(
     var linkedFixedExpenseId by remember { mutableStateOf<Long?>(null) }
     var showSmartLinkDialog by remember { mutableStateOf(false) }
     var smartLinkSelectionId by remember { mutableStateOf<Long?>(null) }
-    var selectedTab by remember { mutableStateOf("Günlük") }
+    var selectedTab by remember { mutableStateOf(if(com.pusula.service.core.GuideReadOnlyGate.active.value)tourTab?:"Günlük" else "Günlük") }
     var selectedAccountId by remember { mutableStateOf<Long?>(null) }
     var paymentText by remember { mutableStateOf("") }
     var discountText by remember { mutableStateOf("0") }

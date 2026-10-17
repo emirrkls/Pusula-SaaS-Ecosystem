@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import com.pusula.service.ui.guide.guideTourTarget
+import com.pusula.service.ui.guide.rememberGuideListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apartment
 import androidx.compose.material.icons.outlined.Badge
@@ -63,6 +65,7 @@ fun ProfileScreen(
     }
 
     LazyColumn(
+        state=rememberGuideListState(mapOf("profile-support" to 3,"profile-delete" to 3)),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             start = Spacing.lg,
@@ -148,7 +151,7 @@ fun ProfileScreen(
                 AppGhostCard {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         com.pusula.service.ui.guide.ApplicationGuideEntry(session)
-                        com.pusula.service.ui.support.SupportEntry(onOpen={showSupport=true})
+                        androidx.compose.foundation.layout.Box(Modifier.guideTourTarget("profile-support")){com.pusula.service.ui.support.SupportEntry(onOpen={showSupport=true})}
                         Button(
                             onClick = onLogout,
                             modifier = Modifier.fillMaxWidth(),
@@ -160,7 +163,7 @@ fun ProfileScreen(
                         }
                         TextButton(
                             onClick = { showDeleteConfirmation = true },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().guideTourTarget("profile-delete")
                         ) {
                             Icon(imageVector = Icons.Outlined.DeleteForever, contentDescription = null, tint = ErrorTone)
                             Spacer(Modifier.padding(start = Spacing.xs))

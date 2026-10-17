@@ -70,7 +70,7 @@ fun PlanUpgradeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
     LaunchedEffect(context) {
-        (context as? android.app.Activity)?.let(viewModel::bindBillingActivity)
+        if(!com.pusula.service.core.GuideReadOnlyGate.active.value) (context as? android.app.Activity)?.let(viewModel::bindBillingActivity)
         viewModel.loadPlans()
     }
     val plans = uiState.plans

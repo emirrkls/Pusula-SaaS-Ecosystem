@@ -25,7 +25,8 @@ enum ConnectionDiagnosticsTransport {
 
     static func data(for originalRequest: URLRequest, operation: ConnectionOperation,
                      session: URLSession = .shared, store: ConnectionDiagnosticsStore = .shared,
-                     interface: ConnectionInterface = .unknown, appState: ConnectionAppState = .unknown) async throws -> (Data, URLResponse) {
+                     interface: ConnectionInterface = .unknown, appState: ConnectionAppState = .unknown,
+                     beforeSend: @Sendable () throws -> Void = {}) async throws -> (Data, URLResponse) {
         let id = UUID()
         let started = Date()
         let generation = await store.currentGeneration()
@@ -33,6 +34,7 @@ enum ConnectionDiagnosticsTransport {
         var request = originalRequest
         request.setValue(id.uuidString, forHTTPHeaderField: "X-Pusula-Diagnostic-ID")
         do {
+            try beforeSend()
             let result = try await session.data(for: request, delegate: observer)
             await store.append(ConnectionDiagnosticRecord(id: id, startedAt: started, operation: operation,
                 url: request.url, method: request.httpMethod ?? "GET", status: (result.1 as? HTTPURLResponse)?.statusCode,

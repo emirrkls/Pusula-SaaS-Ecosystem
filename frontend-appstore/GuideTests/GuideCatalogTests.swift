@@ -67,4 +67,14 @@ final class GuideCatalogTests: XCTestCase {
         object["topics"] = topics
         XCTAssertThrowsError(try GuideCatalog.decode(JSONSerialization.data(withJSONObject: object)))
     }
+    func testAllStepsHaveRealRoutesAndInvalidTargetsAreRejected() throws {
+        let catalog=try GuideCatalog.decode(data())
+        XCTAssertEqual(catalog.topics.flatMap(\.steps).count,156)
+        var object=try XCTUnwrap(JSONSerialization.jsonObject(with:data()) as? [String:Any])
+        var topics=try XCTUnwrap(object["topics"] as? [[String:Any]])
+        var steps=try XCTUnwrap(topics[0]["steps"] as? [[String:Any]])
+        steps[0]["tour"]=["screen":"home","target":"/api/delete"]
+        topics[0]["steps"]=steps;object["topics"]=topics
+        XCTAssertThrowsError(try GuideCatalog.decode(JSONSerialization.data(withJSONObject:object)))
+    }
 }

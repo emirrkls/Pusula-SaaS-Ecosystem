@@ -12,6 +12,12 @@ enum GuideFlowFixture {
     static let defaults = UserDefaults(suiteName: "Pusula.GuideUITests")!
     static var role: String { ProcessInfo.processInfo.environment["PUSULA_GUIDE_ROLE"] ?? "COMPANY_ADMIN" }
     static var scope: String { ProcessInfo.processInfo.environment["PUSULA_GUIDE_ACCOUNT"] ?? "fixture-user-a" }
+    static var features: [String:Bool] { ["FINANCE_MODULE":true,"BASIC_INVENTORY":true,"COMPANY_DEBT_TRACKING":true,"BUSINESS_ASSETS":true] }
+    static var tourTicket: FieldTicketDTO {
+        // Explicitly selected by the UI test, never sent to a server.
+        try! JSONDecoder().decode(FieldTicketDTO.self,from:Data(#"{"id":701,"customerName":"Çevrimdışı tur kaydı","description":"Yalnızca test ekranı","status":"ASSIGNED"}"#.utf8))
+    }
+    static var tourCustomer: CustomerDTO { CustomerDTO(id:701,name:"Çevrimdışı tur müşterisi",phone:nil,address:nil,coordinates:nil) }
 }
 struct GuideFlowHarness: View {
     @StateObject private var onboarding: OnboardingManager

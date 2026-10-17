@@ -8,6 +8,7 @@ public struct GuideCategory: Codable, Identifiable, Sendable {
 public struct GuideLessonStep: Codable, Sendable {
     public let title: String
     public let body: String
+    public let tour: GuideTourRoute
 }
 public struct GuideTopic: Codable, Identifiable, Sendable {
     public let id: String
@@ -55,7 +56,7 @@ public struct GuideCatalog: Codable, Sendable {
                   !topic.platforms.isEmpty, Set(topic.platforms).isSubset(of: ["ios", "android"]),
                   topic.platforms.allSatisfy({ !(topic.locations[$0] ?? "").isEmpty }),
                   (2...6).contains(topic.steps.count),
-                  topic.steps.allSatisfy({ !$0.title.isEmpty && !$0.body.isEmpty }) else { throw GuideCatalogError.invalid }
+                  topic.steps.allSatisfy({ !$0.title.isEmpty && !$0.body.isEmpty && $0.tour.target.range(of:"^[a-z][a-z-]{0,60}$",options:.regularExpression) != nil }) else { throw GuideCatalogError.invalid }
         }
         return value
     }

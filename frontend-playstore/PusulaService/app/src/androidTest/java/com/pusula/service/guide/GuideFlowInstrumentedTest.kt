@@ -1,6 +1,8 @@
 package com.pusula.service.guide
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -35,7 +37,11 @@ class GuideFlowInstrumentedTest {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, if (large) 2f else density.fontScale)) {
                 com.pusula.service.ui.theme.PusulaTheme {
-                    ApplicationGuideEntry(SessionState(isAuthenticated = true, token = token, role = role, companyId = 1))
+                    // Shared production chrome/progress/gate; offline backdrop is
+                    // explicitly injected. This test never creates a live session.
+                    ApplicationGuideEntry(SessionState(isAuthenticated = true, token = token, role = role, companyId = 1),tourRenderer={t,i,_,_,n,b,c->
+                        GuideTourChrome(t,i,false,n,b,c){padding->androidx.compose.foundation.layout.Box(Modifier.padding(padding)) {androidx.compose.material3.Text(t.steps[i].tour.screen)}}
+                    })
                 }
             }
         }
@@ -46,6 +52,7 @@ class GuideFlowInstrumentedTest {
         open()
         compose.onNodeWithTag("pusula.brand").assertExists()
         compose.onNodeWithTag("guide.quick-start").performClick()
+        compose.runOnIdle {assertTrue(com.pusula.service.core.GuideReadOnlyGate.active.value)}
         compose.onNodeWithTag("guide.step.progress").assertTextEquals("1 / 6")
         compose.onNodeWithTag("guide.next").performClick()
         compose.onNodeWithTag("guide.step.progress").assertTextEquals("2 / 6")
@@ -53,6 +60,7 @@ class GuideFlowInstrumentedTest {
         compose.onNodeWithTag("guide.step.progress").assertTextEquals("1 / 6")
         compose.onNodeWithTag("guide.next").performClick()
         compose.onNodeWithTag("guide.close").performClick()
+        compose.runOnIdle {assertFalse(com.pusula.service.core.GuideReadOnlyGate.active.value)}
         compose.onNodeWithTag("guide.quick-start").performClick()
         compose.onNodeWithTag("guide.step.progress").assertTextEquals("2 / 6")
         repeat(5) { compose.onNodeWithTag("guide.next").performClick() }

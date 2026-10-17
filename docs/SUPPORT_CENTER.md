@@ -4,6 +4,14 @@ Bu modül masaüstü, iOS ve Android'den gelen soruları, hata bildirimlerini ve
 
 ## Canlı kurulum ve pilot sonucu
 
+### Yerel mobil arayüz revizyonu — 17 Ekim
+
+iOS ve Android destek merkezi; markalı giriş kartı, belirgin yeni talep eylemi, durum rozetleri ve okunabilir tarihler içeren talep kartlarıyla yenilendi. Konuşma ve mesaj yazma görünümleri listeden ayrıldı; ekip/kullanıcı mesajları farklı hizalı balonlar halinde gösterilir. Gönderme eylemi formdan ayrı alt alandadır. Dondurulmuş gönderim anahtarı, hesap ayrımı, taslak saklama, özel ekler ve belirsiz sonuçta aynı gönderimi tekrar deneme kuralları korunur. SaaS istemcisinin çevrimdışı e-posta yedeği `destek@pusulaiklimlendirme.store` adresidir; `.com/destek` sayfasının Gmail adresi değiştirilmez.
+
+Salt okunur uygulama turunda gerçek destek taslağı geri yüklenmez; taslağa veya okunma durumuna yazılmaz. İşlem yapan HTTP yolları taşıma katmanında da engellenir. Tasarım revizyonu henüz yeni bir iOS build'i olarak doğrulanmadı/yayımlanmadı; önceki dağıtım sonuçları bu revizyona aktarılmaz.
+
+Android'de gerçek destek ekranının taslak saklama, aynı anahtarla kayıp yanıtı tekrar gönderme, hesap değişiminde eski yanıtı atma ve 2× yazı/koyu test temasında sabit gönder düğmesinin görünürlüğü geçti. Birleşik mobil test seçkisi son çalıştırmada 9/9 başarılıdır. iOS için aynı yeni arayüzün büyük yazı testi eklendi; Swift ve iPhone/iPad çalıştırması Xcode Cloud'da bekliyor. Bu revizyon yerel `codex/mobile-guide-support-polish` dalındadır; push, backend yayını veya yeni TestFlight yüklemesi yapılmadı.
+
 - Backend kaynak `c41b8ff`, ayrı `codex/support-center-release` dalında; temiz çalışma kopyasından derlendi. 435 test: 424 geçen, 11 koşullu atlanan, 0 hata. Önceden yapılan ayrı gerçek PostgreSQL doğrulaması 10/10 geçti.
 - Üretim JAR/veritabanı yedeği korumalı alanda alındı. Dolu yedek ayrı geçici veritabanına geri yüklendi; V49, beş tablo ve benzersiz/partial indeksler doğrulandı; mevcut kullanıcı/işletme sayıları değişmedi. Geçici prova veritabanı kaldırıldı. Canlı Flyway V49 başarılıdır; otomatik aşağı migration yapılmaz.
 - Yönetim: [admin.pusulaiklimlendirme.cloud](https://admin.pusulaiklimlendirme.cloud). Ayrı panel deposu `ae537bb`; yalnız destek portalı yayımlandı. Diğer yerel panel refaktörleri bu pakete alınmadı. Token yalnız sekme belleğinde tutulur; sayfa yenilenince yeniden giriş gerekir. Yeni kalıcı yönetici hesabı veya yetki verilmedi.

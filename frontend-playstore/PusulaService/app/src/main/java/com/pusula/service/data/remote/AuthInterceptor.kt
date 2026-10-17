@@ -18,8 +18,14 @@ class AuthInterceptor @Inject constructor(
             || path == "/api/auth/google"
             || path == "/api/auth/register"
         val token = if (skipAuthHeader) null else sessionManager.bearerTokenSnapshot()
+        val pinned = original.header("Authorization")
+        // A queued photo belongs to the captured account; never substitute a
+        // newer login's token while preparing/sending a retained payload.
+        if (pinned != null && pinned != token?.let { "Bearer $it" }) {
+            throw java.io.IOException("Oturum değişti. Bu yükleme durduruldu.")
+        }
         val request = original.newBuilder().apply {
-            if (!token.isNullOrBlank()) {
+            if (pinned == null && !token.isNullOrBlank()) {
                 addHeader("Authorization", "Bearer $token")
             }
         }.build()

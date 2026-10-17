@@ -375,14 +375,19 @@ test('mutation forms keep their key and suppress concurrent submits, retries obe
     assert.match(source, /\.interactiveDismissDisabled\(is(?:Saving|Creating)\)/, file);
   }
   const photo = read(app + 'Views/Technician/ServicePhotoView.swift');
-  assert.match(photo, /requestId: uploadSubmissionId/);
-  assert.match(photo, /guard !isUploading else \{ return \}/);
+  assert.match(photo, /requestId: id, authToken: owner.token/);
+  assert.match(photo, /guard !isUploading, hasPendingPhotos/);
+  assert.match(photo, /for id in pending/);
+  assert.match(photo, /batch\?\.prepare\(id, payload: prepared\)/);
+  assert.match(photo, /batch\?\.succeed\(id\)/);
   assert.match(photo, /photos\.contains\(where:/);
   const network = read(app + 'Services/NetworkManager.swift');
   const observer = network.slice(network.indexOf('private func observedData'), network.indexOf('private func apiErrorMessage'));
   assert.ok(observer.indexOf('let generation = credentialGeneration') < observer.indexOf('await ConnectionDiagnosticEnvironment.context()'));
   assert.equal((observer.match(/guard mayRetry\(generation: generation, authorization: authorization\)/g) || []).length, 3);
-  assert.match(observer, /mayRetry: \{ await self\.mayRetry/);
+  assert.match(observer, /mayRetry: \{[\s\S]*return await self\.mayRetry/);
+  assert.match(observer, /guard GuideReadOnlyGate.shared.allows/);
+  assert.match(observer, /beforeSend: \{ try GuideReadOnlyGate.shared.validate/);
   assert.match(observer, /credentialGeneration == generation/);
 });
 

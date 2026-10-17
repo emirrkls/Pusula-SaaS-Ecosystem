@@ -1,9 +1,22 @@
 import SwiftUI
 import PhotosUI
 import UIKit
+import ImageIO
 
+private enum ServicePhotoSource {
+    case library(PhotosPickerItem)
+    case camera(UIImage)
+#if DEBUG
+    case fixture(Int)
+#endif
+}
+
+@MainActor
 struct ServicePhotoView: View {
     let ticketId: Int
+#if DEBUG
+    var flowFixture: ServicePhotoFlowFixture? = nil
+#endif
     @Environment(\.dismiss) private var dismiss
     @State private var photos: [ServicePhotoDTO] = []
     @State private var isLoading = true
@@ -11,10 +24,15 @@ struct ServicePhotoView: View {
     @State private var loadError: String?
     @State private var hasLoaded = false
     @State private var isUploading = false
-    @State private var uploadSubmissionId = UUID()
+    @ObservedObject private var session = SessionManager.shared
+    @State private var batch: ServicePhotoUploadBatch<ServicePhotoSource, Data>?
+    @State private var batchOwner: AuthenticatedSessionSnapshot?
+    @State private var uploadTask: Task<Void, Never>?
+    @State private var currentUpload = 0
+    @State private var showLeaveWarning = false
     @State private var selectedType = "BEFORE"
     @State private var note = ""
-    @State private var selectedLibraryItem: PhotosPickerItem?
+    @State private var selectedLibraryItems: [PhotosPickerItem] = []
     @State private var showSourcePicker = false
     @State private var showPhotoLibrary = false
     @State private var showCamera = false
@@ -31,21 +49,31 @@ struct ServicePhotoView: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    .disabled(isUploading || hasPendingPhotos)
                     TextField("Görsel notu (örn. İç ünite 2, seri no…)", text: $note, axis: .vertical)
                         .lineLimit(2...4)
                         .textFieldStyle(.roundedBorder)
+                        .disabled(isUploading || hasPendingPhotos)
                     Button { PusulaKeyboard.dismiss(); showSourcePicker = true } label: {
-                        Label("Görsel Ekle", systemImage: "camera.fill")
+                        Label("Görsel Ekle", systemImage: "photo.badge.plus")
                             .frame(maxWidth: .infinity).padding(.vertical, 8)
                     }
                     .buttonStyle(.borderedProminent).tint(PusulaTheme.accent).readOnlyProtected()
-                    .disabled(isUploading)
+                    .disabled(isUploading || hasPendingPhotos)
+                    Text("Galeriden tek seferde en fazla 10 görsel seçebilirsiniz. Kategori ve not seçilen tüm görsellere uygulanır.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 .pusulaCard()
-
-                if isLoading || isUploading {
-                    ProgressView(isUploading ? "Yükleniyor..." : "Görseller getiriliyor...")
+                .guideTourTarget("photo-add")
+#if DEBUG
+                if ServicePhotoFlowFixture.isEnabled, flowFixture != nil {
+                    Button("3 test görseli seç") { beginUpload((1...3).map { .fixture($0) }) }
+                        .disabled(isUploading || hasPendingPhotos).accessibilityIdentifier("photos.fixture.pick")
                 }
+#endif
+
+                if isLoading { ProgressView("Görseller getiriliyor...") }
+                if let batch { uploadStatus(batch) }
                 if let loadError {
                     ReadLoadFailureView(message: loadError) { Task { await loadPhotos() } }
                 }
@@ -59,41 +87,50 @@ struct ServicePhotoView: View {
                 } else {
                     LazyVStack(spacing: 12) { ForEach(photos) { photo in photoRow(photo) } }
                 }
-            }.padding()
+            }.padding().guideTourTarget("photo-list")
         }
+        .guideTourScrollable()
         .background(PusulaTheme.page)
         .pusulaKeyboardDismissal()
         .navigationTitle("Servis Görselleri").navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Tamam") { dismiss() }.disabled(isUploading) } }
-        .interactiveDismissDisabled(isUploading)
+        .navigationBarBackButtonHidden(isUploading || hasPendingPhotos)
+        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Tamam") {
+            if hasPendingPhotos { showLeaveWarning = true } else { dismiss() }
+        }.disabled(isUploading) } }
+        .interactiveDismissDisabled(isUploading || hasPendingPhotos)
         .task { await loadPhotos() }
-        .refreshable { await loadPhotos() }
-        .onDisappear { loadRequest.invalidate(); isLoading = false }
+        .refreshable { if !isUploading { await loadPhotos() } }
+        .onDisappear { loadRequest.invalidate(); isLoading = false; uploadTask?.cancel() }
+        .onChange(of: session.authenticatedSnapshot) { _, snapshot in
+            if let batchOwner, snapshot != batchOwner {
+                uploadTask?.cancel(); batch = nil; self.batchOwner = nil; photos = []
+            }
+        }
         .confirmationDialog("Görsel kaynağı", isPresented: $showSourcePicker) {
             Button("Kamera ile Çek") { showCamera = true }
             Button("Galeriden Seç") { showPhotoLibrary = true }
             Button("Vazgeç", role: .cancel) {}
         }
-        .photosPicker(isPresented: $showPhotoLibrary, selection: $selectedLibraryItem, matching: .images)
-        .onChange(of: selectedLibraryItem) { _, item in
-            guard let item else { return }
-            Task { await upload(item: item) }
+        .photosPicker(isPresented: $showPhotoLibrary, selection: $selectedLibraryItems,
+                      maxSelectionCount: 10, selectionBehavior: .ordered, matching: .images)
+        .onChange(of: selectedLibraryItems) { _, items in
+            guard !items.isEmpty else { return }
+            beginUpload(items.map { .library($0) })
+            selectedLibraryItems = []
         }
         .sheet(isPresented: $showCamera) {
             CameraImagePicker { image in
                 showCamera = false
-                Task {
-                    do {
-                        let context = await ConnectionDiagnosticEnvironment.context()
-                        let data = try await ConnectionDiagnosticsTransport.local(operation: .photoPreparation,
-                            interface: context.0, appState: context.1) { try preparedServicePhotoData(from: image) }
-                        await upload(data: data)
-                    }
-                    catch { await MainActor.run { errorMessage = error.localizedDescription } }
-                }
+                beginUpload([.camera(image)])
             }
         }
         .fullScreenCover(item: $selectedPhoto) { ServicePhotoViewer(photo: $0) }
+        .confirmationDialog("Yüklenemeyen görseller var", isPresented: $showLeaveWarning, titleVisibility: .visible) {
+            Button("Burada Kal", role: .cancel) {}
+            Button("Bekleyenleri Bırak ve Çık", role: .destructive) { batch = nil; batchOwner = nil; dismiss() }
+        } message: {
+            Text("Yüklenen görseller korunur. Yanıtı alınamayan bir görsel sunucuya kaydedilmiş olabilir. Çıkarsanız yeniden eklemeden önce görsel listesini kontrol edin.")
+        }
         .alert("Hata", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
             Button("Tamam", role: .cancel) { errorMessage = nil }
         } message: { Text(errorMessage ?? "") }
@@ -105,7 +142,7 @@ struct ServicePhotoView: View {
                 AsyncImage(url: photo.fullURL) { phase in
                     if case .success(let image) = phase { image.resizable().scaledToFill() } else { Color(.systemGray5) }
                 }.frame(width: 84, height: 84).clipShape(RoundedRectangle(cornerRadius: 10))
-            }.buttonStyle(.plain)
+            }.buttonStyle(.plain).disabled(isUploading)
             VStack(alignment: .leading, spacing: 4) {
                 Text(photo.typeLabel).font(.subheadline.weight(.semibold))
                 if let note = photo.note, !note.isEmpty { Text(note).font(.caption).lineLimit(3) }
@@ -114,10 +151,16 @@ struct ServicePhotoView: View {
             Spacer()
             Button(role: .destructive) { Task { await deletePhoto(photo) } } label: { Image(systemName: "trash") }
                 .readOnlyProtected()
+                .disabled(isUploading)
         }.pusulaCard()
     }
 
     private func loadPhotos() async {
+#if DEBUG
+        if ServicePhotoFlowFixture.isEnabled, let flowFixture {
+            photos = flowFixture.photos; isLoading = false; hasLoaded = true; return
+        }
+#endif
         guard let snapshot = SessionManager.shared.authenticatedSnapshot,
               let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
         isLoading = true
@@ -134,41 +177,133 @@ struct ServicePhotoView: View {
             loadError = error.localizedDescription
         }
     }
-    private func upload(item: PhotosPickerItem) async {
-        do {
-            let context = await ConnectionDiagnosticEnvironment.context()
+    private var hasPendingPhotos: Bool { !(batch?.pendingIDs.isEmpty ?? true) }
+    private var currentPhotoOwner: AuthenticatedSessionSnapshot? {
+#if DEBUG
+        if ServicePhotoFlowFixture.isEnabled, let flowFixture { return flowFixture.owner }
+#endif
+        return session.authenticatedSnapshot
+    }
+    private func photoOwnerIsCurrent(_ owner: AuthenticatedSessionSnapshot) -> Bool { currentPhotoOwner == owner }
+
+    private func uploadStatus(_ value: ServicePhotoUploadBatch<ServicePhotoSource, Data>) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("\(value.confirmedCount) / \(value.items.count) görsel yüklendi",
+                  systemImage: value.pendingIDs.isEmpty ? "checkmark.circle.fill" : "photo.on.rectangle")
+                .font(.subheadline.weight(.semibold)).accessibilityIdentifier("photos.batch.summary")
+            if isUploading {
+                ProgressView("\(currentUpload) / \(value.items.count) işleniyor…")
+                Text("Görseller sırayla ve güvenli şekilde yükleniyor. Lütfen bu ekranı açık tutun.").font(.caption).foregroundStyle(.secondary)
+            } else if !value.pendingIDs.isEmpty {
+                Text("\(value.pendingIDs.count) görsel teyit edilemedi. Tekrar denediğinizde yüklenenler yeniden gönderilmez.")
+                    .font(.caption).foregroundStyle(.secondary)
+                DisclosureGroup("Ayrıntılar") {
+                    ForEach(Array(value.items.enumerated()), id: \.element.id) { index, item in
+                        if let message = item.error { Text("Görsel \(index + 1): \(message)").font(.caption) }
+                    }
+                }
+                Button("Yüklenemeyenleri Tekrar Dene") { resumeUploads() }
+                    .buttonStyle(.borderedProminent).readOnlyProtected()
+                    .accessibilityIdentifier("photos.batch.retry")
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading).pusulaCard()
+    }
+
+    private func beginUpload(_ sources: [ServicePhotoSource]) {
+        guard !isUploading, !hasPendingPhotos, !sources.isEmpty,
+              let snapshot = currentPhotoOwner, !GuideReadOnlyGate.shared.isActive else { return }
+        batch = ServicePhotoUploadBatch(sources: sources, type: selectedType, note: note)
+        batchOwner = snapshot
+        loadRequest.invalidate(); isLoading = false
+        resumeUploads()
+    }
+
+    private func resumeUploads() {
+        guard !isUploading, hasPendingPhotos, let owner = batchOwner, photoOwnerIsCurrent(owner) else { return }
+        isUploading = true
+        uploadTask = Task { await runUploads(owner: owner) }
+    }
+
+    private func runUploads(owner: AuthenticatedSessionSnapshot) async {
+        defer { isUploading = false }
+        guard let pending = batch?.pendingIDs else { return }
+        for id in pending {
+            guard !Task.isCancelled, photoOwnerIsCurrent(owner), let value = batch, let item = value.item(id) else { return }
+            currentUpload = (value.items.firstIndex { $0.id == id } ?? 0) + 1
+            do {
+                if item.payload == nil, let source = item.source {
+                    let prepared = try await prepare(source)
+                    guard !Task.isCancelled, photoOwnerIsCurrent(owner) else { return }
+                    batch?.prepare(id, payload: prepared)
+                }
+                guard !Task.isCancelled, photoOwnerIsCurrent(owner), let payload = batch?.item(id)?.payload else { return }
+                let saved = try await sendPhoto(value: value, payload: payload, id: id, owner: owner)
+                guard !Task.isCancelled, photoOwnerIsCurrent(owner) else { return }
+                batch?.succeed(id)
+                if !photos.contains(where: { $0.id == saved.id }) { photos.insert(saved, at: 0) }
+            } catch {
+                guard !Task.isCancelled, photoOwnerIsCurrent(owner) else { return }
+                batch?.fail(id, message: error.localizedDescription)
+            }
+        }
+        if batch?.pendingIDs.isEmpty == true { note = "" }
+    }
+
+    private func sendPhoto(value: ServicePhotoUploadBatch<ServicePhotoSource, Data>, payload: Data,
+                           id: UUID, owner: AuthenticatedSessionSnapshot) async throws -> ServicePhotoDTO {
+#if DEBUG
+        if ServicePhotoFlowFixture.isEnabled, let flowFixture {
+            return try await flowFixture.upload(key: id, type: value.type, note: value.note, data: payload)
+        }
+#endif
+        return try await TicketService.uploadServicePhoto(ticketId: ticketId, type: value.type, note: value.note,
+            imageData: payload, requestId: id, authToken: owner.token)
+    }
+
+    private func prepare(_ source: ServicePhotoSource) async throws -> Data {
+        let context = await ConnectionDiagnosticEnvironment.context()
+        switch source {
+        case .library(let item):
             let data = try await ConnectionDiagnosticsTransport.local(operation: .photoLibraryRead,
                 interface: context.0, appState: context.1) {
-                guard let data = try await item.loadTransferable(type: Data.self) else { throw NetworkError.invalidResponse }
-                return data
+                guard let bytes = try await item.loadTransferable(type: Data.self) else { throw NetworkError.invalidResponse }
+                return bytes
             }
-            let prepared = try await ConnectionDiagnosticsTransport.local(operation: .photoPreparation,
+            return try await ConnectionDiagnosticsTransport.local(operation: .photoPreparation,
                 interface: context.0, appState: context.1) {
-                guard let image = UIImage(data: data) else { throw NetworkError.invalidResponse }
-                return try preparedServicePhotoData(from: image)
+                try await Task.detached(priority: .userInitiated) {
+                    try autoreleasepool { try preparedServicePhotoData(raw: data) }
+                }.value
             }
-            await upload(data: prepared)
-        } catch { await MainActor.run { errorMessage = error.localizedDescription } }
-        await MainActor.run { selectedLibraryItem = nil }
-    }
-    private func upload(data: Data) async {
-        guard !isUploading else { return }
-        isUploading = true
-        do {
-            let saved = try await TicketService.uploadServicePhoto(ticketId: ticketId, type: selectedType, note: note,
-                imageData: data, requestId: uploadSubmissionId)
-            await MainActor.run {
-                if !photos.contains(where: { $0.id == saved.id }) { photos.insert(saved, at: 0) }
-                uploadSubmissionId = UUID(); note = ""; isUploading = false
-            }
-        } catch { await MainActor.run { errorMessage = error.localizedDescription; isUploading = false } }
+        case .camera(let image):
+            return try await ConnectionDiagnosticsTransport.local(operation: .photoPreparation,
+                interface: context.0, appState: context.1) { try preparedServicePhotoData(from: image) }
+#if DEBUG
+        case .fixture(let index):
+            guard ServicePhotoFlowFixture.isEnabled else { throw NetworkError.invalidResponse }
+            return Data([UInt8(index)]) // Offline fixture never calls the HTTP transport.
+#endif
+        }
     }
     private func deletePhoto(_ photo: ServicePhotoDTO) async {
+#if DEBUG
+        if ServicePhotoFlowFixture.isEnabled, flowFixture != nil { photos.removeAll { $0.id == photo.id }; return }
+#endif
         do {
             try await TicketService.deleteServicePhoto(ticketId: ticketId, photoId: photo.id)
             await MainActor.run { photos.removeAll { $0.id == photo.id } }
         } catch { await MainActor.run { errorMessage = error.localizedDescription } }
     }
+}
+
+private func preparedServicePhotoData(raw: Data) throws -> Data {
+    guard let source = CGImageSourceCreateWithData(raw as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
+          let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: 2_048
+          ] as CFDictionary) else { throw NetworkError.invalidResponse }
+    return try preparedServicePhotoData(from: UIImage(cgImage: thumbnail))
 }
 
 private func preparedServicePhotoData(from image: UIImage) throws -> Data {

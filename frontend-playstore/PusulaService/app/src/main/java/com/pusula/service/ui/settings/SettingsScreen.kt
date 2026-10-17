@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.pusula.service.ui.guide.guideTourTarget
 import com.pusula.service.core.SessionManager
 import com.pusula.service.data.model.CompanyDTO
 import com.pusula.service.data.model.UserDTO
@@ -85,12 +86,13 @@ fun SettingsScreen(
     sessionManager: SessionManager,
     onLogout: () -> Unit,
     onDeleteAccount: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel()
+    viewModel: SettingsViewModel = hiltViewModel(),
+    tourTab: String? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val session by sessionManager.state.collectAsState()
     val context = LocalContext.current
-    var selectedTab by remember { mutableStateOf(settingsTabs.first()) }
+    var selectedTab by remember { mutableStateOf(if(com.pusula.service.core.GuideReadOnlyGate.active.value)tourTab?:settingsTabs.first() else settingsTabs.first()) }
     var showSupport by remember { mutableStateOf(false) }
     if (showSupport) androidx.compose.ui.window.Dialog(onDismissRequest={showSupport=false},properties=androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth=false)) {
         com.pusula.service.ui.support.SupportCenterScreen(onClose={showSupport=false})
@@ -165,7 +167,7 @@ fun SettingsScreen(
                     }
                     item {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().guideTourTarget("settings-sections"),
                             horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
                         ) {
                             settingsTabs.forEach { tab ->

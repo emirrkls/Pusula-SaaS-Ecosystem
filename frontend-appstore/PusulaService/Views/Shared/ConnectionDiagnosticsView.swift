@@ -62,12 +62,14 @@ struct ConnectionDiagnosticsView: View {
                 .disabled(isBusy)
                 .accessibilityIdentifier("diagnostics.refresh")
             }
+            .guideTourTarget("diagnostics-report")
             Section {
                 Button("diagnostics.clear", role: .destructive) { showClearConfirmation = true }
                     .disabled(isBusy)
                     .accessibilityIdentifier("diagnostics.clear")
             } footer: { Text("diagnostics.retention") }
         }
+        .guideTourScrollable()
         .navigationTitle("diagnostics.title")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("diagnostics.close") { dismiss() } } }
