@@ -20,20 +20,21 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.pusula.service.R
 import com.pusula.service.core.SessionState
 import com.pusula.service.data.model.guide.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable fun ApplicationGuideEntry(session: SessionState) {
     val scope = remember(session.token, session.companyId) { GuideIdentity.scope(session.token, session.companyId) }
     var open by rememberSaveable(scope, session.role) { mutableStateOf(false) }
     TextButton(onClick = { open = true }, enabled = scope != null, modifier = Modifier.testTag("account.guide.open")) { Text("Uygulama Rehberi") }
     if (open && scope != null) key(scope, session.role) {
-        Dialog(onDismissRequest = { open = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        ModalBottomSheet(onDismissRequest = { open = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            dragHandle = null, contentWindowInsets = { WindowInsets.safeDrawing }) {
             GuideCenterScreen(scope, session.role, session.features, onClose = { open = false })
         }
     }
@@ -67,7 +68,7 @@ import kotlinx.coroutines.withContext
     }
     BackHandler { if (topic != null) closeLesson() else onClose() }
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().safeDrawingPadding().testTag("guide.screen"),
         topBar = {
             TopAppBar(title = { Text(topic?.title ?: "Uygulama Rehberi") }, actions = {
                 TextButton(onClick = { if (topic != null) closeLesson() else onClose() }, modifier = Modifier.testTag("guide.close")) { Text("Kapat") }

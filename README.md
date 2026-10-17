@@ -58,6 +58,7 @@
 - **Payment webhooks:** Iyzico webhook signature validation (optional / future-compatible).
 - **Super-admin operations:** Company management, quota status, diagnostic packages, operations dashboard.
 - **Support center:** Backend, private super-admin inbox and SMTP alerts are live; Windows/iOS/Android client distribution remains a separate release gate. See [support setup and release gates](docs/SUPPORT_CENTER.md).
+- **Mobile guide:** iOS / Android include a role-aware, searchable offline guide with 10 categories and 56 short topics. See [content, local progress and test gates](docs/MOBILE_GUIDE.md).
 
 ### Clients
 - **Desktop:** Full office/dispatch management, modern responsive dialogs, finance and asset tooling, service-photo browser, service-network administration, PDF reports, and verified MSI auto-update.

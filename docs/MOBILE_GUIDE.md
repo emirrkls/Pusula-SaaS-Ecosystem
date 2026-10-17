@@ -27,6 +27,8 @@ iOS ilk tanıtımdaki Devam / Başla eylemleri kaydırılan içerikten ayrı sab
 
 iOS arayüzündeki genel yön oku ve Android'in eski kilit simgesi yerine mevcut gerçek Pusula uygulama simgesinin aynı baytları kullanılır.
 
+Android rehberi sistem çubuklarını hesaba katan tam açılmış yerel alt sayfa olarak sunulur. İçerik kaydırılır; adım düğmeleri ayrı alt alandadır. Arama klavyesi kapatılarak derse geçilir. Arayüz testi Devam düğmesinin görünür rehber sınırlarının tamamı içinde kaldığını da doğrular.
+
 ## Doğrulama kapıları
 
 - Node: katalog senkronizasyonu, kapsam, rol / platform tanımları, gerçek menü bağlantıları, simge eşitliği, salt okunur akış ve fixture güvenliği.

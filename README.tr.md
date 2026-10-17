@@ -58,6 +58,7 @@
 - **Ödeme webhook altyapısı:** Iyzico webhook imza doğrulama (opsiyonel / gelecek uyumlu).
 - **Super-admin operasyon paneli:** Şirket yönetimi, kota durumu, diagnostic paketleri, operations dashboard.
 - **Destek merkezi:** Backend, özel Süper Admin destek kutusu ve SMTP bildirimleri canlıdır; Windows/iOS/Android istemci dağıtımı ayrı yayın aşamasıdır. [Kurulum ve yayın öncesi kontroller](docs/SUPPORT_CENTER.md).
+- **Mobil rehber:** iOS / Android için role göre filtrelenen, aramalı ve çevrimdışı çalışan 10 kategori / 56 konuluk rehber. [İçerik, yerel ilerleme ve test kapıları](docs/MOBILE_GUIDE.md).
 
 ### İstemciler
 - **Desktop:** Tam ofis/sevk yönetimi, modern ve uyarlanabilir pencereler, finans/demirbaş araçları, servis görsel tarayıcısı, servis ağı yönetimi, PDF raporları ve doğrulanan MSI güncellemesi.

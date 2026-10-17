@@ -58,3 +58,11 @@ test('old Continue footer is fixed and coach layout no longer estimates card hei
   assert.doesNotMatch(source,/estimatedHalfHeight|TabView\(selection: \$page\)/);
   assert.match(source,/activeSteps = steps\(for: role\).filter/);
 });
+test('Android guide uses the system-inset-aware sheet and a separately fixed footer', () => {
+  const screen=read(android+'java/com/pusula/service/ui/guide/GuideCenterScreen.kt');
+  assert.match(screen,/ModalBottomSheet/);
+  assert.match(screen,/skipPartiallyExpanded = true/);
+  assert.match(screen,/WindowInsets.safeDrawing/);
+  assert.match(screen,/bottomBar =/);
+  assert.match(read(android.replace('src/main/','src/androidTest/')+'java/com/pusula/service/guide/GuideFlowInstrumentedTest.kt'),/next.bottom <= screen.bottom/);
+});

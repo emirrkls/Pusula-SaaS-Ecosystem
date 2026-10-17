@@ -2,6 +2,8 @@ package com.pusula.service.guide
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -19,9 +21,24 @@ class GuideFlowInstrumentedTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
     @Before fun reset() { context.getSharedPreferences("pusula_guide_progress", 0).edit().clear().commit() }
     private fun ready() { compose.waitUntil(15000) { compose.onAllNodesWithTag("guide.quick-start").fetchSemanticsNodes().isNotEmpty() } }
-    private fun open(role: String = "COMPANY_ADMIN") {
+    private fun screenshot(name: String) {
+        compose.waitForIdle()
+        val screen = compose.onNodeWithTag("guide.screen").fetchSemanticsNode().boundsInRoot
+        val next = compose.onNodeWithTag("guide.next").fetchSemanticsNode().boundsInRoot
+        assertTrue("Continue must remain inside the visible guide", next.top >= screen.top && next.bottom <= screen.bottom && next.left >= screen.left && next.right <= screen.right)
+        val image = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        java.io.File(context.getExternalFilesDir(null), name).outputStream().use { image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+    }
+    private fun open(role: String = "COMPANY_ADMIN", large: Boolean = false) {
         val token = "header." + Base64.getUrlEncoder().withoutPadding().encodeToString("{\"sub\":\"fixture-guide\"}".toByteArray()) + ".sig"
-        compose.setContent { MaterialTheme { ApplicationGuideEntry(SessionState(isAuthenticated = true, token = token, role = role, companyId = 1)) } }
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, if (large) 2f else density.fontScale)) {
+                com.pusula.service.ui.theme.PusulaTheme {
+                    ApplicationGuideEntry(SessionState(isAuthenticated = true, token = token, role = role, companyId = 1))
+                }
+            }
+        }
         compose.onNodeWithTag("account.guide.open").performClick()
         ready()
     }
@@ -46,7 +63,9 @@ class GuideFlowInstrumentedTest {
         compose.onNodeWithTag("guide.search").performTextInput("firma ayar")
         compose.onNodeWithTag("guide.topic.company-settings").assertDoesNotExist()
         compose.onNodeWithTag("guide.search").performTextReplacement("iskonto")
-        compose.onNodeWithTag("guide.topic.discount").performScrollTo().performClick()
+        compose.onNodeWithTag("guide.list").performScrollToNode(hasTestTag("guide.topic.discount"))
+        compose.onNodeWithTag("guide.topic.discount").performClick()
+        screenshot("guide-search-lesson.png")
         compose.onNodeWithTag("guide.next").assertIsDisplayed().performClick()
         compose.onNodeWithTag("guide.step.progress").assertTextContains("2 /", substring = true)
     }
@@ -61,5 +80,16 @@ class GuideFlowInstrumentedTest {
         repository.clear("a")
         assertFalse(repository.read("a", "COMPANY_ADMIN", topic).complete(topic))
         assertEquals(1, repository.read("b", "COMPANY_ADMIN", topic).step)
+    }
+    @Test fun largeTextKeepsContinueVisibleAndUsesCanonicalBrand() {
+        open(large = true)
+        compose.onNodeWithTag("pusula.brand").assertExists()
+        compose.onNodeWithTag("guide.list").performScrollToNode(hasTestTag("guide.quick-start"))
+        compose.onNodeWithTag("guide.quick-start").performClick()
+        screenshot("guide-large-text.png")
+        compose.onNodeWithTag("guide.next").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("guide.step.progress").assertTextEquals("2 / 6")
+        compose.onNodeWithTag("guide.back").assertIsDisplayed()
+        screenshot("guide-large-text-next.png")
     }
 }
