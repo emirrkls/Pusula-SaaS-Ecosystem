@@ -31,15 +31,12 @@ struct PusulaBrandMark: View {
     var size: CGFloat = 48
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: PusulaTheme.radius)
-                .fill(PusulaTheme.ink)
-            Image(systemName: "location.north.fill")
-                .font(.system(size: size * 0.42, weight: .semibold))
-                .foregroundStyle(PusulaTheme.brandCyan)
-        }
-        .frame(width: size, height: size)
-        .accessibilityHidden(true)
+        Image("AppBrandIcon")
+            .resizable().scaledToFit()
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.2))
+            .accessibilityLabel("Pusula uygulama simgesi")
+            .accessibilityIdentifier("pusula.brand")
     }
 }
 

@@ -1,2 +1,2 @@
 <?xml version="1.0" encoding="utf-8"?>
-<full-backup-content><exclude domain="sharedpref" path="pusula_support_drafts.xml"/><exclude domain="sharedpref" path="pusula_secure_prefs.xml"/></full-backup-content>
+<full-backup-content><exclude domain="sharedpref" path="pusula_guide_progress.xml"/><exclude domain="sharedpref" path="pusula_support_drafts.xml"/><exclude domain="sharedpref" path="pusula_secure_prefs.xml"/></full-backup-content>

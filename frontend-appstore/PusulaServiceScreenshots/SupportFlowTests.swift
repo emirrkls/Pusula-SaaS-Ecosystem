@@ -2,6 +2,24 @@ import XCTest
 
 final class SupportFlowTests:XCTestCase {
     override func setUpWithError() throws {continueAfterFailure=false}
+    func testCompanyAdminOpensSupportFromActualAccountSettings() {
+        let app=launch("normal",entry:"admin")
+        openAdminAccount(app)
+        reveal("settings.support.open",in:app).tap()
+        assertSupportCanComposeWithoutAuthenticating(app)
+    }
+    func testCompanyAdminCanReachSupportWhenSettingsDataFails() {
+        let app=launch("settings-load-failure",entry:"admin")
+        XCTAssertTrue(app.descendants(matching:.any).matching(identifier:"settings.initial-load-failure").firstMatch.waitForExistence(timeout:10))
+        openAdminAccount(app)
+        reveal("settings.support.open",in:app).tap()
+        assertSupportCanComposeWithoutAuthenticating(app)
+    }
+    func testTechnicianOpensSupportFromActualProfile() {
+        let app=launch("normal",entry:"technician")
+        reveal("account.support.open",in:app).tap()
+        assertSupportCanComposeWithoutAuthenticating(app)
+    }
     func testLostResponseRetriesTheSameIntentWithoutSecondWrite() {
         let app=launch("lost-response")
         reveal("support.new",in:app).tap()
@@ -30,9 +48,22 @@ final class SupportFlowTests:XCTestCase {
         let app=launch("anonymous");XCTAssertTrue(app.staticTexts["support.login_help"].waitForExistence(timeout:10));XCTAssertFalse(app.buttons["support.new"].exists)
         XCTAssertEqual(app.staticTexts["support.fixture.counts"].value as? String,"0:0:false")
     }
-    private func launch(_ scenario:String)->XCUIApplication {
+    private func openAdminAccount(_ app:XCUIApplication) {
+        let sections=app.segmentedControls["settings.sections"]
+        XCTAssertTrue(sections.waitForExistence(timeout:10))
+        let account=sections.buttons["Hesap"]
+        XCTAssertTrue(account.isHittable);account.tap()
+    }
+    private func assertSupportCanComposeWithoutAuthenticating(_ app:XCUIApplication) {
+        let new=reveal("support.new",in:app)
+        XCTAssertTrue(app.navigationBars["Yardım ve Destek"].exists)
+        new.tap()
+        XCTAssertTrue(app.textFields["support.subject"].waitForExistence(timeout:10))
+        XCTAssertEqual(app.staticTexts["support.fixture.counts"].value as? String,"0:0:false")
+    }
+    private func launch(_ scenario:String,entry:String="direct")->XCUIApplication {
         let app=XCUIApplication();app.launchArguments=["--app-store-screenshots","-AppleLanguages","(tr)","-AppleLocale","tr_TR"]
-        app.launchEnvironment["PUSULA_SUPPORT_FIXTURE"]=scenario;app.launchEnvironment["PUSULA_SUPPORT_RESET_DRAFT"]="1";app.launch();return app
+        app.launchEnvironment["PUSULA_SUPPORT_FIXTURE"]=scenario;app.launchEnvironment["PUSULA_SUPPORT_RESET_DRAFT"]="1";app.launchEnvironment["PUSULA_SUPPORT_ENTRY"]=entry;app.launch();return app
     }
     private func dismissKeyboard(_ app:XCUIApplication) {let done=app.buttons["keyboard.done"];if done.exists && done.isHittable {done.tap()}else if app.buttons["Bitti"].exists {app.buttons["Bitti"].tap()}}
     private func reveal(_ identifier:String,in app:XCUIApplication)->XCUIElement {

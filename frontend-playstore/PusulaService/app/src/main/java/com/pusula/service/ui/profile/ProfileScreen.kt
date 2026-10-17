@@ -147,6 +147,7 @@ fun ProfileScreen(
             AppDashboardSection(title = "Güvenlik") {
                 AppGhostCard {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        com.pusula.service.ui.guide.ApplicationGuideEntry(session)
                         com.pusula.service.ui.support.SupportEntry(onOpen={showSupport=true})
                         Button(
                             onClick = onLogout,

@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct ProfileView: View {
+#if DEBUG
+    var supportFlowFixture: SupportFlowFixture? = nil
+#endif
     @ObservedObject private var session = SessionManager.shared
     @State private var showDeleteAlert = false
     @State private var showPlanUpgrade = false
@@ -42,7 +45,7 @@ struct ProfileView: View {
                 PusulaAppearancePicker()
                     .pusulaCard()
 
-                NavigationLink { SupportCenterView() } label: {
+                NavigationLink { supportDestination } label: {
                     HStack { Label("support.title", systemImage: "questionmark.bubble"); if supportUnread > 0 { Text("\(supportUnread)").font(.caption.bold()).foregroundStyle(PusulaTheme.accent) } }
                         .frame(maxWidth: .infinity).padding(.vertical, 14)
                 }.buttonStyle(.bordered).accessibilityIdentifier("account.support.open")
@@ -55,17 +58,11 @@ struct ProfileView: View {
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("account.diagnostics.open")
 
-                Button {
-                    OnboardingManager.shared.restartRoleTour(
-                        role: session.role,
-                        accountIdentifier: session.onboardingAccountIdentifier
-                    )
-                } label: {
-                    Label("Uygulama Turunu Tekrar Başlat", systemImage: "questionmark.circle")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                NavigationLink { GuideCenterDestination() } label: {
+                    Label("Uygulama Rehberi", systemImage: "book.closed")
+                        .frame(maxWidth: .infinity).padding(.vertical, 14)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.bordered).accessibilityIdentifier("account.guide.open")
                 
                 if session.isAdmin {
                     Button(action: { showPlanUpgrade = true }) {
@@ -155,6 +152,14 @@ struct ProfileView: View {
 
     private var deleteConfirmationMessage: String {
         String(localized: "account.delete_explanation")
+    }
+
+    @ViewBuilder private var supportDestination: some View {
+#if DEBUG
+        SupportCenterView(flowFixture: supportFlowFixture)
+#else
+        SupportCenterView()
+#endif
     }
     
     private var heroCard: some View {

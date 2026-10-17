@@ -12,6 +12,9 @@ import Foundation
 #endif
     }
     private let scenario=ProcessInfo.processInfo.environment["PUSULA_SUPPORT_FIXTURE"] ?? "normal"
+    enum Entry: String { case direct, admin, technician }
+    var entry: Entry { Entry(rawValue: ProcessInfo.processInfo.environment["PUSULA_SUPPORT_ENTRY"] ?? "direct") ?? .direct }
+    var settingsLoadFails: Bool { scenario == "settings-load-failure" }
     let resetDraft=ProcessInfo.processInfo.environment["PUSULA_SUPPORT_RESET_DRAFT"] == "1"
     // A synthetic subject produces the same protected partition after a UI-test relaunch.
     let snapshot=AuthenticatedSessionSnapshot(token:"offline.eyJzdWIiOiJvZmZsaW5lLXN1cHBvcnQtZml4dHVyZSJ9.fixture",companyId:0,revision:UUID())
@@ -42,11 +45,16 @@ import Foundation
     @StateObject private var fixture=SupportFlowFixture()
     var body:some View {
         NavigationStack {
-            SupportCenterView(flowFixture:fixture).safeAreaInset(edge:.bottom) {
-                Text("Offline support: \(fixture.attempts) attempts, \(fixture.writes) writes")
-                    .font(.caption2).padding(6).accessibilityIdentifier("support.fixture.counts")
-                    .accessibilityValue("\(fixture.attempts):\(fixture.writes):\(SessionManager.shared.isAuthenticated)")
+            switch fixture.entry {
+            case .admin: SettingsView(supportFlowFixture:fixture)
+            case .technician: ProfileView(supportFlowFixture:fixture)
+            case .direct: SupportCenterView(flowFixture:fixture)
             }
+        }
+        .safeAreaInset(edge:.bottom) {
+            Text("Offline support: \(fixture.attempts) attempts, \(fixture.writes) writes")
+                .font(.caption2).padding(6).accessibilityIdentifier("support.fixture.counts")
+                .accessibilityValue("\(fixture.attempts):\(fixture.writes):\(SessionManager.shared.isAuthenticated)")
         }
     }
 }

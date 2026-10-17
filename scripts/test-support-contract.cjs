@@ -3,6 +3,23 @@ const root=path.resolve(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p
 test('HVAC website support stays separate from SaaS support and is prerendered',()=>{const page=read('frontend-web/src/pages/Support.jsx');assert.match(page,/PageSeo title="Destek \| Pusula İklimlendirme"/);assert.match(page,/mailto:pusulaiklimlendirme.didim@gmail.com/);assert.doesNotMatch(page,/destek@pusulaiklimlendirme.store|Pusula Servis Yönetimi/);assert.match(page,/path="\/destek"/);assert.match(read('frontend-web/src/seo/prerender-routes.js'),/'\/destek'/);});
 test('support launch is explicit and does not move production API or build identity',()=>{assert.match(read('backend/src/main/java/com/pusula/backend/support/SupportProperties.java'),/enabled=false/);assert.match(read('frontend-appstore/PusulaService/Services/NetworkManager.swift'),/https:\/\/api.pusulaiklimlendirme.com/);assert.doesNotMatch(read('frontend-appstore/PusulaService/Views/Shared/SupportCenterView.swift'),/StoreKit|purchase\(/);});
 test('all three native surfaces are wired to support',()=>{assert.match(read('frontend-appstore/PusulaService/Views/Shared/ProfileView.swift'),/SupportCenterView/);assert.match(read('frontend-appstore/PusulaService/Views/Auth/LoginView.swift'),/SupportCenterView/);assert.match(read('frontend-desktop/src/main/resources/view/main_dashboard.fxml'),/#showSupport/);assert.match(read('frontend-playstore/PusulaService/app/src/main/java/com/pusula/service/ui/profile/ProfileScreen.kt'),/SupportCenterScreen/);assert.match(read('frontend-playstore/PusulaService/app/src/main/java/com/pusula/service/ui/settings/SettingsScreen.kt'),/SupportCenterScreen/);});
+test('both actual iOS account routes expose support, including admin settings after a load failure',()=>{
+    const tabs=read('frontend-appstore/PusulaService/Views/Shared/ContentView.swift');
+    assert.match(tabs,/struct TechnicianTabView[\s\S]*ProfileView\(\)/);
+    assert.match(tabs,/struct AdminTabView[\s\S]*SettingsView\(\)/);
+    const settings=read('frontend-appstore/PusulaService/Views/Admin/SettingsView.swift');
+    assert.match(settings,/Section\("Yardım"\)[\s\S]*NavigationLink \{ supportDestination \}[\s\S]*settings.support.open/);
+    assert.match(settings,/!hasLoaded, selectedTab != 3/);
+    assert.match(settings,/accountTab.tag\(3\)/);
+    assert.match(settings,/\r?\n#else\r?\n\s*SupportCenterView\(\)\r?\n#endif/);
+    const fixture=read('frontend-appstore/PusulaService/ScreenshotSupport/SupportFlowFixture.swift');
+    assert.match(fixture,/case \.admin: SettingsView\(supportFlowFixture:fixture\)/);
+    assert.match(fixture,/case \.technician: ProfileView\(supportFlowFixture:fixture\)/);
+    const tests=read('frontend-appstore/PusulaServiceScreenshots/SupportFlowTests.swift');
+    for(const name of ['testCompanyAdminOpensSupportFromActualAccountSettings','testCompanyAdminCanReachSupportWhenSettingsDataFails','testTechnicianOpensSupportFromActualProfile']) assert.ok(tests.includes(name));
+    assert.match(tests,/segmentedControls\["settings.sections"\]/);
+    assert.match(tests,/sections.buttons\["Hesap"\]/);
+});
 test('separate admin checkout is wired when present',{skip:!fs.existsSync(path.join(root,'Pusula-Super-Admin-Panel/main.js'))},()=>{assert.match(read('Pusula-Super-Admin-Panel/main.js'),/createSupportCenter/);assert.match(read('Pusula-Super-Admin-Panel/support-center.js'),/beforeunload/);});
 test('new iOS support messages are translated completely without duplicates',()=>{const keys=lang=>{const text=read(`frontend-appstore/PusulaService/${lang}.lproj/Localizable.strings`);return [...text.matchAll(/^"(support\.[^"]+)"\s*=/gm)].map(m=>m[1]);};const tr=keys('tr'),en=keys('en');assert.ok(tr.length>=45);assert.equal(new Set(tr).size,tr.length);assert.equal(new Set(en).size,en.length);assert.deepEqual(tr.sort(),en.sort());});
 test('native drafts persist before submission with account isolation and no implicit write replay',()=>{assert.match(read('frontend-appstore/PusulaService/Services/SupportService.swift'),/completeFileProtectionUntilFirstUserAuthentication/);assert.match(read('frontend-playstore/PusulaService/app/src/main/java/com/pusula/service/ui/support/SupportRepository.kt'),/EncryptedSharedPreferences/);assert.match(read('frontend-desktop/src/main/java/com/pusula/desktop/support/SupportDraftStore.java'),/cryptProtectData/);assert.match(read('frontend-appstore/PusulaService/Views/Shared/SupportCenterView.swift'),/SupportDraftStore.shared.save\(draft,key:key\)[\s\S]*SupportService.send/);});

@@ -37,7 +37,9 @@ struct AppStoreScreenshotView: View {
     @ViewBuilder
     var body: some View {
 #if DEBUG
-        if SupportFlowFixture.isEnabled {
+        if GuideFlowFixture.isEnabled {
+            GuideFlowHarness()
+        } else if SupportFlowFixture.isEnabled {
             SupportFlowHarness()
         } else if CollectionFixture.isEnabled {
             CollectionHarness()

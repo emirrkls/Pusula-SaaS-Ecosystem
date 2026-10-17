@@ -26,7 +26,7 @@
         android:allowBackup="true"
         android:fullBackupContent="@xml/support_backup_rules"
         android:dataExtractionRules="@xml/support_data_extraction_rules"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@drawable/pusula_app_icon"
         android:label="Pusula Servis"
         android:supportsRtl="true"
         android:theme="@style/Theme.Material3.DayNight.NoActionBar">

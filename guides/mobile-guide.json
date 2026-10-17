@@ -1,0 +1,2432 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "categories": [
+    {
+      "id": "start",
+      "title": "Başlangıç",
+      "summary": "Temel kullanım ve güvenli işlem akışı"
+    },
+    {
+      "id": "customers",
+      "title": "Müşteriler ve kurumlar",
+      "summary": "Kayıtlar, iletişim ve geçmiş"
+    },
+    {
+      "id": "jobs",
+      "title": "İş emirleri ve saha",
+      "summary": "Planlama, atama ve servis akışı"
+    },
+    {
+      "id": "documents",
+      "title": "Servis belgeleri",
+      "summary": "Görsel, imza, garanti ve PDF"
+    },
+    {
+      "id": "sales",
+      "title": "Teklifler",
+      "summary": "Tekliften iş emrine satış süreci"
+    },
+    {
+      "id": "stock",
+      "title": "Stok ve parçalar",
+      "summary": "Envanter, barkod ve kullanılan parçalar"
+    },
+    {
+      "id": "payments",
+      "title": "Tahsilat ve cari",
+      "summary": "Ücret, iskonto ve ödeme dağılımı"
+    },
+    {
+      "id": "finance",
+      "title": "Finans ve raporlar",
+      "summary": "Gider, borç, mülkiyet ve analiz"
+    },
+    {
+      "id": "team",
+      "title": "Ekip ve operasyon",
+      "summary": "Firma, ekip, araçlar ve izleme"
+    },
+    {
+      "id": "account",
+      "title": "Hesap ve destek",
+      "summary": "Paketler, güvenlik ve destek"
+    }
+  ],
+  "topics": [
+    {
+      "id": "quick-start-admin",
+      "category": "start",
+      "title": "Yönetici için hızlı başlangıç",
+      "summary": "İşletme yönetiminin altı temel adımı.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Alt menü → Özet / Operasyon / Diğer / Finans / Hesap",
+        "android": "Alt menü → Özet / Operasyon / Diğer / Finans / Hesap"
+      },
+      "steps": [
+        {
+          "title": "Genel görünüm",
+          "body": "Özet ekranında aktif işler, gelir ve kullanım limitlerini inceleyin. Gösterilen tutarların dönemini kontrol edin."
+        },
+        {
+          "title": "Müşteri ve servis",
+          "body": "Diğer menüsünden müşterilerinize, Operasyon üzerinden servis fişlerine ulaşın. Yeni kayıt açarken önce mevcut müşteriyi arayın."
+        },
+        {
+          "title": "Ekibi planlayın",
+          "body": "İş emrindeki tarih, saat ve teknisyen atamasını birlikte kontrol edin. Durum filtreleriyle iş yükünü izleyin."
+        },
+        {
+          "title": "Servisi belgeleyin",
+          "body": "Fişte parça, not, görsel ve müşteri imzasını ilgili alanlarda yönetin. PDF paylaşmadan önce alıcıyı kontrol edin."
+        },
+        {
+          "title": "Ücreti ve ödeyeni ayırın",
+          "body": "Parça ve işçilikten fiş toplamını oluşturun; varsa iskonto ve kurum payını ayırıp tahsil edilen tutarı girin."
+        },
+        {
+          "title": "İhtiyaç duyduğunuzda geri dönün",
+          "body": "Hesap içindeki Uygulama Rehberi her konuyu ayrı anlatır. Yardım ve Destek üzerinden soru, hata ve öneri iletebilirsiniz."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "ContentView.swift",
+          "AdminDashboardView.swift"
+        ],
+        "android": [
+          "MainScreen.kt",
+          "AdminDashboardScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "quick-start-technician",
+      "category": "start",
+      "title": "Teknisyen için hızlı başlangıç",
+      "summary": "Atanan işten servis kapanışına temel akış.",
+      "revision": 1,
+      "roles": [
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Alt menü → İşlerim / Hesap",
+        "android": "Alt menü → İşlerim / Hesap"
+      },
+      "steps": [
+        {
+          "title": "İşlerinizi bulun",
+          "body": "İşlerim ekranında uygun durum ve tarih filtresini seçin. Açacağınız fişin müşteri ve randevu bilgisini kontrol edin."
+        },
+        {
+          "title": "Fişi inceleyin",
+          "body": "Müşteri, adres, servis açıklaması ve geçmişi okuyun. Yanlış kayıtta işlem yapmayın."
+        },
+        {
+          "title": "Servisi belgeleyin",
+          "body": "İş durumunu güncelleyin; gerçekten kullanılan parçaları, teknisyen notunu, görselleri ve imzayı ilgili bölümlere ekleyin."
+        },
+        {
+          "title": "Tahsilatı doğrulayın",
+          "body": "Parça, işçilik, iskonto, kurum payı ve tahsil edilen tutarı birbirinden ayırın. Garanti veya kalan borç varsa açıklamalarını kontrol edin."
+        },
+        {
+          "title": "Güvenli biçimde devam edin",
+          "body": "Belirsiz bağlantı sonucunda aynı işlemi tekrar dene seçeneğini kullanın. Hesap içindeki rehber ve destek bölümlerine istediğiniz zaman dönebilirsiniz."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "TicketListView.swift"
+        ],
+        "android": [
+          "TicketListScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "navigation",
+      "category": "start",
+      "title": "Menüler, filtreler ve arama",
+      "summary": "Ekranlar arasında kaybolmadan ilerleyin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Alt menü ve ekran arama alanları",
+        "android": "Alt menü ve ekran arama alanları"
+      },
+      "steps": [
+        {
+          "title": "Rolünüze uygun menü",
+          "body": "Yöneticide Özet, Operasyon, Diğer, Finans ve Hesap; teknisyende İşlerim ve Hesap bulunur. Paket ve yetki bazı modülleri sınırlar."
+        },
+        {
+          "title": "Aramayı ve filtreyi birlikte değerlendirin",
+          "body": "Arama, durum ve tarih filtreleri sonuçları birlikte etkileyebilir. Beklediğiniz kayıt görünmüyorsa önce filtreleri kontrol edin."
+        },
+        {
+          "title": "Rehber gerçek işlem yapmaz",
+          "body": "Bu anlatım kayıt oluşturmaz, silmez, ödeme veya mesaj göndermez. İşlemi uygulamada siz başlatıp onaylarsınız."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "ContentView.swift"
+        ],
+        "android": [
+          "MainActivity.kt"
+        ]
+      }
+    },
+    {
+      "id": "customers-manage",
+      "category": "customers",
+      "title": "Müşteri oluşturma, düzenleme ve silme",
+      "summary": "Mükerrer kayıt açmadan müşteri kartlarını yönetin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Diğer → Müşteriler",
+        "android": "Diğer → Müşteriler"
+      },
+      "steps": [
+        {
+          "title": "Önce arayın",
+          "body": "Müşteriyi adı veya iletişim bilgisiyle arayın. Aynı kişiye ikinci kayıt açmadan önce mevcut kartı kontrol edin."
+        },
+        {
+          "title": "Bilgileri yönetin",
+          "body": "Yeni müşteri veya düzenleme formunda ad, telefon ve adresi doğrulayın. Kaydetmeden çıkmak değişiklikleri uygulamaz."
+        },
+        {
+          "title": "Silmeden önce kontrol edin",
+          "body": "Silme uyarısını ve bağlı kayıtların durumunu okuyun. Tur silme işlemini sizin adınıza gerçekleştirmez."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "CustomerView.swift"
+        ],
+        "android": [
+          "CustomerScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "customer-history",
+      "category": "customers",
+      "title": "Müşteri geçmişi ve cari bilgisi",
+      "summary": "Servis ve hesap geçmişini birlikte inceleyin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Diğer → Müşteriler → müşteri kartı",
+        "android": "Diğer → Müşteriler → müşteri kartı"
+      },
+      "steps": [
+        {
+          "title": "Doğru kartı açın",
+          "body": "Müşteri kimliği ve telefonunu doğrulayıp geçmiş bölümünü açın."
+        },
+        {
+          "title": "Hareketleri inceleyin",
+          "body": "Servis geçmişi ile cari hareketlerin tarih ve tutarlarını ayrı değerlendirin. Önceki bakiye yeni fişin ücreti değildir."
+        },
+        {
+          "title": "Yüklenemeyen veri boş değildir",
+          "body": "Hata veya tekrar dene görünüyorsa geçmişi yok kabul etmeyin; bağlantı geldikten sonra ilgili bölümü yenileyin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "CustomerView.swift"
+        ],
+        "android": [
+          "CustomerScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "customer-contact",
+      "category": "customers",
+      "title": "Telefon, adres ve iletişim",
+      "summary": "Müşteriye veya adrese doğru kanaldan ulaşın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Servis fişi → Müşteri",
+        "android": "İş emri detayı → müşteri ve adres"
+      },
+      "steps": [
+        {
+          "title": "Bilgiyi doğrulayın",
+          "body": "Arama, harita veya mesaj işlemi öncesinde numaranın ve adresin doğru müşteriye ait olduğunu kontrol edin."
+        },
+        {
+          "title": "Dış uygulamayı siz açın",
+          "body": "Telefon ve harita düğmeleri ilgili cihaz uygulamasına geçebilir. Müşteri içeriğini paylaşmadan önce alıcıyı ve izni doğrulayın."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "CustomerView.swift"
+        ],
+        "android": [
+          "CustomerScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "organizations",
+      "category": "customers",
+      "title": "Kurumlar ve cari taraflar",
+      "summary": "Müşteri ile kurumu birbirine karıştırmadan çalışın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Finans → Kurum Cari Kartları",
+        "android": "Finans → Cari / kurum seçimi"
+      },
+      "steps": [
+        {
+          "title": "Cari tarafı doğru seçin",
+          "body": "Kurum, müşteri ve tedarikçi aynı kavram değildir. İşlemin hangi tarafa yazılacağını kontrol edin."
+        },
+        {
+          "title": "Kurum payını ayrıca belirleyin",
+          "body": "Servis tahsilatında kurum seçip aktarılacak payı girin. Kalan müşteri borcunu ayrıca inceleyin."
+        },
+        {
+          "title": "Tahsilat kaydını kontrol edin",
+          "body": "Kurum carisinden ödeme alırken doğru tarafı, tutarı ve hareket geçmişini doğrulayın."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "AccountPartiesView.swift"
+        ],
+        "android": [
+          "FinanceScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "tickets-create",
+      "category": "jobs",
+      "title": "Servis fişi oluşturma",
+      "summary": "Müşteri, yapılacak iş ve randevuyu belirleyin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Operasyon → Servis fişi oluştur",
+        "android": "Operasyon → Servis fişi oluştur"
+      },
+      "steps": [
+        {
+          "title": "Müşteriyi seçin",
+          "body": "Mevcut müşteriyi arayın; yalnızca bulunmuyorsa yeni kart açın."
+        },
+        {
+          "title": "İşi tarif edin",
+          "body": "Başlık ve açıklamayı yazıp servis tarihini, saatini ve atanacak teknisyeni kontrol edin."
+        },
+        {
+          "title": "Bir kez kaydedin",
+          "body": "Kaydetme sürerken yeniden dokunmayın. Sonuç belirsizse yeni fiş açmadan önce mevcut gönderimin durumunu kontrol edin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "TicketListView.swift"
+        ],
+        "android": [
+          "TicketListScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "tickets-assign",
+      "category": "jobs",
+      "title": "Teknisyen atama ve ekip planlama",
+      "summary": "İşi doğru kişiye ve zamana atayın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Operasyon → ilgili servis fişi / atama",
+        "android": "Operasyon → ilgili servis fişi / atama"
+      },
+      "steps": [
+        {
+          "title": "Uygun işi seçin",
+          "body": "Atama bekleyen veya yeniden planlanacak fişin kimliğini kontrol edin."
+        },
+        {
+          "title": "Teknisyen ve zamanı doğrulayın",
+          "body": "Atanacak personelin iş yükünü, servis tarihini ve saatini kontrol edip değişikliği kaydedin."
+        },
+        {
+          "title": "Atamayı takip edin",
+          "body": "Liste ve fişteki güncel atamayı kontrol edin. Bildirim verilmesi cihaz bildirim izinlerine ve bağlantıya bağlıdır."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "TicketDetailView.swift"
+        ],
+        "android": [
+          "TicketDetailScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "tickets-status",
+      "category": "jobs",
+      "title": "Durumlar, filtreler ve iş başlangıcı",
+      "summary": "Açık, atanan, devam eden ve kapanan işleri ayırın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "İşlerim / Operasyon → durum filtresi → servis fişi",
+        "android": "İşlerim / Operasyon → durum filtresi → servis fişi"
+      },
+      "steps": [
+        {
+          "title": "Doğru durum grubunu seçin",
+          "body": "Seçili durum ve tarih filtrelerini kontrol edin; farklı filtreler aynı kaydı gizleyebilir."
+        },
+        {
+          "title": "İşi fiş içinden güncelleyin",
+          "body": "Gerçek servis durumuna uygun seçeneği kullanın. Kapanmış, iptal edilmiş veya salt okunur kayıtta izin verilen işlemler farklıdır."
+        },
+        {
+          "title": "Güncel sonucu doğrulayın",
+          "body": "İşlemden sonra fişte ve listede durumu kontrol edin. Yükleme hatasını işlem başarılı saymayın."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "TicketDetailView.swift"
+        ],
+        "android": [
+          "TicketDetailScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "tickets-reschedule",
+      "category": "jobs",
+      "title": "Randevuyu yeniden planlama",
+      "summary": "Servis gün ve saatini güncelleyin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Servis fişi → Yeniden Planla",
+        "android": "Servis fişi → Yeniden Planla"
+      },
+      "steps": [
+        {
+          "title": "Fişi ve mevcut zamanı okuyun",
+          "body": "Yeni randevunun doğru servis kaydına uygulanacağından emin olun."
+        },
+        {
+          "title": "Yeni randevuyu belirleyin",
+          "body": "Tarih, saat ve varsa planlama notunu kontrol edip onaylayın. Kaydın yeni saatini fişten doğrulayın."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "TicketDetailView.swift"
+        ],
+        "android": [
+          "TicketDetailScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "tickets-cancel",
+      "category": "jobs",
+      "title": "İş emrini iptal etme",
+      "summary": "İptalin stok ve geçmiş etkisini öğrenin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Servis fişi → Durum → iptal",
+        "android": "Servis fişi → Durum → iptal"
+      },
+      "steps": [
+        {
+          "title": "İptalin nedenini değerlendirin",
+          "body": "Yanlış fiş üzerinde işlem yapmayın; kapanmış veya işleme alınmış kayıtlarda kısıtlar olabilir."
+        },
+        {
+          "title": "Uyarıyı okuyun",
+          "body": "İptal, kullanılan parçaların stoğa geri alınması ve geçmişe kayıt gibi etkiler doğurabilir. Onay vermeden önce uyarıyı okuyun."
+        },
+        {
+          "title": "Sonucu kontrol edin",
+          "body": "Fişte iptal durumunu ve ilgili geçmişi kontrol edin. Bu rehber gerçek iptal işlemi gerçekleştirmez."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "TicketDetailView.swift"
+        ],
+        "android": [
+          "TicketDetailScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "tickets-follow-up",
+      "category": "jobs",
+      "title": "İşe devam ve takip kaydı",
+      "summary": "Kalan iş veya yeni ziyaret için doğru yolu kullanın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Servis fişi → İşe Devam Et / takip kaydı",
+        "android": "Servis fişi → İşe Devam Et / takip kaydı"
+      },
+      "steps": [
+        {
+          "title": "Mevcut kaydı değerlendirin",
+          "body": "Açık işin devamı ile tamamlanmış iş için yeni takip ziyareti aynı işlem değildir."
+        },
+        {
+          "title": "Uygun seçeneği kullanın",
+          "body": "Fişte sunulan devam veya takip kaydı seçeneğini seçip açıklama ve planlanan zamanı kontrol edin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "TicketDetailView.swift"
+        ],
+        "android": [
+          "TicketDetailScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "tickets-notes",
+      "category": "jobs",
+      "title": "Teknisyen notları ve işlem geçmişi",
+      "summary": "Saha açıklamalarını ve değişiklikleri izleyin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Servis fişi → Teknisyen Notları / İşlem Geçmişi",
+        "android": "Servis fişi → Teknisyen Notları / İşlem Geçmişi"
+      },
+      "steps": [
+        {
+          "title": "Notun kapsamını bilin",
+          "body": "Teknisyen notunu servis açıklaması ve müşteriye gönderilecek kapanış notundan ayrı değerlendirin."
+        },
+        {
+          "title": "Yükleme durumunu kontrol edin",
+          "body": "Notlar yüklenemediğinde yok kabul etmeyin. İlgili bölümdeki tekrar dene düğmesini kullanın."
+        },
+        {
+          "title": "Geçmişi okuyun",
+          "body": "Durum, atama ve servis değişikliklerinin tarih ve yapan kişi bilgisini işlem geçmişinden inceleyin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "TicketDetailView.swift"
+        ],
+        "android": [
+          "TicketDetailScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "service-photos",
+      "category": "documents",
+      "title": "Servis görselleri",
+      "summary": "Fişe fotoğraf ekleyin ve doğru kaydı paylaşın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Servis fişi → Görseller",
+        "android": "Servis fişi → Görseller"
+      },
+      "steps": [
+        {
+          "title": "Fişi kontrol edin",
+          "body": "Fotoğrafın hangi servis kaydına ekleneceğini kontrol edin; müşteri veya özel belgeyi yanlış kayda yüklemeyin."
+        },
+        {
+          "title": "Görseli seçin",
+          "body": "Kamera veya galeriden gereken görselleri seçin. Gereksiz kişisel alanları paylaşmadan önce kapatın."
+        },
+        {
+          "title": "Yüklemeyi doğrulayın",
+          "body": "Yükleme bitmeden ekranı kapatmayın. Hata halinde aynı görseli tekrar yüklemeden önce fişte oluşup oluşmadığını kontrol edin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "ServicePhotoView.swift"
+        ],
+        "android": [
+          "ServicePhotoScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "service-photo-review",
+      "category": "documents",
+      "title": "Servis görsellerini toplu inceleme",
+      "summary": "Yönetici olarak görsel kayıtlarını filtreleyin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Diğer → Servis Görselleri",
+        "android": "Diğer → Servis Görselleri"
+      },
+      "steps": [
+        {
+          "title": "Filtreleri belirleyin",
+          "body": "Tarih ve servis bilgisiyle inceleyeceğiniz kayıtları daraltın."
+        },
+        {
+          "title": "Doğru kaydı açın",
+          "body": "Görseli servis fişiyle birlikte değerlendirin. Dışarı paylaşmadan önce müşteri bilgilerini ve alıcıyı kontrol edin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "ServiceQualityView.swift"
+        ],
+        "android": [
+          "ServiceQualityScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "service-signature",
+      "category": "documents",
+      "title": "Müşteri imzası",
+      "summary": "İmzayı doğru servis kaydında alın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Servis fişi → İmza",
+        "android": "Servis fişi → İmza"
+      },
+      "steps": [
+        {
+          "title": "Kaydı müşteriye doğrulatın",
+          "body": "Servis içeriğinin ve müşteri bilgisinin doğru olduğunu kontrol edin; imzayı ilgili kişinin bilgisiyle alın."
+        },
+        {
+          "title": "İmzayı kaydedin",
+          "body": "İmza alanını kullanıp kaydetme sonucunu bekleyin. Yanlış çizim varsa ekrandaki temizleme seçeneğini kullanın."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "SignatureView.swift"
+        ],
+        "android": [
+          "SignatureScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "service-pdf",
+      "category": "documents",
+      "title": "Servis fişi PDF ve paylaşım",
+      "summary": "Belgeyi inceleyip doğru kişiye iletin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Servis fişi → PDF",
+        "android": "Servis fişi → PDF"
+      },
+      "steps": [
+        {
+          "title": "Belgeyi önizleyin",
+          "body": "Müşteri, işlem, parça, ücret, iskonto ve ödeme bilgilerinin doğru olduğunu kontrol edin."
+        },
+        {
+          "title": "Paylaşımı siz onaylayın",
+          "body": "Kaydet veya paylaş seçeneğini kullanın; alıcıyı doğrulayın. Rehber hiçbir müşteriye otomatik belge göndermez."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "TicketDetailView.swift"
+        ],
+        "android": [
+          "TicketDetailScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "warranty",
+      "category": "documents",
+      "title": "Garanti kapsamında servis",
+      "summary": "İşletme ve kurum garantisinin ücret etkisini ayırın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Tahsilat → Kapanış notu ve garanti",
+        "android": "Tahsilat → Kapanış notu ve garanti"
+      },
+      "steps": [
+        {
+          "title": "Garanti türünü ayırın",
+          "body": "İşletme garantisinde satış oluşmaması ile kurumun ödediği garanti servisi farklıdır."
+        },
+        {
+          "title": "Kurum payını kontrol edin",
+          "body": "Kurum garantisinde sistemin istediği kurum ve tutar alanlarını doldurun; fiş toplamının dağılımını doğrulayın."
+        },
+        {
+          "title": "Ücretsiz normal işlem farklıdır",
+          "body": "Garanti dışındaki ücretsiz işlem için uygun iskonto akışını kullanın; ücreti tahsil edilmiş gibi göstermeyin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "TicketDetailView.swift"
+        ],
+        "android": [
+          "TicketDetailScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "quotes-manage",
+      "category": "sales",
+      "title": "Teklif oluşturma ve düzenleme",
+      "summary": "Müşteriye ürün ve hizmet teklifi hazırlayın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Diğer → Teklifler",
+        "android": "Diğer → Teklifler"
+      },
+      "steps": [
+        {
+          "title": "Teklifi bulun veya oluşturun",
+          "body": "Müşteri ve durum filtreleriyle mevcut teklifi arayın; yeni teklif için doğru müşteriyi seçin."
+        },
+        {
+          "title": "Kalemleri hazırlayın",
+          "body": "Ürün veya hizmet adı, miktar ve birim fiyatı girin. Kalemleri düzenleyip toplamı kontrol edin."
+        },
+        {
+          "title": "Durum ve geçerliliği kontrol edin",
+          "body": "Kaydetmeden önce teklif açıklamasını, geçerlilik tarihini ve toplamı inceleyin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "ProposalView.swift"
+        ],
+        "android": [
+          "ProposalScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "quotes-convert",
+      "category": "sales",
+      "title": "Teklifi onaylama ve iş emrine çevirme",
+      "summary": "Aynı tekliften ikinci iş emri açmayın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Teklifler → ilgili teklif → iş emri oluştur",
+        "android": "Teklifler → ilgili teklif → iş emri oluştur"
+      },
+      "steps": [
+        {
+          "title": "Onaylanacak teklifi inceleyin",
+          "body": "Müşteri, kapsam ve tutarı doğrulayın. PDF paylaşımı ile teklif onayı aynı işlem değildir."
+        },
+        {
+          "title": "Dönüşüm uyarısını okuyun",
+          "body": "İş emrine dönüştürme yalnızca uygun durumdaki tekliflerde sunulur; uyarıdaki tek seferlik işlem bilgisini kontrol edin."
+        },
+        {
+          "title": "Oluşan kaydı bulun",
+          "body": "Yeni iş emri numarasını kontrol edin. Belirsiz bağlantıda aynı tekliften başka fiş açmadan önce listeyi inceleyin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "ProposalView.swift"
+        ],
+        "android": [
+          "ProposalScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "quotes-pdf",
+      "category": "sales",
+      "title": "Teklif PDF ve paylaşım",
+      "summary": "Teklif belgesini gönderim öncesi inceleyin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Teklifler → ilgili teklif → PDF",
+        "android": "Teklifler → ilgili teklif → PDF"
+      },
+      "steps": [
+        {
+          "title": "Belgeyi kontrol edin",
+          "body": "Kalem, miktar, birim fiyat, müşteri ve geçerlilik bilgilerini önizleyin."
+        },
+        {
+          "title": "Alıcıyı doğrulayın",
+          "body": "Paylaşım ekranında doğru alıcıyı seçin; rehber teklif göndermez veya müşterinin yerine onay vermez."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "ProposalView.swift"
+        ],
+        "android": [
+          "ProposalScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "inventory",
+      "category": "stock",
+      "title": "Stok kalemleri ve kritik stok",
+      "summary": "Parça, miktar, fiyat ve barkod bilgilerini yönetin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": "BASIC_INVENTORY",
+      "isNew": false,
+      "locations": {
+        "ios": "Diğer → Stok",
+        "android": "Diğer → Stok"
+      },
+      "steps": [
+        {
+          "title": "Mevcut kalemi arayın",
+          "body": "Parça adı, marka veya barkodla arayın; aynı ürüne ikinci kart açmadan önce sonucu kontrol edin."
+        },
+        {
+          "title": "Stok kartını yönetin",
+          "body": "Miktar, birim, alış/satış fiyatı, barkod ve kritik stok seviyesini doğru girin. Silme öncesi bağlı kullanım kayıtlarını dikkate alın."
+        },
+        {
+          "title": "Kritik seviyeyi izleyin",
+          "body": "Düşük stok uyarılarını ve seçili filtreleri kontrol edin. Karttaki miktar ile servis fişinde kullanılan miktarı karıştırmayın."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "CatalogView.swift"
+        ],
+        "android": [
+          "CatalogScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "barcode",
+      "category": "stock",
+      "title": "Barkodla parça bulma",
+      "summary": "Kamera izni ve tarama sonucunu kontrol edin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Stok / Servis fişi → Barkod okut",
+        "android": "Stok / Servis fişi → Barkod okut"
+      },
+      "steps": [
+        {
+          "title": "İzin ve ışığı kontrol edin",
+          "body": "Kamera erişimi gerekiyorsa cihazın izin ekranını değerlendirin. İzin vermediğinizde metinle arama yolunu kullanın."
+        },
+        {
+          "title": "Sonucu doğrulayın",
+          "body": "Bulunan parçanın adı ve birimini kontrol edin. Barkod bulunamadığında farklı ürünü yanlışlıkla seçmeyin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "BarcodeScannerView.swift"
+        ],
+        "android": [
+          "BarcodeScannerScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "used-parts",
+      "category": "stock",
+      "title": "Fişe parça ekleme, düzenleme ve silme",
+      "summary": "Kullanılan miktar ve özel satış fiyatını kaydedin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Servis fişi → Kullanılan Parçalar / Parça Seç",
+        "android": "Servis fişi → Kullanılan Parçalar / Parça Seç"
+      },
+      "steps": [
+        {
+          "title": "Parçayı seçin",
+          "body": "Katalogdan doğru parçayı, miktarı ve birimi seçin; adet birimli üründe kesirli miktar kullanmayın."
+        },
+        {
+          "title": "Fiyatı doğrulayın",
+          "body": "Fişte uygulanacak özel satış fiyatı varsa kontrol edin. Parça toplamı işçilikten ayrıdır."
+        },
+        {
+          "title": "Değişiklik etkisini okuyun",
+          "body": "Parça düzenleme veya silme stoğu ve fiş toplamını etkileyebilir. İlgili uyarıyı okuyup kaydetme sonucunu doğrulayın."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "InventoryPartPickerView.swift"
+        ],
+        "android": [
+          "TicketDetailScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "pricing",
+      "category": "payments",
+      "title": "Ücret ve fiş toplamı",
+      "summary": "Parça, işçilik ve net tutarı sırayla kontrol edin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Servis fişi → Servisi Tamamla ve Tahsilat",
+        "android": "Servis fişi → Servisi Tamamla ve Tahsilat"
+      },
+      "steps": [
+        {
+          "title": "Ücreti oluşturun",
+          "body": "Önce parça toplamını okuyun, sonra servis/işçilik bedelini girin. Önceki cari bakiye fiş toplamına eklenmez."
+        },
+        {
+          "title": "Fiş toplamını kontrol edin",
+          "body": "Varsa iskonto sonrasındaki net fiş toplamını inceleyin; kurum payı ve tahsilat bu toplamdan ayrı alanlardır."
+        },
+        {
+          "title": "Kaydetmeden önce dağılımı okuyun",
+          "body": "Kurum payı, müşteri payı ve tahsil edilen tutarı birlikte doğrulayın; kalan tutar borç oluşturabilir."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "CollectionView.swift"
+        ],
+        "android": [
+          "CollectionScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "discount",
+      "category": "payments",
+      "title": "TL veya yüzde iskonto",
+      "summary": "İskontoyu ödeme gibi kaydetmeyin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": true,
+      "locations": {
+        "ios": "Tahsilat → Ücret Bilgileri → İskonto ekle",
+        "android": "Tahsilat → Ücret Bilgileri → İskonto ekle"
+      },
+      "steps": [
+        {
+          "title": "İskonto türünü seçin",
+          "body": "TL veya yüzde seçip doğru değeri girin. İskonto ara toplamı aşamaz."
+        },
+        {
+          "title": "Net tutarı doğrulayın",
+          "body": "Ara toplam, iskonto ve fiş toplamını birlikte kontrol edin. İskonto, tahsil edilen para değildir."
+        },
+        {
+          "title": "Belge ve raporu inceleyin",
+          "body": "Kaydedilen fişin PDF ve raporlarında indirimin net gelire etkisini kontrol edin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "CollectionView.swift"
+        ],
+        "android": [
+          "CollectionScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "institution-allocation",
+      "category": "payments",
+      "title": "Kurum carisine pay aktarma",
+      "summary": "Ücretin bir bölümünü doğru kuruma yazın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": true,
+      "locations": {
+        "ios": "Tahsilat → Kurum carisine aktar",
+        "android": "Tahsilat → Kurum carisine aktar"
+      },
+      "steps": [
+        {
+          "title": "Kurumu seçin",
+          "body": "Ödemeden sorumlu kurum kartını seçin. Müşteri kartı ile kurum carisi farklı olabilir."
+        },
+        {
+          "title": "Aktarılacak tutarı girin",
+          "body": "Kurum payı net fiş toplamını aşamaz. Kalan müşteri payını kontrol edin."
+        },
+        {
+          "title": "Cari aktarımını okuyun",
+          "body": "Onay ekranında kuruma ve müşteriye yazılacak tutarları ayrı doğrulayın."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "CollectionView.swift"
+        ],
+        "android": [
+          "CollectionScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "payment-methods",
+      "category": "payments",
+      "title": "Ödeme yöntemi ve kısmi tahsilat",
+      "summary": "Alınan para ile kalan borcu ayırın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Tahsilat → Ödeme yöntemi / Tahsil edilen tutar",
+        "android": "Tahsilat → Ödeme yöntemi / Tahsil edilen tutar"
+      },
+      "steps": [
+        {
+          "title": "Gerçek ödeme yöntemini seçin",
+          "body": "Ekranda sunulan nakit, kart veya cari seçeneklerinden gerçek duruma uygun olanı kullanın."
+        },
+        {
+          "title": "Yalnızca alınan parayı girin",
+          "body": "Tamamı ödenmediyse tahsil edilen gerçek tutarı yazın. Ücret ile tahsilat aynı alan değildir."
+        },
+        {
+          "title": "Kalan bakiyeyi doğrulayın",
+          "body": "Müşteri ve kurumda oluşacak borcu inceleyin. Fişin tamamlanması her zaman ücretin tamamının ödendiği anlamına gelmez."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "CollectionView.swift"
+        ],
+        "android": [
+          "CollectionScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "safe-retry",
+      "category": "payments",
+      "title": "Bağlantı hatasında güvenli tekrar",
+      "summary": "Belirsiz işlem sonucunda mükerrer kayıt açmayın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": true,
+      "locations": {
+        "ios": "Kaydetme / tahsilat sonrası hata veya tekrar dene",
+        "android": "Kaydetme / tahsilat sonrası hata veya tekrar dene"
+      },
+      "steps": [
+        {
+          "title": "Önce sonucu ayırın",
+          "body": "Form reddi, bağlantı kesintisi ve sonucu belirsiz gönderim aynı şey değildir. Ekrandaki açıklamayı okuyun."
+        },
+        {
+          "title": "Aynı işlemi kullanın",
+          "body": "Sunulan aynı işlemi tekrar dene seçeneği varsa onu kullanın; yeni form açıp aynı tahsilatı tekrar girmeyin."
+        },
+        {
+          "title": "Tek kayıt olduğunu doğrulayın",
+          "body": "Liste veya hareket geçmişinden sonucu kontrol edin. Emin değilseniz saat ve bağlantı raporuyla destek isteyin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "CollectionView.swift"
+        ],
+        "android": [
+          "CollectionScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "daily-finance",
+      "category": "finance",
+      "title": "Günlük gelir, gider ve gün kapatma",
+      "summary": "Günlük toplamları ve kayıtları değerlendirin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": "FINANCE_MODULE",
+      "isNew": false,
+      "locations": {
+        "ios": "Finans → Günlük işlemler",
+        "android": "Finans → Günlük işlemler"
+      },
+      "steps": [
+        {
+          "title": "Dönemi doğrulayın",
+          "body": "Gelir ve gider toplamlarının hangi güne ait olduğunu kontrol edin; seçili tarih sonucu etkiler."
+        },
+        {
+          "title": "Kayıtları inceleyin",
+          "body": "İşlem tutarı, kategori ve açıklamayı kontrol edin. Günü kapatma seçeneği sunuluyorsa onay uyarısını okuyun."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "FinanceView.swift"
+        ],
+        "android": [
+          "FinanceScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "expenses",
+      "category": "finance",
+      "title": "Gider ekleme, düzeltme ve silme",
+      "summary": "Kategori ve muhasebe etkisini doğru seçin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": "FINANCE_MODULE",
+      "isNew": false,
+      "locations": {
+        "ios": "Finans → Gider ekle / gider kaydı",
+        "android": "Finans → Gider ekle / gider kaydı"
+      },
+      "steps": [
+        {
+          "title": "Gideri tanımlayın",
+          "body": "Tutar, açıklama, tarih ve kategoriyi girin. Muhasebe etkisini gerçek gider türüne göre seçin."
+        },
+        {
+          "title": "Varsa ilişkiyi kontrol edin",
+          "body": "Sistem fiş veya başka kayıtla bağlantı öneriyorsa doğru kaydı seçtiğinizi kontrol edin."
+        },
+        {
+          "title": "Sonucu doğrulayın",
+          "body": "Kaydetme sonrasında gider listesini kontrol edin. Zaman aşımında ikinci gider açmadan önce ilk kaydın sonucunu araştırın."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "FinanceView.swift"
+        ],
+        "android": [
+          "FinanceScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "current-accounts",
+      "category": "finance",
+      "title": "Cari alacak, hareketler ve tahsilat",
+      "summary": "Müşteri veya kurum borcunu hareketleriyle izleyin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": "FINANCE_MODULE",
+      "isNew": false,
+      "locations": {
+        "ios": "Finans → Cari Alacaklar",
+        "android": "Finans → Cari Alacaklar"
+      },
+      "steps": [
+        {
+          "title": "Tarafı ve bakiyeyi seçin",
+          "body": "Müşteri veya kurumun adını ve borç bakiyesini doğrulayın."
+        },
+        {
+          "title": "Geçmişi inceleyin",
+          "body": "Borcu oluşturan fiş ve tahsilat hareketlerini okuyun; yüklenemeyen geçmişi boş saymayın."
+        },
+        {
+          "title": "Ödemeyi ayrı kaydedin",
+          "body": "Gerçekten alınan tutarı girip varsa indirim bilgisini kontrol edin. İşlem sonrası yeni bakiyeyi inceleyin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "FinanceView.swift"
+        ],
+        "android": [
+          "FinanceScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "company-debts",
+      "category": "finance",
+      "title": "Tedarikçiler ve işletme borçları",
+      "summary": "Borç kartı, ödeme ve hareket geçmişini takip edin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": "COMPANY_DEBT_TRACKING",
+      "isNew": false,
+      "locations": {
+        "ios": "Finans → İşletme Borçları",
+        "android": "Finans → İşletme Borçları"
+      },
+      "steps": [
+        {
+          "title": "Doğru tedarikçiyi bulun",
+          "body": "Tedarikçi kartı ve borç bakiyesini kontrol edin. Kart görünmüyorsa filtre ve yükleme durumunu inceleyin."
+        },
+        {
+          "title": "Borç veya ödeme kaydını doğrulayın",
+          "body": "Tutar, tarih ve açıklamayı gerçek işleme göre girin; ödeme ile yeni borç oluşturmayı karıştırmayın."
+        },
+        {
+          "title": "Hareketleri okuyun",
+          "body": "Ödeme sonrasında ilgili tarafın hareket geçmişini ve kalan bakiyeyi kontrol edin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "CompanyDebtsView.swift"
+        ],
+        "android": [
+          "FinanceScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "fixed-expenses",
+      "category": "finance",
+      "title": "Sabit giderler ve ödeme takvimi",
+      "summary": "Tekrarlayan giderlerin vade ve ödemelerini yönetin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": "FINANCE_MODULE",
+      "isNew": false,
+      "locations": {
+        "ios": "Finans → Sabit Giderler",
+        "android": "Finans → Sabit Giderler"
+      },
+      "steps": [
+        {
+          "title": "Sabit gideri tanımlayın",
+          "body": "Gider adı, tutar, vade ve tekrar bilgilerini kontrol edin. Hatırlatma, ödemenin yapıldığı anlamına gelmez."
+        },
+        {
+          "title": "Vadesi gelenleri inceleyin",
+          "body": "Yaklaşan ve geciken kayıtları dönem filtresiyle değerlendirin."
+        },
+        {
+          "title": "Ödemeyi doğrulayın",
+          "body": "Gerçek ödeme yapıldıktan sonra ilgili kayıt üzerinden ödeme işlemini kaydedip hareketi kontrol edin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "FixedExpensesView.swift"
+        ],
+        "android": [
+          "FinanceScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "business-assets",
+      "category": "finance",
+      "title": "İşletme mülkiyeti ve demirbaşlar",
+      "summary": "Mülkiyet kayıtlarını faaliyet giderinden ayırın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": "BUSINESS_ASSETS",
+      "isNew": false,
+      "locations": {
+        "ios": "Finans → İşletme Mülkiyeti",
+        "android": "Finans → İşletme Mülkiyeti"
+      },
+      "steps": [
+        {
+          "title": "Varlığı tanımlayın",
+          "body": "İşletmeye ait varlığın tür, değer ve ilgili tarih bilgilerini kontrol edin."
+        },
+        {
+          "title": "İşlem türünü doğru seçin",
+          "body": "Varlık alımı/satışı ve faaliyet gideri farklı muhasebe etkileri doğurabilir. Kaydetmeden önce açıklamayı inceleyin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "BusinessAssetsView.swift"
+        ],
+        "android": [
+          "FinanceScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "finance-reports",
+      "category": "finance",
+      "title": "Aylık raporlar, PDF ve dışa aktarma",
+      "summary": "Dönem, iskonto ve net sonucu birlikte okuyun.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": "FINANCE_MODULE",
+      "isNew": false,
+      "locations": {
+        "ios": "Finans → Analiz ve Raporlar / Aylık Arşiv",
+        "android": "Finans → Analiz ve Raporlar / Aylık Arşiv"
+      },
+      "steps": [
+        {
+          "title": "Dönemi seçin",
+          "body": "Ay ve yıl filtrelerini doğrulayın; raporun hangi dönemi kapsadığını kontrol edin."
+        },
+        {
+          "title": "Toplamları yorumlayın",
+          "body": "Gelir, gider, iskonto ve net kârın raporda nasıl gösterildiğini inceleyin. İskontoyu gelirden ikinci kez düşmeyin."
+        },
+        {
+          "title": "Belgeyi güvenli paylaşın",
+          "body": "PDF veya dışa aktarma seçeneği paketinizde varsa önizleyip alıcıyı kontrol edin. Finans dökümünü destek talebine eklemeyin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "FinanceView.swift"
+        ],
+        "android": [
+          "FinanceScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "profit-analysis",
+      "category": "finance",
+      "title": "Kâr analizi ve maliyet",
+      "summary": "Tahsil edilen para ile faaliyet sonucunu ayırın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": "FINANCE_MODULE",
+      "isNew": false,
+      "locations": {
+        "ios": "Özet → Kâr Analizi / Finans → Analiz",
+        "android": "Özet → Kâr Analizi / Finans → Analiz"
+      },
+      "steps": [
+        {
+          "title": "Filtreyi belirleyin",
+          "body": "İlgili dönem ve analiz kapsamını kontrol edin."
+        },
+        {
+          "title": "Gelir ve maliyeti birlikte okuyun",
+          "body": "Parça maliyeti, işçilik, gider ve iskonto etkileri net sonucu değiştirebilir. Cari alacak ile alınan nakit aynı ölçü değildir."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "ProfitAnalysisView.swift"
+        ],
+        "android": [
+          "ProfitAnalysisScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "team-users",
+      "category": "team",
+      "title": "Ekip kullanıcıları ve yetkiler",
+      "summary": "Kullanıcı, rol, imza ve görev devrini yönetin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Hesap → Ekip",
+        "android": "Hesap → Kullanıcılar"
+      },
+      "steps": [
+        {
+          "title": "Kullanıcı ve rolü kontrol edin",
+          "body": "Yeni kullanıcı veya düzenleme işleminde doğru rolü ve iletişim bilgilerini seçin. Yönetici ve teknisyen yetkileri farklıdır."
+        },
+        {
+          "title": "İmza ve hesap işlemlerini ayırın",
+          "body": "Personel imzası yükleme ve parola işlemlerini yalnızca yetkili kişi adına yürütün; parola veya imzayı destek mesajında paylaşmayın."
+        },
+        {
+          "title": "Silmeden önce açık işleri kontrol edin",
+          "body": "Sistem görev devri istiyorsa açık işleri uygun personele aktarın. Tur kullanıcı silmez veya yetki değiştirmez."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "SettingsView.swift"
+        ],
+        "android": [
+          "SettingsScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "vehicles",
+      "category": "team",
+      "title": "Araç yönetimi",
+      "summary": "Ekip araçlarını güncel tutun.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Hesap → Araçlar",
+        "android": "Hesap → Araçlar"
+      },
+      "steps": [
+        {
+          "title": "Aracı bulun",
+          "body": "Mevcut araç kaydını ve tanımlayıcı bilgileri kontrol edin."
+        },
+        {
+          "title": "Bilgileri yönetin",
+          "body": "Ekleme, düzenleme veya silme işleminde doğru araçta olduğunuzu doğrulayın; bağlı operasyonları dikkate alın."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "SettingsView.swift"
+        ],
+        "android": [
+          "SettingsScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "company-settings",
+      "category": "team",
+      "title": "Firma bilgileri, logo ve imza",
+      "summary": "Belgelere yansıyacak işletme bilgilerini kontrol edin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Hesap → Firma",
+        "android": "Hesap → Firma"
+      },
+      "steps": [
+        {
+          "title": "İşletme bilgilerini doğrulayın",
+          "body": "Firma adı, telefon, adres ve e-posta alanlarını güncel tutun."
+        },
+        {
+          "title": "Görseli doğru yükleyin",
+          "body": "Firma logosu ile müşteri/personel imzasını karıştırmayın. Yeni belgeyi paylaşmadan önce firma bilgilerinin doğru göründüğünü kontrol edin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "SettingsView.swift"
+        ],
+        "android": [
+          "SettingsScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "field-radar",
+      "category": "team",
+      "title": "Saha radarı ve ekip durumu",
+      "summary": "Ekip konumu ve iş yoğunluğunu değerlendirin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Özet → Saha Radarı",
+        "android": "Özet → Saha Radarı"
+      },
+      "steps": [
+        {
+          "title": "Ekip ve zamanı kontrol edin",
+          "body": "Gösterilen konumun ve iş durumunun ne zaman güncellendiğini inceleyin."
+        },
+        {
+          "title": "Konumu kesin varış kabul etmeyin",
+          "body": "Cihaz izni, bağlantı ve güncelleme sıklığı veriyi etkileyebilir. Konum bilgilerini yetkisiz kişilerle paylaşmayın."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "FieldRadarView.swift"
+        ],
+        "android": [
+          "FieldRadarScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "service-network",
+      "category": "team",
+      "title": "Servis ağı ve alt servis işleri",
+      "summary": "İş gönderimi ve operasyon takibini yönetin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios"
+      ],
+      "requiredFeature": null,
+      "isNew": true,
+      "locations": {
+        "ios": "Özet → Hızlı İşlemler → Servis Ağı"
+      },
+      "steps": [
+        {
+          "title": "Servis ilişkisini kontrol edin",
+          "body": "Alt servis ve işletme ilişkisini inceleyin; yanlış firmaya iş göndermeyin."
+        },
+        {
+          "title": "Gönderilecek işi doğrulayın",
+          "body": "İş kapsamı, atama ve varsa paylaşılacak müşteri bilgisini kontrol edin."
+        },
+        {
+          "title": "Ağ durumunu takip edin",
+          "body": "Gönderilen işin durumunu ağ ekranından izleyin. Bu rehber başka işletmeye iş veya veri göndermez."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "ServiceNetworkView.swift"
+        ]
+      }
+    },
+    {
+      "id": "notifications",
+      "category": "team",
+      "title": "Bildirimler ve fişe yönlendirme",
+      "summary": "Atama bildiriminden doğru kayda ulaşın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Yöneticide Özet → bildirim simgesi; teknisyende cihaz bildirimi",
+        "android": "Yöneticide üst bildirim simgesi; teknisyende cihaz bildirimi"
+      },
+      "steps": [
+        {
+          "title": "İzin ve oturumu kontrol edin",
+          "body": "Bildirim gelmesi cihaz iznine, bağlantıya ve doğru hesapla giriş yapılmasına bağlıdır."
+        },
+        {
+          "title": "Atanan kaydı açın",
+          "body": "Bildirime dokununca uygulama ve oturum hazır olana kadar yönlendirme bekleyebilir. Açılan fişin numarasını doğrulayın."
+        },
+        {
+          "title": "Eski bildirimi değerlendirin",
+          "body": "Kayıt silinmiş, yetki değişmiş veya başka hesap açık olabilir. Hata halinde tekrar tekrar farklı kayıt açmak yerine destek isteyin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "AdminNotificationsView.swift"
+        ],
+        "android": [
+          "AdminNotificationsScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "account-login",
+      "category": "account",
+      "title": "Giriş, kayıt ve hesap seçimi",
+      "summary": "Bireysel/kurumsal hesap ve ücretsiz planı ayırın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Giriş / Hesap Oluştur",
+        "android": "Giriş / Hesap Oluştur"
+      },
+      "steps": [
+        {
+          "title": "Doğru giriş türünü seçin",
+          "body": "Hesabınıza uygun bireysel veya kurumsal alanı kullanın. E-posta/kullanıcı adı ve parolayı üçüncü kişilerle paylaşmayın."
+        },
+        {
+          "title": "Kayıt bilgilerini doğrulayın",
+          "body": "Hesap oluştururken işletme ve kullanıcı bilgilerinin doğru olduğundan emin olun. Çırak planın ücretsiz kullanımını ücretli abonelik denemesiyle karıştırmayın."
+        },
+        {
+          "title": "Hesapları karıştırmayın",
+          "body": "Aynı e-posta ile sosyal giriş ve parola girişinin durumunu kontrol edin; farklı hesapta şirket ve veriler değişebilir."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "LoginView.swift",
+          "RegisterView.swift"
+        ],
+        "android": [
+          "LoginScreen.kt",
+          "RegisterScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "google-login",
+      "category": "account",
+      "title": "Google ile giriş ve kayıt",
+      "summary": "Mevcut Google hesabını güvenli kullanın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Giriş / Hesap Oluştur → Google ile devam et",
+        "android": "Giriş / Hesap Oluştur → Google ile devam et"
+      },
+      "steps": [
+        {
+          "title": "Hesabı siz seçin",
+          "body": "Google'ın güvenli hesap seçim ekranında doğru hesabı seçin. İptal ederseniz uygulama oturum açılmış gibi davranmamalıdır."
+        },
+        {
+          "title": "Uygulama hesabını doğrulayın",
+          "body": "Giriş sonrasında doğru işletme ve rolü kontrol edin. Google parolanızı uygulama formuna veya destek mesajına yazmayın."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "LoginView.swift"
+        ],
+        "android": [
+          "LoginScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "apple-login",
+      "category": "account",
+      "title": "Apple ile giriş ve kayıt",
+      "summary": "Apple kimliğiyle ek parola zorunluluğu olmadan giriş yapın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Giriş / Hesap Oluştur → Apple ile devam et"
+      },
+      "steps": [
+        {
+          "title": "Apple onayını kullanın",
+          "body": "Apple'ın güvenli kimlik doğrulama ekranını tamamlayın veya işlemi iptal edin."
+        },
+        {
+          "title": "Ek parola gerekli değildir",
+          "body": "Apple ile doğrulama sonrasında mobil giriş için yerel parola oluşturmanız gerekmez. Masaüstü erişim parolası ayrı ve isteğe bağlı bir işlemdir."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "LoginView.swift"
+        ]
+      }
+    },
+    {
+      "id": "desktop-password",
+      "category": "account",
+      "title": "İsteğe bağlı masaüstü parolası",
+      "summary": "Sosyal girişten bağımsız masaüstü erişimini hazırlayın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Hesap → masaüstü giriş bilgileri seçeneği"
+      },
+      "steps": [
+        {
+          "title": "Yalnızca ihtiyaç varsa açın",
+          "body": "Seçenek hesabınız için sunuluyorsa masaüstü girişini hazırlamak için kullanın. Mobil sosyal girişin zorunlu devam adımı değildir."
+        },
+        {
+          "title": "Güvenli parola belirleyin",
+          "body": "Parolayı paylaşmadan kaydedin. Formu iptal etmek mobil oturumunuzu kapatmamalıdır."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "DesktopPasswordSetupView.swift"
+        ]
+      }
+    },
+    {
+      "id": "plans",
+      "category": "account",
+      "title": "Paketler, limitler ve salt okunur kullanım",
+      "summary": "Ücretsiz plan ile ücretli özellikleri ayırın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Özet → Paket Yönetimi / Hesap paket bilgisi",
+        "android": "Paketleri gör / Hesap plan bilgisi"
+      },
+      "steps": [
+        {
+          "title": "Kapsamı inceleyin",
+          "body": "Çırak, Usta ve Patron özelliklerini; personel, müşteri, fiş ve depolama limitlerini kontrol edin."
+        },
+        {
+          "title": "Kilitli özellik bilgi içindir",
+          "body": "Rehber bir özelliği açıklasa da paket veya rol yetkisi vermez. Salt okunur durumda görüntüleme ile kayıt değiştirme izinleri farklıdır."
+        },
+        {
+          "title": "Destek erişimi sürer",
+          "body": "Paket kısıtlarında kendi destek taleplerinize erişebilirsiniz; rehber bir satın alma veya yükseltme başlatmaz."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "PlanUpgradeView.swift"
+        ],
+        "android": [
+          "PlanUpgradeScreen.kt",
+          "ProfileScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "subscriptions",
+      "category": "account",
+      "title": "Abonelik, satın alma ve geri yükleme",
+      "summary": "Mağaza işlemlerini uygulama hesabıyla eşleştirin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Paket Yönetimi → Satın Alımları Geri Yükle / Aboneliği Yönet",
+        "android": "Paket Yönetimi → mağaza satın alma ve abonelik seçenekleri"
+      },
+      "steps": [
+        {
+          "title": "Gerçek mağaza fiyatını bekleyin",
+          "body": "Fiyatlar mağazadan gelir. Ürün yüklenemediğinde satın alma başarılı varsaymayın."
+        },
+        {
+          "title": "Sonucu doğrulayın",
+          "body": "Mağaza ödemesi sonrasında uygulama sunucusu doğrulaması da tamamlanmalıdır. Hata varsa yeniden satın almak yerine mevcut işlemi kontrol edin."
+        },
+        {
+          "title": "Hesap ve aboneliği ayrı yönetin",
+          "body": "Hesap silmek mağaza aboneliğini otomatik iptal etmez. Geri yükleme ve abonelik yönetimi mağaza hesabıyla ilişkilidir."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "PlanUpgradeView.swift"
+        ],
+        "android": [
+          "PlanUpgradeScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "appearance-keyboard",
+      "category": "account",
+      "title": "Görünüm, büyük yazı ve klavye",
+      "summary": "Formları rahat kullanın, yazdıklarınızı koruyun.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Cihaz görünüm / erişilebilirlik ayarları ve form ekranları",
+        "android": "Cihaz görünüm / erişilebilirlik ayarları ve form ekranları"
+      },
+      "steps": [
+        {
+          "title": "Görünümü değerlendirin",
+          "body": "Açık/koyu tema ve cihaz yazı boyutu ekranın düzenini değiştirebilir. Uygulamada görünüm seçeneği sunuluyorsa oradan değiştirebilirsiniz."
+        },
+        {
+          "title": "Klavyeyi güvenle kapatın",
+          "body": "Bitti veya klavyeyi kapatma seçeneğini kullanın; bu işlem formu kaydetmek ya da silmek değildir."
+        },
+        {
+          "title": "Rehber adımları kaydırılabilir",
+          "body": "Metin ekrana sığmıyorsa adım içeriğini kaydırın. Devam ve geri düğmeleri ayrı eylem alanındadır."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "ProfileView.swift"
+        ],
+        "android": [
+          "MainScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "support-request",
+      "category": "account",
+      "title": "Destek talebi oluşturma",
+      "summary": "Soru, hata veya geliştirme önerisi iletin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": true,
+      "locations": {
+        "ios": "Yöneticide Hesap → üstte Hesap → Yardım ve Destek; teknisyende Hesap → Yardım ve Destek",
+        "android": "Hesap → Yardım ve Destek"
+      },
+      "steps": [
+        {
+          "title": "Talep türünü seçin",
+          "body": "Soru, Hata veya Öneri seçip kısa bir konu ve açıklama yazın. Parola veya müşteri/finans dökümü paylaşmayın."
+        },
+        {
+          "title": "Taslağı ve ekleri kontrol edin",
+          "body": "Taslak cihazda saklandı bilgisini bekleyin. Görsellerde hassas alanları kendiniz kapatın; ek göndermek zorunlu değildir."
+        },
+        {
+          "title": "Sonucu doğrulayın",
+          "body": "Gönderim sonrası DST numarasını kontrol edin. Sonuç belirsizse yeni talep açmak yerine aynı gönderimi tekrar deneyin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "SupportCenterView.swift"
+        ],
+        "android": [
+          "SupportCenterScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "support-replies",
+      "category": "account",
+      "title": "Destek yanıtları ve yeniden açma",
+      "summary": "Aynı konuşmadan iletişimi sürdürün.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": true,
+      "locations": {
+        "ios": "Yardım ve Destek → talep → Yanıtla / yeniden aç",
+        "android": "Yardım ve Destek → talep → Yanıtla / yeniden aç"
+      },
+      "steps": [
+        {
+          "title": "Konuşmayı yenileyin",
+          "body": "Talepler listesine dönüp yenileyin ve ilgili DST numarasını açın. Önceki mesajlar bağlantısı daha eski yazışmaları getirir."
+        },
+        {
+          "title": "Aynı talepten yanıtlayın",
+          "body": "İlgili konuda yeni talep açmak yerine aynı konuşmaya yanıt verin. Çözülen talebe yeni mesaj göndermek yeniden açılmasını sağlar."
+        },
+        {
+          "title": "Bildirim beklentisini doğru kurun",
+          "body": "Bu sürüm destek yanıtı için arka plan push bildirimi göndermez. Uygulama açıkken sayaç ve yenileme üzerinden kontrol edin."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "SupportCenterView.swift"
+        ],
+        "android": [
+          "SupportCenterScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "support-attachments",
+      "category": "account",
+      "title": "Destek ekleri ve gizlilik",
+      "summary": "Görsel veya Pusula raporunu kontrollü paylaşın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Destek talebi / yanıt → ek seçenekleri",
+        "android": "Destek talebi / yanıt → ek seçenekleri"
+      },
+      "steps": [
+        {
+          "title": "Uygun eki seçin",
+          "body": "Bir mesajda en fazla üç ek seçin. JPEG/PNG görsel ve en fazla 256 KB Pusula bağlantı raporu kabul edilir."
+        },
+        {
+          "title": "Göndermeden önce inceleyin",
+          "body": "Görseli önizleyip hassas alanları kapatın. Rastgele JSON veya parola/token içeren döküm yüklemeyin."
+        },
+        {
+          "title": "Saklama süresini bilin",
+          "body": "Ekler 30 gün, çözülen talepler kapanıştan 180 gün sonra temizlenir. Destek eki herkese açık bir dosya bağlantısı değildir."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "SupportCenterView.swift"
+        ],
+        "android": [
+          "SupportCenterScreen.kt"
+        ]
+      }
+    },
+    {
+      "id": "connection-report",
+      "category": "account",
+      "title": "Bağlantı tanılama ve rapor paylaşma",
+      "summary": "Hatanın zamanını ve teknik sonucunu destekle paylaşın.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios"
+      ],
+      "requiredFeature": null,
+      "isNew": true,
+      "locations": {
+        "ios": "Hesap → Bağlantı Tanılaması"
+      },
+      "steps": [
+        {
+          "title": "Hatayı not edin",
+          "body": "Hata saati, işlem ve kullanılan ağ türünü kaydedin. Wi-Fi/mobil veri karşılaştırmasını aynı cihazda yapın."
+        },
+        {
+          "title": "Raporu inceleyin",
+          "body": "Bağlantı tanılama ekranında kayıtları ve rapor önizlemesini kontrol edin. Teknik rapor müşteri veya ödeme belgesi yerine geçmez."
+        },
+        {
+          "title": "Kontrollü paylaşın",
+          "body": "Raporu destek talebine isteğe bağlı ekleyin. İsterseniz cihazdaki tanılama kayıtlarını temizleyebilirsiniz."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "ConnectionDiagnosticsView.swift"
+        ]
+      }
+    },
+    {
+      "id": "account-delete",
+      "category": "account",
+      "title": "Çıkış, hesap silme ve yasal bilgiler",
+      "summary": "Geri alınamaz işlemleri bilinçli yönetin.",
+      "revision": 1,
+      "roles": [
+        "COMPANY_ADMIN",
+        "SUPER_ADMIN",
+        "TECHNICIAN"
+      ],
+      "platforms": [
+        "ios",
+        "android"
+      ],
+      "requiredFeature": null,
+      "isNew": false,
+      "locations": {
+        "ios": "Hesap → Çıkış Yap / Hesabımı Sil / yasal bağlantılar",
+        "android": "Hesap → Çıkış Yap / Hesabımı Sil / yasal bağlantılar"
+      },
+      "steps": [
+        {
+          "title": "Çıkış ve silme farklıdır",
+          "body": "Çıkış oturumu kapatır. Hesap silme geri alınamaz kişisel veri temizliği sürecidir; ortak işletme ve yasal saklama kayıtları farklı kurallara tabidir."
+        },
+        {
+          "title": "Aboneliği ayrıca kontrol edin",
+          "body": "Mağaza aboneliği hesap silmeyle kendiliğinden iptal olmaz. Gerekirse mağazanın abonelik yönetimini kullanın."
+        },
+        {
+          "title": "Uyarıları okuyun",
+          "body": "Gizlilik ve kullanım koşullarını inceleyin. Bu rehber hesap silmez, abonelik iptal etmez ve onay vermez."
+        }
+      ],
+      "sources": {
+        "ios": [
+          "ProfileView.swift"
+        ],
+        "android": [
+          "ProfileScreen.kt"
+        ]
+      }
+    }
+  ]
+}

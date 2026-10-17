@@ -13,6 +13,7 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val apiService: ApiService,
     private val sessionManager: SessionManager,
+    private val guideProgress: com.pusula.service.ui.guide.GuideProgressRepository,
     private val supportRepository: com.pusula.service.ui.support.SupportRepository
 ) {
     suspend fun login(username: String, password: String): AuthResponse {
@@ -56,6 +57,7 @@ class AuthRepository @Inject constructor(
     suspend fun deleteAccount() {
         val captured = sessionManager.state.value
         apiService.deleteAccount()
+        com.pusula.service.data.model.guide.GuideIdentity.scope(captured.token, captured.companyId)?.let { guideProgress.clear(it) }
         captured.token?.let { supportRepository.clear(supportRepository.accountKey(it,captured.companyId)) }
         if (sessionManager.state.value.supportRevision == captured.supportRevision) sessionManager.logout()
     }

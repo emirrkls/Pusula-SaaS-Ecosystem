@@ -3,6 +3,9 @@ import PhotosUI
 import UIKit
 
 struct SettingsView: View {
+#if DEBUG
+    var supportFlowFixture: SupportFlowFixture? = nil
+#endif
     @ObservedObject private var session = SessionManager.shared
     @State private var selectedTab = 0
     @State private var users: [UserDTO] = []
@@ -41,6 +44,7 @@ struct SettingsView: View {
                 Text("Hesap").tag(3)
             }
             .pickerStyle(.segmented)
+            .accessibilityIdentifier("settings.sections")
             .padding()
             .onboardingTarget(.settingsSections)
             
@@ -50,6 +54,7 @@ struct SettingsView: View {
                 Spacer()
             } else if let loadError, !hasLoaded, selectedTab != 3 {
                 ReadLoadFailureView(message: loadError) { Task { await load() } }
+                    .accessibilityIdentifier("settings.initial-load-failure")
             } else if !hasLoaded && selectedTab != 3 {
                 Button("common.retry") { Task { await load() } }
             } else {
@@ -341,18 +346,17 @@ struct SettingsView: View {
             }
 
             Section("Yardım") {
+                NavigationLink { supportDestination } label: {
+                    Label("support.title", systemImage: "questionmark.bubble")
+                }
+                .accessibilityIdentifier("settings.support.open")
                 NavigationLink { ConnectionDiagnosticsView() } label: {
                     Label("diagnostics.title", systemImage: "network")
                 }
                 .accessibilityIdentifier("settings.diagnostics.open")
-                Button {
-                    OnboardingManager.shared.restartRoleTour(
-                        role: session.role,
-                        accountIdentifier: session.onboardingAccountIdentifier
-                    )
-                } label: {
-                    Label("Uygulama Turunu Tekrar Başlat", systemImage: "questionmark.circle")
-                }
+                NavigationLink { GuideCenterDestination() } label: {
+                    Label("Uygulama Rehberi", systemImage: "book.closed")
+                }.accessibilityIdentifier("settings.guide.open")
             }
 
             Section {
@@ -382,6 +386,14 @@ struct SettingsView: View {
 
     private var hasAppStorePlan: Bool {
         session.planType.uppercased() != "CIRAK"
+    }
+
+    @ViewBuilder private var supportDestination: some View {
+#if DEBUG
+        SupportCenterView(flowFixture: supportFlowFixture)
+#else
+        SupportCenterView()
+#endif
     }
 
     private var deleteAccountConfirmationMessage: String {
@@ -415,6 +427,19 @@ struct SettingsView: View {
     }
     
     private func load(refresh: Bool = false) async {
+#if DEBUG
+        if GuideFlowFixture.isEnabled {
+            isLoading = false; hasLoaded = true; loadError = nil
+            return
+        }
+        // Exercise the real settings picker and account form without an API session.
+        if SupportFlowFixture.isEnabled, let supportFlowFixture {
+            isLoading = false
+            hasLoaded = !supportFlowFixture.settingsLoadFails
+            loadError = supportFlowFixture.settingsLoadFails ? String(localized: "support.connection_fallback") : nil
+            return
+        }
+#endif
         guard let snapshot = SessionManager.shared.authenticatedSnapshot,
               let request = loadRequest.begin(for: snapshot) else { isLoading = loadRequest.isLoading; return }
         isLoading = true

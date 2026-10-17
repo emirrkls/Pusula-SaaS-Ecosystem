@@ -138,7 +138,7 @@ fun SettingsScreen(
         }
     }
 
-    Scaffold { padding ->
+    Scaffold(topBar = { com.pusula.service.ui.guide.ApplicationGuideEntry(session) }) { padding ->
         if (uiState.loading) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(padding),

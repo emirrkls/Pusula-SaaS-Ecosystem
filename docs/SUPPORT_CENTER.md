@@ -26,6 +26,14 @@ Masaüstü ve Android kaynakları `codex/support-client-distribution` dalında, 
 
 ## Kullanıcı ve yönetici akışı
 
+### Build 62 gerçek cihaz pilotu sonrası yerel erişim düzeltmesi
+
+Yönetici alt menüsündeki Hesap `SettingsView`, teknisyeninki `ProfileView` açar. Build 62'de destek bağlantısı yalnızca profil ve giriş ekranına konmuş; yönetici `SettingsView` içindeki Hesap bölümüne eklenmemişti. Doğrudan destek ekranında başlayan dört başarılı UI senaryosu bu gezinme eksikliğini sınamıyordu.
+
+`codex/support-entry-tour-prep` yerel çalışmasında yönetici yolu **Hesap → üstte Hesap → Yardım → Yardım ve Destek** olarak eklendi. Üç yeni UI senaryosu gerçek SettingsView/Hesap formunu, ayar verileri yüklenemediğinde aynı yolu ve gerçek teknisyen profilini kullanır. Sentetik destek taşıyıcısı yalnız DEBUG/simülatör/açık fixture bayrağıyla devrededir; gerçek oturum açmaz. Kaynak kontrolü, AdminTabView → SettingsView ile TechnicianTabView → ProfileView eşleşmelerini ve her ikisindeki destek girişini ayrıca doğrular.
+
+Yerel kaynak sözleşmeleri: 64 test, 63 geçen, 1 ayrı panel bulunmadığı için atlanan, 0 hata. Bu sayı SwiftUI derlemesi veya yeni üç cihaz testinin çalıştırıldığı anlamına gelmez. Kullanıcının 17 Ekim isteğiyle Xcode Cloud/GitHub Actions, push, TestFlight yüklemesi ve build 54 değişikliği yapılmadı. Önce üç platformdaki uygulama rehberi tasarımı netleştirilecektir.
+
 - Üç uygulamada **Yardım ve Destek** girişi bulunur. Giriş ekranından mevcut destek e-postasına ulaşılabilir; oturumsuz talep API'si yoktur.
 - Giriş yapan şirket yöneticisi ve teknisyen kendi taleplerini açar, önceki mesajları okur, ek indirir ve yanıtlayabilir. Aynı işletmedeki başka bir kullanıcının talebi gösterilmez.
 - Türler soru, hata ve öneridir. Durumlar yeni, inceleniyor, kullanıcıdan bilgi bekleniyor ve çözüldü; öneriler için ayrıca değerlendiriliyor ve planlandı vardır.

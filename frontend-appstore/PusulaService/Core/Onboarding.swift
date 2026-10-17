@@ -14,21 +14,24 @@ final class OnboardingManager: ObservableObject {
 
     private let defaults: UserDefaults
     private var activeAccountIdentifier: String?
+    private var activeSteps: [OnboardingStep] = []
+    private let syncCompletion: @MainActor (Int) async -> Void
 
-    private init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, syncCompletion: @escaping @MainActor (Int) async -> Void = { version in
+        if let synced = try? await AuthService.updateOnboardingVersion(version) { SessionManager.shared.onboardingVersion = synced }
+    }) {
+        self.syncCompletion = syncCompletion
         self.defaults = defaults
         isShowingIntro = defaults.integer(forKey: Self.introStorageKey) < Self.introVersion
     }
 
     var currentStep: OnboardingStep? {
-        guard let activeRole,
-              steps(for: activeRole).indices.contains(currentStepIndex) else { return nil }
-        return steps(for: activeRole)[currentStepIndex]
+        guard activeRole != nil, activeSteps.indices.contains(currentStepIndex) else { return nil }
+        return activeSteps[currentStepIndex]
     }
 
     var stepCount: Int {
-        guard let activeRole else { return 0 }
-        return steps(for: activeRole).count
+        activeSteps.count
     }
 
     var isTourActive: Bool {
@@ -59,9 +62,9 @@ final class OnboardingManager: ObservableObject {
     }
 
     func advance() {
-        guard let activeRole else { return }
+        guard activeRole != nil else { return }
         let nextIndex = currentStepIndex + 1
-        if nextIndex < steps(for: activeRole).count {
+        if nextIndex < activeSteps.count {
             withAnimation(.easeInOut(duration: 0.22)) {
                 currentStepIndex = nextIndex
             }
@@ -85,11 +88,7 @@ final class OnboardingManager: ObservableObject {
                 forKey: roleStorageKey(activeRole, accountIdentifier: activeAccountIdentifier)
             )
         }
-        Task {
-            if let syncedVersion = try? await AuthService.updateOnboardingVersion(Self.roleTourVersion) {
-                SessionManager.shared.onboardingVersion = syncedVersion
-            }
-        }
+        Task { await syncCompletion(Self.roleTourVersion) }
         dismissRoleTour()
     }
 
@@ -109,6 +108,9 @@ final class OnboardingManager: ObservableObject {
 
     private func startRoleTour(role: String, accountIdentifier: String) {
         currentStepIndex = 0
+        activeSteps = steps(for: role).filter { step in
+            step.target != .financeContent || SessionManager.shared.features["FINANCE_MODULE"] == true
+        }
         activeAccountIdentifier = accountIdentifier
         withAnimation(.easeInOut(duration: 0.25)) {
             activeRole = role
@@ -121,6 +123,7 @@ final class OnboardingManager: ObservableObject {
             currentStepIndex = 0
         }
         activeAccountIdentifier = nil
+        activeSteps = []
     }
 
     private func supports(role: String) -> Bool {
@@ -209,7 +212,7 @@ final class OnboardingManager: ObservableObject {
         ),
         .init(
             title: "Hesabınız",
-            detail: "Profilinizi, paket bilgilerinizi, görünüm tercihini, tanıtımı yeniden başlatma seçeneğini ve yasal bağlantıları burada bulabilirsiniz.",
+            detail: "Profilinizi, paket bilgilerinizi, görünüm tercihini, kategorilere ayrılmış Uygulama Rehberini ve yasal bağlantıları burada bulabilirsiniz.",
             icon: "person.crop.circle.fill",
             target: .profileContent,
             destination: .technician(.account)
@@ -273,7 +276,7 @@ enum TechnicianTab: Hashable {
 
 struct WelcomeOnboardingView: View {
     @ObservedObject var onboarding: OnboardingManager
-    @State private var page = 0
+    @State private var cursor = GuideCursor(count: 4)
 
     private let pages: [WelcomeOnboardingPage] = [
         .init(
@@ -318,45 +321,32 @@ struct WelcomeOnboardingView: View {
                         .font(.headline.weight(.bold))
                         .foregroundStyle(.white)
                     Spacer()
-                    Button("Atla") { onboarding.completeIntro() }
+                    Button("Atla") { onboarding.completeIntro() }.accessibilityIdentifier("intro.skip")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.9))
                 }
                 .padding(.horizontal, 22)
                 .padding(.top, 12)
 
-                TabView(selection: $page) {
-                    ForEach(Array(pages.enumerated()), id: \.offset) { index, item in
-                        WelcomeOnboardingPageView(page: item)
-                            .tag(index)
-                            .padding(.horizontal, 24)
-                    }
+                ScrollView {
+                    WelcomeOnboardingPageView(page: pages[cursor.index]).padding(24)
                 }
-                .tabViewStyle(.page(indexDisplayMode: .always))
-                .indexViewStyle(.page(backgroundDisplayMode: .always))
-
-                Button {
-                    if page < pages.count - 1 {
-                        withAnimation(.easeInOut) { page += 1 }
-                    } else {
-                        onboarding.completeIntro()
-                    }
-                } label: {
-                    HStack(spacing: 9) {
-                        Text(page == pages.count - 1 ? "Başla" : "Devam Et")
-                        Image(systemName: page == pages.count - 1 ? "checkmark" : "arrow.right")
-                    }
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 54)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(PusulaTheme.ink)
-                .background(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .padding(.horizontal, 24)
-                .padding(.bottom, 22)
             }
+        }
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 12) {
+                Text("\(cursor.index + 1) / \(pages.count)").foregroundStyle(.white)
+                    .accessibilityIdentifier("intro.progress")
+                HStack {
+                    Button("Geri") { cursor.back() }.disabled(cursor.index == 0)
+                    Spacer()
+                    Button(cursor.isLast ? "Başla" : "Devam Et") {
+                        if cursor.advance() { onboarding.completeIntro() }
+                    }
+                    .buttonStyle(.borderedProminent).tint(.white).foregroundStyle(PusulaTheme.ink)
+                    .accessibilityIdentifier("intro.next")
+                }
+            }.padding(24).background(PusulaTheme.ink)
         }
         .interactiveDismissDisabled()
     }
@@ -374,7 +364,7 @@ private struct WelcomeOnboardingPageView: View {
 
     var body: some View {
         VStack(spacing: 28) {
-            Spacer(minLength: 20)
+            Spacer(minLength: 8)
             ZStack {
                 Circle()
                     .fill(.white.opacity(0.12))
@@ -400,7 +390,7 @@ private struct WelcomeOnboardingPageView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: 560)
-            Spacer(minLength: 70)
+            Spacer(minLength: 8)
         }
     }
 }
@@ -435,14 +425,19 @@ struct OnboardingCoachOverlay: View {
                             .position(x: targetRect.midX, y: targetRect.midY)
                             .shadow(color: PusulaTheme.brandCyan.opacity(0.45), radius: 10)
                             .accessibilityHidden(true)
+                            .allowsHitTesting(false)
                     }
 
-                    coachCard(step: step)
-                        .frame(maxWidth: min(520, proxy.size.width - 32))
-                        .position(
-                            x: proxy.size.width / 2,
-                            y: cardCenterY(for: targetRect, in: proxy)
-                        )
+                    VStack {
+                        if (targetRect?.midY ?? 0) < proxy.size.height / 2 { Spacer(minLength: 12) }
+                        coachCard(step: step)
+                            .frame(maxWidth: min(520, max(1, proxy.size.width - 32)))
+                            .frame(maxHeight: max(160, proxy.size.height * 0.65))
+                        if (targetRect?.midY ?? 0) >= proxy.size.height / 2 { Spacer(minLength: 12) }
+                    }
+                    .padding(.top, proxy.safeAreaInsets.top + 16)
+                    .padding(.bottom, proxy.safeAreaInsets.bottom + 16)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .transition(.opacity)
             }
@@ -453,6 +448,7 @@ struct OnboardingCoachOverlay: View {
 
     private func coachCard(step: OnboardingStep) -> some View {
         VStack(alignment: .leading, spacing: 14) {
+            ScrollView {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: step.icon)
                     .font(.title2.weight(.semibold))
@@ -463,7 +459,7 @@ struct OnboardingCoachOverlay: View {
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(step.title)
-                        .font(.headline)
+                        .font(.headline).accessibilityIdentifier("tour.title")
                     Text(step.detail)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -478,14 +474,15 @@ struct OnboardingCoachOverlay: View {
                 Spacer(minLength: 0)
             }
 
+            }
             HStack(spacing: 10) {
-                Button("Atla") { onboarding.completeRoleTour() }
+                Button("Atla") { onboarding.completeRoleTour() }.accessibilityIdentifier("tour.skip")
                     .foregroundStyle(.secondary)
 
                 Spacer()
 
                 if onboarding.currentStepIndex > 0 {
-                    Button("Geri") { onboarding.goBack() }
+                    Button("Geri") { onboarding.goBack() }.accessibilityIdentifier("tour.back")
                         .buttonStyle(.bordered)
                 }
 
@@ -494,9 +491,10 @@ struct OnboardingCoachOverlay: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(PusulaTheme.accent)
+                .accessibilityIdentifier("tour.next")
             }
 
-            Text("\(onboarding.currentStepIndex + 1) / \(onboarding.stepCount)")
+            Text("\(onboarding.currentStepIndex + 1) / \(onboarding.stepCount)").accessibilityIdentifier("tour.progress")
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -525,18 +523,4 @@ struct OnboardingCoachOverlay: View {
         return visibleRect.insetBy(dx: -6, dy: -6)
     }
 
-    private func cardCenterY(for targetRect: CGRect?, in proxy: GeometryProxy) -> CGFloat {
-        let estimatedHalfHeight: CGFloat = 125
-        let topLimit = proxy.safeAreaInsets.top + estimatedHalfHeight + 12
-        let bottomLimit = proxy.size.height - proxy.safeAreaInsets.bottom - estimatedHalfHeight - 12
-
-        guard let targetRect else {
-            return min(max(proxy.size.height * 0.56, topLimit), bottomLimit)
-        }
-
-        let preferred = targetRect.midY < proxy.size.height / 2
-            ? targetRect.maxY + estimatedHalfHeight + 20
-            : targetRect.minY - estimatedHalfHeight - 20
-        return min(max(preferred, topLimit), bottomLimit)
-    }
 }
