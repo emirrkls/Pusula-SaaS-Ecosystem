@@ -1,10 +1,10 @@
 # Mobil uygulama rehberi
 
-iOS ve Android kapsamındadır; masaüstü turu değiştirilmez. İncelemedeki build 54 ve mağaza başvurusu bu çalışma tarafından değiştirilmez.
+iOS ve Android kapsamındadır; masaüstü turu değiştirilmez. Mağazada seçili build 54 ve manuel yayın ayarı bu çalışma tarafından değiştirilmez.
 
 ## İçerik ve kullanım
 
-### Gerçek ekran turu revizyonu — yerel çalışma, 17 Ekim
+### Gerçek ekran turu revizyonu — 17 Ekim
 
 Build 67'deki dersler metin sayfasıydı; arkada uygulama ekranı çizilmediği için koyu temada büyük boş alan oluşuyordu. Yeni revizyon, üretimde kullanılan SwiftUI/Compose ekranlarını salt okunur bir tur katmanında açar. iOS'ta hesap sekmesinin üzerinde tam ekran sunulur; Devam/Geri ayrı alt alandadır. Kayıt gerektiren adımda mevcut müşteri veya servis fişini kullanıcı seçer; ilk kayıt kendiliğinden seçilmez, tur için kayıt oluşturulmaz. İlgili bölüm gerçek yerleşimden vurgulanır/kaydırılır. İskonto/kurum/garanti açıklamalarında yalnız geçici form görünümü açılır; tutar uydurulmaz ve form gönderilmez.
 
@@ -14,9 +14,11 @@ Tur açıkken gerçek ekranın dokunma ve erişilebilirlik eylemleri kapalıdır
 
 Konu listesi çevrimdışı çalışır; gerçek kayıt ekranlarının canlı okuma için bağlantıya ihtiyacı vardır. Okuma hatasında sahte kayıt veya başarılı işlem gösterilmez. Testler çevrimdışı sentetik içerik/taşıma sınırları kullanır; gerçek sunucuya veya gerçek kayıtlara yazmaz.
 
-Bu revizyon için yeni TestFlight/Release dağıtımı yapılmadı. Build 67'nin aşağıdaki geçmiş test sonuçları yeni revizyonun iOS doğrulaması değildir. Yeni Swift paket ve iPhone/iPad arayüz kapıları Xcode Cloud'da ayrıca çalıştırılmalıdır; bu Windows ortamında Swift/Xcode yoktur. GitHub Actions, backend ve incelemedeki build 54 değiştirilmedi.
+Kaynak `014a3b6` ve iOS düzeltmesi `4bf7b52`, `main` dalına normal push ile gönderildi; GitHub Actions çalışması oluşmadığı ayrıca kontrol edildi. Xcode Cloud build 69 (`4bf7b52`) için 139 Swift testi ve üç iş saat dilimi kapısı geçti; test paketi, Archive ve Apple processing tamamlandı. iPhone/iPad arayüz testleri ve iç dağıtım kapısı henüz tamamlanmadı; bu aşamada test grubuna dağıtıldı sayılmaz. Build 67'nin aşağıdaki geçmiş sonuçları bu revizyona aktarılmaz. Backend zaten uyumlu olduğundan gereksiz deploy yapılmadı; build 54 değiştirilmedi.
 
-Yerel doğrulama: 77 yapısal kontrolde 76 geçti, ayrı yönetim paneli çalışma kopyasına bağlı 1 kontrol koşullu atlandı; hata yok. Android Debug uygulama/test paketleri derlendi; 22 birim testi ve son çalıştırmada 9 arayüz testi geçti (API 36 / 16 KB, 4 GiB test belleği). Rehber çerçevesinin çevrimdışı testine ek olarak gerçek Hilt/üretim ekranı entegrasyonu çalıştırıldı; bu test başlamadan tüm uygulama HTTP'si engellenir ve gerçek oturum kurulmaz. Eksik kayıt bağlamında Devam kapalıdır; kayıt otomatik seçilmez.
+Birleşik son doğrulama: 80 yapısal kontrolde 79 geçti, ayrı yönetim paneli çalışma kopyasına bağlı 1 kontrol koşullu atlandı; hata yok. Android 1.3.8 (32): 25 birim testi, 12 arayüz testi (API 36 / 16 KB, 4 GiB test belleği), imzalı Release APK/AAB ve soğuk açılış geçti. Rehber çerçevesinin çevrimdışı testine ek olarak gerçek Hilt/üretim ekranı entegrasyonu çalıştırıldı; bu test başlamadan tüm uygulama HTTP'si engellenir ve gerçek oturum kurulmaz. Eksik kayıt bağlamında Devam kapalıdır; kayıt otomatik seçilmez.
+
+Build 68'de iki hedefte de 12 arayüz senaryosu başarısız oldu; iç dağıtım çalışmadı. Ayrı durumlarla açılan koşullu tam ekranın boş kalması, üst erişilebilirlik kimliklerinin alt düğmeleri örtmesi ve görselden ayrılma diyaloğunda iptal eyleminin erişilebilirlik ağacına alınmaması düzeltildi. Testler kaldırılmadı; sunumun hazır olması beklenir ve fotoğraflardaki açık ayrılma uyarısı iPhone/iPad'de aynı davranır. İki tanılama paketinde PusulaService uygulama çökmesi yoktu; Apple simülatör servis kayıtları uygulama çökmesi olarak sayılmadı.
 
 Başarısız denemeler gizlenmedi: eski API 35 emülatöründe süreç kapanışı/SIGSEGV; temiz API 36'da yetersiz test belleği; gerçek müşteri ekranı testinde doğrudan `layoutInfo` gözleminin oluşturduğu yeniden çizim döngüsü görüldü. Döngü `derivedStateOf` ile yalnız kalem sayısını gözleyerek düzeltildi ve aynı gerçek ekran testi geçti. Büyük yazı testinde ayrıca platform klavye animasyonu sırasında farklı anlardan ölçüm alma yarışı ayrıştırıldı; klavyenin kapalı ve iki çerçevenin kararlı olması beklenir, görünürlük sınırları gevşetilmez. Son dokuz senaryonun tamamı geçti. Bunlar gerçek cihaz/paket satın alma/ağ güzergâhı testlerinin yerine geçmez.
 

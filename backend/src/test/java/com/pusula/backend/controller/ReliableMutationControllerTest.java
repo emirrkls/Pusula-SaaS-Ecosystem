@@ -19,6 +19,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.*;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.mock.web.MockMultipartFile;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.function.LongFunction;
@@ -27,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ReliableMutationController.class)
@@ -250,6 +252,70 @@ class ReliableMutationControllerTest {
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(reliable,finance,expenses);
     }
+
+    @Test void photoWriteBindsTicketCategoryNoteAndFileDigestToTheOriginalKey() throws Exception {
+        var file = new MockMultipartFile("file", "synthetic.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        var saved = new com.pusula.backend.dto.ServicePhotoDTO(); saved.setId(701L);
+        String key = UUID.randomUUID().toString();
+        when(reliable.fileFingerprint(any())).thenReturn("synthetic-sha256");
+        when(reliable.execute(eq(key), eq("ticket.photo.create"), any(), any(), any(), any()))
+                .thenAnswer(call -> {
+                    assertEquals(Map.of("ticketId", 100L, "type", "BEFORE", "note", "Group note",
+                            "fileSha256", "synthetic-sha256"), call.getArgument(2));
+                    return ((Supplier<?>) call.getArgument(3)).get();
+                });
+        when(tickets.uploadServicePhoto(eq(100L), eq(ServicePhoto.PhotoType.BEFORE), eq("Group note"), any()))
+                .thenReturn(saved);
+        mvc.perform(multipart("/api/reliable-mutations/tickets/100/photos").file(file)
+                .param("type", "BEFORE").param("note", "Group note").with(actor("TECHNICIAN"))
+                .header("Idempotency-Key", key))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(701));
+        verify(tickets).getTicketById(100L);
+        verify(features).checkFeature(1L, "SERVICE_TICKETS");
+        verify(tickets).uploadServicePhoto(eq(100L), eq(ServicePhoto.PhotoType.BEFORE), eq("Group note"), any());
+    }
+
+    @Test void photoReplayRechecksTicketAccessAndReturnsOnlyTheOriginalPhotoWithoutAnotherUpload() throws Exception {
+        var file = new MockMultipartFile("file", "synthetic.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        var original = new com.pusula.backend.dto.ServicePhotoDTO(); original.setId(701L);
+        var different = new com.pusula.backend.dto.ServicePhotoDTO(); different.setId(702L);
+        when(reliable.fileFingerprint(any())).thenReturn("synthetic-sha256");
+        when(reliable.execute(anyString(), eq("ticket.photo.create"), any(), any(), any(), any()))
+                .thenAnswer(call -> {
+                    assertEquals("", ((Map<?, ?>) call.getArgument(2)).get("note"));
+                    return ((LongFunction<?>) call.getArgument(5)).apply(701L);
+                });
+        when(tickets.getServicePhotos(100L)).thenReturn(List.of(different, original));
+        mvc.perform(multipart("/api/reliable-mutations/tickets/100/photos").file(file)
+                .param("type", "BEFORE").with(actor("TECHNICIAN"))
+                .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(701));
+        verify(tickets).getTicketById(100L);
+        verify(tickets).getServicePhotos(100L);
+        verify(tickets, never()).uploadServicePhoto(anyLong(), any(), any(), any());
+    }
+
+    @Test void revokedPhotoAccessCannotReadOrCreateAMutationReceipt() throws Exception {
+        doThrow(new org.springframework.security.access.AccessDeniedException("Reassigned ticket"))
+                .when(tickets).getTicketById(100L);
+        var file = new MockMultipartFile("file", "synthetic.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        mvc.perform(multipart("/api/reliable-mutations/tickets/100/photos").file(file)
+                .param("type", "BEFORE").with(actor("TECHNICIAN"))
+                .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(reliable);
+        verify(tickets, never()).getServicePhotos(anyLong());
+        verify(tickets, never()).uploadServicePhoto(anyLong(), any(), any(), any());
+    }
+
+    @Test void unkeyedPhotoCannotReachTheWriteContract() throws Exception {
+        var file = new MockMultipartFile("file", "synthetic.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        mvc.perform(multipart("/api/reliable-mutations/tickets/100/photos").file(file)
+                .param("type", "BEFORE").with(actor("TECHNICIAN")))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(reliable, tickets);
+    }
+
     @TestConfiguration @EnableMethodSecurity @EnableAspectJAutoProxy
     static class Security {
         @Bean SecurityFilterChain chain(HttpSecurity http) throws Exception {

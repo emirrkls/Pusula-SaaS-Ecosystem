@@ -1,16 +1,16 @@
 # Pusula destek merkezi
 
-Bu modül masaüstü, iOS ve Android'den gelen soruları, hata bildirimlerini ve geliştirme önerilerini ortak backend üzerinden Süper Admin paneline taşır. **17 Ekim 2026 canlı kurulumunda backend, yönetim destek kutusu, SMTP kuyruğu ve web gizlilik sayfası yayımlandı.** Kod varsayılanı kapalıdır; canlıda pilot sonrası özellik bayrağı açıktır. İstemci paketlerinin ayrı dağıtım hazırlığı aşağıdadır. `main`, GitHub Actions ve incelemedeki build 54'ün başvurusu değiştirilmedi.
+Bu modül masaüstü, iOS ve Android'den gelen soruları, hata bildirimlerini ve geliştirme önerilerini ortak backend üzerinden Süper Admin paneline taşır. **17 Ekim 2026 canlı kurulumunda backend, yönetim destek kutusu, SMTP kuyruğu ve web gizlilik sayfası yayımlandı.** Kod varsayılanı kapalıdır; canlıda pilot sonrası özellik bayrağı açıktır. İstemci dağıtım geçmişi aşağıdadır. GitHub Actions kullanılmaz; mağazada seçili build 54 ve manuel yayın ayarı korunur.
 
 ## Canlı kurulum ve pilot sonucu
 
-### Yerel mobil arayüz revizyonu — 17 Ekim
+### Mobil arayüz revizyonu — 17 Ekim
 
 iOS ve Android destek merkezi; markalı giriş kartı, belirgin yeni talep eylemi, durum rozetleri ve okunabilir tarihler içeren talep kartlarıyla yenilendi. Konuşma ve mesaj yazma görünümleri listeden ayrıldı; ekip/kullanıcı mesajları farklı hizalı balonlar halinde gösterilir. Gönderme eylemi formdan ayrı alt alandadır. Dondurulmuş gönderim anahtarı, hesap ayrımı, taslak saklama, özel ekler ve belirsiz sonuçta aynı gönderimi tekrar deneme kuralları korunur. SaaS istemcisinin çevrimdışı e-posta yedeği `destek@pusulaiklimlendirme.store` adresidir; `.com/destek` sayfasının Gmail adresi değiştirilmez.
 
-Salt okunur uygulama turunda gerçek destek taslağı geri yüklenmez; taslağa veya okunma durumuna yazılmaz. İşlem yapan HTTP yolları taşıma katmanında da engellenir. Tasarım revizyonu henüz yeni bir iOS build'i olarak doğrulanmadı/yayımlanmadı; önceki dağıtım sonuçları bu revizyona aktarılmaz.
+Salt okunur uygulama turunda gerçek destek taslağı geri yüklenmez; taslağa veya okunma durumuna yazılmaz. İşlem yapan HTTP yolları taşıma katmanında da engellenir. Önceki dağıtım sonuçları yeni revizyona aktarılmaz.
 
-Android'de gerçek destek ekranının taslak saklama, aynı anahtarla kayıp yanıtı tekrar gönderme, hesap değişiminde eski yanıtı atma ve 2× yazı/koyu test temasında sabit gönder düğmesinin görünürlüğü geçti. Birleşik mobil test seçkisi son çalıştırmada 9/9 başarılıdır. iOS için aynı yeni arayüzün büyük yazı testi eklendi; Swift ve iPhone/iPad çalıştırması Xcode Cloud'da bekliyor. Bu revizyon yerel `codex/mobile-guide-support-polish` dalındadır; push, backend yayını veya yeni TestFlight yüklemesi yapılmadı.
+Android'de gerçek destek ekranının taslak saklama, aynı anahtarla kayıp yanıtı tekrar gönderme, hesap değişiminde eski yanıtı atma ve 2× yazı/koyu test temasında sabit gönder düğmesinin görünürlüğü geçti. Çoklu görsel testleri dahil birleşik Android seçkisi 25 birim + 12 cihaz testinde başarılıdır; 1.3.8 (32) imzalı APK hazırdır. Kaynak `014a3b6` ve iOS sunum/erişilebilirlik düzeltmesi `4bf7b52`, `main` dalına gönderildi; GitHub Actions çalışması oluşmadı. Xcode Cloud build 69'da 139 Swift testi, test derlemesi, Archive ve processing geçti; zorunlu iPhone/iPad arayüz testleri henüz sürüyor. Build 68 test kapısında başarısız olduğu için gruba dağıtılmadı. Backend bu istemci revizyonunda değişmedi ve yeniden deploy edilmedi.
 
 - Backend kaynak `c41b8ff`, ayrı `codex/support-center-release` dalında; temiz çalışma kopyasından derlendi. 435 test: 424 geçen, 11 koşullu atlanan, 0 hata. Önceden yapılan ayrı gerçek PostgreSQL doğrulaması 10/10 geçti.
 - Üretim JAR/veritabanı yedeği korumalı alanda alındı. Dolu yedek ayrı geçici veritabanına geri yüklendi; V49, beş tablo ve benzersiz/partial indeksler doğrulandı; mevcut kullanıcı/işletme sayıları değişmedi. Geçici prova veritabanı kaldırıldı. Canlı Flyway V49 başarılıdır; otomatik aşağı migration yapılmaz.
