@@ -41,7 +41,7 @@ with tempfile.TemporaryDirectory(prefix='verify-', dir=root) as temporary:
     app = apps[0]
     info = plistlib.loads((app / 'Info.plist').read_bytes())
     assert info['CFBundleIdentifier'] == 'com.pusula.service', 'Wrong bundle ID'
-    assert info['CFBundleShortVersionString'] == '1.0', 'Wrong marketing version'
+    assert info['CFBundleShortVersionString'] == '1.0.1', 'Wrong marketing version'
     assert info['CFBundleVersion'] == expected_build, 'Wrong build number'
     command('codesign', '--verify', '--deep', '--strict', str(app))
     signature = command('codesign', '-dv', '--verbose=4', str(app)).decode()
@@ -69,7 +69,7 @@ with tempfile.TemporaryDirectory(prefix='verify-', dir=root) as temporary:
     assert 'https://api.pusulaiklimlendirme.com' in strings, 'Production API missing'
     assert not any(value in strings for value in ['PUSULA_SOCIAL_AUTH_FIXTURE', 'PUSULA_TICKET_STRESS_COUNT', 'PUSULA_TICKET_DETAIL_LOAD_FIXTURE', 'PUSULA_CUSTOMER_REFRESH_FIXTURE', 'PUSULA_CONNECTION_DIAGNOSTICS_FIXTURE', 'PUSULA_PHOTO_BATCH_TEST', 'PUSULA_GUIDE_TEST', 'PUSULA_SUPPORT_FIXTURE']), 'DEBUG UI test hook present in Release'
     assert (app / 'GoogleSans.ttf').exists(), 'Social sign-in font missing'
-    report = {'bundle': info['CFBundleIdentifier'], 'version': '1.0', 'build': expected_build,
+    report = {'bundle': info['CFBundleIdentifier'], 'version': '1.0.1', 'build': expected_build,
               'team': 'DDV3HCZRP6', 'signature': 'Apple Distribution', 'push': 'production',
               'appleSignIn': True, 'dSYM_UUIDs': binary_ids}
     (root / 'export-verification.json').write_text(json.dumps(report, indent=2))

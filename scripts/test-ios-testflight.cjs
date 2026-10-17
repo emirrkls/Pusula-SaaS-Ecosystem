@@ -17,6 +17,18 @@ test('release identity excludes the retired iOS app', () => {
   assert.equal(APP.team, 'DDV3HCZRP6');
   assert.doesNotMatch(workflow, /com\.pusula\.service\.ios|XM36DTLK9N|6764022995/);
 });
+
+test('the next App Store version is consistent across Debug, Release and upload verification', () => {
+  assert.equal(APP.version, '1.0.1');
+  const project = read('frontend-appstore/PusulaService.xcodeproj/project.pbxproj');
+  const versions = [...project.matchAll(/MARKETING_VERSION = ([0-9.]+);/g)].map(match => match[1]);
+  assert.deepEqual(versions, [APP.version, APP.version]);
+  const builds = [...project.matchAll(/CURRENT_PROJECT_VERSION = ([0-9]+);/g)].map(match => match[1]);
+  assert.deepEqual(builds, ['74', '74']);
+  const verifier = read('scripts/verify-ios-export.py');
+  assert.ok(verifier.includes(`info['CFBundleShortVersionString'] == '${APP.version}'`));
+  assert.ok(verifier.includes(`'version': '${APP.version}'`));
+});
 test('manual main-only release; read-only GitHub permissions; no overlapping upload', () => {
   assert.match(workflow, /workflow_dispatch:/);
   assert.doesNotMatch(workflow, /^  (push|pull_request|schedule|workflow_run):/m);

@@ -6,7 +6,7 @@ const { execFileSync } = require('node:child_process');
 const { pipeline } = require('node:stream/promises');
 
 const APP = Object.freeze({ id: '6801256557', bundle: 'com.pusula.service',
-  team: 'DDV3HCZRP6', issuer: '3b14669e-aa75-4aa0-a56b-5729810d726f', version: '1.0' });
+  team: 'DDV3HCZRP6', issuer: '3b14669e-aa75-4aa0-a56b-5729810d726f', version: '1.0.1' });
 const RELEASE_DIR = 'pusula-ios-release';
 function releaseDir() {
   if (!process.env.RUNNER_TEMP) throw new Error('RUNNER_TEMP is required');
