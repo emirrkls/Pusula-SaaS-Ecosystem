@@ -370,7 +370,7 @@ test correction.
   unit. The existing **32 MiB** cap, metadata-only scope, build allowlist and
   expiry **18 October 18:19:03 Europe/Istanbul** remain unchanged. Old gap data
   cannot be recovered. No raw IPs, bodies or credentials were added to storage.
-- The new, currently **local** contract is
+- The contract introduced in `b4bc03f` is
   `POST /api/reliable-mutations/tickets/{ticketId}/technician-notes`. Its receipt
   binds normalized content, important flag and ticket ID to the authenticated
   tenant/user/key. Note creation, audit and important-note notification join
@@ -387,11 +387,21 @@ test correction.
   definite rejection. Confirmed results are inserted into the visible list by
   ID, so a replay does not duplicate a row. This is in-memory, within-form
   recovery, **not** a durable outbox or cross-form/app-restart deduplication.
-- Test the new contract on an isolated database, then deploy the backend
-  before distributing a client using it. macOS/iPhone/iPad compilation and
-  real-device checks remain release gates. This step does not push code,
-  deploy the application backend, start CI/Cloud builds, upload TestFlight or
-  alter App Review build 54. The guide/support-entry work is separate.
+- The original implementation was local-only. The subsequent approved backend
+  release is recorded in `outputs/note-release-20261017` in its worktree. A
+  read-only follow-up confirmed the active service, deployed revision
+  `b4bc03fd3b5a716de79c004d636d3764ffa423c9`, matching JAR SHA-256
+  `1a0b921ba7688f6a8d1a9b223523bcb1573ae55b22e2b15bf5afc69175c0a796`, and
+  public HTTPS 200. No repeat backend deployment or production note write was
+  performed by the mobile-guide release check.
+- The guide/support-entry branch includes this commit through merge `45a9fae`.
+  Combined-source checks passed: 435 backend tests (11 opt-in tests skipped),
+  20/20 reliable-mutation tests on an isolated loopback-only PostgreSQL 17.7
+  database, 72 source-contract tests (one unrelated admin-checkout skip), and
+  four offline diagnostic-runtime tests. A new iOS build from the combined
+  source must still pass the required iPhone/iPad gates; guide build 64 uses
+  the earlier `11fd695` source. Real-device note retry checks remain necessary.
+  App Review build 54 is unchanged.
 
 This work is **local only**, at the owner's request. No push, backend deployment,
 archive/upload or change to the reviewed build 54 is authorized by this step.
