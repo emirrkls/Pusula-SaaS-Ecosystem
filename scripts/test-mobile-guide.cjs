@@ -40,6 +40,14 @@ test('support tours cannot load or overwrite a real local draft',()=>{
   assert.match(support,/guard !tourMode,let snapshot,isCurrent\(snapshot\),!busy/);
   assert.match(read(android+'java/com/pusula/service/ui/support/SupportViewModel.kt'),/val saved=if\(com.pusula.service.core.GuideReadOnlyGate.active.value\) null/);
 });
+test('choosing a tour record restarts context preparation from updated state and rejects older reads',()=>{
+  const source=read(ios+'Views/Shared/GuideTourHost.swift');
+  assert.match(source,/private var contextLoadKey:[\s\S]*route\.screen\.rawValue[\s\S]*ticket\?\.id[\s\S]*customer\?\.id/);
+  assert.match(source,/\.task\(id:contextLoadKey\)\s*\{ await loadContext\(\) \}/);
+  assert.match(source,/Button \{ ticket=value;partsTotal=nil \} label:/);
+  assert.match(source,/defer \{if contextRequest==request \{loading=false\}\}/);
+  assert.equal((source.match(/guard contextRequest==request,session\.isCurrent\(snapshot\),!Task\.isCancelled/g)||[]).length,3);
+});
 test('complete catalog, valid roles, categories, locations and short lessons', () => {
   assert.equal(catalog.schemaVersion,1); assert.equal(catalog.categories.length,10); assert.equal(catalog.topics.length,56);
   assert.equal(new Set(catalog.topics.map(t=>t.id)).size,56);

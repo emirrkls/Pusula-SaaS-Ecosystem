@@ -83,6 +83,7 @@ struct GuideTourHost: View {
     @State private var customers: [CustomerDTO] = []
     @State private var partsTotal: Decimal?
     @State private var loading = false
+    @State private var contextRequest: UUID?
     @State private var contextError: String?
     @State private var choicesLoaded = false
     @State private var customerChoicesLoaded = false
@@ -96,6 +97,9 @@ struct GuideTourHost: View {
     }
     private var step: GuideLessonStep { topic.steps[cursor.index] }
     private var route: GuideTourRoute { step.tour }
+    private var contextLoadKey: String {
+        "\(route.screen.rawValue):\(ticket?.id ?? 0):\(customer?.id ?? 0)"
+    }
     private var locked: Bool { topic.requiredFeature.map { features[$0] != true } ?? false }
     private var needsContext: Bool {
         route.screen.needsTicket(role:role) && ticket == nil || route.screen.needsCustomer(role:role) && customer == nil
@@ -134,7 +138,7 @@ struct GuideTourHost: View {
         .safeAreaInset(edge:.bottom,spacing:0) { coach }
         .background(PusulaTheme.page)
         .interactiveDismissDisabled()
-        .task(id:route.screen) { await loadContext() }
+        .task(id:contextLoadKey) { await loadContext() }
         .onChange(of:session.onboardingAccountIdentifier) { _, value in if value != account { close() } }
         .onChange(of:session.authenticatedSnapshot?.revision) { _, _ in close() }
     }
@@ -196,7 +200,7 @@ struct GuideTourHost: View {
                     }
                 } else if ticket == nil {
                     ForEach(tickets) { value in
-                        Button { ticket=value;partsTotal=nil;Task { await loadContext(force:true) } } label: {
+                        Button { ticket=value;partsTotal=nil } label: {
                             VStack(alignment:.leading,spacing:4) {Text("#\(value.id) · \(value.customerName ?? "Servis fişi")").font(.headline);Text(value.description ?? "").font(.subheadline).foregroundStyle(.secondary)}.frame(maxWidth:.infinity,alignment:.leading).padding()
                         }.buttonStyle(.bordered).accessibilityIdentifier("guide.context.ticket.\(value.id)")
                     }
@@ -243,8 +247,15 @@ struct GuideTourHost: View {
     // after the transition. Push navigation must not race the closing cover.
     private func close() { save();dismiss() }
     @MainActor private func loadContext(force:Bool=false) async {
-        guard !locked,!loading else{return}
+        guard !locked else{return}
+        // The lifecycle key includes the chosen record. Start from the updated
+        // view state, not a Task capturing the pre-selection SwiftUI value.
+        // A cancelled older route must not clear a newer load or apply its data.
+        let request=UUID()
+        contextRequest=request
+        loading=false
         contextError=nil
+        defer {if contextRequest==request {loading=false}}
 #if DEBUG
         if GuideFlowFixture.isEnabled {
             tickets=[GuideFlowFixture.tourTicket];customers=[GuideFlowFixture.tourCustomer]
@@ -257,24 +268,24 @@ struct GuideTourHost: View {
             contextError="Oturum bilgisi doğrulanamadı. Turdan çıkıp yeniden deneyin.";return
         }
         if route.screen.needsTicket(role:role) && ticket == nil && (!choicesLoaded || force) {
-            loading=true;defer{loading=false}
+            loading=true
             do {
                 let values:[FieldTicketDTO]=try await NetworkManager.shared.request(.GET,path:role == "TECHNICIAN" ? "/api/tickets/my-assigned" : "/api/tickets",authTokenOverride:snapshot.token)
-                guard session.isCurrent(snapshot),!Task.isCancelled else{return}
+                guard contextRequest==request,session.isCurrent(snapshot),!Task.isCancelled else{return}
                 tickets=values.sorted{$0.id>$1.id};choicesLoaded=true
-            } catch {if !LoadCancellationPolicy.isCancellation(error) {contextError="Servis fişleri yüklenemedi. Kayıt seçimi yapılmadı."}}
+            } catch {if contextRequest==request,session.isCurrent(snapshot),!LoadCancellationPolicy.isCancellation(error,taskIsCancelled:Task.isCancelled) {contextError="Servis fişleri yüklenemedi. Kayıt seçimi yapılmadı."}}
         } else if (route.screen.needsCustomer(role:role) && customer == nil || route.screen == .ticketCreate) && (!customerChoicesLoaded || force) {
-            loading=true;defer{loading=false}
-            do {let values=try await CustomerService.getCustomers(authToken:snapshot.token);guard session.isCurrent(snapshot),!Task.isCancelled else{return};customers=values.filter{$0.id != nil};customerChoicesLoaded=true}
-            catch {if !LoadCancellationPolicy.isCancellation(error) {contextError="Müşteriler yüklenemedi. Mevcut kayıtlar korunuyor."}}
+            loading=true
+            do {let values=try await CustomerService.getCustomers(authToken:snapshot.token);guard contextRequest==request,session.isCurrent(snapshot),!Task.isCancelled else{return};customers=values.filter{$0.id != nil};customerChoicesLoaded=true}
+            catch {if contextRequest==request,session.isCurrent(snapshot),!LoadCancellationPolicy.isCancellation(error,taskIsCancelled:Task.isCancelled) {contextError="Müşteriler yüklenemedi. Mevcut kayıtlar korunuyor."}}
         } else if route.screen == .collection,let ticket,partsTotal == nil {
-            loading=true;defer{loading=false}
+            loading=true
             do {
                 let values=try await TicketService.getUsedParts(ticketId:ticket.id,authToken:snapshot.token)
-                guard session.isCurrent(snapshot),!Task.isCancelled else{return}
+                guard contextRequest==request,session.isCurrent(snapshot),!Task.isCancelled else{return}
                 guard values.allSatisfy({$0.totalPrice.isFinite}) else {throw NetworkError.invalidResponse}
                 partsTotal=values.reduce(Decimal.zero) {$0+Decimal($1.totalPrice)}
-            } catch {if !LoadCancellationPolicy.isCancellation(error) {contextError="Parça toplamı yüklenemedi; sıfır kabul edilmedi."}}
+            } catch {if contextRequest==request,session.isCurrent(snapshot),!LoadCancellationPolicy.isCancellation(error,taskIsCancelled:Task.isCancelled) {contextError="Parça toplamı yüklenemedi; sıfır kabul edilmedi."}}
         }
     }
 }
