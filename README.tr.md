@@ -57,6 +57,7 @@
 - **İşletme kapsamlı WhatsApp bildirimi:** Yalnızca açıkça izin verilen işletmeler için onaylı şablonlarla servis açılış/tamamlanma mesajları.
 - **Ödeme webhook altyapısı:** Iyzico webhook imza doğrulama (opsiyonel / gelecek uyumlu).
 - **Super-admin operasyon paneli:** Şirket yönetimi, kota durumu, diagnostic paketleri, operations dashboard.
+- **Destek merkezi (yerel, özellik bayrağıyla kapalı):** Windows/iOS/Android üzerinden özel soru, hata ve öneri talepleri; Süper Admin destek kutusu. [Kurulum ve yayın öncesi kontroller](docs/SUPPORT_CENTER.md).
 
 ### İstemciler
 - **Desktop:** Tam ofis/sevk yönetimi, modern ve uyarlanabilir pencereler, finans/demirbaş araçları, servis görsel tarayıcısı, servis ağı yönetimi, PDF raporları ve doğrulanan MSI güncellemesi.
@@ -466,6 +467,7 @@ Deploy sonrası smoke test planı için **[`RUNBOOK.md`](RUNBOOK.md)** dosyasın
 
 ## İlgili Dokümantasyon
 
+- [`docs/SUPPORT_CENTER.md`](docs/SUPPORT_CENTER.md) — Destek mimarisi, gizlilik sınırları, yerel doğrulama ve etkinleştirme listesi
 - [`README.md`](README.md) — English documentation
 - [`RUNBOOK.md`](RUNBOOK.md) — Production deploy checklist, smoke test planı, env referansları
 - [`docs/SERVICE_NETWORK.md`](docs/SERVICE_NETWORK.md) — Servis ağı mimarisi, tenant sınırları ve operasyon modeli

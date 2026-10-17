@@ -49,7 +49,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/api/public/**")
                 // Meta signs every webhook payload. Applying the public three-request
                 // limit here would drop legitimate delivery bursts from Meta.
-                .excludePathPatterns("/api/public/whatsapp/webhook");
+                .excludePathPatterns("/api/public/whatsapp/webhook", "/api/public/support-contact");
 
         registry.addInterceptor(tenantInterceptor)
                 .addPathPatterns("/api/**")

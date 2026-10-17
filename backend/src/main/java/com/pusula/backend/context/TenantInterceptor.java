@@ -49,6 +49,7 @@ public class TenantInterceptor implements HandlerInterceptor {
                 TenantContext.setTenantId(user.getCompanyId());
                 TenantContext.setReadOnlyImpersonation(false);
                 if (isMutationMethod(request.getMethod())
+                        && !isOwnSupportRequest(request.getRequestURI())
                         && !request.getRequestURI().startsWith("/api/payment/")
                         && companyRepository.findById(user.getCompanyId())
                                 .map(company -> Boolean.TRUE.equals(company.getIsReadOnly()))
@@ -119,5 +120,11 @@ public class TenantInterceptor implements HandlerInterceptor {
                 || "PUT".equalsIgnoreCase(method)
                 || "PATCH".equalsIgnoreCase(method)
                 || "DELETE".equalsIgnoreCase(method);
+    }
+
+    // The support service independently checks the actual actor, ownership and role.
+    // Never exempt admin/impersonation requests or lookalike paths from normal business protections.
+    private boolean isOwnSupportRequest(String uri) {
+        return uri.equals("/api/support/tickets") || uri.matches("/api/support/tickets/[0-9]+/(messages|read)");
     }
 }

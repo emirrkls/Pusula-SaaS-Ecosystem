@@ -57,6 +57,7 @@
 - **Tenant-scoped WhatsApp notifications:** Optional approved-template messages for service creation and completion, restricted to explicitly allowed companies.
 - **Payment webhooks:** Iyzico webhook signature validation (optional / future-compatible).
 - **Super-admin operations:** Company management, quota status, diagnostic packages, operations dashboard.
+- **Support center (local, feature-gated):** Private questions/bugs/suggestions across Windows, iOS and Android, with a dedicated super-admin inbox. See [support setup and release gates](docs/SUPPORT_CENTER.md).
 
 ### Clients
 - **Desktop:** Full office/dispatch management, modern responsive dialogs, finance and asset tooling, service-photo browser, service-network administration, PDF reports, and verified MSI auto-update.
@@ -466,6 +467,7 @@ For post-deploy smoke tests, see **[`RUNBOOK.md`](RUNBOOK.md)**.
 
 ## Related Documentation
 
+- [`docs/SUPPORT_CENTER.md`](docs/SUPPORT_CENTER.md) — Support architecture, privacy limits, local validation and activation checklist
 - [`RUNBOOK.md`](RUNBOOK.md) — Production deploy checklist, smoke test plan, env references
 - [`docs/SERVICE_NETWORK.md`](docs/SERVICE_NETWORK.md) — Service-network architecture, tenant boundaries, and operating model
 - [`docs/SOCIAL_AUTH.md`](docs/SOCIAL_AUTH.md) — Social identity rules, provider configuration, and combined-release gates

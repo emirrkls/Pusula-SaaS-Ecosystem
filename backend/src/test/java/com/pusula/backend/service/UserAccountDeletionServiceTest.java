@@ -17,8 +17,9 @@ class UserAccountDeletionServiceTest {
     private final SignatureErasureTaskRepository signatures = mock(SignatureErasureTaskRepository.class);
     private final PasswordEncoder passwords = mock(PasswordEncoder.class);
     private final CompanyRepository companies = mock(CompanyRepository.class);
+    private final com.pusula.backend.support.SupportPrivacyService support = mock(com.pusula.backend.support.SupportPrivacyService.class);
     private final UserAccountDeletionService service = new UserAccountDeletionService(
-            users, social, devices, audits, signatures, passwords, companies);
+            users, social, devices, audits, signatures, passwords, companies, support);
 
     @Test void clearsPersonalFieldsAndDevicesButPreservesBusinessForeignKey() {
         var user = user(); when(users.lockByIdAndCompanyId(9L, 7L)).thenReturn(Optional.of(user));
@@ -32,6 +33,7 @@ class UserAccountDeletionServiceTest {
         verify(social).revokeAndRemove(9L); verify(devices).deleteByCompanyIdAndUserId(7L, 9L);
         verify(audits).deletePersonalAuthenticationHistory(9L); verify(audits).anonymizeActor(9L);
         verify(audits).eraseUserProfileSnapshots(9L); verify(signatures).save(any(SignatureErasureTask.class));
+        verify(support).eraseUser(9L);
         verify(companies, never()).delete(any()); verify(users, never()).delete(any());
     }
 

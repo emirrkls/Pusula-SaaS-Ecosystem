@@ -9,7 +9,7 @@ const PrivacyPolicy = () => (
     <div className="container mx-auto px-4 md:px-8 max-w-4xl">
       <article className="bg-white rounded-2xl shadow-xs border border-gray-100 p-6 md:p-10">
         <h1 className="text-3xl md:text-4xl font-bold text-brand-dark mb-4">Gizlilik Politikası</h1>
-        <p className="text-sm text-gray-500 mb-8">Son güncelleme: 7 Ekim 2026</p>
+        <p className="text-sm text-gray-500 mb-8">Son güncelleme: 17 Ekim 2026</p>
         <div className="space-y-8 text-gray-700 leading-relaxed">
           <p>
             Bu politika, Pusula İklimlendirme web sitesi ve Pusula Servis Yönetimi masaüstü,
@@ -39,6 +39,14 @@ const PrivacyPolicy = () => (
               <li><strong>Güvenlik ve bildirim:</strong> IP adresi, zaman damgası, hata/işlem kayıtları
                 ve cihaz bildirim belirteci; güvenlik, teknik destek ve iş emri bildirimleri için
                 kullanılır. Bildirim belirteçleri sunucuda şifreli saklanır.</li>
+              <li><strong>Destek talepleri:</strong> Etkinleştirildiğinde Yardım ve Destek bölümünde
+                isteyerek gönderdiğiniz konu, mesaj, talep türü, ekler ve teknik uygulama/sürüm
+                bilgileri; talebinizi yanıtlamak, hataları incelemek ve önerileri takip etmek
+                için hesabınız ve işletmenizle ilişkilendirilir. İlgili talebi gönderen kullanıcı
+                ve yetkili destek ekibi erişebilir; aynı işletmedeki diğer kullanıcılara
+                otomatik olarak açılmaz. İsteğe bağlı ekran görüntüsünün görünen içeriği
+                otomatik anonimleştirilmez; göndermeden önce hassas alanları kapatın.
+                Parola, kart bilgisi veya gereksiz müşteri/finans dökümü göndermeyin.</li>
             </ul>
             <p className="mt-4">Veriler hizmetin ve sözleşmenin yürütülmesi, yasal yükümlülükler
               ve ölçülü güvenlik ihtiyaçları kapsamında; izin veya açık rıza gereken özelliklerde
@@ -103,6 +111,15 @@ const PrivacyPolicy = () => (
               ayrı tutulur; geri yüklemede silme işlemlerinin korunması gerekir. Hesap silme,
               eski yedeklerin anında fiziksel imhası anlamına gelmez. Yedek saklama süresi ve
               talebinize uygulanacak imha kapsamı hakkında destekten bilgi alabilirsiniz.</p>
+            <p className="mt-3">Destek ekleri 30 gün, çözülen destek konuşmaları kapanışından
+              180 gün sonra periyodik temizlikle kaldırılır. Açık talepler destek ihtiyacı
+              sürdüğü müddetçe tutulur; silme ve erişim talepleriniz destek üzerinden ayrıca
+              değerlendirilir. Hesabınız silindiğinde kendi destek konuşmalarınız ve ekleri
+              temizlenir. Hesaplara ayrılmış yerel taslaklar cihazın korumalı depolamasında
+              tutulur; siz göndermeden arka planda destek talebine dönüştürülmez.
+              Teknik raporlarda sunucuya kaydedilen içerik sınırlı teknik alanlardan yeniden
+              oluşturulur; oturum anahtarı, ham istek gövdesi ve kişisel rota parçaları
+              destek raporuna alınmaz.</p>
           </section>
 
           <section>

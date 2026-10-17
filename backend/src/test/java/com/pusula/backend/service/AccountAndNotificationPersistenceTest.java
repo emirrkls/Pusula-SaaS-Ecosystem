@@ -41,6 +41,7 @@ class AccountAndNotificationPersistenceTest {
     @MockBean SocialAccountDeletionService social;
     @MockBean PasswordEncoder passwords;
     @MockBean AppleAppStoreVerificationService verifier;
+    @MockBean com.pusula.backend.support.SupportPrivacyService supportPrivacy;
 
     @Test void deletionActuallyErasesProfileAndHiddenAuditDataFromDatabase() {
         var company = company();

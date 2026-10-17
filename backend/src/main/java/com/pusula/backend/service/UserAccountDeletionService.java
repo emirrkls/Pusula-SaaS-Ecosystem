@@ -17,12 +17,14 @@ public class UserAccountDeletionService {
     private final SignatureErasureTaskRepository signatures;
     private final PasswordEncoder passwords;
     private final CompanyRepository companies;
+    private final com.pusula.backend.support.SupportPrivacyService support;
 
     public UserAccountDeletionService(UserRepository users, SocialAccountDeletionService social,
             PushDeviceRepository devices, AuditLogRepository audits, SignatureErasureTaskRepository signatures,
-            PasswordEncoder passwords, CompanyRepository companies) {
+            PasswordEncoder passwords, CompanyRepository companies, com.pusula.backend.support.SupportPrivacyService support) {
         this.users = users; this.social = social; this.devices = devices; this.audits = audits;
         this.signatures = signatures; this.passwords = passwords; this.companies = companies;
+        this.support = support;
     }
 
     @Transactional
@@ -30,6 +32,7 @@ public class UserAccountDeletionService {
         User user = users.lockByIdAndCompanyId(principal.getId(), principal.getCompanyId()).orElseThrow();
         // Apple revocation failure must not report a successful deletion or remove its binding.
         social.revokeAndRemove(user.getId());
+        support.eraseUser(user.getId());
         devices.deleteByCompanyIdAndUserId(user.getCompanyId(), user.getId());
         audits.deletePersonalAuthenticationHistory(user.getId());
         audits.anonymizeActor(user.getId());

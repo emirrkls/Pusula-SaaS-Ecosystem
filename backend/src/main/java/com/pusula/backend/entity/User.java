@@ -111,6 +111,10 @@ public class User extends BaseEntity implements UserDetails {
         String normalizedRole = role == null ? "" : role.trim().toUpperCase(Locale.ROOT);
         // Spring Security's hasAnyRole() expects authorities with ROLE_ prefix
         authorities.add(new SimpleGrantedAuthority("ROLE_" + normalizedRole));
+        if (List.of("SUPER_ADMIN", "SUPER_ADMIN_OPS", "SUPER_ADMIN_READONLY").contains(normalizedRole)) {
+            authorities.add(new SimpleGrantedAuthority("SUPPORT_READ"));
+            if (!"SUPER_ADMIN_READONLY".equals(normalizedRole)) authorities.add(new SimpleGrantedAuthority("SUPPORT_WRITE"));
+        }
 
         switch (normalizedRole) {
             case "SUPER_ADMIN":

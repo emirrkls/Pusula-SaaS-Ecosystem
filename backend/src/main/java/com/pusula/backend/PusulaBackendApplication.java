@@ -17,8 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.context.ApplicationContext;
 
 @SpringBootApplication
-@EnableJpaRepositories(basePackages = {"com.pusula.backend.repository", "com.pusula.backend.network"})
-@EntityScan(basePackages = {"com.pusula.backend.entity", "com.pusula.backend.network"})
+@EnableJpaRepositories(basePackages = {"com.pusula.backend.repository", "com.pusula.backend.network", "com.pusula.backend.support"})
+@EntityScan(basePackages = {"com.pusula.backend.entity", "com.pusula.backend.network", "com.pusula.backend.support"})
 @org.springframework.scheduling.annotation.EnableScheduling
 @org.springframework.scheduling.annotation.EnableAsync
 public class PusulaBackendApplication implements CommandLineRunner {
