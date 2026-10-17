@@ -349,6 +349,50 @@ test correction.
 
 ### Intermittent connection failures: local reliability work (15 October 2026)
 
+#### Technician-note follow-up and collector repair (17 October 2026)
+
+- The supplied report is from **1.0 (55)**, not the newer client source. Ticket
+  999's note POST failed at 12:58:54 UTC with -1200/stream 3/-9816; the later
+  photo POST failed at 12:59:58 UTC with -1005. A read-only database inspection
+  found no note and two earlier successfully uploaded photos. The ticket was
+  subsequently completed successfully; failed attempts were not silently saved.
+- The VPS reboot on 16 October removed the collector's `/run` directory. Its
+  service's `ReadWritePaths` referred to that directory before Python could
+  create it, causing systemd 226/NAMESPACE failures. There is **no matching
+  packet evidence** for these 17 October incidents. Do not assign a carrier or
+  hosting-provider root cause from this report alone.
+- With owner approval, the live temporary collector now uses systemd
+  `RuntimeDirectory` and mode 0750. A stop/start with the directory absent
+  restored its socket; controlled build-55/build-57 HTTP probes were logged,
+  and an external HTTPS probe matched both HTTP and 19 sanitized TCP records.
+  Backend and Nginx master PIDs were unchanged; only a graceful Nginx logging
+  reload was used. Cleanup ownership hashes were updated with the repaired
+  unit. The existing **32 MiB** cap, metadata-only scope, build allowlist and
+  expiry **18 October 18:19:03 Europe/Istanbul** remain unchanged. Old gap data
+  cannot be recovered. No raw IPs, bodies or credentials were added to storage.
+- The new, currently **local** contract is
+  `POST /api/reliable-mutations/tickets/{ticketId}/technician-notes`. Its receipt
+  binds normalized content, important flag and ticket ID to the authenticated
+  tenant/user/key. Note creation, audit and important-note notification join
+  the existing receipt transaction. A replay rechecks tenant/assignment and
+  reloads only the original note, including after the ticket was completed.
+  Deleted/unavailable results, changed input/target, expired keys and revoked
+  access cannot produce replacement writes. Existing legacy clients/routes
+  are unchanged; no database migration is needed beyond existing V47.
+- iOS uses the versioned path and the original session token. A selected
+  transient failure may receive **one** automatic retry with the same key/body;
+  trust/certificate failures, cancellation and HTTP 4xx remain non-retryable.
+  An unconfirmed manual retry keeps the frozen note, important flag, ticket,
+  session revision and key; editing is disabled until a confirmed result or
+  definite rejection. Confirmed results are inserted into the visible list by
+  ID, so a replay does not duplicate a row. This is in-memory, within-form
+  recovery, **not** a durable outbox or cross-form/app-restart deduplication.
+- Test the new contract on an isolated database, then deploy the backend
+  before distributing a client using it. macOS/iPhone/iPad compilation and
+  real-device checks remain release gates. This step does not push code,
+  deploy the application backend, start CI/Cloud builds, upload TestFlight or
+  alter App Review build 54. The guide/support-entry work is separate.
+
 This work is **local only**, at the owner's request. No push, backend deployment,
 archive/upload or change to the reviewed build 54 is authorized by this step.
 The new backend contract must be deployed and verified before distributing an

@@ -38,6 +38,22 @@ public class ServiceTicketNoteService {
                 .stream().map(this::toDto).toList();
     }
 
+    /** Recheck tenant and current assignment even when replaying a receipt. */
+    @Transactional(readOnly = true)
+    public void checkTicketAccess(Long ticketId) {
+        requireVisibleTicket(ticketId, currentUser());
+    }
+
+    @Transactional(readOnly = true)
+    public ServiceTicketNoteDTO getNoteForReplay(Long ticketId, Long noteId) {
+        User user = currentUser();
+        requireVisibleTicket(ticketId, user);
+        // A completed ticket may still return its original note. Missing/deleted
+        // results must never cause the mutation coordinator to create a new note.
+        return noteRepository.findByIdAndServiceTicketIdAndCompanyId(noteId, ticketId, user.getCompanyId())
+                .map(this::toDto).orElse(null);
+    }
+
     @Transactional
     public ServiceTicketNoteDTO addWorkLog(Long ticketId, String content) {
         return addWorkLog(ticketId, content, false);

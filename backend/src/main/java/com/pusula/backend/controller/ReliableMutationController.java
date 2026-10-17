@@ -103,4 +103,17 @@ public class ReliableMutationController {
                 () -> tickets.uploadServicePhoto(ticketId, type, note, file), ServicePhotoDTO::getId,
                 id -> tickets.getServicePhotos(ticketId).stream().filter(photo -> photo.getId().equals(id)).findFirst().orElse(null)));
     }
+
+    @PostMapping("/tickets/{ticketId}/technician-notes") @RequiresFeature("SERVICE_TICKETS")
+    public ResponseEntity<ServiceTicketNoteDTO> addTechnicianNote(@PathVariable Long ticketId,
+            @RequestHeader("Idempotency-Key") String key, @Valid @RequestBody AddServiceTicketNoteRequest input) {
+        notes.checkTicketAccess(ticketId);
+        String content = input.getContent().trim();
+        // Bind the receipt to the target, normalized text and notification intent.
+        Map<String, Object> fingerprint = Map.of("ticketId", ticketId, "content", content,
+                "important", input.isImportant());
+        return ResponseEntity.ok(reliable.execute(key, "ticket.note.create", fingerprint,
+                () -> notes.addWorkLog(ticketId, content, input.isImportant()), ServiceTicketNoteDTO::getId,
+                id -> notes.getNoteForReplay(ticketId, id)));
+    }
 }

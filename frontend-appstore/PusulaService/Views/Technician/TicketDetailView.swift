@@ -19,7 +19,7 @@ struct TicketDetailView: View {
     var collectionTestLoaders: CollectionTestLoaders?
 #endif
     @State private var newTechnicianNote = ""
-    @State private var isSavingTechnicianNote = false
+    @State private var noteSubmission = TechnicianNoteSubmissionState()
     @State private var isImportantTechnicianNote = false
     @State private var showScanner = false
     @State private var showPartPicker = false
@@ -60,6 +60,8 @@ struct TicketDetailView: View {
     private var isEditable: Bool {
         currentTicket.statusEnum != .completed && currentTicket.statusEnum != .cancelled
     }
+
+    private var isSavingTechnicianNote: Bool { noteSubmission.isSubmitting }
 
     private var usedParts: [UsedPartDTO] {
         get { partsState.items }
@@ -134,7 +136,9 @@ struct TicketDetailView: View {
                 
                 if isEditable {
                     quickActionsGrid
+                        .disabled(isSavingTechnicianNote)
                     primaryActions
+                        .disabled(isSavingTechnicianNote)
                 } else {
                     secondaryActions
                 }
@@ -145,9 +149,11 @@ struct TicketDetailView: View {
         .pusulaKeyboardDismissal()
         .navigationTitle("İş Emri #\(ticket.id)")
         .navigationBarTitleDisplayMode(.inline)
+        .interactiveDismissDisabled(isSavingTechnicianNote)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Kapat") { dismiss() }
+                    .disabled(isSavingTechnicianNote)
             }
         }
         .task { await loadDetailData() }
@@ -620,16 +626,28 @@ struct TicketDetailView: View {
                 TextField("Yeni teknisyen notu", text: $newTechnicianNote, axis: .vertical)
                     .lineLimit(3...8)
                     .textFieldStyle(.roundedBorder)
+                    .disabled(!noteSubmission.canEdit)
+                    .accessibilityIdentifier("ticket.notes.input")
                 if !SessionManager.shared.isAdmin {
                     Toggle("Yöneticiye önemli olarak bildir", isOn: $isImportantTechnicianNote)
                         .font(.caption).tint(.orange)
+                        .disabled(!noteSubmission.canEdit)
+                }
+                if noteSubmission.showsRetry {
+                    Text("ticket.notes.save_unconfirmed")
+                        .font(.caption).foregroundStyle(.orange)
+                        .accessibilityIdentifier("ticket.notes.unconfirmed")
                 }
                 Button {
                     Task { await saveTechnicianNote() }
                 } label: {
-                    if isSavingTechnicianNote { ProgressView() } else { Label("Not Ekle", systemImage: "plus") }
+                    if isSavingTechnicianNote { ProgressView() }
+                    else { Label(noteSubmission.showsRetry ? LocalizedStringKey("ticket.detail.retry") : LocalizedStringKey("ticket.notes.add"),
+                                 systemImage: noteSubmission.showsRetry ? "arrow.clockwise" : "plus") }
                 }
-                .disabled(newTechnicianNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSavingTechnicianNote || !notesState.isLoaded)
+                .disabled(newTechnicianNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                          || isSavingTechnicianNote || (!notesState.isLoaded && !noteSubmission.showsRetry))
+                .accessibilityIdentifier("ticket.notes.submit")
                 .readOnlyProtected()
             }
         }
@@ -849,23 +867,37 @@ struct TicketDetailView: View {
     private func saveTechnicianNote() async {
         PusulaKeyboard.dismiss()
         let content = newTechnicianNote.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty, !isSavingTechnicianNote, notesState.isLoaded,
+        guard !content.isEmpty, !isSavingTechnicianNote, notesState.isLoaded || noteSubmission.showsRetry,
               let snapshot = SessionManager.shared.authenticatedSnapshot else { return }
-        isSavingTechnicianNote = true
+        guard let intent = noteSubmission.begin(ticketID: ticket.id, sessionRevision: snapshot.revision,
+                                                content: content, important: isImportantTechnicianNote) else { return }
         do {
-            let saved = try await TicketService.addTechnicianNote(ticketId: ticket.id, content: content,
-                                                                  important: isImportantTechnicianNote)
+            let saved = try await TicketService.addTechnicianNote(ticketId: intent.ticketID, content: intent.content,
+                important: intent.important, requestId: noteSubmission.requestID, authToken: snapshot.token)
             guard !Task.isCancelled, SessionManager.shared.isCurrent(snapshot) else {
-                isSavingTechnicianNote = false
+                noteSubmission.fail(allowsCorrection: false)
                 return
             }
-            technicianNotes.append(saved)
+            if !technicianNotes.contains(where: { $0.id == saved.id }) { technicianNotes.append(saved) }
+            noteSubmission.succeed()
             newTechnicianNote = ""
             isImportantTechnicianNote = false
         } catch {
-            errorMessage = error.localizedDescription
+            guard SessionManager.shared.isCurrent(snapshot) else {
+                noteSubmission.fail(allowsCorrection: false)
+                return
+            }
+            switch error {
+            case NetworkError.badRequest, NetworkError.forbidden, NetworkError.unauthorized,
+                 NetworkError.quotaExceeded, NetworkError.payloadTooLarge:
+                noteSubmission.fail(allowsCorrection: true)
+            default:
+                noteSubmission.fail(allowsCorrection: false)
+            }
+            if !LoadCancellationPolicy.isCancellation(error, taskIsCancelled: Task.isCancelled) {
+                errorMessage = error.localizedDescription
+            }
         }
-        isSavingTechnicianNote = false
     }
 
     private func loadTimeline() async {
