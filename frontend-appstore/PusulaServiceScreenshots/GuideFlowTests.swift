@@ -16,6 +16,9 @@ final class GuideFlowTests: XCTestCase {
     }
     private func tap(_ id: String, _ app: XCUIApplication) {
         let button = app.buttons[id]
+        // Allow local catalog loading to finish, but do not require lazy rows to
+        // already exist before scrolling to them.
+        _ = button.waitForExistence(timeout: 2)
         for _ in 0..<12 {
             if button.exists && button.isHittable { break }
             app.swipeUp()
