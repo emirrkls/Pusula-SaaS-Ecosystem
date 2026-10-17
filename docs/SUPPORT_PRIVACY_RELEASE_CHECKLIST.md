@@ -8,12 +8,15 @@ Bu kontrol listesi yeni destek istemci sürümünün yayın hazırlığıdır. �
 |---|---|---|
 | Talep konusu, mesajlar ve destek yanıtları | Customer Support | App Functionality, hesaba bağlı, takip amacı yok |
 | Kullanıcının seçerek gönderdiği ekran görüntüsü | Photos or Videos | App Functionality, hesaba bağlı, takip amacı yok |
-| İsteğe bağlı maskelenmiş bağlantı raporları | Other Diagnostic Data; süre ölçümleri için Performance Data kapsamını da karşılaştırın | App Functionality, hesaba bağlı, takip amacı yok |
+| İsteğe bağlı maskelenmiş bağlantı raporlarının hata kodları ve teknik bağlamı | Other Diagnostic Data | App Functionality, hesaba bağlı, takip amacı yok |
+| Aynı rapordaki ağ isteği süreleri (`elapsedMilliseconds`) | Performance Data | App Functionality, hesaba bağlı, takip amacı yok |
 | Talep sahibi kullanıcı kimliği ve işletme ilişkisi | User ID | Mevcut User ID beyanıyla eşleştirin; yeni reklam kimliği üretilmez |
 
 Kaynak: [Apple App Privacy Details](https://developer.apple.com/app-store/app-privacy-details/), 17 Ekim 2026. Apple'ın isteğe bağlı geri bildirim istisnası tüm koşullar sağlandığında uygulanır. Bu sürümde istisnaya dayanmak yerine destek içeriğini açıkça beyan etmek tercih edilir. Bu tablo yalnızca destek modülüdür; uygulamanın önceki tüm veri kategorilerini değiştirmez veya kaldırmaz.
 
 ## Yayın kapıları
+
+18 Ekim 2026 ek kontrolü: Ürün sahibi build 54'ün yayımlanmasını ve build 73 özelliklerinin 1.0.1 altında yeniden gönderilmesini onayladı. Yeni destek verilerinin üç kategorisi de ayrı onaylandı. Backend `SupportFiles` izin listesinde saklanan `elapsedMilliseconds`, Performance Data olarak ayrıca eşleştirildi; diğer teknik bağlam Other Diagnostic Data, talep metni Customer Support kapsamındadır. iOS paket manifesti bu eşlemeyle güncellendi. Yeni arka plan rapor gönderimi veya reklam takibi eklenmedi. App Store beyanlarının yayımlanmış son durumu yayın raporuyla ayrıca doğrulanmalıdır.
 
 - Mevcut App Privacy yanıtlarını okuyup yukarıdaki kategorilerle karşılaştırın. Aynı tür zaten beyanlıysa aynı kategoriyi tekrar oluşturmayın.
 - Nihai beyanı ürün sahibine gösterip onay almadan App Store'da yayımlamayın; build 54'ün mevcut başvurusuna müdahale etmeyin.

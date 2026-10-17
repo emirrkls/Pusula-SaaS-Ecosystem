@@ -185,7 +185,7 @@ test('privacy manifest covers first-party preferences and linked, non-tracking p
 
 test('support messages and explicitly shared connection reports are declared as linked, functionality-only data', () => {
   const manifest = read(app + 'PrivacyInfo.xcprivacy');
-  for (const category of ['CustomerSupport', 'OtherDiagnosticData']) {
+  for (const category of ['CustomerSupport', 'OtherDiagnosticData', 'PerformanceData']) {
     const declarations = [...manifest.matchAll(/<dict>\s*<key>NSPrivacyCollectedDataType<\/key>\s*<string>([^<]+)<\/string>([\s\S]*?)<\/dict>/g)]
       .filter(match => match[1] === `NSPrivacyCollectedDataType${category}`);
     assert.equal(declarations.length, 1, category);
