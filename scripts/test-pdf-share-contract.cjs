@@ -86,8 +86,8 @@ test('offline UI test sources cover nested PDF sharing, missing files and failur
   assert.match(ui, /identifier != %@/);
   assert.match(ui, /"pdf.preview.close", "Close", "Cancel"/);
   assert.match(ui, /app\.otherElements\["dismiss popup"\]/);
-  assert.match(ui, /popoverDismiss\.isHittable/);
-  assert.match(ui, /popoverDismiss\.tap\(\)/);
+  assert.match(ui, /XCTAssertGreaterThan\(bounds.width, 4/);
+  assert.match(ui, /withOffset\(CGVector\(dx: 2, dy: bounds.height \/ 2\)\)\.tap\(\)/);
   assert.match(ui, /identifier IN %@/);
   assert.match(ui, /\["pdf.share.activity", "ShareSheet.RemoteContainerView"\]/);
   assert.match(ui, /exists == false/);
