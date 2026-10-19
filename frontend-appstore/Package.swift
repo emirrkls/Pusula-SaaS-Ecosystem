@@ -16,6 +16,8 @@ let package = Package(
         .library(name: "PusulaDiagnostics", targets: ["PusulaDiagnostics"])
     ],
     targets: [
+        .target(name: "PusulaSharing", path: "PusulaService/Core/Sharing"),
+        .testTarget(name: "PusulaSharingTests", dependencies: ["PusulaSharing"], path: "SharingTests"),
         .target(name: "PusulaGuide", path: "PusulaService/Core/Guide", resources: [.process("app-guide.json")]),
         .testTarget(name: "PusulaGuideTests", dependencies: ["PusulaGuide"], path: "GuideTests"),
         .target(name: "PusulaSupport", path: "PusulaService/Core/Support"),

@@ -58,6 +58,8 @@ struct PDFPreviewItem: Identifiable {
 struct PDFPreviewSheet: View {
     let item: PDFPreviewItem
     @Environment(\.dismiss) private var dismiss
+    @State private var isSharing = false
+    @State private var shareFailure: PDFShareFailure?
 
     var body: some View {
         NavigationStack {
@@ -67,15 +69,24 @@ struct PDFPreviewSheet: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Kapat") { dismiss() }
+                        Button("pdf.preview.close") { dismiss() }
+                            .disabled(isSharing)
+                            .accessibilityIdentifier("pdf.preview.close")
                     }
                     ToolbarItem(placement: .primaryAction) {
-                        ShareLink(item: item.url) {
-                            Image(systemName: "square.and.arrow.up")
-                        }
-                        .accessibilityLabel("PDF'yi paylaş")
+                        PDFShareButton(url: item.url, isSharing: $isSharing) { shareFailure = $0 }
+                            .fixedSize()
+                            .frame(minWidth: 44, minHeight: 44)
                     }
                 }
+        }
+        .interactiveDismissDisabled(isSharing)
+        .alert("pdf.share.failure_title", isPresented: Binding(
+            get: { shareFailure != nil }, set: { if !$0 { shareFailure = nil } }
+        )) {
+            Button("pdf.share.dismiss_error", role: .cancel) { shareFailure = nil }
+        } message: {
+            if let shareFailure { Text(String(localized: String.LocalizationValue(shareFailure.rawValue))) }
         }
     }
 }

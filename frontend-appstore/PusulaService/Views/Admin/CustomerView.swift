@@ -756,6 +756,9 @@ struct CustomerEditorSheet: View {
     let customer: CustomerDTO?
     var onCustomerSaved: ((CustomerDTO) -> Void)? = nil
     let onSaved: () async -> Void
+#if DEBUG
+    var testSave: (@MainActor (CustomerDTO, UUID) async throws -> CustomerDTO)? = nil
+#endif
     
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
@@ -764,25 +767,46 @@ struct CustomerEditorSheet: View {
     @State private var submissionId = UUID()
     @State private var isSaving = false
     @State private var errorMessage: String?
+
+    // Preserve the production call sites' trailing onSaved closure even when
+    // DEBUG adds an optional fixture closure after it in the stored properties.
+    init(customer: CustomerDTO?, onCustomerSaved: ((CustomerDTO) -> Void)? = nil,
+         onSaved: @escaping () async -> Void) {
+        self.customer = customer
+        self.onCustomerSaved = onCustomerSaved
+        self.onSaved = onSaved
+    }
     
     var body: some View {
         NavigationStack {
             Form {
                 TextField("Ad Soyad / Firma", text: $name)
+                    .accessibilityIdentifier("customers.save.name")
                 TextField("Telefon", text: $phone).keyboardType(.phonePad)
+                    .accessibilityIdentifier("customers.save.phone")
                 TextField("Adres", text: $address, axis: .vertical).lineLimit(2...4)
+                    .accessibilityIdentifier("customers.save.address")
             }
+            .disabled(isSaving)
             .guideTourTarget("customer-fields")
             .pusulaKeyboardDismissal()
             .navigationTitle(customer == nil ? "Yeni Müşteri" : "Müşteri Düzenle")
             .interactiveDismissDisabled(isSaving)
+            .safeAreaInset(edge: .bottom) {
+                if isSaving { savingStatus }
+            }
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("İptal") { dismiss() }.disabled(isSaving) }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("İptal") { dismiss() }
+                        .disabled(isSaving)
+                        .accessibilityIdentifier("customers.save.cancel")
+                }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Kaydet") {
+                    Button(isSaving ? String(localized: "customers.save.saving") : String(localized: "customers.save.action")) {
                         Task { await save() }
                     }
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
+                    .accessibilityIdentifier("customers.save.submit")
                     .readOnlyProtected()
                 }
             }
@@ -797,6 +821,28 @@ struct CustomerEditorSheet: View {
         }
     }
 
+    private var savingStatus: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ProgressView()
+                .tint(PusulaTheme.accent)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("customers.save.saving")
+                    .font(.subheadline.weight(.semibold))
+                Text("customers.save.wait_message")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(.regularMaterial)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("customers.save.progress")
+    }
+
+    @MainActor
     private func save() async {
         PusulaKeyboard.dismiss()
         guard !isSaving else { return }
@@ -804,18 +850,24 @@ struct CustomerEditorSheet: View {
         defer { isSaving = false }
         let dto = CustomerDTO(id: customer?.id, name: name, phone: phone.nilIfEmpty, address: address.nilIfEmpty, coordinates: customer?.coordinates)
         do {
-            let savedCustomer: CustomerDTO
-            if let id = customer?.id {
-                savedCustomer = try await CustomerService.updateCustomer(id: id, customer: dto)
-            } else {
-                savedCustomer = try await CustomerService.createCustomer(dto, requestId: submissionId)
-            }
+            let savedCustomer = try await persistCustomer(dto)
             onCustomerSaved?(savedCustomer)
             await onSaved()
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    @MainActor
+    private func persistCustomer(_ dto: CustomerDTO) async throws -> CustomerDTO {
+#if DEBUG
+        if let testSave { return try await testSave(dto, submissionId) }
+#endif
+        if let id = customer?.id {
+            return try await CustomerService.updateCustomer(id: id, customer: dto)
+        }
+        return try await CustomerService.createCustomer(dto, requestId: submissionId)
     }
 }
 

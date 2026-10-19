@@ -19,12 +19,12 @@ test('release identity excludes the retired iOS app', () => {
 });
 
 test('the next App Store version is consistent across Debug, Release and upload verification', () => {
-  assert.equal(APP.version, '1.0.1');
+  assert.equal(APP.version, '1.0.2');
   const project = read('frontend-appstore/PusulaService.xcodeproj/project.pbxproj');
   const versions = [...project.matchAll(/MARKETING_VERSION = ([0-9.]+);/g)].map(match => match[1]);
   assert.deepEqual(versions, [APP.version, APP.version]);
   const builds = [...project.matchAll(/CURRENT_PROJECT_VERSION = ([0-9]+);/g)].map(match => match[1]);
-  assert.deepEqual(builds, ['76', '76']);
+  assert.deepEqual(builds, ['77', '77']);
   const verifier = read('scripts/verify-ios-export.py');
   assert.ok(verifier.includes(`info['CFBundleShortVersionString'] == '${APP.version}'`));
   assert.ok(verifier.includes(`'version': '${APP.version}'`));

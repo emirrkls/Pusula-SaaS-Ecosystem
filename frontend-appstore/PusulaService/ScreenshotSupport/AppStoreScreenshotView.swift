@@ -37,7 +37,9 @@ struct AppStoreScreenshotView: View {
     @ViewBuilder
     var body: some View {
 #if DEBUG
-        if ServicePhotoFlowFixture.isEnabled {
+        if PDFShareFixture.isEnabled {
+            PDFShareHarness()
+        } else if ServicePhotoFlowFixture.isEnabled {
             ServicePhotoFlowHarness()
         } else if GuideFlowFixture.isEnabled {
             GuideFlowHarness()
@@ -47,6 +49,8 @@ struct AppStoreScreenshotView: View {
             CollectionHarness()
         } else if ConnectionDiagnosticsFixture.isEnabled {
             ConnectionDiagnosticsHarness()
+        } else if CustomerSaveFixture.isEnabled {
+            CustomerSaveHarness()
         } else if CustomerRefreshFixture.isEnabled {
             CustomerRefreshHarness()
         } else if TicketDetailLoadFixture.isEnabled {
