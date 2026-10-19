@@ -88,6 +88,8 @@ test('offline UI test sources cover nested PDF sharing, missing files and failur
   assert.match(ui, /app\.otherElements\["dismiss popup"\]/);
   assert.match(ui, /popoverDismiss\.isHittable/);
   assert.match(ui, /popoverDismiss\.tap\(\)/);
+  assert.match(ui, /identifier IN %@/);
+  assert.match(ui, /\["pdf.share.activity", "ShareSheet.RemoteContainerView"\]/);
   assert.match(ui, /exists == false/);
   assert.match(read('frontend-appstore/Package.swift'), /name: "PusulaSharingTests"/);
 });

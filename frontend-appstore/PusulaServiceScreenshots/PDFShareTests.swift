@@ -57,7 +57,11 @@ final class PDFShareTests: XCTestCase {
     }
 
     private func activity(in app: XCUIApplication) -> XCUIElement {
-        app.descendants(matching: .any).matching(identifier: "pdf.share.activity").firstMatch
+        // iOS replaces the activity's initial root view with its remote host
+        // on later presentations. The captured Cloud hierarchy still exposes
+        // that real system share window as ShareSheet.RemoteContainerView.
+        app.descendants(matching: .any).matching(NSPredicate(format: "identifier IN %@",
+            ["pdf.share.activity", "ShareSheet.RemoteContainerView"])).firstMatch
     }
 
     private func openShare(in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {

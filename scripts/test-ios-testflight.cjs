@@ -24,7 +24,7 @@ test('the next App Store version is consistent across Debug, Release and upload 
   const versions = [...project.matchAll(/MARKETING_VERSION = ([0-9.]+);/g)].map(match => match[1]);
   assert.deepEqual(versions, [APP.version, APP.version]);
   const builds = [...project.matchAll(/CURRENT_PROJECT_VERSION = ([0-9]+);/g)].map(match => match[1]);
-  assert.deepEqual(builds, ['78', '78']);
+  assert.deepEqual(builds, ['79', '79']);
   const verifier = read('scripts/verify-ios-export.py');
   assert.ok(verifier.includes(`info['CFBundleShortVersionString'] == '${APP.version}'`));
   assert.ok(verifier.includes(`'version': '${APP.version}'`));
