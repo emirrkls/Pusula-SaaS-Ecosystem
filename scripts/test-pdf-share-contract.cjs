@@ -34,6 +34,9 @@ test('file validation precedes presentation; errors are visible and cancellation
   assert.match(bridge, /let failed = error != nil/);
   assert.match(bridge, /failed \? \.systemFailure : nil/);
   assert.match(bridge, /finish\(lease, failure: nil\)/);
+  assert.match(bridge, /UIPopoverPresentationControllerDelegate/);
+  assert.match(bridge, /popover\.delegate = self/);
+  assert.match(bridge, /func popoverPresentationControllerDidDismissPopover/);
   assert.match(bridge, /isAwaitingPresentation\(lease\)/);
   assert.match(bridge, /self\.onBusy\(false\)/);
   assert.match(bridge, /if let failure \{ self\.onFailure\(failure\) \}/);
@@ -82,5 +85,9 @@ test('offline UI test sources cover nested PDF sharing, missing files and failur
   }
   assert.match(ui, /identifier != %@/);
   assert.match(ui, /"pdf.preview.close", "Close", "Cancel"/);
+  assert.match(ui, /app\.otherElements\["dismiss popup"\]/);
+  assert.match(ui, /popoverDismiss\.isHittable/);
+  assert.match(ui, /popoverDismiss\.tap\(\)/);
+  assert.match(ui, /exists == false/);
   assert.match(read('frontend-appstore/Package.swift'), /name: "PusulaSharingTests"/);
 });

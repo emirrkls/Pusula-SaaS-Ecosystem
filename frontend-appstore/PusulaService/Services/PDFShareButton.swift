@@ -36,7 +36,7 @@ struct PDFShareButton: UIViewRepresentable {
     static func dismantleUIView(_ button: UIButton, coordinator: Coordinator) { coordinator.invalidate() }
 
     @MainActor
-    final class Coordinator: NSObject, UIAdaptivePresentationControllerDelegate {
+    final class Coordinator: NSObject, UIPopoverPresentationControllerDelegate {
         var url: URL
         var onBusy: @MainActor (Bool) -> Void
         var onFailure: @MainActor (PDFShareFailure) -> Void
@@ -81,6 +81,7 @@ struct PDFShareButton: UIViewRepresentable {
                 popover.sourceView = source
                 popover.sourceRect = source.bounds
                 popover.permittedArrowDirections = [.up, .down]
+                popover.delegate = self
             }
             activity = controller
             presenter.present(controller, animated: true) { [weak self] in
@@ -121,6 +122,11 @@ struct PDFShareButton: UIViewRepresentable {
         func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
             guard presentationController.presentedViewController === activity, let lease = state.lease else { return }
             finish(lease, failure: nil) // Dismissing/cancelling sharing is not an error.
+        }
+
+        func popoverPresentationControllerDidDismissPopover(_ popoverPresentationController: UIPopoverPresentationController) {
+            guard popoverPresentationController.presentedViewController === activity, let lease = state.lease else { return }
+            finish(lease, failure: nil)
         }
 
         private func finish(_ lease: UUID, failure: PDFShareFailure?) {

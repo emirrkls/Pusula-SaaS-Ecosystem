@@ -74,8 +74,17 @@ final class PDFShareTests: XCTestCase {
         // These tests intentionally do not select any recipient or send a file.
         let close = app.buttons.matching(NSPredicate(format:
             "identifier != %@ AND (label == %@ OR label == %@)", "pdf.preview.close", "Close", "Cancel")).firstMatch
-        XCTAssertTrue(close.waitForExistence(timeout: 5), file: file, line: line)
-        close.tap()
+        // Xcode Cloud's iOS 27 activity uses a popover on both destinations.
+        // Its captured accessibility hierarchy exposes _UIPopoverDimmingView
+        // as Other, label "dismiss popup", not as a Close/Cancel button.
+        let popoverDismiss = app.otherElements["dismiss popup"].firstMatch
+        if popoverDismiss.exists {
+            XCTAssertTrue(popoverDismiss.isHittable, file: file, line: line)
+            popoverDismiss.tap()
+        } else {
+            XCTAssertTrue(close.waitForExistence(timeout: 5), file: file, line: line)
+            close.tap()
+        }
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: activity(in: app))
         XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 8), .completed, file: file, line: line)
         let share = app.buttons["pdf.share.open"]
