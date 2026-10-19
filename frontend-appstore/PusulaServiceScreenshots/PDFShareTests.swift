@@ -83,15 +83,14 @@ final class PDFShareTests: XCTestCase {
         // as Other, label "dismiss popup", not as a Close/Cancel button.
         let popoverDismiss = app.otherElements["dismiss popup"].firstMatch
         if popoverDismiss.exists {
-            // The iPad AX dismiss region has no hittable point. Tap the window's
+            // The iPad AX dismiss region has no hittable point. Tap its actual
             // left edge, outside the trailing-button-anchored activity popover.
             // The disappearance / restored controls / retained PDF assertions
             // below still prove that only the real system activity was closed.
-            let bounds = app.frame
+            let bounds = popoverDismiss.frame
             XCTAssertGreaterThan(bounds.width, 4, file: file, line: line)
             XCTAssertGreaterThan(bounds.height, 4, file: file, line: line)
-            app.coordinate(withNormalizedOffset: .zero)
-                .withOffset(CGVector(dx: 2, dy: bounds.height / 2)).tap()
+            popoverDismiss.coordinate(withNormalizedOffset: CGVector(dx: 2 / bounds.width, dy: 0.5)).tap()
         } else {
             XCTAssertTrue(close.waitForExistence(timeout: 5), file: file, line: line)
             close.tap()
