@@ -194,7 +194,8 @@ public class SettingsController {
                         String name = value.getVerifiedName() == null || value.getVerifiedName().isBlank()
                                 ? "WhatsApp Business" : value.getVerifiedName();
                         String phone = value.getDisplayPhoneNumber() == null ? "" : " — " + value.getDisplayPhoneNumber();
-                        lblWhatsAppStatus.setText("Bağlı: " + name + phone);
+                        lblWhatsAppStatus.setText("Bağlı: " + name + phone
+                            + (value.getSync() == null ? "" : "\n" + value.getSync().description()));
                         btnConnectWhatsApp.setText("Bağlantıyı Yenile");
                     } else {
                         lblWhatsAppStatus.setText("Henüz WhatsApp Business hesabı bağlı değil.");
@@ -211,6 +212,17 @@ public class SettingsController {
     }
 
     // ============ FIXED EXPENSES TAB (existing) ============
+    @FXML
+    private void handleWhatsAppMirror() {
+        WhatsAppMirrorView view = new WhatsAppMirrorView(whatsAppIntegrationApi);
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle("WhatsApp — eşitlenen kişiler ve mesajlar");
+        if (lblWhatsAppStatus.getScene() != null) dialog.initOwner(lblWhatsAppStatus.getScene().getWindow());
+        dialog.getDialogPane().setContent(view);
+        dialog.getDialogPane().setPrefSize(1000, 650);
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        dialog.setResizable(true); dialog.setOnHidden(e -> view.close()); dialog.show();
+    }
 
     private void setupFixedExpensesTable() {
         colName.setCellValueFactory(

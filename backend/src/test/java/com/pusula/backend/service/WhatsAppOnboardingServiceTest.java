@@ -25,6 +25,7 @@ class WhatsAppOnboardingServiceTest {
     @Mock WhatsAppOnboardingSessionRepository sessions;
     @Mock WhatsAppBusinessIntegrationRepository integrations;
     @Mock WhatsAppCredentialCrypto crypto;
+    @Mock WhatsAppCoexistenceSyncStore syncStore;
 
     @Test
     void startCreatesSingleUseOpaqueStateWithoutPersistingRawValue() {
@@ -98,6 +99,6 @@ class WhatsAppOnboardingServiceTest {
                 "4494017667582443", secret, "2136126430333068",
                 "https://www.pusulaiklimlendirme.com/whatsapp-connect", encryptionKey, "v26.0",
                 "verify-token");
-        return new WhatsAppOnboardingService(properties, sessions, integrations, crypto, new ObjectMapper());
+        return new WhatsAppOnboardingService(properties, sessions, integrations, crypto, new ObjectMapper(), syncStore);
     }
 }

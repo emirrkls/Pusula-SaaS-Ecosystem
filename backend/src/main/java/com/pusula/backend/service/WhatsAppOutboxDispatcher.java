@@ -66,6 +66,8 @@ public class WhatsAppOutboxDispatcher {
                     credentials.phoneNumberId(), credentials.accessToken(), item.getRecipientPhone(),
                     item.getTemplateName(), item.getTemplateLanguage(), parameters);
             markSent(id, result.messageId());
+        } catch (WhatsAppTenantCredentialService.CoexistencePreparingException ex) {
+            deferUntilReady(id, ex.deadline());
         } catch (WhatsAppTenantCredentialService.CredentialUnavailableException ex) {
             markFailure(id, ex.getMessage(), false);
         } catch (WhatsAppCloudApiClient.WhatsAppCloudApiException ex) {
@@ -73,6 +75,22 @@ public class WhatsAppOutboxDispatcher {
         } catch (Exception ex) {
             markFailure(id, ex.getMessage(), true);
         }
+    }
+
+    @Transactional
+    void deferUntilReady(Long id, LocalDateTime deadline) {
+        if (deadline == null || !deadline.isAfter(LocalDateTime.now())) {
+            markFailure(id, "WhatsApp eşitleme süresi doldu", false);
+            return;
+        }
+        repository.findById(id).ifPresent(item -> {
+            item.setStatus(WhatsAppOutboxStatus.RETRY);
+            item.setAttemptCount(Math.max(0, item.getAttemptCount() - 1));
+            item.setNextAttemptAt(LocalDateTime.now().plusMinutes(1));
+            item.setProcessingStartedAt(null);
+            item.setLastError("WhatsApp eşitlemesi hazırlanıyor");
+            repository.save(item);
+        });
     }
 
     @Transactional

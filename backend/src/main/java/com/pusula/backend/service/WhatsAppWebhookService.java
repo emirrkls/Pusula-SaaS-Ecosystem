@@ -23,31 +23,39 @@ public class WhatsAppWebhookService {
     private final WhatsAppMessageStatusEventRepository eventRepository;
     private final WhatsAppMessageOutboxRepository outboxRepository;
     private final WhatsAppBusinessIntegrationRepository integrationRepository;
+    private final WhatsAppCoexistenceMirrorService mirror;
 
     public WhatsAppWebhookService(
             ObjectMapper objectMapper,
             WhatsAppMessageStatusEventRepository eventRepository,
             WhatsAppMessageOutboxRepository outboxRepository,
-            WhatsAppBusinessIntegrationRepository integrationRepository) {
+            WhatsAppBusinessIntegrationRepository integrationRepository, WhatsAppCoexistenceMirrorService mirror) {
         this.objectMapper = objectMapper;
         this.eventRepository = eventRepository;
         this.outboxRepository = outboxRepository;
         this.integrationRepository = integrationRepository;
+        this.mirror = mirror;
     }
 
     @Transactional
     public int processStatusEvents(String rawBody) {
         try {
             JsonNode root = objectMapper.readTree(rawBody);
+            if (root.has("object") && !"whatsapp_business_account".equals(root.path("object").asText())) return 0;
             int inserted = 0;
             for (JsonNode entry : root.path("entry")) {
                 for (JsonNode change : entry.path("changes")) {
+                    inserted += mirror.processChange(entry.path("id").asText(), entry.path("time"),
+                        change.path("field").asText(), change.path("value"));
                     if (!"messages".equals(change.path("field").asText())) continue;
                     JsonNode value = change.path("value");
                     String phoneNumberId = value.path("metadata").path("phone_number_id").asText(null);
-                    Long integrationCompanyId = integrationRepository
+                    WhatsAppBusinessIntegration integration = integrationRepository
                             .findByPhoneNumberIdAndDeletedFalse(phoneNumberId)
-                            .map(WhatsAppBusinessIntegration::getCompanyId).orElse(null);
+                            .orElse(null);
+                    String wabaId = entry.path("id").asText();
+                    if (integration != null && !wabaId.isBlank() && !wabaId.equals(integration.getWabaId())) continue;
+                    Long integrationCompanyId = integration == null ? null : integration.getCompanyId();
                     for (JsonNode statusNode : value.path("statuses")) {
                         if (persistStatus(statusNode, phoneNumberId, integrationCompanyId)) inserted++;
                     }
@@ -78,6 +86,8 @@ public class WhatsAppWebhookService {
         }
 
         WhatsAppMessageOutbox outbox = outboxRepository.findByProviderMessageId(messageId).orElse(null);
+        if (outbox != null && integrationCompanyId != null
+                && !integrationCompanyId.equals(outbox.getCompanyId())) return false;
         Long companyId = outbox != null ? outbox.getCompanyId() : integrationCompanyId;
         String eventKey = sha256(String.join("|", messageId, status, timestampText,
                 recipientId == null ? "" : recipientId, errorCode == null ? "" : errorCode));

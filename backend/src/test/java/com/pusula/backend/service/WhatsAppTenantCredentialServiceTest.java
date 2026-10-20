@@ -17,13 +17,14 @@ import static org.mockito.Mockito.*;
 class WhatsAppTenantCredentialServiceTest {
     @Mock WhatsAppBusinessIntegrationRepository integrations;
     @Mock WhatsAppCredentialCrypto crypto;
+    @Mock WhatsAppCoexistenceSyncStore syncStore;
 
     @Test
     void expiredTenantTokenNeverFallsBackToLegacySender() {
         WhatsAppBusinessIntegration integration = integration(LocalDateTime.now().minusMinutes(1));
         when(integrations.findByCompanyIdAndDeletedFalse(10L)).thenReturn(Optional.of(integration));
         WhatsAppTenantCredentialService service = new WhatsAppTenantCredentialService(
-                integrations, crypto, "legacy-token", "legacy-phone");
+                integrations, crypto, "legacy-token", "legacy-phone", syncStore);
 
         assertThrows(WhatsAppTenantCredentialService.CredentialUnavailableException.class,
                 () -> service.resolve(10L));
@@ -35,7 +36,8 @@ class WhatsAppTenantCredentialServiceTest {
     void usesLegacySenderOnlyWhenTenantHasNoIntegration() {
         when(integrations.findByCompanyIdAndDeletedFalse(10L)).thenReturn(Optional.empty());
         WhatsAppTenantCredentialService service = new WhatsAppTenantCredentialService(
-                integrations, crypto, "legacy-token", "legacy-phone");
+                integrations, crypto, "legacy-token", "legacy-phone", syncStore);
+
 
         var result = service.resolve(10L);
 
@@ -51,5 +53,17 @@ class WhatsAppTenantCredentialServiceTest {
         integration.setTokenExpiresAt(expiresAt);
         integration.setStatus("CONNECTED");
         return integration;
+    }
+
+    @Test
+    void syncingTenantCannotSendOrFallBackToLegacyButIsReportedAsTemporary() {
+        var integration = integration(LocalDateTime.now().plusHours(2));
+        integration.setCoexistence(true); integration.setCoexistenceStartedAt(LocalDateTime.now());
+        when(integrations.findByCompanyIdAndDeletedFalse(10L)).thenReturn(Optional.of(integration));
+        when(syncStore.snapshot(integration)).thenReturn(
+            new com.pusula.backend.dto.WhatsAppOnboardingDtos.SyncStatus("SYNCING", "ACCEPTED", "RECEIVING", 30));
+        var service = new WhatsAppTenantCredentialService(integrations, crypto, "legacy", "legacy-phone", syncStore);
+        assertThrows(WhatsAppTenantCredentialService.CoexistencePreparingException.class, () -> service.resolve(10L));
+        verifyNoInteractions(crypto);
     }
 }

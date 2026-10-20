@@ -133,6 +133,8 @@
                                                 onAction="#handleConnectWhatsApp" styleClass="btn-success" />
                                         <Button text="Durumu Yenile" onAction="#handleRefreshWhatsAppStatus"
                                                 styleClass="btn-secondary" />
+                                        <Button text="Eşitlenen Kişiler ve Mesajlar" onAction="#handleWhatsAppMirror"
+                                                styleClass="btn-secondary" />
                                     </children>
                                 </FlowPane>
                                 <Label text="Bağlantı bağlantısı 15 dakika geçerlidir. Erişim anahtarı tarayıcıda gösterilmez ve sunucuda şifreli saklanır."

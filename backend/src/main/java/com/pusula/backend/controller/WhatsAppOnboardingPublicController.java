@@ -13,6 +13,12 @@ public class WhatsAppOnboardingPublicController {
 
     public WhatsAppOnboardingPublicController(WhatsAppOnboardingService service) { this.service = service; }
 
+    @PostMapping("/progress")
+    public ResponseEntity<WhatsAppOnboardingDtos.StatusResponse> progress(
+            @Valid @RequestBody WhatsAppOnboardingDtos.ProgressRequest request) {
+        return ResponseEntity.ok(service.progress(request.state()));
+    }
+
     @PostMapping("/complete")
     public ResponseEntity<WhatsAppOnboardingDtos.CompleteResponse> complete(
             @Valid @RequestBody WhatsAppOnboardingDtos.CompleteRequest request) {

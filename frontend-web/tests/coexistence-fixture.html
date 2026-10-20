@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="tr">
+<head><meta charset="utf-8"><title>Coexistence yerel bileşen testi</title></head>
+<body style="margin:0">
+<aside id="fixture-status" style="padding:10px;background:#e6f9fc;color:#12314a;font-family:sans-serif">
+  Yalnız yerel, sentetik bileşen testi — Meta veya canlı API çağrılmaz.
+</aside>
+<div id="root"></div><script id="facebook-jssdk"></script>
+<script type="module">
+  if (!import.meta.env.DEV || !['localhost','127.0.0.1'].includes(location.hostname))
+    throw new Error('Development-only fixture');
+  const scenario = new URLSearchParams(location.search).get('scenario') || 'success';
+  const hash = new URLSearchParams({ state:'a'.repeat(43), app_id:'123456789', configuration_id:'987654321',
+    expires_at:new Date(Date.now()+900000).toISOString() });
+  history.replaceState(null,'',location.pathname+location.search+'#'+hash);
+  let completions=0;
+  let polls=0;
+  const banner=document.getElementById('fixture-status');
+  window.fetch = async (url, options={}) => {
+    const path = new URL(url,location.origin).pathname;
+    if (!['/api/public/whatsapp/onboarding/complete','/api/public/whatsapp/onboarding/progress'].includes(path))
+      throw new Error('External network disabled by local fixture');
+    if (path.endsWith('/complete')) {
+      completions++;
+      const input=JSON.parse(options.body);
+      if (input.coexistence !== true || input.phoneNumberId !== null || input.wabaId !== '123456789')
+        throw new Error('Unexpected completion contract');
+      if (scenario === 'ambiguous') throw new TypeError('Synthetic lost response');
+    } else polls++;
+    banner.textContent = 'Yerel sentetik test / '+scenario+' / complete: '+completions+' / progress: '+polls;
+    const pending=scenario==='pending' || polls===0 && scenario!=='declined' && scenario!=='ambiguous';
+    return new Response(JSON.stringify({connected:true, sync:{
+      status:pending?'SYNCING':'READY',contactsStatus:'ACCEPTED',
+      historyStatus:scenario==='declined'?'DECLINED':pending?'RECEIVING':'COMPLETE',historyProgress:pending?35:100,
+    }}),{status:200,headers:{'Content-Type':'application/json'}});
+  };
+  window.FB = {
+    init() {},
+    login(callback,options) {
+      if (options.extras.sessionInfoVersion !== '3') throw new Error('Missing session logging');
+      const finish=()=>window.dispatchEvent(new MessageEvent('message',{origin:'https://www.facebook.com',
+        data:JSON.stringify({type:'WA_EMBEDDED_SIGNUP',event:'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING',data:{waba_id:'123456789'}})}));
+      if (scenario==='cancel') {
+        window.dispatchEvent(new MessageEvent('message',{origin:'https://www.facebook.com',
+          data:JSON.stringify({type:'WA_EMBEDDED_SIGNUP',event:'CANCEL',data:{}})}));
+        callback({authResponse:{code:'ignored-after-cancel'}});
+      } else if (scenario==='finish-first') {finish();callback({authResponse:{code:'test-only-code'}});finish();}
+      else {callback({authResponse:{code:'test-only-code'}});finish();finish();}
+    },
+  };
+  const React=await import('react');
+  const {createRoot}=await import('react-dom/client');
+  const {default:WhatsAppConnect}=await import('/src/pages/WhatsAppConnect.jsx');
+  await import('/src/index.css');
+  createRoot(document.getElementById('root')).render(React.createElement(WhatsAppConnect));
+</script>
+</body></html>

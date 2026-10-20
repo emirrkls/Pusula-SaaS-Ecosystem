@@ -10,6 +10,7 @@ import com.pusula.backend.entity.WhatsAppOnboardingSession;
 import com.pusula.backend.repository.WhatsAppBusinessIntegrationRepository;
 import com.pusula.backend.repository.WhatsAppOnboardingSessionRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
@@ -23,6 +24,9 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.ArrayList;
 
 @Service
 public class WhatsAppOnboardingService {
@@ -34,18 +38,31 @@ public class WhatsAppOnboardingService {
     private final WhatsAppBusinessIntegrationRepository integrationRepository;
     private final WhatsAppCredentialCrypto crypto;
     private final ObjectMapper objectMapper;
+    private final WhatsAppCoexistenceSyncStore syncStore;
     private final SecureRandom secureRandom = new SecureRandom();
-    private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    private final HttpClient httpClient;
 
+    @Autowired
     public WhatsAppOnboardingService(WhatsAppIntegrationProperties properties,
             WhatsAppOnboardingSessionRepository sessionRepository,
             WhatsAppBusinessIntegrationRepository integrationRepository,
-            WhatsAppCredentialCrypto crypto, ObjectMapper objectMapper) {
+            WhatsAppCredentialCrypto crypto, ObjectMapper objectMapper, WhatsAppCoexistenceSyncStore syncStore) {
+        this(properties, sessionRepository, integrationRepository, crypto, objectMapper, syncStore,
+            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build());
+    }
+
+    WhatsAppOnboardingService(WhatsAppIntegrationProperties properties,
+            WhatsAppOnboardingSessionRepository sessionRepository,
+            WhatsAppBusinessIntegrationRepository integrationRepository,
+            WhatsAppCredentialCrypto crypto, ObjectMapper objectMapper, WhatsAppCoexistenceSyncStore syncStore,
+            HttpClient httpClient) {
         this.properties = properties;
         this.sessionRepository = sessionRepository;
         this.integrationRepository = integrationRepository;
         this.crypto = crypto;
         this.objectMapper = objectMapper;
+        this.syncStore = syncStore;
+        this.httpClient = httpClient;
     }
 
     @Transactional
@@ -83,7 +100,7 @@ public class WhatsAppOnboardingService {
                     return new WhatsAppOnboardingDtos.StatusResponse(
                             "CONNECTED".equals(value.getStatus()) && !expired,
                             value.getDisplayPhoneNumber(), value.getVerifiedName(), value.getStatus(),
-                            value.getTokenExpiresAt(), value.getUpdatedAt());
+                            value.getTokenExpiresAt(), value.getUpdatedAt(), syncStore.snapshot(value));
                 })
                 .orElseGet(() -> new WhatsAppOnboardingDtos.StatusResponse(
                         false, null, null, "NOT_CONNECTED", null, null));
@@ -95,14 +112,27 @@ public class WhatsAppOnboardingService {
         LocalDateTime now = LocalDateTime.now();
         WhatsAppOnboardingSession session = sessionRepository.findByStateHash(sha256(request.state()))
                 .orElseThrow(() -> new IllegalArgumentException("Bağlantı oturumu geçersiz"));
-        if (session.getUsedAt() != null || !session.getExpiresAt().isAfter(now)) {
+        if (session.getUsedAt() != null) {
+            WhatsAppBusinessIntegration existing = completedIntegration(session, now);
+            if (!existing.getWabaId().equals(request.wabaId())
+                    || (request.phoneNumberId() != null && !existing.getPhoneNumberId().equals(request.phoneNumberId()))) {
+                throw new IllegalArgumentException("Bağlantı oturumu farklı bir hesap için kullanılmış");
+            }
+            return new WhatsAppOnboardingDtos.CompleteResponse("CONNECTED".equals(existing.getStatus())
+                && (existing.getTokenExpiresAt() == null || existing.getTokenExpiresAt().isAfter(now)),
+                existing.getDisplayPhoneNumber(), existing.getVerifiedName(), syncStore.snapshot(existing));
+        }
+        if (!session.getExpiresAt().isAfter(now)) {
             throw new IllegalArgumentException("Bağlantı oturumunun süresi dolmuş veya daha önce kullanılmış");
         }
+        if (request.phoneNumberId() == null && !Boolean.TRUE.equals(request.coexistence()))
+            throw new IllegalArgumentException("Telefon numarası seçimi eksik");
 
         TokenResult token = exchangeCode(request.code());
-        PhoneResult phone = verifyPhoneOwnership(request.wabaId(), request.phoneNumberId(), token.accessToken());
+        PhoneResult phone = verifyPhoneOwnership(request.wabaId(), request.phoneNumberId(),
+            Boolean.TRUE.equals(request.coexistence()), token.accessToken());
 
-        integrationRepository.findByPhoneNumberIdAndDeletedFalse(request.phoneNumberId())
+        integrationRepository.findByPhoneNumberIdAndDeletedFalse(phone.id())
                 .filter(existing -> !existing.getCompanyId().equals(session.getCompanyId()))
                 .ifPresent(existing -> { throw new IllegalStateException("Bu WhatsApp numarası başka bir işletmeye bağlı"); });
 
@@ -111,22 +141,56 @@ public class WhatsAppOnboardingService {
                 .orElseGet(WhatsAppBusinessIntegration::new);
         integration.setCompanyId(session.getCompanyId());
         integration.setWabaId(request.wabaId());
-        integration.setPhoneNumberId(request.phoneNumberId());
+        integration.setPhoneNumberId(phone.id());
         integration.setDisplayPhoneNumber(phone.displayPhoneNumber());
         integration.setVerifiedName(phone.verifiedName());
         integration.setAccessTokenCiphertext(crypto.encrypt(token.accessToken()));
-        integration.setTokenExpiresAt(now.plusSeconds(token.expiresInSeconds()));
+        integration.setTokenExpiresAt(token.expiresInSeconds() > 0 ? now.plusSeconds(token.expiresInSeconds()) : null);
+        integration.setCoexistence(phone.coexistence());
+        integration.setCoexistenceGeneration(UUID.randomUUID().toString());
+        integration.setCoexistenceStartedAt(now);
+        integration.setCoexistenceLifecycleAt(now.withNano(0));
         integration.setStatus("CONNECTED");
         integration.setWebhookSubscriptionStatus("PENDING");
         integration.setWebhookSubscriptionAttempts(0);
         integration.setWebhookSubscriptionNextAttemptAt(now);
         integration.setWebhookSubscriptionLastError(null);
         integration.setWebhookSubscribedAt(null);
-        integrationRepository.save(integration);
+        integrationRepository.saveAndFlush(integration);
+        syncStore.enqueue(integration, now);
 
         session.setUsedAt(now);
+        session.setCompletedIntegrationId(integration.getId());
+        session.setCompletedGeneration(integration.getCoexistenceGeneration());
         sessionRepository.save(session);
-        return new WhatsAppOnboardingDtos.CompleteResponse(true, phone.displayPhoneNumber(), phone.verifiedName());
+        return new WhatsAppOnboardingDtos.CompleteResponse(true, phone.displayPhoneNumber(), phone.verifiedName(),
+            syncStore.snapshot(integration));
+    }
+
+    @Transactional
+    public WhatsAppOnboardingDtos.StatusResponse progress(String state) {
+        WhatsAppOnboardingSession session = sessionRepository.findByStateHash(sha256(state))
+            .orElseThrow(() -> new IllegalArgumentException("Bağlantı oturumu geçersiz"));
+        WhatsAppBusinessIntegration integration = completedIntegration(session, LocalDateTime.now());
+        boolean connected = "CONNECTED".equals(integration.getStatus()) &&
+            (integration.getTokenExpiresAt() == null || integration.getTokenExpiresAt().isAfter(LocalDateTime.now()));
+        return new WhatsAppOnboardingDtos.StatusResponse(connected, integration.getDisplayPhoneNumber(),
+            integration.getVerifiedName(), integration.getStatus(), integration.getTokenExpiresAt(),
+            integration.getUpdatedAt(), syncStore.snapshot(integration));
+    }
+
+    private WhatsAppBusinessIntegration completedIntegration(WhatsAppOnboardingSession session, LocalDateTime now) {
+        if (session.getUsedAt() == null || session.getCompletedIntegrationId() == null
+                || !session.getUsedAt().plusHours(24).isAfter(now)) {
+            throw new IllegalArgumentException("Bağlantı sonucu bu oturumdan alınamıyor");
+        }
+        WhatsAppBusinessIntegration integration = integrationRepository.findByCompanyIdAndDeletedFalse(session.getCompanyId())
+            .orElseThrow(() -> new IllegalArgumentException("Bağlantı bulunamadı"));
+        if (!Objects.equals(integration.getId(), session.getCompletedIntegrationId())
+                || !Objects.equals(integration.getCoexistenceGeneration(), session.getCompletedGeneration())) {
+            throw new IllegalArgumentException("Bağlantı oturumu yenilenmiş; Pusula Ayarlar ekranından kontrol edin");
+        }
+        return integration;
     }
 
     private TokenResult exchangeCode(String code) {
@@ -156,10 +220,13 @@ public class WhatsAppOnboardingService {
         }
     }
 
-    private PhoneResult verifyPhoneOwnership(String wabaId, String phoneNumberId, String token) {
+    private PhoneResult verifyPhoneOwnership(String wabaId, String phoneNumberId, boolean requireCoexistence, String token) {
         try {
+            if (phoneNumberId == null && !requireCoexistence) {
+                throw new IllegalStateException("Telefon numarası seçimi eksik");
+            }
             String url = "https://graph.facebook.com/" + properties.getGraphVersion() + "/" + wabaId
-                    + "/phone_numbers?fields=id,display_phone_number,verified_name";
+                    + "/phone_numbers?fields=id,display_phone_number,verified_name,is_on_biz_app,platform_type&limit=100";
             HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).timeout(Duration.ofSeconds(20))
                     .header("Authorization", "Bearer " + token).GET().build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -167,12 +234,23 @@ public class WhatsAppOnboardingService {
             if (response.statusCode() / 100 != 2) {
                 throw new IllegalStateException("Meta WhatsApp hesabı doğrulanamadı");
             }
+            var candidates = new ArrayList<PhoneResult>();
             for (JsonNode item : body.path("data")) {
-                if (phoneNumberId.equals(item.path("id").asText())) {
-                    return new PhoneResult(item.path("display_phone_number").asText(),
-                            item.path("verified_name").asText());
+                String id = item.path("id").asText();
+                boolean coexistence = item.path("is_on_biz_app").asBoolean(false)
+                    && "CLOUD_API".equals(item.path("platform_type").asText());
+                if (id.matches("[0-9]{5,32}") && (phoneNumberId == null || phoneNumberId.equals(id))
+                        && (!requireCoexistence || coexistence)) {
+                    candidates.add(new PhoneResult(id, item.path("display_phone_number").asText(),
+                        item.path("verified_name").asText(), coexistence));
                 }
             }
+            // Never guess among multiple phones or an incomplete paginated result.
+            if (candidates.size() == 1 && (phoneNumberId != null || body.path("paging").path("next").asText().isBlank())) {
+                return candidates.get(0);
+            }
+            if (candidates.size() > 1 || !body.path("paging").path("next").asText().isBlank())
+                throw new IllegalStateException("Birden fazla numara bulundu; seçilen telefon güvenle belirlenemedi");
             throw new IllegalStateException("Seçilen telefon numarası WhatsApp Business hesabına ait değil");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
@@ -205,5 +283,5 @@ public class WhatsAppOnboardingService {
         return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
     private record TokenResult(String accessToken, long expiresInSeconds) {}
-    private record PhoneResult(String displayPhoneNumber, String verifiedName) {}
+    private record PhoneResult(String id, String displayPhoneNumber, String verifiedName, boolean coexistence) {}
 }

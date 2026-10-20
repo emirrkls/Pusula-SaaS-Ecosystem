@@ -24,11 +24,12 @@ class WhatsAppWebhookServiceTest {
     @Mock WhatsAppMessageStatusEventRepository events;
     @Mock WhatsAppMessageOutboxRepository outboxRepository;
     @Mock WhatsAppBusinessIntegrationRepository integrations;
+    @Mock WhatsAppCoexistenceMirrorService mirror;
     private WhatsAppWebhookService service;
 
     @BeforeEach
     void setUp() {
-        service = new WhatsAppWebhookService(new ObjectMapper(), events, outboxRepository, integrations);
+        service = new WhatsAppWebhookService(new ObjectMapper(), events, outboxRepository, integrations, mirror);
     }
 
     @Test
@@ -77,5 +78,14 @@ class WhatsAppWebhookServiceTest {
                     "recipient_id":"905551112233"}]
                 }}]}]}
                 """.formatted(status);
+    }
+
+    @Test void statusCannotUpdateOutboxBelongingToAnotherTenant() {
+        var integration = new WhatsAppBusinessIntegration(); integration.setCompanyId(10L);
+        var outbox = new WhatsAppMessageOutbox(); outbox.setCompanyId(99L);
+        when(integrations.findByPhoneNumberIdAndDeletedFalse("phone-1")).thenReturn(Optional.of(integration));
+        when(outboxRepository.findByProviderMessageId("wamid.123")).thenReturn(Optional.of(outbox));
+        assertEquals(0, service.processStatusEvents(payload("delivered")));
+        verifyNoInteractions(events); verify(outboxRepository, never()).save(any());
     }
 }

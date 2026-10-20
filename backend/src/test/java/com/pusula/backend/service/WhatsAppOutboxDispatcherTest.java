@@ -73,4 +73,26 @@ class WhatsAppOutboxDispatcherTest {
         item.setParametersJson("[\"a\",\"b\"]");
         return item;
     }
+
+    @Test
+    void pendingCoexistenceSyncDefersNotificationWithoutSpendingDeliveryAttempts() {
+        var item = item(); item.setAttemptCount(1);
+        when(repository.findById(1L)).thenReturn(Optional.of(item));
+        when(credentials.resolve(10L)).thenThrow(new WhatsAppTenantCredentialService.CoexistencePreparingException(
+            java.time.LocalDateTime.now().plusHours(1)));
+        dispatcher.dispatchOne(1L);
+        assertEquals(WhatsAppOutboxStatus.RETRY, item.getStatus());
+        assertEquals(0, item.getAttemptCount());
+        verifyNoInteractions(client);
+    }
+    @Test
+    void expiredCoexistenceWindowDoesNotLoopNotificationsForever() {
+        var item = item(); item.setAttemptCount(1);
+        when(repository.findById(1L)).thenReturn(Optional.of(item));
+        when(credentials.resolve(10L)).thenThrow(new WhatsAppTenantCredentialService.CoexistencePreparingException(
+            java.time.LocalDateTime.now().minusHours(1)));
+        dispatcher.dispatchOne(1L);
+        assertEquals(WhatsAppOutboxStatus.FAILED, item.getStatus());
+        verifyNoInteractions(client);
+    }
 }

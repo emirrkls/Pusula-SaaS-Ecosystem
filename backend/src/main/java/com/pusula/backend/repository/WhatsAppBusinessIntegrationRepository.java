@@ -16,6 +16,14 @@ public interface WhatsAppBusinessIntegrationRepository extends JpaRepository<Wha
     Optional<WhatsAppBusinessIntegration> findByPhoneNumberIdAndDeletedFalse(String phoneNumberId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from WhatsAppBusinessIntegration i where i.id = :id and i.deleted = false")
+    Optional<WhatsAppBusinessIntegration> lockActiveById(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from WhatsAppBusinessIntegration i where i.wabaId = :wabaId and i.deleted = false order by i.id")
+    List<WhatsAppBusinessIntegration> lockActiveByWabaId(@Param("wabaId") String wabaId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query(value = """
             select integration from WhatsAppBusinessIntegration integration
             where integration.deleted = false

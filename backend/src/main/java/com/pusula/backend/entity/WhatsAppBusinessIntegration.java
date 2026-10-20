@@ -37,6 +37,14 @@ public class WhatsAppBusinessIntegration {
     private String webhookSubscriptionLastError;
     @Column(name = "webhook_subscribed_at")
     private LocalDateTime webhookSubscribedAt;
+    @Column(nullable = false)
+    private boolean coexistence;
+    @Column(name = "coexistence_generation", length = 36)
+    private String coexistenceGeneration;
+    @Column(name = "coexistence_started_at")
+    private LocalDateTime coexistenceStartedAt;
+    @Column(name = "coexistence_lifecycle_at")
+    private LocalDateTime coexistenceLifecycleAt;
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted;
     @CreationTimestamp @Column(name = "created_at", nullable = false, updatable = false)
@@ -45,6 +53,14 @@ public class WhatsAppBusinessIntegration {
     private LocalDateTime updatedAt;
 
     public Long getId() { return id; }
+    public boolean isCoexistence() { return coexistence; }
+    public void setCoexistence(boolean value) { coexistence = value; }
+    public String getCoexistenceGeneration() { return coexistenceGeneration; }
+    public void setCoexistenceGeneration(String value) { coexistenceGeneration = value; }
+    public LocalDateTime getCoexistenceStartedAt() { return coexistenceStartedAt; }
+    public void setCoexistenceStartedAt(LocalDateTime value) { coexistenceStartedAt = value; }
+    public LocalDateTime getCoexistenceLifecycleAt() { return coexistenceLifecycleAt; }
+    public void setCoexistenceLifecycleAt(LocalDateTime value) { coexistenceLifecycleAt = value; }
     public Long getCompanyId() { return companyId; }
     public void setCompanyId(Long companyId) { this.companyId = companyId; }
     public String getWabaId() { return wabaId; }

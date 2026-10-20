@@ -107,6 +107,41 @@ public class WhatsAppCloudApiClient {
         }
     }
 
+    public String requestAppData(String phoneNumberId, String token, String syncType) {
+        if (!List.of("smb_app_state_sync", "history").contains(syncType))
+            throw new IllegalArgumentException("Unsupported sync type");
+        try {
+            ObjectNode body = objectMapper.createObjectNode();
+            body.put("messaging_product", "whatsapp"); body.put("sync_type", syncType);
+            HttpRequest request = HttpRequest.newBuilder().uri(graphUri(phoneNumberId + "/smb_app_data"))
+                .timeout(Duration.ofSeconds(30)).header("Authorization", "Bearer " + token)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body))).build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 429) throw new SyncRequestException("META_RATE_LIMIT", true);
+            if (response.statusCode() >= 500) throw new SyncRequestException("REQUEST_OUTCOME_UNKNOWN", false);
+            if (response.statusCode() / 100 != 2) throw new SyncRequestException("META_REJECTED", false);
+            String requestId = readBody(response.body()).path("request_id").asText();
+            if (requestId.isBlank() || requestId.length() > 160)
+                throw new SyncRequestException("REQUEST_OUTCOME_UNKNOWN", false);
+            return requestId;
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new SyncRequestException("REQUEST_OUTCOME_UNKNOWN", false);
+        } catch (SyncRequestException ex) { throw ex; }
+        catch (Exception ex) { throw new SyncRequestException("REQUEST_OUTCOME_UNKNOWN", false); }
+    }
+
+    public static class SyncRequestException extends RuntimeException {
+        private final String code;
+        private final boolean retryable;
+        public SyncRequestException(String code, boolean retryable) {
+            super(code); this.code = code; this.retryable = retryable;
+        }
+        public String code() { return code; }
+        public boolean definitelyRejectedRetryable() { return retryable; }
+    }
+
     private URI graphUri(String path) {
         return URI.create("https://graph.facebook.com/" + properties.getGraphVersion() + "/" + path);
     }

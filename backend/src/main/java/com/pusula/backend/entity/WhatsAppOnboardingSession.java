@@ -20,10 +20,18 @@ public class WhatsAppOnboardingSession {
     private LocalDateTime expiresAt;
     @Column(name = "used_at")
     private LocalDateTime usedAt;
+    @Column(name = "completed_integration_id")
+    private Long completedIntegrationId;
+    @Column(name = "completed_generation", length = 36)
+    private String completedGeneration;
     @CreationTimestamp @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     public Long getId() { return id; }
+    public Long getCompletedIntegrationId() { return completedIntegrationId; }
+    public void setCompletedIntegrationId(Long value) { completedIntegrationId = value; }
+    public String getCompletedGeneration() { return completedGeneration; }
+    public void setCompletedGeneration(String value) { completedGeneration = value; }
     public Long getCompanyId() { return companyId; }
     public void setCompanyId(Long companyId) { this.companyId = companyId; }
     public Long getUserId() { return userId; }

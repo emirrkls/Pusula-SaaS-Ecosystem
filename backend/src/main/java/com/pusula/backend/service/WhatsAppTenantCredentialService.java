@@ -13,16 +13,18 @@ public class WhatsAppTenantCredentialService {
     private final WhatsAppCredentialCrypto crypto;
     private final String legacyToken;
     private final String legacyPhoneNumberId;
+    private final WhatsAppCoexistenceSyncStore syncStore;
 
     public WhatsAppTenantCredentialService(
             WhatsAppBusinessIntegrationRepository integrationRepository,
             WhatsAppCredentialCrypto crypto,
             @Value("${whatsapp.api.token:}") String legacyToken,
-            @Value("${whatsapp.api.phone-id:}") String legacyPhoneNumberId) {
+            @Value("${whatsapp.api.phone-id:}") String legacyPhoneNumberId, WhatsAppCoexistenceSyncStore syncStore) {
         this.integrationRepository = integrationRepository;
         this.crypto = crypto;
         this.legacyToken = legacyToken;
         this.legacyPhoneNumberId = legacyPhoneNumberId;
+        this.syncStore = syncStore;
     }
 
     public Credentials resolve(Long companyId) {
@@ -37,6 +39,14 @@ public class WhatsAppTenantCredentialService {
             }
             if (!"CONNECTED".equals(integration.getStatus())) {
                 throw new CredentialUnavailableException("WhatsApp bağlantısı aktif değil");
+            }
+            if (integration.isCoexistence()) {
+                var sync = syncStore.snapshot(integration);
+                if (sync != null && SetHolder.PENDING.contains(sync.status()))
+                    throw new CoexistencePreparingException(integration.getCoexistenceStartedAt() == null
+                        ? now : integration.getCoexistenceStartedAt().plusHours(24));
+                if (sync == null || !"READY".equals(sync.status()))
+                    throw new CredentialUnavailableException("WhatsApp eşitlemesi henüz hazır değil; bağlantı durumunu kontrol edin");
             }
             try {
                 return new Credentials(integration.getPhoneNumberId(),
@@ -58,6 +68,17 @@ public class WhatsAppTenantCredentialService {
     }
 
     public record Credentials(String phoneNumberId, String accessToken, boolean legacy) {}
+
+    private static class SetHolder {
+        static final java.util.Set<String> PENDING = java.util.Set.of("WAITING_WEBHOOKS", "SYNCING");
+    }
+    public static class CoexistencePreparingException extends CredentialUnavailableException {
+        private final LocalDateTime deadline;
+        public CoexistencePreparingException(LocalDateTime deadline) {
+            super("WhatsApp eşitlemesi hazırlanıyor"); this.deadline = deadline;
+        }
+        public LocalDateTime deadline() { return deadline; }
+    }
 
     public static class CredentialUnavailableException extends RuntimeException {
         public CredentialUnavailableException(String message) { super(message); }
