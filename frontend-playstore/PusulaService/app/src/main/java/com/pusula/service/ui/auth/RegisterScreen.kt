@@ -81,7 +81,7 @@ fun RegisterScreen(
                     )
                 )
                 Text(
-                    text = "14 gün ücretsiz deneyin",
+                    text = "Ücretsiz Çırak paketiyle başlayın",
                     style = MaterialTheme.typography.bodyLarge,
                     color = BrandGray
                 )

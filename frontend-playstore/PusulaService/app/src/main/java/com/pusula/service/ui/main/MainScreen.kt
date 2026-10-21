@@ -233,7 +233,10 @@ fun MainScreen(
                         }
                         NavigationBarItem(
                             selected = selected,
-                            onClick = { selectedTab = tab.title },
+                            onClick = {
+                                if (canOpenMainModule(tab.featureKey, session.features)) selectedTab = tab.title
+                                else lockedFeatureKey = tab.featureKey
+                            },
                             icon = {
                                 Icon(
                                     imageVector = tab.icon,
@@ -287,7 +290,10 @@ fun MainScreen(
                         }
                         NavigationBarItem(
                             selected = selected,
-                            onClick = { selectedTab = tab.title },
+                            onClick = {
+                                if (canOpenMainModule(tab.featureKey, session.features)) selectedTab = tab.title
+                                else lockedFeatureKey = tab.featureKey
+                            },
                             icon = {
                                 Icon(
                                     imageVector = tab.icon,
@@ -321,7 +327,10 @@ fun MainScreen(
                         }
                         NavigationBarItem(
                             selected = selected,
-                            onClick = { selectedTab = tab.title },
+                            onClick = {
+                                if (canOpenMainModule(tab.featureKey, session.features)) selectedTab = tab.title
+                                else lockedFeatureKey = tab.featureKey
+                            },
                             icon = {
                                 Icon(
                                     imageVector = tab.icon,
@@ -378,7 +387,8 @@ fun MainScreen(
                         SettingsScreen(
                             sessionManager = sessionManager,
                             onLogout = onLogout,
-                            onDeleteAccount = onDeleteAccount
+                            onDeleteAccount = onDeleteAccount,
+                            onManagePlan = onUpgrade
                         )
                     } else {
                         ProfileScreen(

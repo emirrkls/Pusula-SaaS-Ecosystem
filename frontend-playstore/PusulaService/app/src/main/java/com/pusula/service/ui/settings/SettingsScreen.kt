@@ -87,7 +87,8 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     onDeleteAccount: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
-    tourTab: String? = null
+    tourTab: String? = null,
+    onManagePlan: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val session by sessionManager.state.collectAsState()
@@ -124,7 +125,7 @@ fun SettingsScreen(
         }
     }
 
-    LaunchedEffect(Unit) { viewModel.loadSettings() }
+    LaunchedEffect(session.companyId, session.features["VEHICLE_TRACKING"]) { viewModel.loadSettings() }
     LaunchedEffect(uiState.userSavedAt) {
         if (uiState.userSavedAt != null) {
             showUserDialog = false
@@ -164,6 +165,19 @@ fun SettingsScreen(
                             subtitle = "${uiState.users.size} kullanıcı • ${uiState.vehicles.size} araç",
                             badge = session.planType.takeIf { it.isNotBlank() }?.let { "$it Plan" }
                         )
+                    }
+                    item {
+                        AppGhostCard {
+                            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                                Text("Paket ve Abonelik", style = MaterialTheme.typography.titleMedium)
+                                Text("Mevcut paket: ${session.planType}", style = MaterialTheme.typography.bodyMedium)
+                                AppPrimaryButton(
+                                    text = "Paketleri Yönet",
+                                    onClick = onManagePlan,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
                     }
                     item {
                         Row(
@@ -242,6 +256,16 @@ fun SettingsScreen(
                         }
 
                         "Araçlar" -> {
+                            if (session.features["VEHICLE_TRACKING"] != true) {
+                                item {
+                                    AppEmptyState(
+                                        title = "Araç yönetimi bu pakette bulunmuyor",
+                                        subtitle = "Mevcut haklarınızı ve diğer paketleri Paketleri Yönet bölümünden inceleyebilirsiniz.",
+                                        icon = Icons.Outlined.DirectionsCar,
+                                        tint = AccentPurple
+                                    )
+                                }
+                            } else {
                             item {
                                 AppDashboardSection(
                                     title = "Araçlar",
@@ -280,6 +304,7 @@ fun SettingsScreen(
                                         if (vehicle.id != null) deleteVehicleId = vehicle.id
                                     }
                                 )
+                            }
                             }
                         }
 

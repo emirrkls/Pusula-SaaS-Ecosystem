@@ -6,6 +6,7 @@ import com.pusula.service.data.model.CompanyDTO
 import com.pusula.service.data.model.UserDTO
 import com.pusula.service.data.model.VehicleDTO
 import com.pusula.service.data.repository.SettingsRepository
+import com.pusula.service.core.SessionManager
 import com.google.gson.Gson
 import com.pusula.service.util.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import okhttp3.MultipartBody
 import retrofit2.HttpException
 
@@ -38,32 +41,42 @@ data class SettingsUiState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val repository: SettingsRepository
+    private val repository: SettingsRepository,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
-    fun loadSettings(refresh: Boolean = false) = viewModelScope.launch {
-        _uiState.update { it.copy(loading = !refresh, refreshing = refresh, error = null) }
-        runCatching {
-            Triple(repository.getUsers(), repository.getVehicles(), repository.getCompany())
-        }.onSuccess { (users, vehicles, company) ->
-            _uiState.update {
-                it.copy(
-                    loading = false,
-                    refreshing = false,
-                    users = users,
-                    vehicles = vehicles,
-                    company = company
-                )
-            }
-        }.onFailure { throwable ->
-            _uiState.update {
-                it.copy(
-                    loading = false,
-                    refreshing = false,
-                    error = throwable.toUserMessage("Ayar verileri yüklenemedi")
-                )
+    private var settingsLoad: Job? = null
+
+    fun loadSettings(refresh: Boolean = false) {
+        settingsLoad?.cancel()
+        settingsLoad = viewModelScope.launch {
+            val session = sessionManager.state.value
+            _uiState.update { it.copy(loading = !refresh, refreshing = refresh, error = null) }
+            runCatching {
+                loadSettingsSnapshot(session.features, repository::getUsers, repository::getVehicles, repository::getCompany)
+            }.onSuccess { (users, vehicles, company) ->
+                if (sessionManager.state.value.companyId != session.companyId) return@launch
+                _uiState.update {
+                    it.copy(
+                        loading = false,
+                        refreshing = false,
+                        users = users,
+                        vehicles = vehicles,
+                        company = company
+                    )
+                }
+            }.onFailure { throwable ->
+                if (throwable is CancellationException) throw throwable
+                if (sessionManager.state.value.companyId != session.companyId) return@launch
+                _uiState.update {
+                    it.copy(
+                        loading = false,
+                        refreshing = false,
+                        error = throwable.toUserMessage("Ayar verileri yüklenemedi")
+                    )
+                }
             }
         }
     }
