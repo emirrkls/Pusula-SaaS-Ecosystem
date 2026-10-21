@@ -29,6 +29,18 @@ class GoogleReplacementPolicyTest {
     @Test fun sameBasePlanDoesNotOpenAnotherPurchase() {
         assertEquals("already_active",GoogleReplacementPolicy.decide(10,status(),listOf(owned()),target("usta","usta-monthly")).reason)
     }
+    @Test fun expiredHistoricalReceiptWithoutOwnedPurchaseCanResubscribeToTheSamePeriod() {
+        val result = GoogleReplacementPolicy.decide(10, status(), emptyList(), target("usta", "usta-monthly"))
+        assertTrue(result.allowed)
+        assertEquals(PlayChangeMode.NEW, result.mode)
+        assertNull(result.oldToken)
+    }
+    @Test fun enablingAnExpiredCardNeverBypassesPendingOrForeignOwnershipPreflight() {
+        val target = target("usta", "usta-monthly")
+        assertEquals("pending_purchase", GoogleReplacementPolicy.decide(10, status(), listOf(owned(pending=true)), target).reason)
+        assertEquals("restore_required", GoogleReplacementPolicy.decide(10, status(),
+            listOf(owned(binding=GooglePlayCatalog.accountBinding(11))), target).reason)
+    }
     @Test fun missingOrWrongOwnershipRequiresRestoreBeforePurchase() {
         assertFalse(GoogleReplacementPolicy.decide(10,status().copy(receiptHash="wrong"),listOf(owned()),target()).allowed)
         assertFalse(GoogleReplacementPolicy.decide(10,status(),listOf(owned(binding=GooglePlayCatalog.accountBinding(11))),target()).allowed)

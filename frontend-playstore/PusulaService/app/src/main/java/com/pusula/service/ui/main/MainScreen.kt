@@ -593,9 +593,9 @@ private fun TrialBanner(message: String, onUpgrade: () -> Unit) {
 }
 
 @Composable
-private fun ReadOnlyBanner() {
+internal fun ReadOnlyBanner() {
     Text(
-        text = "Aboneliğiniz sona erdi. Sadece görüntüleme modundasınız.",
+        text = "Hesabınız yalnızca görüntüleme modunda.",
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.errorContainer)

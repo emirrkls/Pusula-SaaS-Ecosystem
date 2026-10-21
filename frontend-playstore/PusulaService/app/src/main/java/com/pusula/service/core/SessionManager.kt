@@ -150,7 +150,8 @@ class SessionManager @Inject constructor(
                 planType = response.planType ?: "CIRAK",
                 features = response.features ?: emptyMap(),
                 quota = response.quota,
-                isReadOnly = response.isReadOnly ?: false,
+                // An unknown access flag must not temporarily enable write actions.
+                isReadOnly = response.isReadOnly ?: true,
                 trialDaysRemaining = response.trialDaysRemaining
             )
         }
@@ -174,7 +175,9 @@ class SessionManager @Inject constructor(
                 isAuthenticated = true,
                 supportRevision = java.util.UUID.randomUUID().toString(),
                 token = token,
-                role = cachedRole
+                role = cachedRole,
+                // The stored role restores navigation, not an entitlement to write.
+                isReadOnly = true
             )
         }
     }
@@ -201,7 +204,8 @@ class SessionManager @Inject constructor(
                 features = ctx.features ?: it.features,
                 quota = ctx.quota ?: it.quota,
                 isReadOnly = ctx.isReadOnly ?: it.isReadOnly,
-                trialDaysRemaining = ctx.trialDaysRemaining ?: it.trialDaysRemaining
+                // This endpoint is an authoritative snapshot; null also ends a former trial.
+                trialDaysRemaining = ctx.trialDaysRemaining
             )
         }
     }

@@ -34,7 +34,7 @@ data class SubscriptionContextDto(
     val planType: String? = null,
     val features: Map<String, Boolean>? = null,
     val quota: QuotaDTO? = null,
-    @SerializedName("isReadOnly")
+    @SerializedName(value = "isReadOnly", alternate = ["readOnly"])
     val isReadOnly: Boolean? = null,
     val trialDaysRemaining: Int? = null
 )
@@ -48,7 +48,8 @@ data class AuthResponse(
     val planType: String? = null,
     val features: Map<String, Boolean>? = null,
     val quota: QuotaDTO? = null,
-    @SerializedName("isReadOnly")
+    // Jackson's boolean getter emits readOnly; older/context responses use isReadOnly.
+    @SerializedName(value = "readOnly", alternate = ["isReadOnly"])
     val isReadOnly: Boolean? = null,
     val trialDaysRemaining: Int? = null
 )

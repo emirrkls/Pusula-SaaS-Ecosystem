@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -60,6 +61,9 @@ import com.pusula.service.ui.theme.Success
 import com.pusula.service.data.model.PlanDTO
 import com.pusula.service.core.BillingPeriod
 import com.pusula.service.core.PlayPlanOption
+import com.pusula.service.core.PlayBillingUiState
+import com.pusula.service.core.PlanSubscriptionPolicy
+import com.pusula.service.core.SessionState
 
 private data class PlanCardData(
     val code: String,
@@ -89,7 +93,6 @@ fun PlanUpgradeScreen(
     }
     val plans = uiState.plans
         .filter { it.name != "CIRAK" }
-        .map(::toPlanCardData)
 
     BackHandler(onBack = onBack)
 
@@ -107,9 +110,11 @@ fun PlanUpgradeScreen(
             ) {
                 item {
                     AppHeroCard(
-                        eyebrow = "Mevcut paket",
+                        eyebrow = if (session.isReadOnly) "Son paket" else "Mevcut paket",
                         title = session.planType.ifBlank { "CIRAK" } + " paketi",
-                        subtitle = "Daha fazla özellik için yükseltin",
+                        subtitle = if (session.isReadOnly) "Hesabınız yalnızca görüntüleme modunda. Uygun bir paket seçebilirsiniz."
+                            else if (session.trialDaysRemaining != null) "Deneme erişiminiz ücretli abonelik değildir."
+                            else "Daha fazla özellik için yükseltin",
                         badge = session.trialDaysRemaining?.let { "$it gün deneme kaldı" }
                     )
                 }
@@ -143,17 +148,9 @@ fun PlanUpgradeScreen(
                         }
                     }
                 }
-                items(plans, key = { it.code }) { plan ->
-                    val isCurrent = session.planType.equals(plan.code, true)
-                    val option = billing.options.singleOrNull {
-                        it.productId.equals(plan.code, true) && it.period == period
-                    }
-                    val exactCurrent=isCurrent && (billing.server.basePlanId==null || option?.basePlanId==billing.server.basePlanId)
-                    PlanRow(plan = plan, isCurrent = exactCurrent, option = option,
-                        actionTitle=if(isCurrent && !exactCurrent) "Dönemi Değiştir" else if(billing.server.receiptHash!=null) "Paketi Değiştir" else "Google Play ile Abone Ol",
-                        canBuy = !guide && !billing.loading && !billing.busy && billing.server.ready
-                            && billing.server.purchaseAllowed && billing.ownershipReady && billing.server.scheduledPlan==null,
-                        onPick = { viewModel.purchasePlan(plan.code, period) })
+                items(plans, key = { it.name }) { plan ->
+                    PlanSubscriptionCard(plan, session, billing, period, guide,
+                        onPick = { viewModel.purchasePlan(plan.name, period) })
                 }
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -176,6 +173,15 @@ fun PlanUpgradeScreen(
             LazyLoadingOverlay(isLoading = uiState.loading)
         }
     }
+}
+
+/** Stateless production card, also exercised with offline instrumentation fixtures. */
+@Composable
+internal fun PlanSubscriptionCard(plan: PlanDTO, session: SessionState, billing: PlayBillingUiState,
+                                  period: BillingPeriod, guide: Boolean = false, onPick: () -> Unit) {
+    val option = billing.options.singleOrNull { it.productId.equals(plan.name, true) && it.period == period }
+    val state = PlanSubscriptionPolicy.present(session, billing, plan.name, option, guide)
+    PlanRow(toPlanCardData(plan), state.isCurrent, option, state.canBuy, state.actionTitle, onPick)
 }
 
 private fun toPlanCardData(plan: PlanDTO): PlanCardData {
@@ -300,6 +306,7 @@ private fun PlanRow(plan: PlanCardData, isCurrent: Boolean, option: PlayPlanOpti
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .testTag("plan.purchase.${plan.code.lowercase(java.util.Locale.ROOT)}")
                         .height(48.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(

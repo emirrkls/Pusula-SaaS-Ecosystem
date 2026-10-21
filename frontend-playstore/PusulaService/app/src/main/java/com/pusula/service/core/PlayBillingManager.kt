@@ -66,10 +66,15 @@ class BillingManager @Inject constructor(@ApplicationContext context: Context,
     }
 
     private suspend fun serverStatus(snapshot: SessionState): GoogleBillingStatus {
-        val status=withTimeoutOrNull(35000) { api.googleBillingStatus("Bearer ${snapshot.token}") }
-            ?: throw java.io.IOException("PLAY_STATUS_TIMEOUT")
-        if (same(snapshot)) _uiState.update { it.copy(server=status) }
-        return status
+        return withTimeoutOrNull(35000) {
+            refreshGoogleBillingContext(
+                sameAccount = { same(snapshot) },
+                loadContext = { api.subscriptionMyContext("Bearer ${snapshot.token}") },
+                applyContext = sessions::mergeSubscription,
+                loadStatus = { api.googleBillingStatus("Bearer ${snapshot.token}") },
+                applyStatus = { status -> _uiState.update { it.copy(server = status) } }
+            )
+        } ?: throw java.io.IOException("PLAY_STATUS_TIMEOUT")
     }
     fun queryProducts() = scope.launch {
         val snapshot = account() ?: return@launch

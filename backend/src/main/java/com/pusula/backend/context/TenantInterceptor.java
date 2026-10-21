@@ -52,7 +52,8 @@ public class TenantInterceptor implements HandlerInterceptor {
                         && !isOwnSupportRequest(request.getRequestURI())
                         && !request.getRequestURI().startsWith("/api/payment/")
                         && companyRepository.findById(user.getCompanyId())
-                                .map(company -> Boolean.TRUE.equals(company.getIsReadOnly()))
+                                .map(company -> Boolean.TRUE.equals(company.getIsReadOnly())
+                                        && !isGoogleReactivationRequest(request, user, company))
                                 .orElse(false)) {
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     response.setContentType("application/json;charset=UTF-8");
@@ -120,6 +121,18 @@ public class TenantInterceptor implements HandlerInterceptor {
                 || "PUT".equalsIgnoreCase(method)
                 || "PATCH".equalsIgnoreCase(method)
                 || "DELETE".equalsIgnoreCase(method);
+    }
+
+    // Expired Google customers must be able to verify a new, independently validated purchase.
+    // This only reaches the existing admin/ownership/Google verification checks; it grants no access.
+    private boolean isGoogleReactivationRequest(HttpServletRequest request, User user,
+            com.pusula.backend.entity.Company company) {
+        String state = company.getSubscriptionStatus();
+        return "POST".equals(request.getMethod())
+                && "/api/subscription/google-verify".equals(request.getRequestURI())
+                && "COMPANY_ADMIN".equals(user.getRole())
+                && "GOOGLE_PLAY".equals(company.getSubscriptionProvider())
+                && ("EXPIRED".equals(state) || "REVOKED".equals(state) || "PAYMENT_FAILED".equals(state));
     }
 
     // The support service independently checks the actual actor, ownership and role.
