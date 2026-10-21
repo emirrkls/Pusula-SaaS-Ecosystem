@@ -10,7 +10,7 @@ public class SupportProperties {
     // Deliberate release gate. Domain/mailbox verification and pilot are required before enabling.
     private boolean enabled=false;
     private String email="destek@pusulaiklimlendirme.store";
-    private String website="https://www.pusulaiklimlendirme.com/destek";
+    private String website="https://pusulaiklimlendirme.store/destek";
     private String notifyEmail="";
     private String mailFrom="";
 }

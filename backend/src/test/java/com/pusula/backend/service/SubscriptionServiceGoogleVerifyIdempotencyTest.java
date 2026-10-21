@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -64,6 +65,10 @@ class SubscriptionServiceGoogleVerifyIdempotencyTest {
         when(paymentEventRepository.findByProviderAndTokenHash(eq("GOOGLE_PLAY"), any()))
                 .thenReturn(Optional.of(existing));
         when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+        when(companyRepository.lockById(10L)).thenReturn(Optional.of(company));
+        when(companyRepository.save(company)).thenReturn(company);
+        when(googlePlayVerificationService.verifySubscription("same-token", "usta"))
+                .thenReturn(valid("order-123", "usta"));
 
         SubscriptionService.GoogleVerifyResult result = subscriptionService.verifyGooglePurchaseAndUpgradePlan(
                 10L,
@@ -75,8 +80,9 @@ class SubscriptionServiceGoogleVerifyIdempotencyTest {
         assertEquals("processed", result.status());
         assertEquals("order-123", result.subscriptionId());
 
-        verify(googlePlayVerificationService, never()).verifySubscription(any(), any());
-        verify(companyRepository, never()).save(any(Company.class));
+        verify(googlePlayVerificationService).verifySubscription("same-token", "usta");
+        verify(paymentEventRepository, never()).saveAndFlush(any(PaymentEvent.class));
+        verify(companyRepository).save(company);
     }
 
     @Test
@@ -101,6 +107,9 @@ class SubscriptionServiceGoogleVerifyIdempotencyTest {
     @Test
     void verifyGooglePurchase_verifiedUstaProductUpdatesGoogleProviderOnly() {
         Company company = company(10L, PlanType.PATRON);
+        // An expired subscription can be reactivated; an administratively restricted ACTIVE
+        // or SUSPENDED account must stay restricted (covered by separate regression tests).
+        company.setSubscriptionStatus("EXPIRED");
         company.setIyzicoSubscriptionId("legacy-iyzico-id");
         stubSuccessfulGoogleVerification("usta", "order-usta", company);
 
@@ -134,10 +143,9 @@ class SubscriptionServiceGoogleVerifyIdempotencyTest {
     void verifyGooglePurchase_rejectsUnknownVerifiedProduct() {
         when(paymentEventRepository.findByProviderAndTokenHash(eq("GOOGLE_PLAY"), any()))
                 .thenReturn(Optional.empty());
-        when(paymentEventRepository.save(any(PaymentEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(companyRepository.lockById(10L)).thenReturn(Optional.of(company(10L, PlanType.CIRAK)));
         when(googlePlayVerificationService.verifySubscription("purchase-token", "usta"))
-                .thenReturn(new GooglePlayVerificationService.GoogleVerificationResult(
-                        true, "order-unknown", "unknown", null));
+                .thenReturn(valid("order-unknown", "unknown"));
 
         assertThrows(IllegalArgumentException.class,
                 () -> subscriptionService.verifyGooglePurchaseAndUpgradePlan(10L, "purchase-token", "usta"));
@@ -173,10 +181,16 @@ class SubscriptionServiceGoogleVerifyIdempotencyTest {
                 .thenReturn(Optional.empty());
         when(paymentEventRepository.save(any(PaymentEvent.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(googlePlayVerificationService.verifySubscription("purchase-token", productId))
-                .thenReturn(new GooglePlayVerificationService.GoogleVerificationResult(
-                        true, orderId, productId, null));
+                .thenReturn(valid(orderId, productId));
+        when(companyRepository.lockById(10L)).thenReturn(Optional.of(company));
         when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
         when(companyRepository.save(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    private GooglePlayVerificationService.GoogleVerificationResult valid(String id, String product) {
+        return new GooglePlayVerificationService.GoogleVerificationResult(true, id, product, null,
+                Instant.now().plusSeconds(86400), "SUBSCRIPTION_STATE_ACTIVE", false,
+                GooglePlayAccountBinding.companyId(10L));
     }
 
     private Company company(Long id, PlanType planType) {

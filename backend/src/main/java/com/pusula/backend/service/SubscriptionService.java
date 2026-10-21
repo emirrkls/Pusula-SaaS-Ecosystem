@@ -12,12 +12,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +47,7 @@ public class SubscriptionService {
     private final GooglePlayVerificationService googlePlayVerificationService;
     private final AppleAppStoreVerificationService appleAppStoreVerificationService;
     private final AuditLogService auditLogService;
+    private final GooglePlayReceiptStore googleReceipts;
 
     public SubscriptionService(
             CompanyRepository companyRepository,
@@ -51,11 +55,21 @@ public class SubscriptionService {
             GooglePlayVerificationService googlePlayVerificationService,
             AppleAppStoreVerificationService appleAppStoreVerificationService,
             AuditLogService auditLogService) {
+        this(companyRepository, paymentEventRepository, googlePlayVerificationService,
+                appleAppStoreVerificationService, auditLogService, null);
+    }
+
+    @Autowired
+    public SubscriptionService(CompanyRepository companyRepository, PaymentEventRepository paymentEventRepository,
+            GooglePlayVerificationService googlePlayVerificationService,
+            AppleAppStoreVerificationService appleAppStoreVerificationService, AuditLogService auditLogService,
+            GooglePlayReceiptStore googleReceipts) {
         this.companyRepository = companyRepository;
         this.paymentEventRepository = paymentEventRepository;
         this.googlePlayVerificationService = googlePlayVerificationService;
         this.appleAppStoreVerificationService = appleAppStoreVerificationService;
         this.auditLogService = auditLogService;
+        this.googleReceipts = googleReceipts;
     }
 
     /**
@@ -105,40 +119,49 @@ public class SubscriptionService {
                         "Google purchase token baska bir company tarafindan kullanilmis");
                 throw new PaymentOwnershipException();
             }
-            boolean alreadyProcessed = existing.getStatus() == PaymentEventStatus.PROCESSED;
-            String description = alreadyProcessed
-                    ? "Google purchase token tekrar geldi; idempotent replay olarak işlendi"
-                    : "Google purchase token daha once kaydedildi; tekrar işlenmedi";
-            auditLogService.log(
-                    "SUBSCRIPTION_GOOGLE_VERIFY_IDEMPOTENT",
-                    "PAYMENT_EVENT",
-                    existing.getId(),
-                    description);
-            String existingPlan = companyRepository.findById(companyId)
-                    .map(company -> company.getPlanType().name())
-                    .orElse(null);
-            return new GoogleVerifyResult(
-                    alreadyProcessed,
-                    true,
-                    existingPlan,
-                    existing.getExternalSubscriptionId(),
-                    alreadyProcessed ? "processed" : "failed");
         }
-
-        PaymentEvent paymentEvent = new PaymentEvent();
+        if (existingOpt.isPresent() && "GOOGLE_REPLACED".equals(existingOpt.get().getFailureReason()))
+            return new GoogleVerifyResult(false, true, null, null, "receipt_replaced");
+        // A renewal reuses the token. Re-check Google even on replay, and allow retry after an
+        // outage. Serialize updates within a tenant; the unique receipt index protects owners.
+        Company company = companyRepository.lockById(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+        PaymentEvent paymentEvent = existingOpt.orElseGet(PaymentEvent::new);
         paymentEvent.setCompanyId(companyId);
         paymentEvent.setProvider(GOOGLE_PLAY_PROVIDER);
         paymentEvent.setEventType("SUBSCRIPTION_VERIFY");
         paymentEvent.setTokenHash(tokenHash);
         paymentEvent.setPurchaseTokenMasked(maskToken(purchaseToken));
-        paymentEvent.setStatus(PaymentEventStatus.RECEIVED);
-        paymentEventRepository.save(paymentEvent);
+        if (existingOpt.isEmpty()) {
+            paymentEvent.setStatus(PaymentEventStatus.RECEIVED);
+            paymentEventRepository.saveAndFlush(paymentEvent);
+        }
 
         GooglePlayVerificationService.GoogleVerificationResult verification = googlePlayVerificationService
                 .verifySubscription(purchaseToken, productId);
 
-        if (!verification.valid()) {
-            paymentEvent.setStatus(PaymentEventStatus.FAILED);
+        if (!verification.valid() || verification.expiresAt() == null
+                || !verification.expiresAt().isAfter(Instant.now())) {
+            boolean currentGoogleReceipt = GOOGLE_PLAY_PROVIDER.equals(company.getSubscriptionProvider())
+                    && ( ("google:" + tokenHash).equals(company.getExternalSubscriptionId())
+                    || (paymentEvent.getExternalSubscriptionId() != null
+                    && ("google:" + paymentEvent.getExternalSubscriptionId()).equals(company.getExternalSubscriptionId())) );
+            if (currentGoogleReceipt && !verification.retryable() && verification.expiresAt() != null
+                    && verification.state() != null && !googleManuallyRestricted(company)
+                    && (verification.obfuscatedAccountId() == null
+                    || GooglePlayAccountBinding.companyId(companyId).equals(verification.obfuscatedAccountId()))) {
+                company.setIsReadOnly(true);
+                company.setSubscriptionStatus("EXPIRED");
+                company.setSubscriptionExpiresAt(LocalDateTime.ofInstant(verification.expiresAt(), ZoneOffset.UTC));
+                companyRepository.save(company);
+            }
+            if (paymentEvent.getStatus() != PaymentEventStatus.PROCESSED)
+                paymentEvent.setStatus(PaymentEventStatus.FAILED);
+            if (googleReceipts != null && currentGoogleReceipt && paymentEvent.getStatus() == PaymentEventStatus.PROCESSED
+                    && verification.expiresAt() != null && !verification.retryable()
+                    && (verification.obfuscatedAccountId() == null
+                    || GooglePlayAccountBinding.companyId(companyId).equals(verification.obfuscatedAccountId())))
+                googleReceipts.remember(purchaseToken, companyId, verification);
             paymentEvent.setFailureReason(verification.reason());
             paymentEventRepository.save(paymentEvent);
             auditLogService.log(
@@ -146,14 +169,59 @@ public class SubscriptionService {
                     "PAYMENT_EVENT",
                     paymentEvent.getId(),
                     "Google subscription doğrulama başarısız: " + verification.reason());
-            return new GoogleVerifyResult(false, false, null, null, "failed");
+            return new GoogleVerifyResult(false, existingOpt.isPresent(), null, null,
+                    verification.retryable() ? "retryable" : "not_entitled");
         }
 
+        PaymentEvent linkedReceipt = verification.linkedTokenHash() == null ? null : paymentEventRepository
+                .findByProviderAndTokenHash(GOOGLE_PLAY_PROVIDER, verification.linkedTokenHash()).orElse(null);
+        if (linkedReceipt != null && !companyId.equals(linkedReceipt.getCompanyId())) throw new PaymentOwnershipException();
+        boolean claimedReceipt = existingOpt.isPresent() && paymentEvent.getStatus() == PaymentEventStatus.PROCESSED;
+        boolean claimedLink = linkedReceipt != null && linkedReceipt.getStatus() == PaymentEventStatus.PROCESSED;
+        String account = verification.obfuscatedAccountId();
+        if ((account != null && !GooglePlayAccountBinding.companyId(companyId).equals(account))
+                || (!claimedReceipt && !claimedLink && (account == null || account.isBlank()))) {
+            throw new PaymentOwnershipException();
+        }
+        // Restoring an older Google receipt must not overwrite a newer subscription purchased
+        // through another provider. New purchases still use the explicit purchase flow.
+        if (company.getSubscriptionProvider() != null
+                && !GOOGLE_PLAY_PROVIDER.equals(company.getSubscriptionProvider())
+                && company.getPlanType() != PlanType.CIRAK && !"TRIAL".equals(company.getSubscriptionStatus())
+                && (company.getSubscriptionExpiresAt() == null
+                || company.getSubscriptionExpiresAt().isAfter(LocalDateTime.now(ZoneOffset.UTC)))) {
+            return new GoogleVerifyResult(false, true, null, null, "another_provider_active");
+        }
+        boolean linksToCurrent = verification.linkedTokenHash() != null
+                && (("google:" + verification.linkedTokenHash()).equals(company.getExternalSubscriptionId())
+                || (linkedReceipt != null && currentGoogleReceipt(company, linkedReceipt, verification.linkedTokenHash())));
+        if (GOOGLE_PLAY_PROVIDER.equals(company.getSubscriptionProvider())
+                && !currentGoogleReceipt(company, paymentEvent, tokenHash) && !linksToCurrent
+                && (claimedReceipt || (company.getSubscriptionExpiresAt() != null
+                && company.getSubscriptionExpiresAt().isAfter(LocalDateTime.now(ZoneOffset.UTC))))) {
+            return new GoogleVerifyResult(false, true, null, null, "another_google_receipt_active");
+        }
         PlanType verifiedPlan = requireAllowedGoogleProduct(verification.productId());
-        Company updated = upgradePlanFromGooglePlay(companyId, verifiedPlan, verification.subscriptionId());
+        if (!productId.equals(verification.productId()) && !productId.equals(verification.deferredProductId()))
+            throw new IllegalArgumentException("Verified Google product does not match the requested product");
+        Company updated = upgradePlanFromGooglePlay(companyId, verifiedPlan, verification.subscriptionId(),
+                verification.expiresAt());
         paymentEvent.setExternalSubscriptionId(verification.subscriptionId());
         paymentEvent.setStatus(PaymentEventStatus.PROCESSED);
+        paymentEvent.setFailureReason(null);
         paymentEventRepository.save(paymentEvent);
+
+        if (googleReceipts != null) googleReceipts.remember(purchaseToken, companyId, verification);
+        if (verification.linkedTokenHash() != null) {
+            // Keep an ownership tombstone: an old token must never restore over its replacement.
+            PaymentEvent retired = linkedReceipt == null ? new PaymentEvent() : linkedReceipt;
+            retired.setCompanyId(companyId); retired.setProvider(GOOGLE_PLAY_PROVIDER);
+            retired.setEventType("SUBSCRIPTION_REPLACED"); retired.setTokenHash(verification.linkedTokenHash());
+            retired.setPurchaseTokenMasked("sha256:" + verification.linkedTokenHash().substring(0,12));
+            retired.setStatus(PaymentEventStatus.PROCESSED); retired.setFailureReason("GOOGLE_REPLACED");
+            paymentEventRepository.saveAndFlush(retired);
+            if (googleReceipts != null) googleReceipts.retire(verification.linkedTokenHash());
+        }
 
         auditLogService.log(
                 "SUBSCRIPTION_GOOGLE_VERIFY_SUCCESS",
@@ -161,29 +229,93 @@ public class SubscriptionService {
                 paymentEvent.getId(),
                 "Google subscription doğrulandı ve plan upgrade edildi: " + updated.getPlanType());
 
-        return new GoogleVerifyResult(true, false, updated.getPlanType().name(), verification.subscriptionId(), "processed");
+        return new GoogleVerifyResult(true, existingOpt.isPresent(), updated.getPlanType().name(), verification.subscriptionId(), "processed",
+                verification.deferredProductId() == null ? null : requireAllowedGoogleProduct(verification.deferredProductId()).name(),
+                verification.basePlanId(), tokenHash);
     }
 
     @Transactional
     public Company upgradePlanFromGooglePlay(
             Long companyId,
             PlanType newPlan,
-            String verifiedSubscriptionId) {
+            String verifiedSubscriptionId,
+            Instant verifiedExpiresAt) {
+        if (verifiedExpiresAt == null || !verifiedExpiresAt.isAfter(Instant.now()))
+            throw new IllegalArgumentException("Google subscription is not active");
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new RuntimeException("Company not found: " + companyId));
 
         PlanType oldPlan = company.getPlanType();
         company.setPlanType(newPlan);
-        company.setIsReadOnly(false);
-        company.setSubscriptionStatus("ACTIVE");
+        if (!googleManuallyRestricted(company)) {
+            company.setIsReadOnly(false);
+            company.setSubscriptionStatus("ACTIVE");
+        }
         company.setSubscriptionProvider(GOOGLE_PLAY_PROVIDER);
         company.setExternalSubscriptionId("google:" + verifiedSubscriptionId);
         company.setIyzicoSubscriptionId(null);
-        company.setSubscriptionExpiresAt(LocalDateTime.now().plusDays(30));
+        company.setSubscriptionExpiresAt(LocalDateTime.ofInstant(verifiedExpiresAt, ZoneOffset.UTC));
 
         Company saved = companyRepository.save(company);
         log.info("Google Play plan upgraded: companyId={}, {} -> {}", companyId, oldPlan, newPlan);
         return saved;
+    }
+
+    /** Authenticated RTDN is a hint, never an entitlement or an ownership claim. */
+    @Transactional
+    public String reconcileGoogleNotification(String purchaseToken) {
+        String hash = sha256(purchaseToken);
+        var receipt = paymentEventRepository.findByProviderAndTokenHash(GOOGLE_PLAY_PROVIDER, hash).orElse(null);
+        if (receipt == null || receipt.getCompanyId() == null || receipt.getStatus() != PaymentEventStatus.PROCESSED) {
+            // Only Google's verified link to an already claimed receipt can resolve a replacement
+            // while the app is closed. Unrelated pushes cannot establish ownership.
+            var discovery = googlePlayVerificationService.verifySubscription(purchaseToken, null);
+            if (discovery.retryable()) return "RETRY";
+            if (!discovery.valid() || discovery.linkedTokenHash() == null) return "WAITING_OWNER";
+            var old = paymentEventRepository.findByProviderAndTokenHash(GOOGLE_PLAY_PROVIDER, discovery.linkedTokenHash()).orElse(null);
+            if (old == null || old.getCompanyId() == null || old.getStatus() != PaymentEventStatus.PROCESSED) return "WAITING_OWNER";
+            if ("GOOGLE_REPLACED".equals(old.getFailureReason())) return "IGNORED_STALE";
+            var applied = verifyGooglePurchaseAndUpgradePlan(old.getCompanyId(), purchaseToken, discovery.productId());
+            return applied.verified() ? "APPLIED" : "retryable".equals(applied.status()) ? "RETRY" : "REJECTED";
+        }
+        if ("GOOGLE_REPLACED".equals(receipt.getFailureReason())) return "IGNORED_STALE";
+        var company = companyRepository.lockById(receipt.getCompanyId()).orElse(null);
+        if (company == null || !currentGoogleReceipt(company, receipt, hash)) return "IGNORED_STALE";
+        // Serialize the API read with tenant updates; delayed/duplicate notifications query today's state.
+        var result = googlePlayVerificationService.verifySubscription(purchaseToken, null);
+        if (result.retryable()) return "RETRY";
+        if (result.expiresAt() == null || result.state() == null) return "REJECTED";
+        if (result.obfuscatedAccountId() != null
+                && !GooglePlayAccountBinding.companyId(company.getId()).equals(result.obfuscatedAccountId()))
+            return "REJECTED_OWNER";
+        if (googleReceipts != null) googleReceipts.remember(purchaseToken, company.getId(), result);
+        if (result.valid() && result.expiresAt().isAfter(Instant.now())) {
+            upgradePlanFromGooglePlay(company.getId(), requireAllowedGoogleProduct(result.productId()),
+                    result.subscriptionId(), result.expiresAt());
+            receipt.setExternalSubscriptionId(result.subscriptionId());
+            paymentEventRepository.save(receipt);
+        } else {
+            company.setSubscriptionExpiresAt(LocalDateTime.ofInstant(result.expiresAt(), ZoneOffset.UTC));
+            if (!googleManuallyRestricted(company)) {
+                company.setIsReadOnly(true);
+                company.setSubscriptionStatus("EXPIRED");
+            }
+            companyRepository.save(company);
+        }
+        return "APPLIED";
+    }
+
+    private boolean currentGoogleReceipt(Company company, PaymentEvent receipt, String hash) {
+        return GOOGLE_PLAY_PROVIDER.equals(company.getSubscriptionProvider())
+                && (("google:" + hash).equals(company.getExternalSubscriptionId())
+                || (receipt.getExternalSubscriptionId() != null
+                && ("google:" + receipt.getExternalSubscriptionId()).equals(company.getExternalSubscriptionId())));
+    }
+
+    private boolean googleManuallyRestricted(Company company) {
+        String status = company.getSubscriptionStatus();
+        return "SUSPENDED".equals(status) || (Boolean.TRUE.equals(company.getIsReadOnly())
+                && !"EXPIRED".equals(status) && !"REVOKED".equals(status) && !"PAYMENT_FAILED".equals(status));
     }
 
     @Transactional
@@ -436,9 +568,11 @@ public class SubscriptionService {
 
             // Paid subscriptions remain writable for seven full days after
             // their billing expiry. Only then is read-only mode enforced.
-            long graceDays = APP_STORE_PROVIDER.equals(company.getSubscriptionProvider())
+            boolean storeManaged = APP_STORE_PROVIDER.equals(company.getSubscriptionProvider())
+                    || GOOGLE_PLAY_PROVIDER.equals(company.getSubscriptionProvider());
+            long graceDays = storeManaged
                     ? 0 : SUBSCRIPTION_GRACE_PERIOD_DAYS;
-            LocalDateTime now = APP_STORE_PROVIDER.equals(company.getSubscriptionProvider())
+            LocalDateTime now = storeManaged
                     ? LocalDateTime.now(java.time.ZoneOffset.UTC) : LocalDateTime.now();
             if (company.getSubscriptionExpiresAt() != null
                     && company.getSubscriptionExpiresAt()
@@ -472,10 +606,7 @@ public class SubscriptionService {
         if (token == null || token.isBlank()) {
             return "n/a";
         }
-        if (token.length() <= 8) {
-            return "****" + token;
-        }
-        return "****" + token.substring(token.length() - 8);
+        return "sha256:" + sha256(token).substring(0, 12);
     }
 
     private PlanType requireAllowedGoogleProduct(String productId) {
@@ -497,8 +628,14 @@ public class SubscriptionService {
             boolean idempotentReplay,
             String plan,
             String subscriptionId,
-            String status
+            String status,
+            String scheduledPlan,
+            String basePlanId,
+            String receiptHash
     ) {
+        public GoogleVerifyResult(boolean verified, boolean replay, String plan, String subscriptionId, String status) {
+            this(verified, replay, plan, subscriptionId, status, null, null, null);
+        }
     }
 
     public record AppleVerifyResult(

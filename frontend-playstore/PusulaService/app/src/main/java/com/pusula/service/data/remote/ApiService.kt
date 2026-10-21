@@ -82,7 +82,7 @@ interface ApiService {
     suspend fun authFeatureContext(): AuthProfileResponse
 
     @GET("/api/subscription/my-context")
-    suspend fun subscriptionMyContext(): SubscriptionContextDto
+    suspend fun subscriptionMyContext(@Header("Authorization") authorization: String? = null): SubscriptionContextDto
 
     @GET("/api/tickets/my-assigned")
     suspend fun myAssignedTickets(): List<FieldTicketDTO>
@@ -323,5 +323,8 @@ interface ApiService {
     suspend fun paymentInit(@Body payload: Map<String, Any>): Map<String, Any>
 
     @POST("/api/subscription/google-verify")
-    suspend fun googleVerify(@Body payload: Map<String, String>): Map<String, Any>
+    suspend fun googleVerify(@Header("Authorization") authorization: String,
+                             @Body payload: Map<String, String>): com.pusula.service.core.GooglePurchaseVerification
+    @GET("/api/subscription/google-status")
+    suspend fun googleBillingStatus(@Header("Authorization") authorization: String): com.pusula.service.core.GoogleBillingStatus
 }

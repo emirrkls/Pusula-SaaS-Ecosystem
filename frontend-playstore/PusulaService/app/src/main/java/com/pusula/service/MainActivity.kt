@@ -14,6 +14,12 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @javax.inject.Inject lateinit var billingManager: com.pusula.service.core.BillingManager
+    override fun onResume() {
+        super.onResume()
+        billingManager.bindActivity(this)
+        billingManager.onForeground()
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {

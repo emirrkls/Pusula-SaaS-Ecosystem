@@ -73,7 +73,7 @@ public class SubscriptionController {
                 result.idempotentReplay(),
                 result.plan(),
                 result.subscriptionId(),
-                result.status()));
+                result.status(), result.scheduledPlan(), result.basePlanId(), result.receiptHash()));
     }
 
     @PostMapping("/apple-verify")

@@ -1,6 +1,6 @@
 package com.pusula.service.ui.support
 
-data class SupportContact(val enabled:Boolean=false,val email:String="destek@pusulaiklimlendirme.store",val website:String="https://www.pusulaiklimlendirme.com/destek")
+data class SupportContact(val enabled:Boolean=false,val email:String="destek@pusulaiklimlendirme.store",val website:String="https://pusulaiklimlendirme.store/destek")
 data class SupportTicket(val id:Long,val number:String,val subject:String,val category:String,val status:String,val unread:Boolean,val updatedAt:String)
 data class SupportAttachment(val id:Long,val fileName:String,val mediaType:String,val size:Int)
 data class SupportMessage(val id:Long,val body:String,val staff:Boolean,val createdAt:String,val attachments:List<SupportAttachment>)

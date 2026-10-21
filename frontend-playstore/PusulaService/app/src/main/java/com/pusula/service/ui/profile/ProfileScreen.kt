@@ -152,6 +152,7 @@ fun ProfileScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         com.pusula.service.ui.guide.ApplicationGuideEntry(session)
                         androidx.compose.foundation.layout.Box(Modifier.guideTourTarget("profile-support")){com.pusula.service.ui.support.SupportEntry(onOpen={showSupport=true})}
+                        com.pusula.service.ui.components.ProductLegalLinks()
                         Button(
                             onClick = onLogout,
                             modifier = Modifier.fillMaxWidth(),
@@ -182,7 +183,7 @@ fun ProfileScreen(
             onDismissRequest = { showDeleteConfirmation = false },
             title = { Text("Hesabımı Sil") },
             text = {
-                Text("Hesabınızı ve tüm verilerinizi kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.")
+                Text(com.pusula.service.core.ProductLegal.DELETE_NOTICE)
             },
             confirmButton = {
                 TextButton(onClick = {

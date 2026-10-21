@@ -359,9 +359,14 @@ class AdminViewModel @Inject constructor(
             }
     }
 
-    fun purchasePlan(planName: String) {
-        billingManager.purchase(planName)
+    val billingState = billingManager.uiState
+
+    fun purchasePlan(planName: String, period: com.pusula.service.core.BillingPeriod) {
+        billingManager.purchase(planName, period)
     }
+
+    fun retryBillingProducts() { billingManager.queryProducts() }
+    fun restorePurchases() { billingManager.checkActiveSubscriptions(true) }
 
     fun bindBillingActivity(activity: Activity) {
         billingManager.bindActivity(activity)

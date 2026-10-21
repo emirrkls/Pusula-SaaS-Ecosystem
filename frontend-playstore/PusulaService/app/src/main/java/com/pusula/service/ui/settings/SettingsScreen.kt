@@ -305,6 +305,7 @@ fun SettingsScreen(
                             AppGhostCard {
                                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                                     com.pusula.service.ui.support.SupportEntry(onOpen={showSupport=true})
+                                    com.pusula.service.ui.components.ProductLegalLinks()
                                     AppPrimaryButton(text = "Çıkış Yap", onClick = onLogout, modifier = Modifier.fillMaxWidth())
                                     AppDestructiveButton(
                                         text = "Hesabımı Sil",
@@ -400,7 +401,7 @@ fun SettingsScreen(
     if (showDeleteAccountConfirmation) {
         ConfirmDialog(
             title = "Hesabımı Sil",
-            message = "Hesabınızı silmek istediğinizden emin misiniz? Giriş yapamaz hale gelirsiniz. Bu işlem geri alınamaz.",
+            message = com.pusula.service.core.ProductLegal.DELETE_NOTICE,
             onDismiss = { showDeleteAccountConfirmation = false },
             onConfirm = {
                 showDeleteAccountConfirmation = false

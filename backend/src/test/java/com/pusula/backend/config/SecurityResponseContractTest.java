@@ -33,6 +33,14 @@ class SecurityResponseContractTest {
     @Autowired MockMvc mockMvc;
 
     @Test
+    void googleNotificationIsPublicButDisabledWithoutDedicatedServerConfiguration() throws Exception {
+        String path = "/api/public/google/play-notifications";
+        mockMvc.perform(post(path).servletPath(path).contentType("application/json")
+                        .header("Authorization", "Bearer not-a-pusula-session").content("{}"))
+                .andExpect(status().isServiceUnavailable());
+    }
+
+    @Test
     void unauthenticatedProtectedRequestReturnsStructured401() throws Exception {
         mockMvc.perform(get("/api/notifications/unread-count"))
                 .andExpect(status().isUnauthorized())

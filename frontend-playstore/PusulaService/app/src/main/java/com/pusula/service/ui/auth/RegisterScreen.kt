@@ -172,6 +172,7 @@ fun RegisterScreen(
                     }
                 }
             }
+            com.pusula.service.ui.components.ProductLegalLinks()
             Spacer(Modifier.height(Spacing.md))
         }
     }

@@ -30,18 +30,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.activity.compose.BackHandler
 import com.pusula.service.ui.components.AppTopBar
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -51,6 +58,8 @@ import com.pusula.service.ui.theme.BrandNavy
 import com.pusula.service.ui.theme.Spacing
 import com.pusula.service.ui.theme.Success
 import com.pusula.service.data.model.PlanDTO
+import com.pusula.service.core.BillingPeriod
+import com.pusula.service.core.PlayPlanOption
 
 private data class PlanCardData(
     val code: String,
@@ -69,6 +78,11 @@ fun PlanUpgradeScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val session by viewModel.sessionManager.state.collectAsState()
+    val billing by viewModel.billingState.collectAsState()
+    val guide by com.pusula.service.core.GuideReadOnlyGate.active.collectAsState()
+    val uriHandler = LocalUriHandler.current
+    var period by rememberSaveable { mutableStateOf(BillingPeriod.MONTHLY) }
+    var linkError by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(context) {
         if(!com.pusula.service.core.GuideReadOnlyGate.active.value) (context as? android.app.Activity)?.let(viewModel::bindBillingActivity)
         viewModel.loadPlans()
@@ -96,12 +110,67 @@ fun PlanUpgradeScreen(
                         eyebrow = "Mevcut paket",
                         title = session.planType.ifBlank { "CIRAK" } + " paketi",
                         subtitle = "Daha fazla özellik için yükseltin",
-                        badge = "${session.trialDaysRemaining ?: 0} gün deneme kaldı"
+                        badge = session.trialDaysRemaining?.let { "$it gün deneme kaldı" }
                     )
+                }
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), modifier = Modifier.fillMaxWidth()) {
+                        BillingPeriod.entries.forEach { choice ->
+                            FilterChip(selected = period == choice, onClick = { period = choice },
+                                label = { Text(choice.title) }, modifier = Modifier.weight(1f), enabled = !billing.busy)
+                        }
+                    }
+                }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        if (billing.loading) {
+                            CircularProgressIndicator(Modifier.size(24.dp))
+                            Text("Google Play fiyatları yükleniyor…")
+                        }
+                        if (billing.busy) {
+                            CircularProgressIndicator(Modifier.size(24.dp))
+                            Text("İşleminiz kontrol ediliyor. Yeni bir satın alma başlatmayın.")
+                        }
+                        (billing.error ?: uiState.error)?.let {
+                            Text(it, color = MaterialTheme.colorScheme.error)
+                        }
+                        billing.message?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        if (billing.server.reason=="another_provider_active") Text("Etkin paketiniz başka bir ödeme kanalıyla yönetiliyor. Çift ödeme oluşmaması için Google Play'den yeni abonelik başlatılamaz.")
+                        if (billing.server.reason=="account_restricted") Text("Hesabınız için satın alma şu anda kapalı. Destek ile iletişime geçin.")
+                        if (billing.server.reason=="server_not_ready") Text("Satın alma doğrulama sistemi henüz etkin değil. İşlem başlatılamaz.")
+                        TextButton(onClick = { viewModel.retryBillingProducts() }, enabled = !guide && !billing.loading && !billing.busy) {
+                            Text("Fiyatları Yenile")
+                        }
+                    }
                 }
                 items(plans, key = { it.code }) { plan ->
                     val isCurrent = session.planType.equals(plan.code, true)
-                    PlanRow(plan = plan, isCurrent = isCurrent, onPick = { viewModel.purchasePlan(plan.code) })
+                    val option = billing.options.singleOrNull {
+                        it.productId.equals(plan.code, true) && it.period == period
+                    }
+                    val exactCurrent=isCurrent && (billing.server.basePlanId==null || option?.basePlanId==billing.server.basePlanId)
+                    PlanRow(plan = plan, isCurrent = exactCurrent, option = option,
+                        actionTitle=if(isCurrent && !exactCurrent) "Dönemi Değiştir" else if(billing.server.receiptHash!=null) "Paketi Değiştir" else "Google Play ile Abone Ol",
+                        canBuy = !guide && !billing.loading && !billing.busy && billing.server.ready
+                            && billing.server.purchaseAllowed && billing.ownershipReady && billing.server.scheduledPlan==null,
+                        onPick = { viewModel.purchasePlan(plan.code, period) })
+                }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        Text("Seçilen tutar ve dönem Google Play'den alınır. Abonelik iptal edilmedikçe seçtiğiniz dönemle otomatik yenilenir. Yenilemeyi Google Play abonelik ayarlarından durdurabilirsiniz. Hesabınızı silmek aboneliği iptal etmez.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Paket düşürmede ödenmiş dönemin sonuna kadar mevcut haklarınız korunur. Yükseltmede kalan süre Google tarafından hesaba katılır. Dönem değişimi sonraki ödeme tarihinde uygulanır; kesin tutar ve tarih Google Play onay ekranında gösterilir.",
+                            style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        billing.server.scheduledPlan?.let { Text("Planlanmış paket: $it. Google Play abonelik ayarlarından yönetebilirsiniz.") }
+                        TextButton(onClick = { viewModel.restorePurchases() }, enabled = !guide && !billing.busy) {
+                            Text("Satın Alımları Geri Yükle")
+                        }
+                        TextButton(onClick = {
+                            linkError = runCatching { uriHandler.openUri("https://play.google.com/store/account/subscriptions?package=com.pusula.service") }.isFailure
+                        }, enabled = !guide) { Text("Google Play Aboneliğini Yönet") }
+                        if (linkError) Text("Google Play abonelik ayarları açılamadı.", color = MaterialTheme.colorScheme.error)
+                        com.pusula.service.ui.components.ProductLegalLinks()
+                    }
                 }
             }
             LazyLoadingOverlay(isLoading = uiState.loading)
@@ -136,7 +205,7 @@ private fun toPlanCardData(plan: PlanDTO): PlanCardData {
 }
 
 @Composable
-private fun PlanRow(plan: PlanCardData, isCurrent: Boolean, onPick: () -> Unit) {
+private fun PlanRow(plan: PlanCardData, isCurrent: Boolean, option: PlayPlanOption?, canBuy: Boolean, actionTitle: String, onPick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -208,6 +277,9 @@ private fun PlanRow(plan: PlanCardData, isCurrent: Boolean, onPick: () -> Unit) 
                         }
                     }
                 }
+                Text(option?.let { "${it.formattedPrice} ${it.period.suffix}" } ?: "Bu dönem için fiyat alınamadı",
+                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                    color = if (option == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     plan.features.forEach { feature ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -224,7 +296,7 @@ private fun PlanRow(plan: PlanCardData, isCurrent: Boolean, onPick: () -> Unit) 
                 Spacer(Modifier.height(Spacing.xs))
                 Button(
                     onClick = onPick,
-                    enabled = !isCurrent,
+                    enabled = !isCurrent && option != null && canBuy,
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -239,7 +311,7 @@ private fun PlanRow(plan: PlanCardData, isCurrent: Boolean, onPick: () -> Unit) 
                         )
                 ) {
                     Text(
-                        text = if (isCurrent) "Aktif Paket" else "Bu Pakete Geç",
+                        text = if (isCurrent) "Aktif Paket" else if (option == null) "Satın Alma Kullanılamıyor" else actionTitle,
                         color = Color.White,
                         fontWeight = FontWeight.SemiBold
                     )

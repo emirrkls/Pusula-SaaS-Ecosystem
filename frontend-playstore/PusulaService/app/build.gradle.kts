@@ -12,9 +12,11 @@ plugins {
 
 fun loadLocalProperties(): Properties {
     val props = Properties()
-    val candidates = listOf(
+    val candidates = listOfNotNull(
         rootProject.file("local.properties"),
-        project.file("local.properties")
+        project.file("local.properties"),
+        providers.environmentVariable("PUSULA_RELEASE_PROPERTIES").orNull
+            ?.takeIf { it.isNotBlank() }?.let { project.file(it) }
     ).distinct()
     candidates.forEach { f ->
         if (f.exists()) {
@@ -90,8 +92,8 @@ android {
         applicationId = "com.pusula.service"
         minSdk = 26
         targetSdk = 36
-        versionCode = 32
-        versionName = "1.3.8"
+        versionCode = 33
+        versionName = "1.3.9"
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
         manifestPlaceholders["googleMapsApiKey"] = googleMapsApiKey
 

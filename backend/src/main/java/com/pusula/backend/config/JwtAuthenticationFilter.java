@@ -33,6 +33,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
+        // This endpoint validates Google Pub/Sub OIDC independently, not a Pusula login JWT.
+        return "/api/public/google/play-notifications".equals(request.getServletPath());
+    }
+
+    @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,

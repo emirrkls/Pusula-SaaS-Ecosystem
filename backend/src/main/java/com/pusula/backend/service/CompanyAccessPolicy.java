@@ -20,7 +20,8 @@ public final class CompanyAccessPolicy {
     public static boolean isReadOnly(Company company) {
         if (company == null) return false;
         if (company.getIsReadOnly() || "SUSPENDED".equals(company.getSubscriptionStatus())) return true;
-        if (company.getPlanType() != PlanType.CIRAK && "APP_STORE".equals(company.getSubscriptionProvider())
+        if (company.getPlanType() != PlanType.CIRAK
+                && ("APP_STORE".equals(company.getSubscriptionProvider()) || "GOOGLE_PLAY".equals(company.getSubscriptionProvider()))
                 && company.getSubscriptionExpiresAt() != null
                 && !company.getSubscriptionExpiresAt().isAfter(LocalDateTime.now(java.time.ZoneOffset.UTC))) return true;
         return company.getPlanType() != PlanType.CIRAK
