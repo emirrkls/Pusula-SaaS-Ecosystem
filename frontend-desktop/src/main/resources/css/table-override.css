@@ -1,41 +1,9 @@
-/* ================================================
-   TABLE SELECTION OVERRIDE
-   This file MUST be loaded AFTER the AtlantaFX theme
-   to properly override the default selection colors.
-   ================================================ */
-
-/* Force dark blue background for ALL selected rows */
-.table-row-cell:selected {
-    -fx-background-color: #334155 !important;
-    -fx-background: #334155 !important;
+/* Loaded after the theme so nested action controls keep their own text roles. */
+.table-view .table-row-cell:filled:selected,
+.table-view:focused .table-row-cell:filled:selected {
+    -fx-background-color: -pusula-selected;
+    -fx-background: -pusula-selected;
 }
-
-.table-row-cell:odd:selected {
-    -fx-background-color: #334155 !important;
-    -fx-background: #334155 !important;
-}
-
-.table-view:focused .table-row-cell:selected {
-    -fx-background-color: #475569 !important;
-    -fx-background: #475569 !important;
-}
-
-.table-view:focused .table-row-cell:odd:selected {
-    -fx-background-color: #475569 !important;
-    -fx-background: #475569 !important;
-}
-
-/* Force white text on the data cell, but do not target every descendant Label
-   or Text. Action controls inside a selected row own their foreground color. */
-.table-row-cell:selected .table-cell {
-    -fx-text-fill: #FFFFFF !important;
-}
-
-.table-row-cell:odd:selected .table-cell {
-    -fx-text-fill: #FFFFFF !important;
-}
-
-/* Focused table - white text */
-.table-view:focused .table-row-cell:selected .table-cell {
-    -fx-text-fill: #FFFFFF !important;
+.table-view .table-row-cell:filled:selected .table-cell {
+    -fx-text-fill: -pusula-text;
 }

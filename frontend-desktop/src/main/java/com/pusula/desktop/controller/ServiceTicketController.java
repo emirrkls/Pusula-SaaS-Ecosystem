@@ -12,7 +12,6 @@ import com.pusula.desktop.dto.ServiceTicketDTO;
 import com.pusula.desktop.dto.UserDTO;
 import com.pusula.desktop.network.RetrofitClient;
 import com.pusula.desktop.util.AlertHelper;
-import com.pusula.desktop.util.AnimationHelper;
 import com.pusula.desktop.util.NotificationHelper;
 import com.pusula.desktop.util.ThemeHelper;
 import com.pusula.desktop.util.SessionManager;
@@ -52,6 +51,8 @@ public class ServiceTicketController {
 
     enum TicketFilter {
         PENDING_ASSIGNMENT,
+        ACTIVE,
+        OVERDUE,
         OPENED_TODAY,
         ASSIGNED,
         IN_PROGRESS,
@@ -162,6 +163,12 @@ public class ServiceTicketController {
         }
     }
 
+    void selectFilter(TicketFilter filter) {
+        filterToggleGroup.getToggles().stream()
+                .filter(chip -> chip.getUserData() == filter)
+                .findFirst().ifPresent(filterToggleGroup::selectToggle);
+    }
+
     private void setupTicketList() {
         filteredList = new FilteredList<>(allTicketsList, this::matchesCurrentFilter);
         sortedList = new SortedList<>(filteredList);
@@ -169,6 +176,13 @@ public class ServiceTicketController {
 
         ticketsListView.setItems(sortedList);
         ticketsListView.setCellFactory(listView -> new TicketCardCell());
+        ticketsListView.setOnKeyPressed(event -> {
+            var selected = ticketsListView.getSelectionModel().getSelectedItem();
+            if (event.getCode() == javafx.scene.input.KeyCode.ENTER && selected != null) {
+                openTicketDetails(selected);
+                event.consume();
+            }
+        });
 
         sortedList.addListener((javafx.collections.ListChangeListener<ServiceTicketDTO>) change -> updateEmptyState());
         updateEmptyState();
@@ -196,49 +210,58 @@ public class ServiceTicketController {
     }
 
     private class TicketCardCell extends ListCell<ServiceTicketDTO> {
-        private final HBox card = new HBox(14);
-        private final Region accent = new Region();
-        private final VBox content = new VBox(6);
-        private final HBox headerRow = new HBox(10);
         private final Label customerLabel = new Label();
-        private final Label statusBadge = new Label();
-        private final Label metaLabel = new Label();
         private final Label descriptionLabel = new Label();
+        private final Label dateLabel = new Label();
+        private final Label technicianLabel = new Label();
+        private final Label statusBadge = new Label();
+        private final HBox details = new HBox(12, dateLabel, technicianLabel);
+        private final VBox identity = new VBox(2, customerLabel, descriptionLabel);
+        private final StackPane status = new StackPane(statusBadge);
+        private final HBox card = new HBox(16, identity, details, status);
 
         TicketCardCell() {
-            accent.getStyleClass().add("ticket-card-accent");
             customerLabel.getStyleClass().add("ticket-card-customer");
-            metaLabel.getStyleClass().add("ticket-card-meta");
             descriptionLabel.getStyleClass().add("ticket-card-description");
-            descriptionLabel.setWrapText(true);
-
-            Region spacer = new Region();
-            HBox.setHgrow(spacer, Priority.ALWAYS);
-            headerRow.setAlignment(Pos.CENTER_LEFT);
-            headerRow.getChildren().addAll(customerLabel, spacer, statusBadge);
-
-            content.getChildren().addAll(headerRow, descriptionLabel, metaLabel);
-            card.getStyleClass().add("ticket-card");
+            dateLabel.getStyleClass().add("ticket-card-meta");
+            technicianLabel.getStyleClass().add("ticket-card-meta");
+            dateLabel.setPrefWidth(148);
+            technicianLabel.setPrefWidth(108);
+            identity.setMinWidth(0);
+            identity.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(identity, Priority.ALWAYS);
+            status.setMinWidth(90);
+            status.setAlignment(Pos.CENTER_LEFT);
             card.setAlignment(Pos.CENTER_LEFT);
-            card.getChildren().addAll(accent, content);
-            HBox.setHgrow(content, Priority.ALWAYS);
-
-            card.setOnMouseClicked(e -> {
-                if (isEmpty() || getItem() == null) {
-                    return;
-                }
+            card.getStyleClass().add("ticket-card");
+            widthProperty().addListener((observable, before, after) -> {
+                boolean narrow = after.doubleValue() < 720;
+                if ((before.doubleValue() < 720) != narrow) layoutColumns(narrow);
+            });
+            layoutColumns(getWidth() < 720);
+            card.setOnMouseClicked(event -> {
+                if (event.getButton() != javafx.scene.input.MouseButton.PRIMARY || getItem() == null) return;
                 ticketsListView.getSelectionModel().select(getItem());
                 openTicketDetails(getItem());
-                e.consume();
+                event.consume();
             });
+        }
 
-            AnimationHelper.applyCardHover(card);
+        private void layoutColumns(boolean narrow) {
+            if (narrow) {
+                card.getChildren().remove(details);
+                if (!identity.getChildren().contains(details)) identity.getChildren().add(details);
+            } else {
+                identity.getChildren().remove(details);
+                if (!card.getChildren().contains(details)) card.getChildren().add(1, details);
+            }
         }
 
         @Override
         protected void updateItem(ServiceTicketDTO ticket, boolean empty) {
             super.updateItem(ticket, empty);
             if (empty || ticket == null) {
+                setAccessibleText(null);
                 setGraphic(null);
                 setText(null);
                 return;
@@ -254,17 +277,21 @@ public class ServiceTicketController {
             String dateLine = ticket.getScheduledDate() != null
                     ? ticket.getScheduledDate().format(DATE_FMT)
                     : "Tarih yok";
-            metaLabel.setText("#" + ticket.getId() + "  ·  " + dateLine + "  ·  " + techLine);
-
+            dateLabel.setText(dateLine);
+            technicianLabel.setText(techLine);
+            descriptionLabel.setText("#" + ticket.getId() + "  ·  " + descriptionLabel.getText());
             applyStatusBadge(statusBadge, ticket.getStatus());
-            applyAccentColor(accent, ticket.getStatus());
+            setAccessibleText(customerLabel.getText() + ", " + descriptionLabel.getText() + ", " + dateLine
+                    + ", " + techLine + ", " + statusBadge.getText());
+
+
             setGraphic(card);
         }
 
         private void applyStatusBadge(Label badge, String status) {
             badge.getStyleClass().removeIf(c -> c.startsWith("status-badge"));
             badge.getStyleClass().add("status-badge");
-            String normalized = status != null ? status.trim().toUpperCase() : "";
+            String normalized = status != null ? status.trim().toUpperCase(java.util.Locale.ROOT) : "";
             switch (normalized) {
                 case "PENDING" -> badge.getStyleClass().add("status-badge-pending");
                 case "ASSIGNED" -> badge.getStyleClass().add("status-badge-assigned");
@@ -276,16 +303,7 @@ public class ServiceTicketController {
             badge.setText(translateStatus(normalized));
         }
 
-        private void applyAccentColor(Region region, String status) {
-            region.getStyleClass().removeIf(c -> c.startsWith("ticket-accent-"));
-            region.getStyleClass().add(switch (status != null ? status.trim().toUpperCase() : "") {
-                case "COMPLETED" -> "ticket-accent-completed";
-                case "IN_PROGRESS" -> "ticket-accent-in-progress";
-                case "CANCELLED" -> "ticket-accent-cancelled";
-                case "ASSIGNED" -> "ticket-accent-assigned";
-                default -> "ticket-accent-pending";
-            });
-        }
+
     }
 
     private String translateStatus(String status) {
@@ -302,6 +320,8 @@ public class ServiceTicketController {
     private String filterLabel(TicketFilter filter) {
         return switch (filter) {
             case PENDING_ASSIGNMENT -> resourceBundle.getString("filter.pending_assignment");
+            case ACTIVE -> "Aktif işler";
+            case OVERDUE -> "48 saati aşan";
             case OPENED_TODAY -> resourceBundle.getString("filter.opened_today");
             case ASSIGNED -> resourceBundle.getString("filter.assigned");
             case IN_PROGRESS -> resourceBundle.getString("filter.in_progress");
@@ -380,9 +400,11 @@ public class ServiceTicketController {
     }
 
     private boolean matchesStatusFilter(ServiceTicketDTO ticket, TicketFilter filter) {
-        String status = ticket.getStatus() != null ? ticket.getStatus().trim().toUpperCase() : "";
+        String status = ticket.getStatus() != null ? ticket.getStatus().trim().toUpperCase(java.util.Locale.ROOT) : "";
         return switch (filter) {
             case PENDING_ASSIGNMENT -> ticket.getAssignedTechnicianId() == null && "PENDING".equals(status);
+            case ACTIVE -> isActive(ticket);
+            case OVERDUE -> isOverdue(ticket);
             case OPENED_TODAY -> isTodayInBusinessZone(ticket.getCreatedAt());
             case ASSIGNED -> "ASSIGNED".equals(status);
             case IN_PROGRESS -> "IN_PROGRESS".equals(status);
@@ -391,9 +413,21 @@ public class ServiceTicketController {
         };
     }
 
+    static boolean isActive(ServiceTicketDTO ticket) {
+        if (ticket == null) return false;
+        String status = ticket.getStatus() == null ? "" : ticket.getStatus().trim();
+        return !"COMPLETED".equalsIgnoreCase(status) && !"CANCELLED".equalsIgnoreCase(status);
+    }
+
+    static boolean isOverdue(ServiceTicketDTO ticket) {
+        if (ticket == null || ticket.getCreatedAt() == null) return false;
+        return ("PENDING".equalsIgnoreCase(ticket.getStatus()) || "IN_PROGRESS".equalsIgnoreCase(ticket.getStatus()))
+                && ticket.getCreatedAt().isBefore(java.time.LocalDateTime.now().minusHours(48));
+    }
+
     static boolean isPendingUnassigned(ServiceTicketDTO ticket) {
         if (ticket == null || ticket.getAssignedTechnicianId() != null) return false;
-        String status = ticket.getStatus() != null ? ticket.getStatus().trim().toUpperCase() : "";
+        String status = ticket.getStatus() != null ? ticket.getStatus().trim().toUpperCase(java.util.Locale.ROOT) : "";
         return "PENDING".equals(status);
     }
 
@@ -597,7 +631,7 @@ public class ServiceTicketController {
             controller.setOnSaveSuccess(this::loadTickets);
 
             javafx.stage.Stage stage = new javafx.stage.Stage();
-            stage.setTitle("Yeni Servis Fişi");
+            stage.setTitle("Yeni servis işi");
             stage.setScene(ThemeHelper.createDialogScene(root));
             ThemeHelper.configureDialogStage(stage, ticketsListView.getScene().getWindow(),
                     ThemeHelper.DialogProfile.WORKFLOW);
@@ -732,7 +766,6 @@ public class ServiceTicketController {
                     setLoading(false);
                     if (response.isSuccessful() && response.body() != null) {
                         allTicketsList.setAll(response.body());
-                        AnimationHelper.fadeInUp(ticketsListView, 0);
                         openPendingTicketIfAvailable();
                     } else {
                         NotificationHelper.showError("Fişler yüklenemedi: " + response.code());

@@ -162,7 +162,7 @@ public final class NotificationService {
         AtomicBoolean confirmed = new AtomicBoolean(false);
 
         Label icon = new Label(iconFor(kind));
-        icon.getStyleClass().addAll("feedback-modal-icon", "feedback-icon-" + kind.name().toLowerCase());
+        icon.getStyleClass().addAll("feedback-modal-icon", "feedback-icon-" + kind.name().toLowerCase(java.util.Locale.ROOT));
         Label heading = new Label(safe(title));
         heading.getStyleClass().add("feedback-modal-title");
         heading.setWrapText(true);
@@ -215,7 +215,8 @@ public final class NotificationService {
             cancelButton.setCancelButton(true);
             cancelButton.setOnAction(event -> stage.close());
             Button confirmButton = actionButton("Onayla", destructive ? "button-danger" : "button-success");
-            confirmButton.setDefaultButton(true);
+            confirmButton.setDefaultButton(!destructive);
+            cancelButton.setDefaultButton(destructive);
             confirmButton.setOnAction(event -> {
                 confirmed.set(true);
                 stage.close();
@@ -229,7 +230,7 @@ public final class NotificationService {
         }
 
         VBox card = new VBox(content, actions);
-        card.getStyleClass().addAll("feedback-modal-card", "feedback-modal-" + kind.name().toLowerCase());
+        card.getStyleClass().addAll("feedback-modal-card", "feedback-modal-" + kind.name().toLowerCase(java.util.Locale.ROOT));
         card.setMinWidth(MIN_DIALOG_WIDTH);
         card.setPrefWidth(preferredModalWidth(owner));
         card.setMaxWidth(MAX_DIALOG_WIDTH);
@@ -305,7 +306,7 @@ public final class NotificationService {
         if (owner == null || !owner.isShowing()) return;
 
         Label icon = new Label(iconFor(kind));
-        icon.getStyleClass().addAll("toast-icon", "feedback-icon-" + kind.name().toLowerCase());
+        icon.getStyleClass().addAll("toast-icon", "feedback-icon-" + kind.name().toLowerCase(java.util.Locale.ROOT));
         Label heading = new Label(safe(title));
         heading.getStyleClass().add("toast-title");
         heading.setWrapText(true);
@@ -321,8 +322,10 @@ public final class NotificationService {
         HBox card = new HBox(12, icon, copy);
         HBox.setHgrow(copy, Priority.ALWAYS);
         card.setAlignment(Pos.TOP_LEFT);
-        card.getStyleClass().addAll("toast-card", "toast-" + kind.name().toLowerCase());
+        card.getStyleClass().addAll("root", "toast-card", "toast-" + kind.name().toLowerCase(java.util.Locale.ROOT));
         card.getStylesheets().add(NotificationService.class.getResource("/css/styles.css").toExternalForm());
+
+        ThemeHelper.toggleDarkClass(card, ThemeHelper.isDarkMode());
 
         Popup popup = new Popup();
         popup.setAutoFix(true);

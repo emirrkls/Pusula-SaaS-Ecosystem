@@ -11,6 +11,30 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ServiceTicketControllerDateFilterTest {
     @Test
+    void onlyOpenPendingOrInProgressTicketsOlderThan48HoursAreOverdue() {
+        ServiceTicketDTO ticket = new ServiceTicketDTO();
+        ticket.setCreatedAt(LocalDateTime.now().minusHours(49));
+        for (String status : java.util.List.of("PENDING", "IN_PROGRESS")) {
+            ticket.setStatus(status);
+            assertTrue(ServiceTicketController.isActive(ticket));
+            assertTrue(ServiceTicketController.isOverdue(ticket));
+        }
+        ticket.setStatus("ASSIGNED");
+        assertTrue(ServiceTicketController.isActive(ticket));
+        assertFalse(ServiceTicketController.isOverdue(ticket));
+        for (String status : java.util.List.of("CANCELLED", "COMPLETED")) {
+            ticket.setStatus(status);
+            assertFalse(ServiceTicketController.isActive(ticket));
+            assertFalse(ServiceTicketController.isOverdue(ticket));
+        }
+        ticket.setStatus("PENDING");
+        ticket.setCreatedAt(LocalDateTime.now().minusHours(47));
+        assertFalse(ServiceTicketController.isOverdue(ticket));
+        ticket.setCreatedAt(null);
+        assertFalse(ServiceTicketController.isOverdue(ticket));
+    }
+
+    @Test
     void scheduledDateIsFilteredInclusively() {
         ServiceTicketDTO ticket = new ServiceTicketDTO();
         ticket.setScheduledDate(LocalDateTime.of(2026, 8, 26, 14, 30));

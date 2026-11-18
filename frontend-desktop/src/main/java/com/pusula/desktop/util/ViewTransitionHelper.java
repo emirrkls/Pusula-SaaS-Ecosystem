@@ -18,28 +18,13 @@ public final class ViewTransitionHelper {
             return;
         }
 
-        if (container.getChildren().isEmpty()) {
-            newContent.setOpacity(0);
-            container.getChildren().setAll(newContent);
-            fadeIn(newContent);
-            return;
-        }
-
-        Node outgoing = container.getChildren().get(0);
-        FadeTransition fadeOut = new FadeTransition(Duration.millis(120), outgoing);
-        fadeOut.setFromValue(outgoing.getOpacity());
-        fadeOut.setToValue(0);
-        fadeOut.setOnFinished(e -> {
-            newContent.setOpacity(0);
-            container.getChildren().setAll(newContent);
-            fadeIn(newContent);
-        });
-        fadeOut.play();
+        container.getChildren().setAll(newContent);
+        fadeIn(newContent);
     }
 
     private static void fadeIn(Node node) {
-        FadeTransition fadeIn = new FadeTransition(Duration.millis(180), node);
-        fadeIn.setFromValue(0);
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(100), node);
+        fadeIn.setFromValue(0.92);
         fadeIn.setToValue(1);
         fadeIn.play();
     }

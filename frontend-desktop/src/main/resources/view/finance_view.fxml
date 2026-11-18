@@ -26,11 +26,10 @@
                            <HBox alignment="CENTER_LEFT" spacing="12.0" styleClass="finance-command-bar">
                               <VBox spacing="3.0" HBox.hgrow="ALWAYS">
                                  <Label text="%finance.daily_operations" styleClass="section-heading" />
-                                 <Label text="Günün tahsilat ve gider hareketlerini tek ekrandan yönetin." styleClass="section-caption" />
                               </VBox>
                               <Label fx:id="currentDateLabel" styleClass="date-label, finance-date-pill" />
                               <Button mnemonicParsing="false" onAction="#handleAddExpenseUnified"
-                                      styleClass="btn-success" text="%unified_expense.btn.add_expense" />
+                                      styleClass="btn-primary" text="%unified_expense.btn.add_expense" />
                            </HBox>
 
                            <VBox spacing="8.0" styleClass="finance-alert-stack">
@@ -57,29 +56,29 @@
                            </VBox>
 
                            <FlowPane alignment="CENTER_LEFT" hgap="12.0" vgap="12.0" styleClass="finance-summary-grid">
-                              <VBox prefWidth="255.0" spacing="6.0" styleClass="finance-summary-card, finance-summary-income">
+                              <VBox prefWidth="214.0" spacing="6.0" styleClass="finance-summary-card, finance-summary-income">
                                  <Label text="Bugünkü Gelir" styleClass="finance-summary-label" />
-                                 <Label fx:id="todayIncomeLabel" styleClass="finance-summary-value, amount-positive" text="0 ₺" />
+                                 <Label fx:id="todayIncomeLabel" styleClass="finance-summary-value, amount-positive" text="—" />
                                  <Label text="Nakit ve tahsil edilen servisler" styleClass="finance-summary-caption" />
                               </VBox>
-                              <VBox prefWidth="255.0" spacing="6.0" styleClass="finance-summary-card, finance-summary-expense">
+                              <VBox prefWidth="214.0" spacing="6.0" styleClass="finance-summary-card, finance-summary-expense">
                                  <Label text="Bugünkü Gider" styleClass="finance-summary-label" />
-                                 <Label fx:id="todayExpenseLabel" styleClass="finance-summary-value, amount-negative" text="0 ₺" />
+                                 <Label fx:id="todayExpenseLabel" styleClass="finance-summary-value, amount-negative" text="—" />
                                  <Label text="Kasa çıkışları ve faaliyet giderleri" styleClass="finance-summary-caption" />
                               </VBox>
-                              <VBox prefWidth="255.0" spacing="6.0" styleClass="finance-summary-card, finance-summary-net">
+                              <VBox prefWidth="214.0" spacing="6.0" styleClass="finance-summary-card, finance-summary-net">
                                  <Label text="%finance.net_cash" styleClass="finance-summary-label" />
-                                 <Label fx:id="netCashLabel" text="0 ₺" styleClass="finance-summary-value, net-cash-value" />
+                                 <Label fx:id="netCashLabel" text="—" styleClass="finance-summary-value, net-cash-value" />
                                  <Label text="Günün gelir-gider farkı" styleClass="finance-summary-caption" />
                               </VBox>
                            </FlowPane>
 
                            <VBox spacing="3.0">
                               <Label text="Günün Hareketleri" styleClass="section-heading" />
-                              <Label text="Gelir ve gider kayıtları işlem türüne göre ayrılmıştır." styleClass="section-caption" />
                            </VBox>
 
-                           <SplitPane dividerPositions="0.5" minHeight="360.0" prefHeight="430.0" styleClass="finance-ledger-split">
+                           <Label fx:id="ledgerStatus" wrapText="true" styleClass="empty-state" text="Günün hareketleri yükleniyor…" />
+                           <SplitPane fx:id="dailyLedger" visible="false" managed="false" dividerPositions="0.5" minHeight="220.0" prefHeight="430.0" styleClass="finance-ledger-split">
                               <items>
                                  <VBox spacing="10.0" styleClass="finance-ledger-card">
                                     <Label text="%finance.todays_expense" styleClass="finance-ledger-title" />
@@ -122,10 +121,10 @@
                            <HBox alignment="CENTER_RIGHT" spacing="12.0" styleClass="finance-close-day-bar">
                               <VBox spacing="2.0" HBox.hgrow="ALWAYS">
                                  <Label text="Günlük mutabakat" styleClass="finance-close-day-title" />
-                                 <Label text="Gelir ve giderlerin anık özetini kaydeder. Açık günler 23:59'da otomatik kapatılır." styleClass="section-caption" />
+                                 <Label text="Gelir ve giderlerin anlık özetini kaydeder. Açık günler 23:59'da otomatik kapatılır." styleClass="section-caption" />
                               </VBox>
                               <Button fx:id="closeDayButton" mnemonicParsing="false" onAction="#handleCloseDay"
-                                      styleClass="btn-danger, btn-close-day" text="Mutabakatı Kaydet" />
+                                      styleClass="button-secondary, btn-close-day" text="Mutabakatı Kaydet" />
                            </HBox>
                         </children>
                      </VBox>
@@ -146,28 +145,29 @@
                            </VBox>
 
                            <FlowPane alignment="CENTER_LEFT" hgap="12.0" vgap="12.0" styleClass="finance-analytics-kpis">
-                              <VBox prefWidth="230.0" spacing="5.0" styleClass="analytics-kpi-card">
+                              <VBox prefWidth="195.0" spacing="5.0" styleClass="analytics-kpi-card">
                                  <Label text="30 Günlük Gelir" styleClass="finance-summary-label" />
-                                 <Label fx:id="analyticsIncomeLabel" text="0 ₺" styleClass="analytics-kpi-value, amount-positive" />
+                                 <Label fx:id="analyticsIncomeLabel" text="—" styleClass="analytics-kpi-value, amount-positive" />
                               </VBox>
-                              <VBox prefWidth="230.0" spacing="5.0" styleClass="analytics-kpi-card">
+                              <VBox prefWidth="195.0" spacing="5.0" styleClass="analytics-kpi-card">
                                  <Label text="30 Günlük Gider" styleClass="finance-summary-label" />
-                                 <Label fx:id="analyticsExpenseLabel" text="0 ₺" styleClass="analytics-kpi-value, amount-negative" />
+                                 <Label fx:id="analyticsExpenseLabel" text="—" styleClass="analytics-kpi-value, amount-negative" />
                               </VBox>
-                              <VBox prefWidth="230.0" spacing="5.0" styleClass="analytics-kpi-card">
+                              <VBox prefWidth="195.0" spacing="5.0" styleClass="analytics-kpi-card">
                                  <Label text="30 Günlük Net" styleClass="finance-summary-label" />
-                                 <Label fx:id="analyticsNetLabel" text="0 ₺" styleClass="analytics-kpi-value" />
+                                 <Label fx:id="analyticsNetLabel" text="—" styleClass="analytics-kpi-value" />
                               </VBox>
-                              <VBox prefWidth="230.0" spacing="5.0" styleClass="analytics-kpi-card">
-                                 <Label text="En Yüksek Gider" styleClass="finance-summary-label" />
+                              <VBox prefWidth="195.0" spacing="5.0" styleClass="analytics-kpi-card">
+                                 <Label text="Bu ay en yüksek gider" styleClass="finance-summary-label" />
                                  <Label fx:id="analyticsTopCategoryLabel" text="—" wrapText="true" styleClass="analytics-kpi-value-small" />
                               </VBox>
                            </FlowPane>
 
-                           <VBox spacing="8.0" prefHeight="350.0" styleClass="analytics-card">
+                           <VBox spacing="8.0" styleClass="analytics-card">
                               <Label text="%finance.income_expense_trend" styleClass="finance-ledger-title" />
                               <Label text="Günlük gelir ve gider karşılaştırması" styleClass="section-caption" />
-                              <LineChart fx:id="trendChart" animated="false" createSymbols="false"
+                              <Label fx:id="trendStatus" text="Gelir ve giderler yükleniyor…" styleClass="empty-state" wrapText="true" />
+                              <LineChart fx:id="trendChart" visible="false" managed="false" animated="false" createSymbols="false"
                                          legendVisible="true" prefHeight="285.0" VBox.vgrow="ALWAYS"
                                          styleClass="finance-trend-chart">
                                  <xAxis><javafx.scene.chart.CategoryAxis label="%chart.date" styleClass="chart-axis-modern" /></xAxis>
@@ -175,7 +175,7 @@
                               </LineChart>
                            </VBox>
 
-                           <VBox spacing="8.0" prefHeight="330.0" styleClass="analytics-card">
+                           <VBox spacing="8.0" styleClass="analytics-card">
                               <Label text="%finance.expense_distribution" styleClass="finance-ledger-title" />
                               <Label text="Bu ayın giderlerinin kategori bazında dağılımı" styleClass="section-caption" />
                               <StackPane VBox.vgrow="ALWAYS">
@@ -184,7 +184,7 @@
                                  <VBox fx:id="expenseCategoryStateBox" alignment="CENTER" managed="false" spacing="7.0"
                                        styleClass="analytics-single-state" visible="false">
                                     <Label fx:id="expenseCategoryStateTitle" styleClass="analytics-single-title" text="Bu ay gider kaydı yok" />
-                                    <Label fx:id="expenseCategoryStateAmount" styleClass="analytics-single-value" text="0 ₺" />
+                                    <Label fx:id="expenseCategoryStateAmount" styleClass="analytics-single-value" text="—" />
                                     <Label fx:id="expenseCategoryStateCaption" styleClass="section-caption" text="Kategori dağılımı kayıt oluştukça burada görünür." />
                                  </VBox>
                               </StackPane>
@@ -207,7 +207,7 @@
                         <Label text="Seçili ayın faaliyet sonucunu özet kartlardan, geçmiş dönemleri arşiv tablosundan inceleyin." styleClass="section-caption" />
                      </VBox>
 
-                     <ScrollPane fitToWidth="true" hbarPolicy="NEVER" prefHeight="290.0" styleClass="report-summary-scroll">
+                     <ScrollPane fx:id="reportSummaryScroll" fitToWidth="true" hbarPolicy="NEVER" prefHeight="238.0" minHeight="96.0" managed="false" visible="false" styleClass="report-summary-scroll">
                         <content>
                            <VBox fx:id="reportDetailContainer" spacing="12.0" styleClass="report-detail-panel" />
                         </content>
@@ -264,7 +264,7 @@
                                  <TableColumn fx:id="colAccountCustomer" text="%current_account.customer" prefWidth="260.0" />
                                  <TableColumn fx:id="colAccountBalance" text="%current_account.balance" prefWidth="180.0" />
                                  <TableColumn fx:id="colAccountLastUpdated" text="%current_account.last_updated" prefWidth="220.0" />
-                                 <TableColumn fx:id="colAccountActions" text="%table.actions" prefWidth="230.0" />
+                                 <TableColumn fx:id="colAccountActions" text="%table.actions" prefWidth="195.0" />
                               </columns>
                               <columnResizePolicy>
                                  <TableView fx:constant="CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN" />
@@ -369,26 +369,26 @@
                               <Label styleClass="label-muted" text="%finance.assets.subtitle" wrapText="true" />
                            </VBox>
 
-                           <VBox spacing="8.0" styleClass="finance-ownership-hero card-container">
+                           <VBox spacing="8.0" styleClass="finance-ownership-hero, card-container">
                               <Label styleClass="finance-ownership-hero-label" text="%finance.assets.total_equity" />
                               <Label fx:id="assetTotalEquityLabel" styleClass="finance-ownership-hero-value" text="₺0,00" />
-                              <Label styleClass="label-muted finance-ownership-formula" text="%finance.assets.formula" wrapText="true" />
+                              <Label styleClass="label-muted, finance-ownership-formula" text="%finance.assets.formula" wrapText="true" />
                            </VBox>
 
                            <HBox spacing="16.0">
-                              <VBox spacing="8.0" styleClass="finance-ownership-metric card-container" HBox.hgrow="ALWAYS">
+                              <VBox spacing="8.0" styleClass="finance-ownership-metric, card-container" HBox.hgrow="ALWAYS">
                                  <Label styleClass="finance-ownership-metric-label" text="%finance.card.inventory_value" wrapText="true" />
-                                 <Label fx:id="assetInventoryValueLabel" styleClass="finance-ownership-metric-value finance-value-positive" text="₺0,00" />
-                                 <Label styleClass="label-muted finance-ownership-metric-hint" text="%finance.assets.inventory_hint" wrapText="true" />
+                                 <Label fx:id="assetInventoryValueLabel" styleClass="finance-ownership-metric-value, finance-value-positive" text="₺0,00" />
+                                 <Label styleClass="label-muted, finance-ownership-metric-hint" text="%finance.assets.inventory_hint" wrapText="true" />
                               </VBox>
-                              <VBox spacing="8.0" styleClass="finance-ownership-metric card-container" HBox.hgrow="ALWAYS">
+                              <VBox spacing="8.0" styleClass="finance-ownership-metric, card-container" HBox.hgrow="ALWAYS">
                                  <Label styleClass="finance-ownership-metric-label" text="%finance.card.net_cash" wrapText="true" />
                                  <Label fx:id="assetNetCashLabel" styleClass="finance-ownership-metric-value" text="₺0,00" />
-                                 <Label styleClass="label-muted finance-ownership-metric-hint" text="%finance.assets.cash_hint" wrapText="true" />
+                                 <Label styleClass="label-muted, finance-ownership-metric-hint" text="%finance.assets.cash_hint" wrapText="true" />
                               </VBox>
                            </HBox>
 
-                           <VBox spacing="12.0" styleClass="card-container finance-ownership-breakdown">
+                           <VBox spacing="12.0" styleClass="card-container, finance-ownership-breakdown">
                               <Label styleClass="card-title" text="%finance.assets.breakdown_title" />
                               <VBox spacing="10.0" styleClass="finance-ownership-breakdown-list">
                                  <HBox styleClass="finance-ownership-row">
@@ -397,20 +397,20 @@
                                  </HBox>
                                  <HBox styleClass="finance-ownership-row">
                                     <Label styleClass="finance-ownership-row-label" text="%finance.assets.row.income" HBox.hgrow="ALWAYS" />
-                                    <Label fx:id="assetBreakdownIncomeLabel" styleClass="finance-ownership-row-value finance-value-positive" text="₺0,00" />
+                                    <Label fx:id="assetBreakdownIncomeLabel" styleClass="finance-ownership-row-value, finance-value-positive" text="₺0,00" />
                                  </HBox>
                                  <HBox styleClass="finance-ownership-row">
                                     <Label styleClass="finance-ownership-row-label" text="%finance.assets.row.expenses" HBox.hgrow="ALWAYS" />
-                                    <Label fx:id="assetBreakdownExpensesLabel" styleClass="finance-ownership-row-value finance-value-negative" text="₺0,00" />
+                                    <Label fx:id="assetBreakdownExpensesLabel" styleClass="finance-ownership-row-value, finance-value-negative" text="₺0,00" />
                                  </HBox>
-                                 <HBox styleClass="finance-ownership-row finance-ownership-row-subtotal">
+                                 <HBox styleClass="finance-ownership-row, finance-ownership-row-subtotal">
                                     <Label styleClass="finance-ownership-row-label" text="%finance.assets.row.net_cash" HBox.hgrow="ALWAYS" />
                                     <Label fx:id="assetBreakdownNetCashLabel" styleClass="finance-ownership-row-value" text="₺0,00" />
                                  </HBox>
                                  <Region styleClass="finance-ownership-divider" />
-                                 <HBox styleClass="finance-ownership-row finance-ownership-row-total">
-                                    <Label styleClass="finance-ownership-row-label finance-ownership-row-label-strong" text="%finance.assets.row.total" HBox.hgrow="ALWAYS" />
-                                    <Label fx:id="assetBreakdownTotalLabel" styleClass="finance-ownership-row-value finance-ownership-row-value-strong" text="₺0,00" />
+                                 <HBox styleClass="finance-ownership-row, finance-ownership-row-total">
+                                    <Label styleClass="finance-ownership-row-label, finance-ownership-row-label-strong" text="%finance.assets.row.total" HBox.hgrow="ALWAYS" />
+                                    <Label fx:id="assetBreakdownTotalLabel" styleClass="finance-ownership-row-value, finance-ownership-row-value-strong" text="₺0,00" />
                                  </HBox>
                               </VBox>
                            </VBox>

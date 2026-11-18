@@ -12,7 +12,6 @@ import com.pusula.desktop.util.AlertHelper;
 
 import com.pusula.desktop.util.ApiErrorHelper;
 
-import com.pusula.desktop.util.AnimationHelper;
 
 import com.pusula.desktop.util.TableUiHelper;
 
@@ -37,6 +36,8 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 
 import javafx.scene.control.Button;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 
 import javafx.scene.control.Label;
 
@@ -114,6 +115,13 @@ public class CustomerController {
         customersListView.setItems(filteredList);
 
         customersListView.setCellFactory(lv -> new CustomerCardCell());
+        customersListView.setOnKeyPressed(event -> {
+            if (event.getTarget() == customersListView && event.getCode() == javafx.scene.input.KeyCode.ENTER
+                    && customersListView.getSelectionModel().getSelectedItem() != null) {
+                handleEditCustomer(customersListView.getSelectionModel().getSelectedItem());
+                event.consume();
+            }
+        });
 
         loadCustomers();
 
@@ -173,9 +181,9 @@ public class CustomerController {
 
         private final Button whatsAppBtn = new Button();
 
-        private final Button editBtn = new Button();
+        private final MenuItem editBtn = new MenuItem();
 
-        private final Button deleteBtn = new Button();
+        private final MenuItem deleteBtn = new MenuItem();
 
         CustomerCardCell() {
             avatar.getStyleClass().add("customer-avatar");
@@ -185,21 +193,18 @@ public class CustomerController {
             metaLabel.setWrapText(true);
 
             FontIcon whatsAppIcon = FontIcon.of(MaterialDesignW.WHATSAPP, 16);
-            whatsAppIcon.setIconColor(javafx.scene.paint.Color.WHITE);
+            whatsAppIcon.getStyleClass().add("contact-icon");
             whatsAppBtn.setGraphic(whatsAppIcon);
             whatsAppBtn.getStyleClass().addAll("btn-whatsapp", "btn-whatsapp-icon");
             whatsAppBtn.setTooltip(new Tooltip("WhatsApp"));
             whatsAppBtn.setAccessibleText("Müşteriyle WhatsApp üzerinden iletişim kur");
 
             editBtn.setText(bundle.getString("customer.action.edit"));
-            editBtn.getStyleClass().addAll("btn-secondary", "customer-card-action");
-            editBtn.setTooltip(new Tooltip(bundle.getString("customer.action.edit.tooltip")));
-            editBtn.setAccessibleText(bundle.getString("customer.action.edit.tooltip"));
-
             deleteBtn.setText(bundle.getString("customer.action.delete"));
-            deleteBtn.getStyleClass().addAll("btn-danger", "customer-card-action");
-            deleteBtn.setTooltip(new Tooltip(bundle.getString("customer.action.delete.tooltip")));
-            deleteBtn.setAccessibleText(bundle.getString("customer.action.delete.tooltip"));
+            deleteBtn.getStyleClass().add("destructive-menu-item");
+            MenuButton options = new MenuButton("İşlemler", null, editBtn, deleteBtn);
+            options.setAccessibleText("Müşteri işlemleri");
+            options.getStyleClass().add("action-menu-button");
 
             whatsAppBtn.setOnAction(e -> {
 
@@ -233,17 +238,11 @@ public class CustomerController {
 
 
 
-            HBox phoneRow = new HBox(8, metaLabel, whatsAppBtn);
-
-            phoneRow.setAlignment(Pos.CENTER_LEFT);
-
-            content.getChildren().addAll(nameLabel, phoneRow);
-
+            content.getChildren().addAll(nameLabel, metaLabel);
+            content.setMinWidth(0);
             card.getStyleClass().add("customer-card");
-
             card.setAlignment(Pos.CENTER_LEFT);
-
-            HBox actions = new HBox(8, editBtn, deleteBtn);
+            HBox actions = new HBox(8, whatsAppBtn, options);
             actions.setAlignment(Pos.CENTER_RIGHT);
 
             card.getChildren().addAll(avatar, content, actions);
@@ -263,7 +262,6 @@ public class CustomerController {
 
             });
 
-            AnimationHelper.applyCardHover(card);
 
         }
 
@@ -278,6 +276,7 @@ public class CustomerController {
             if (empty || customer == null) {
 
                 setGraphic(null);
+                setAccessibleText(null);
 
                 return;
 
@@ -294,6 +293,7 @@ public class CustomerController {
             String address = TableUiHelper.truncate(customer.getAddress(), 60);
 
             metaLabel.setText(phone + "  ·  " + address);
+            setAccessibleText(displayName + ", " + metaLabel.getText());
 
             whatsAppBtn.setVisible(customer.getPhone() != null && !customer.getPhone().isBlank());
 
@@ -464,7 +464,7 @@ public class CustomerController {
             return false;
         }
         while (node != null) {
-            if (node instanceof Button) {
+            if (node instanceof javafx.scene.control.ButtonBase) {
                 return true;
             }
             node = node.getParent();

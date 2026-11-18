@@ -85,7 +85,7 @@
          </children>
       </FlowPane>
       
-      <TabPane tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
+      <TabPane minHeight="220" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
          <tabs>
             <Tab text="%ticket.tab.details">
                <content>
@@ -150,7 +150,7 @@
                                           <Button fx:id="btnAddPart" mnemonicParsing="false" onAction="#handleAddPart" styleClass="btn-success" text="%ticket.add.part" />
                                        </children>
                                     </HBox>
-                                    <TableView fx:id="partsTable" minHeight="100.0" prefHeight="120.0" styleClass="premium-table bordered-table">
+                                    <TableView fx:id="partsTable" minHeight="100.0" prefHeight="120.0" styleClass="premium-table, bordered-table">
                                        <columns>
                                           <TableColumn fx:id="colPartName" prefWidth="250.0" text="%ticket.part.name" />
                                           <TableColumn fx:id="colQuantity" prefWidth="80.0" text="%ticket.quantity" />
@@ -173,7 +173,7 @@
                                           <Button fx:id="btnAddExpense" mnemonicParsing="false" onAction="#handleAddExpense" styleClass="btn-warning" text="%ticket.external_expense_add" />
                                        </children>
                                     </HBox>
-                                    <TableView fx:id="expensesTable" minHeight="100.0" prefHeight="120.0" styleClass="premium-table bordered-table">
+                                    <TableView fx:id="expensesTable" minHeight="100.0" prefHeight="120.0" styleClass="premium-table, bordered-table">
                                        <columns>
                                           <TableColumn fx:id="colExpenseDescription" prefWidth="240.0" text="%table.description" />
                                           <TableColumn fx:id="colExpenseSupplier" prefWidth="170.0" text="%ticket.external_expense_supplier" />
@@ -208,7 +208,7 @@
          </tabs>
       </TabPane>
       
-      <VBox spacing="8.0" styleClass="ticket-action-bar">
+      <VBox spacing="8.0" styleClass="ticket-action-bar, dialog-action-bar">
          <children>
             <FlowPane alignment="CENTER_LEFT" hgap="10.0" vgap="8.0">
                <children>

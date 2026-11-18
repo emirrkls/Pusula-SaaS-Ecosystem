@@ -16,7 +16,7 @@
          </VBox>
          <FlowPane alignment="CENTER_RIGHT" hgap="10.0" vgap="8.0" styleClass="page-header-actions">
             <TextField fx:id="searchField" prefWidth="200.0" promptText="%common.search" />
-            <Button mnemonicParsing="false" onAction="#handleAddCustomer" styleClass="btn-primary" text="%btn.add" />
+            <Button mnemonicParsing="false" onAction="#handleAddCustomer" styleClass="btn-primary" text="Yeni müşteri" />
             <Button mnemonicParsing="false" onAction="#handleRefresh" styleClass="btn-secondary" text="%btn.refresh" />
          </FlowPane>
       </HBox>

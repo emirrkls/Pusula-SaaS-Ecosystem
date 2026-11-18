@@ -238,6 +238,13 @@ public class InventoryController {
         colSellPrice.setCellFactory(column -> moneyCell(false));
 
         colCriticalLevel.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("criticalLevel"));
+        colCriticalLevel.setCellFactory(column -> new javafx.scene.control.TableCell<>() {
+            @Override
+            protected void updateItem(BigDecimal value, boolean empty) {
+                super.updateItem(value, empty);
+                setText(empty || value == null ? null : formatQuantity(value));
+            }
+        });
 
 
 
@@ -274,8 +281,8 @@ public class InventoryController {
 
                 BigDecimal veh = row.getInVehicleQuantity() != null ? row.getInVehicleQuantity() : BigDecimal.ZERO;
 
-                warehouseLabel.setText("Depo " + wh);
-                vehicleLabel.setText("Araç " + veh);
+                warehouseLabel.setText("Depo " + formatQuantity(wh));
+                vehicleLabel.setText("Araç " + formatQuantity(veh));
                 setGraphic(distribution);
 
             }
@@ -584,7 +591,11 @@ public class InventoryController {
 
 
 
+    private boolean inventoryReady;
+    private int inventoryRequest;
+
     private void updateCounts() {
+        if (!inventoryReady) return;
 
         long critical = inventoryList.stream()
 
@@ -740,58 +751,41 @@ public class InventoryController {
 
 
     private void loadInventory() {
-
+        int request = ++inventoryRequest;
+        inventoryReady = false;
+        resultCountLabel.setText("Stoklar yükleniyor…");
         InventoryApi api = RetrofitClient.getClient().create(InventoryApi.class);
-
         api.getAllInventory().enqueue(new Callback<>() {
-
             @Override
-
             public void onResponse(Call<List<InventoryDTO>> call, Response<List<InventoryDTO>> response) {
-
-                if (response.isSuccessful() && response.body() != null) {
-
-                    Platform.runLater(() -> {
-
-                        inventoryList.clear();
-
-                        inventoryList.addAll(response.body());
-
-                        updatePredicate();
-
-                    });
-
-                } else {
-
-                    Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
-
-                            inventoryTable.getScene().getWindow(), "Hata",
-
-                            "Envanter yüklenemedi: " + response.code()));
-
-                }
-
+                Platform.runLater(() -> {
+                    if (request != inventoryRequest) return;
+                    if (!response.isSuccessful() || response.body() == null) {
+                        showInventoryError("Stoklar alınamadı (HTTP " + response.code() + ").");
+                        return;
+                    }
+                    inventoryReady = true;
+                    inventoryList.setAll(response.body());
+                    updatePredicate();
+                    updateCounts();
+                });
             }
-
-
 
             @Override
-
-            public void onFailure(Call<List<InventoryDTO>> call, Throwable t) {
-
-                Platform.runLater(() -> AlertHelper.showAlert(Alert.AlertType.ERROR,
-
-                        inventoryTable.getScene().getWindow(), "Bağlantı Hatası",
-
-                        "Could not connect to server: " + t.getMessage()));
-
+            public void onFailure(Call<List<InventoryDTO>> call, Throwable cause) {
+                Platform.runLater(() -> {
+                    if (request == inventoryRequest) showInventoryError("Stoklar alınamadı. Bağlantınızı kontrol edin.");
+                });
             }
-
         });
-
     }
 
-
+    private void showInventoryError(String message) {
+        resultCountLabel.setText(message);
+        if (inventoryTable.getScene() != null) {
+            AlertHelper.showAlert(Alert.AlertType.ERROR, inventoryTable.getScene().getWindow(), "Stoklar", message);
+        }
+    }
 
     private void setupVehicleStocksTab() {
 

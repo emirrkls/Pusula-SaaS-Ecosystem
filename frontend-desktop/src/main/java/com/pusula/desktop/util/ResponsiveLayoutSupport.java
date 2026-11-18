@@ -39,7 +39,7 @@ public final class ResponsiveLayoutSupport {
         scene.widthProperty().addListener(listener);
         scene.rootProperty().addListener((observable, oldRoot, newRoot) -> applyBreakpoint(scene));
         scene.windowProperty().addListener((observable, oldWindow, newWindow) -> {
-            if (newWindow instanceof Stage stage) configureStage(stage, scene.getRoot());
+            if (newWindow instanceof Stage stage) configureStage(stage, scene);
         });
         applyBreakpoint(scene);
     }
@@ -100,13 +100,16 @@ public final class ResponsiveLayoutSupport {
         }
     }
 
-    private static void configureStage(Stage stage, Parent root) {
-        boolean dialog = root != null && (root.getStyleClass().contains("dialog-root")
-                || root.getStyleClass().contains("dialog-container"));
+    private static void configureStage(Stage stage, Scene scene) {
+        Parent root = scene.getRoot();
+        boolean dialog = Boolean.TRUE.equals(scene.getProperties().get("pusula.dialog"))
+                || (root != null && (root.getStyleClass().contains("dialog-root")
+                || root.getStyleClass().contains("dialog-container")));
         Rectangle2D bounds = Screen.getPrimary().getVisualBounds();
         stage.setMinWidth(Math.min(dialog ? 520 : 800, bounds.getWidth()));
         stage.setMinHeight(Math.min(dialog ? 420 : 560, bounds.getHeight()));
         stage.addEventHandler(WindowEvent.WINDOW_SHOWN, event -> {
+            if (stage.getProperties().containsKey("pusula.dialog.profile")) return;
             Rectangle2D activeBounds = boundsFor(stage);
             stage.setMinWidth(Math.min(dialog ? 520 : 800, activeBounds.getWidth()));
             stage.setMinHeight(Math.min(dialog ? 420 : 560, activeBounds.getHeight()));

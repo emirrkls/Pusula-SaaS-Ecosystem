@@ -141,18 +141,18 @@ public class TicketDialogController {
                 customerComboBox.getEditor().positionCaret(query.length());
             }
 
-            applyCustomerFilter(query);
+            applyCustomerFilter(query, true);
         });
     }
 
-    private void applyCustomerFilter(String query) {
+    private void applyCustomerFilter(String query, boolean showSuggestions) {
         filteredCustomers.setAll(allCustomers.stream()
                 .filter(customer -> CustomerSearchSupport.matches(customer, query))
                 .toList());
 
         if (filteredCustomers.isEmpty()) {
             customerComboBox.hide();
-        } else if (!customerComboBox.isShowing()) {
+        } else if (showSuggestions && !customerComboBox.isShowing()) {
             customerComboBox.show();
         }
     }
@@ -165,7 +165,7 @@ public class TicketDialogController {
                 if (response.isSuccessful() && response.body() != null) {
                     Platform.runLater(() -> {
                         allCustomers.setAll(response.body());
-                        applyCustomerFilter(customerComboBox.getEditor().getText());
+                        applyCustomerFilter(customerComboBox.getEditor().getText(), false);
                     });
                 }
             }

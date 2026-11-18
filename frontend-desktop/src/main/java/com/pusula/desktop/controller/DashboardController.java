@@ -3,7 +3,6 @@ package com.pusula.desktop.controller;
 import com.pusula.desktop.util.TableUiHelper;
 import com.pusula.desktop.util.ThemeHelper;
 import com.pusula.desktop.util.UTF8Control;
-import com.pusula.desktop.util.AnimationHelper;
 import com.pusula.desktop.util.NotificationService;
 
 import com.pusula.desktop.api.CustomerApi;
@@ -99,6 +98,9 @@ public class DashboardController {
     private Label performanceSummaryLabel;
     @FXML
     private VBox performanceEmptyBox;
+    @FXML private javafx.scene.control.SplitPane workspace;
+    @FXML private VBox performancePanel;
+    @FXML private javafx.scene.layout.FlowPane summaryGrid;
 
     private MainDashboardController mainController;
 
@@ -131,26 +133,27 @@ public class DashboardController {
         resourceBundle = ResourceBundle.getBundle("i18n.messages",
                 Locale.of("tr", "TR"), new UTF8Control());
 
+        summaryGrid.widthProperty().addListener((observable, oldWidth, newWidth) -> {
+            double width = newWidth.doubleValue();
+            int columns = width >= 828 ? 4 : width >= 388 ? 2 : 1;
+            double tileWidth = Math.floor((width - (columns - 1) * summaryGrid.getHgap()) / columns);
+            for (var tile : summaryGrid.getChildren()) ((Region) tile).setPrefWidth(tileWidth);
+        });
         setupDashboardIcons();
         setupAgendaList();
         loadDashboardData();
         loadPerformanceChart();
 
-        // Apply card hover animations for premium feel
         if (activeTicketsCard != null) {
-            AnimationHelper.applyCardHover(activeTicketsCard);
             configureCardAccess(activeTicketsCard, "Aktif servis fişlerini aç", this::handleActiveTicketsClick);
         }
         if (unassignedTicketsCard != null) {
-            AnimationHelper.applyCardHover(unassignedTicketsCard);
-            configureCardAccess(unassignedTicketsCard, "Atama bekleyen servis fişlerini aç", this::handleActiveTicketsClick);
+            configureCardAccess(unassignedTicketsCard, "Atama bekleyen servis işlerini aç", this::handleUnassignedTicketsClick);
         }
         if (criticalStockCard != null) {
-            AnimationHelper.applyCardHover(criticalStockCard);
             configureCardAccess(criticalStockCard, "Kritik stokları aç", this::handleCriticalStockClick);
         }
         if (pendingProposalsCard != null) {
-            AnimationHelper.applyCardHover(pendingProposalsCard);
             configureCardAccess(pendingProposalsCard, "Taslak teklifleri aç", this::handlePendingProposalsClick);
         }
     }
@@ -182,8 +185,13 @@ public class DashboardController {
     @FXML
     private void handleActiveTicketsClick() {
         if (mainController != null) {
-            mainController.showServiceManagement();
+            mainController.openServiceList(ServiceTicketController.TicketFilter.ACTIVE);
         }
+    }
+
+    @FXML
+    private void handleUnassignedTicketsClick() {
+        if (mainController != null) mainController.showServiceManagement();
     }
 
     @FXML
@@ -196,7 +204,7 @@ public class DashboardController {
     @FXML
     private void handlePendingProposalsClick() {
         if (mainController != null) {
-            mainController.showProposals();
+            mainController.openProposals(true);
         }
     }
 
@@ -211,7 +219,16 @@ public class DashboardController {
         agendaEmptyBox.setVisible(empty);
         agendaEmptyBox.setManaged(empty);
         agendaListView.setVisible(!empty);
+        agendaListView.setManaged(!empty);
+        sizeWorkspace();
         agendaCountLabel.setText(agendaItems.size() + " randevu");
+    }
+
+    private void sizeWorkspace() {
+        boolean compact = (!workspace.getItems().contains(performancePanel) || performanceEmptyBox.isVisible())
+                && agendaEmptyBox.isVisible();
+        workspace.setPrefHeight(compact ? 156 : 356);
+        workspace.setMaxHeight(compact ? 156 : 480);
     }
 
     private void setAgendaItems(List<ServiceTicketDTO> tickets) {
@@ -274,7 +291,6 @@ public class DashboardController {
                 e.consume();
             });
 
-            AnimationHelper.applyCardHover(card);
         }
 
         @Override
@@ -367,6 +383,7 @@ public class DashboardController {
 
     private void loadPerformanceChart() {
         if (!com.pusula.desktop.util.SessionManager.isAdmin()) {
+            workspace.getItems().remove(performancePanel);
             return;
         }
         ReportsApi reportsApi = RetrofitClient.getClient().create(ReportsApi.class);
@@ -448,6 +465,7 @@ public class DashboardController {
         performanceChart.setManaged(hasData);
         performanceEmptyBox.setVisible(!hasData);
         performanceEmptyBox.setManaged(!hasData);
+        sizeWorkspace();
         performanceSummaryLabel.setText(hasData
                 ? "Son 7 günde " + completedTotal + " tamamlanan iş · " + data.size() + " teknisyen"
                 : "Son 7 günlük tamamlanan iş dağılımı");
@@ -462,7 +480,7 @@ public class DashboardController {
                     retrofit2.Response<java.util.List<ServiceTicketDTO>> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     long activeCount = response.body().stream()
-                            .filter(t -> !Arrays.asList("COMPLETED", "CANCELLED").contains(t.getStatus()))
+                            .filter(ServiceTicketController::isActive)
                             .count();
                     long unassignedCount = response.body().stream()
                             .filter(ServiceTicketController::isPendingUnassigned)
@@ -470,21 +488,24 @@ public class DashboardController {
                             
                     // SLA Checker
                     long delayedCount = response.body().stream()
-                            .filter(t -> "PENDING".equals(t.getStatus()) || "IN_PROGRESS".equals(t.getStatus()))
-                            .filter(t -> t.getCreatedAt() != null && t.getCreatedAt().isBefore(LocalDateTime.now().minusHours(48)))
+                            .filter(ServiceTicketController::isOverdue)
                             .count();
 
                     Platform.runLater(() -> {
-                        AnimationHelper.animateCounter(activeTicketsLabel, activeCount, 1500);
-                        AnimationHelper.animateCounter(unassignedTicketsLabel, unassignedCount, 1200);
+                        activeTicketsLabel.setText(Long.toString(activeCount));
+                        unassignedTicketsLabel.setText(Long.toString(unassignedCount));
                         updateLastRefreshed();
                         
                         if (alertContainer != null) {
                             alertContainer.getChildren().removeIf(node ->
                                     node.getStyleClass().contains("dashboard-alert-critical"));
                             if (delayedCount > 0) {
-                                Label alertText = new Label(delayedCount
-                                        + " servis fişi 48 saatten uzun süredir müdahale bekliyor.");
+                                javafx.scene.control.Hyperlink alertText = new javafx.scene.control.Hyperlink(delayedCount
+                                        + " servis işi 48 saatten uzun süredir açık (beklemede veya işlemde).");
+                                alertText.setWrapText(true);
+                                alertText.setOnAction(event -> {
+                                    if (mainController != null) mainController.openServiceList(ServiceTicketController.TicketFilter.OVERDUE);
+                                });
                                 alertText.getStyleClass().add("dashboard-alert-critical");
                                 alertContainer.getChildren().add(alertText);
                             }
@@ -531,7 +552,7 @@ public class DashboardController {
                     long criticalCount = response.body().stream()
                             .filter(i -> i.getQuantity().compareTo(i.getCriticalLevel()) <= 0)
                             .count();
-                    Platform.runLater(() -> AnimationHelper.animateCounter(criticalStockLabel, criticalCount, 1500));
+                    Platform.runLater(() -> criticalStockLabel.setText(Long.toString(criticalCount)));
                 }
             }
 
@@ -555,9 +576,9 @@ public class DashboardController {
                     long draftCount = response.body().stream()
                             .filter(p -> "DRAFT".equalsIgnoreCase(p.getStatus()))
                             .count();
-                    Platform.runLater(() -> AnimationHelper.animateCounter(pendingProposalsLabel, draftCount, 1500));
+                    Platform.runLater(() -> pendingProposalsLabel.setText(Long.toString(draftCount)));
                 } else {
-                    Platform.runLater(() -> pendingProposalsLabel.setText("0"));
+                    Platform.runLater(() -> pendingProposalsLabel.setText("—"));
                 }
             }
 

@@ -130,7 +130,7 @@ public class ServiceNetworkView extends VBox {
     private void memberForm(boolean create) {
         String requestKey=UUID.randomUUID().toString();
         VBox form=new VBox(12);TextField code=field("İşletme kodu"),name=field("İşletme adı"),region=field("Bölge / il"),admin=field("Yönetici adı soyadı"),username=field("Kullanıcı adı");PasswordField password=new PasswordField();password.setPromptText("En az 8 karakter, harf ve rakam");
-        if(create) form.getChildren().addAll(text("Alt servis ayrı bir işletme ve Çırak planında 14 günlük deneme hesabı olarak açılır. Giriş kodu ve kullanıcı adını işlem sonunda kaydedin."),name,admin,username,password);
+        if(create) form.getChildren().addAll(text(ResourceBundle.getBundle("i18n.messages",new Locale("tr","TR"),new com.pusula.desktop.util.UTF8Control()).getString("network.child.freePlanInfo")),name,admin,username,password);
         else form.getChildren().addAll(text("Davet, işletmenin kendi yöneticisi kabul ettikten sonra etkinleşir."),code);
         form.getChildren().add(region);
         Button save=button(create?"Alt Servis Oluştur":"Davet Gönder",()->{

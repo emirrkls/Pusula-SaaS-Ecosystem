@@ -123,6 +123,11 @@ public class ProposalViewController {
         });
     }
 
+    void selectDrafts() {
+        statusFilter.setValue("Taslak");
+        filterTable();
+    }
+
     private void setupFilters() {
         statusFilter.setItems(FXCollections.observableArrayList(
                 "Tümü", "Taslak", "Gönderildi", "Onaylandı", "Reddedildi"));

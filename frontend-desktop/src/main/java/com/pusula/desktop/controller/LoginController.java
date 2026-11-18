@@ -61,16 +61,8 @@ public class LoginController {
 
     @FXML
     public void initialize() {
-        // Apply bounce animation to login button
         if (loginButton != null) {
-            AnimationHelper.applyButtonBounce(loginButton);
-            // Set as default button (Enter key triggers it)
             loginButton.setDefaultButton(true);
-        }
-
-        // Fade in the login form on load
-        if (loginForm != null) {
-            AnimationHelper.fadeInUp(loginForm, 100);
         }
 
         // Enter key on password field triggers login
@@ -91,6 +83,7 @@ public class LoginController {
         dialog.getDialogPane().setContent(new SupportCenterView());
         dialog.getDialogPane().setPrefSize(650, 600);
         dialog.getDialogPane().getButtonTypes().add(javafx.scene.control.ButtonType.CLOSE);
+        ThemeHelper.applyToDialog(dialog, loginRoot.getScene().getWindow(), ThemeHelper.DialogProfile.WORKFLOW);
         dialog.showAndWait();
     }
 

@@ -10,21 +10,12 @@
         <Insets bottom="8.0" left="0.0" right="0.0" top="8.0" />
     </padding>
 
-    <HBox alignment="CENTER_LEFT" spacing="16.0" styleClass="page-toolbar">
-        <Region HBox.hgrow="ALWAYS"/>
-        <FlowPane hgap="10.0" vgap="8.0" styleClass="page-header-actions">
-            <Button fx:id="refreshBtn" onAction="#handleRefresh" styleClass="btn-secondary" text="Yenile"/>
-            <Button fx:id="newProposalBtn" onAction="#handleNewProposal" styleClass="btn-primary" text="+ Yeni Teklif"/>
-        </FlowPane>
-    </HBox>
-
-    <FlowPane alignment="CENTER_LEFT" hgap="15" vgap="10" styleClass="filter-bar">
-        <Label text="Durum:"/>
-        <ComboBox fx:id="statusFilter" onAction="#handleFilterChange" prefWidth="150"/>
-        <TextField fx:id="searchField" prefWidth="300" promptText="No, başlık, müşteri veya hazırlayan ara..."/>
+    <FlowPane alignment="CENTER_LEFT" hgap="10" vgap="8" styleClass="page-toolbar">
+        <TextField fx:id="searchField" prefWidth="265" promptText="Teklif no, başlık veya müşteri ara"/>
+        <ComboBox fx:id="statusFilter" accessibleText="Teklif durumu" onAction="#handleFilterChange" prefWidth="145"/>
+        <Button fx:id="newProposalBtn" onAction="#handleNewProposal" styleClass="btn-primary" text="Yeni teklif"/>
+        <Button fx:id="refreshBtn" onAction="#handleRefresh" styleClass="btn-secondary" text="Yenile"/>
     </FlowPane>
-
-    <Separator/>
 
     <TableView fx:id="proposalsTable" styleClass="premium-table" VBox.vgrow="ALWAYS">
         <placeholder>

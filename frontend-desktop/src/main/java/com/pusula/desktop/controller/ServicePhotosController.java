@@ -196,9 +196,7 @@ public class ServicePhotosController {
                 + " servis dosyası · " + loadedPhotos.size() + " görsel yüklendi");
         loadMoreButton.setVisible(hasNextPage);
         loadMoreButton.setManaged(hasNextPage);
-        statusLabel.setText(groups.isEmpty()
-                ? "Filtrelere uygun görsel bulunamadı."
-                : groups.size() + " servis dosyası listeleniyor.");
+        statusLabel.setText("");
     }
 
     private VBox createFolderCard(TicketPhotoGroup group) {
@@ -621,7 +619,11 @@ public class ServicePhotosController {
             if (imageView.getImage() != null && zoom.isFitMode()) Platform.runLater(zoom::fitToWindow);
         });
         refresh.run();
-        dialog.setOnShown(event -> Platform.runLater(zoom::fitToWindow));
+        var prepareDialog = dialog.getOnShown();
+        dialog.setOnShown(event -> {
+            if (prepareDialog != null) prepareDialog.handle(event);
+            Platform.runLater(zoom::fitToWindow);
+        });
         dialog.showAndWait();
     }
 

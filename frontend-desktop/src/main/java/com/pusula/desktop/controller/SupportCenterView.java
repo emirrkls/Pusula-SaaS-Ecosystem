@@ -31,7 +31,7 @@ public class SupportCenterView extends BorderPane {
     /** Package-local injection keeps UI regression tests on a synthetic loopback server. */
     SupportCenterView(SupportApi api,SupportDraftStore store){
         this.api=Objects.requireNonNull(api);this.store=Objects.requireNonNull(store);
-        setPadding(new Insets(18));feedback.setWrapText(true);setTop(new VBox(10,new Label("Yardım ve Destek"),feedback));
+        setPadding(new Insets(18));feedback.setWrapText(true);setTop(feedback);
         var scroll=new ScrollPane(content);scroll.setFitToWidth(true);setCenter(scroll);render();
         if(token!=null)IO.execute(()->{try{var saved=store.load(account);Platform.runLater(()->{if(current()){draft=saved;composer=saved.hasContent();draftReady=true;render();}});}catch(Exception e){Platform.runLater(()->{if(current()){feedback.setText("Korumalı taslak açılamadı. Üzerine yazmamak için e-posta ile ulaşın.");render();}});}});
         call(api.contact(),value->{contact=value;render();if(token!=null&&contact.enabled())load();});
@@ -48,7 +48,7 @@ public class SupportCenterView extends BorderPane {
             public void onFailure(Call<T> c,Throwable e){Platform.runLater(()->{if(current()){busy=false;feedback.setText("Bağlantı kurulamadı. Taslak korunuyor; aynı gönderimi tekrar deneyin veya e-posta ile ulaşın.");render();}});}
         });
     }
-    private Button button(String text,Runnable action){var b=new Button(text);b.setOnAction(e->action.run());b.setMaxWidth(Double.MAX_VALUE);return b;}
+    private Button button(String text,Runnable action){var b=new Button(text);b.setOnAction(e->action.run());return b;}
     private Label text(String text){var label=new Label(text);label.setWrapText(true);return label;}
     private void render(){
         content.getChildren().clear();content.getChildren().addAll(text("Soru, hata veya önerinizi iletin. Parola ve müşteri/finans kaydı göndermeyin. Görseldeki hassas alanları göndermeden önce kendiniz kapatın."),button("E-posta ile ulaş: "+contact.email(),this::email));
@@ -56,7 +56,7 @@ public class SupportCenterView extends BorderPane {
         if(!contact.enabled()){content.getChildren().add(text("Talep merkezi henüz etkin değil. E-posta ile ulaşabilirsiniz."));return;}
         if(busy||!draftReady)content.getChildren().add(new ProgressIndicator());
         if(!draftReady)return;
-        var create=button("Yeni talep",()->compose(null));create.setDisable(busy);
+        var create=button("Yeni talep",()->compose(null));create.getStyleClass().add("btn-primary");create.setDisable(busy);
         var refresh=button("Yenile",this::load);refresh.setDisable(busy);
         content.getChildren().add(new HBox(10,create,refresh));
         if(detail!=null){
@@ -92,10 +92,10 @@ public class SupportCenterView extends BorderPane {
             var row=new HBox(10,text(file.mediaType()));
             if("application/json".equals(file.mediaType()))row.getChildren().add(button("Rapor önizlemesi",()->{
                 var preview=new TextArea(new String(Base64.getDecoder().decode(file.dataBase64()),java.nio.charset.StandardCharsets.UTF_8));preview.setEditable(false);preview.setWrapText(true);
-                var dialog=new Dialog<Void>();dialog.setTitle("Gönderilecek rapor");dialog.getDialogPane().setContent(preview);dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);dialog.showAndWait();
+                var dialog=new Dialog<Void>();dialog.setTitle("Gönderilecek rapor");dialog.getDialogPane().setContent(preview);dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, getScene().getWindow(), com.pusula.desktop.util.ThemeHelper.DialogProfile.DETAIL);dialog.showAndWait();
             }));else row.getChildren().add(button("Görsel önizlemesi",()->{
                 var image=new javafx.scene.image.Image(new java.io.ByteArrayInputStream(Base64.getDecoder().decode(file.dataBase64())),800,600,true,true);
-                var dialog=new Dialog<Void>();dialog.setTitle("Gönderilecek görsel");dialog.getDialogPane().setContent(new javafx.scene.image.ImageView(image));dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);dialog.showAndWait();
+                var dialog=new Dialog<Void>();dialog.setTitle("Gönderilecek görsel");dialog.getDialogPane().setContent(new javafx.scene.image.ImageView(image));dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);com.pusula.desktop.util.ThemeHelper.applyToDialog(dialog, getScene().getWindow(), com.pusula.desktop.util.ThemeHelper.DialogProfile.DETAIL);dialog.showAndWait();
             }));row.getChildren().add(remove);content.getChildren().add(row);
         }
         if(draft.frozen)content.getChildren().add(text("Gönderimin sonucu henüz doğrulanmadı. Aynı içerik ve anahtar korunuyor."));

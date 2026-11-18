@@ -148,6 +148,11 @@ public final class ThemeHelper {
         }
         for (var buttonType : pane.getButtonTypes()) {
             if (pane.lookupButton(buttonType) instanceof Button button) {
+                String caption = localizedButtonLabel(buttonType);
+                if (caption != null) {
+                    button.setText(caption);
+                    button.setAccessibleText(caption);
+                }
                 styleDialogAction(button, buttonType, dialog.getTitle());
             }
         }
@@ -180,6 +185,7 @@ public final class ThemeHelper {
     /** Applies the same adaptive profile to FXML-backed stages. */
     public static void configureDialogStage(Stage stage, Window owner, DialogProfile profile) {
         if (stage == null || profile == null) return;
+        stage.getProperties().put("pusula.dialog.profile", profile);
         if (owner != null && stage.getOwner() == null) stage.initOwner(owner);
         if (stage.getScene() != null && stage.getScene().getRoot() instanceof Region root) {
             root.setMinWidth(0);
@@ -217,6 +223,19 @@ public final class ThemeHelper {
         });
     }
 
+    private static String localizedButtonLabel(javafx.scene.control.ButtonType type) {
+        if (type == javafx.scene.control.ButtonType.OK) return "Tamam";
+        if (type == javafx.scene.control.ButtonType.CANCEL) return "Vazgeç";
+        if (type == javafx.scene.control.ButtonType.CLOSE) return "Kapat";
+        if (type == javafx.scene.control.ButtonType.YES) return "Evet";
+        if (type == javafx.scene.control.ButtonType.NO) return "Hayır";
+        if (type == javafx.scene.control.ButtonType.APPLY) return "Uygula";
+        if (type == javafx.scene.control.ButtonType.NEXT) return "İleri";
+        if (type == javafx.scene.control.ButtonType.PREVIOUS) return "Geri";
+        if (type == javafx.scene.control.ButtonType.FINISH) return "Bitir";
+        return null;
+    }
+
     private static void styleDialogAction(Button button, javafx.scene.control.ButtonType type, String title) {
         if (button == null || type == null) return;
         button.getStyleClass().removeAll("button-primary", "button-secondary", "button-danger",
@@ -229,7 +248,7 @@ public final class ThemeHelper {
         String normalized = ((title == null ? "" : title) + " "
                 + (button.getText() == null ? "" : button.getText())).toLowerCase(java.util.Locale.ROOT);
         boolean destructive = normalized.contains("sil") || normalized.contains("iptal")
-                || normalized.contains("kapat") || normalized.contains("reddet")
+                || normalized.contains("reddet")
                 || normalized.contains("geri çek");
         button.getStyleClass().add(destructive ? "button-danger" : "button-primary");
     }
@@ -246,6 +265,7 @@ public final class ThemeHelper {
         Scene scene = new Scene(dialogRoot);
         ensureStylesheets(scene);
         toggleDarkClass(dialogRoot, isDarkMode());
+        scene.getProperties().put("pusula.dialog", true);
         ResponsiveLayoutSupport.install(scene);
         return scene;
     }
@@ -255,6 +275,7 @@ public final class ThemeHelper {
         Scene scene = new Scene(dialogRoot, width, height);
         ensureStylesheets(scene);
         toggleDarkClass(dialogRoot, isDarkMode());
+        scene.getProperties().put("pusula.dialog", true);
         ResponsiveLayoutSupport.install(scene);
         return scene;
     }
@@ -269,7 +290,9 @@ public final class ThemeHelper {
         if (root == null || root.getStyleClass().contains("adaptive-dialog-shell")) return root;
 
         List<Node> actionBars = new ArrayList<>();
-        collectNodesWithStyle(root, "dialog-action-bar", actionBars);
+        Parent form = root instanceof ScrollPane scroll && scroll.getContent() instanceof Parent content
+                ? content : root;
+        collectNodesWithStyle(form, "dialog-action-bar", actionBars);
         if (actionBars.size() != 1 || !(actionBars.get(0) instanceof Region actionBar)) return root;
         if (!(actionBar.getParent() instanceof Pane actionParent)) return root;
         if (actionParent instanceof BorderPane borderPane && borderPane.getBottom() == actionBar) return root;
@@ -285,7 +308,7 @@ public final class ThemeHelper {
             scrollPane = new ScrollPane(root);
         }
         scrollPane.setFitToWidth(true);
-        scrollPane.setFitToHeight(false);
+        scrollPane.setFitToHeight(actionBar.getStyleClass().contains("ticket-action-bar"));
         scrollPane.setPannable(true);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);

@@ -55,7 +55,6 @@ public class MainDashboardController {
 
     @FXML private BorderPane appShell;
     @FXML private VBox sidebar;
-    @FXML private VBox userIdentity;
     @FXML private VBox operationsNavGroup;
     @FXML private VBox salesNavGroup;
     @FXML private VBox assetsNavGroup;
@@ -66,18 +65,11 @@ public class MainDashboardController {
     @FXML private Label assetsNavLabel;
     @FXML private Label financeNavLabel;
     @FXML private Label managementNavLabel;
-    @FXML private Label sidebarBrandTitle;
-    @FXML private Label sidebarBrandSubtitle;
+    @FXML private VBox sidebarBrandCopy;
     @FXML private Button btnSidebarToggle;
     @FXML private Button logoutButton;
     @FXML
     private StackPane contentArea;
-    @FXML
-    private Label userLabel;
-    @FXML
-    private Label userRoleLabel;
-    @FXML
-    private Label userAvatarLabel;
     @FXML private HBox topbarIdentity;
     @FXML private VBox topbarUserCopy;
     @FXML private Label topbarUserAvatar;
@@ -171,7 +163,6 @@ public class MainDashboardController {
             if (newScene != null) {
                 ThemeHelper.applyToScene(newScene, isDark);
                 newScene.widthProperty().addListener((observable, oldWidth, newWidth) -> {
-                    if (!sidebarCollapsed) applySidebarState(false);
                     applyTopbarState(newWidth.doubleValue());
                 });
                 applyTopbarState(newScene.getWidth());
@@ -208,8 +199,8 @@ public class MainDashboardController {
     private void setupUserProfile() {
         String username = SessionManager.getUsername();
         if (username != null && !username.isBlank()) {
-            userLabel.setText(username);
-            userAvatarLabel.setText(username.substring(0, 1).toUpperCase());
+
+
             topbarUserName.setText(username);
             topbarUserAvatar.setText(username.substring(0, 1).toUpperCase());
         }
@@ -221,7 +212,7 @@ public class MainDashboardController {
                 case "TECHNICIAN" -> "Teknisyen";
                 default -> role;
             };
-            userRoleLabel.setText(roleLabel);
+
             topbarUserRole.setText(roleLabel);
         }
         String plan = SessionManager.getPlanType();
@@ -291,14 +282,6 @@ public class MainDashboardController {
     }
 
     private void applySidebarState(boolean animate) {
-        double sceneWidth = sidebar.getScene() != null ? sidebar.getScene().getWidth() : 0;
-        double expandedWidth = sceneWidth > 0 && sceneWidth < 920 ? 168
-                : sceneWidth > 0 && sceneWidth < 1180 ? 192 : 240;
-        double targetWidth = sidebarCollapsed ? 76 : expandedWidth;
-        sidebar.setMinWidth(targetWidth);
-        sidebar.setPrefWidth(targetWidth);
-        sidebar.setMaxWidth(targetWidth);
-
         if (sidebarCollapsed) {
             if (!appShell.getStyleClass().contains("sidebar-collapsed")) {
                 appShell.getStyleClass().add("sidebar-collapsed");
@@ -307,8 +290,7 @@ public class MainDashboardController {
             appShell.getStyleClass().remove("sidebar-collapsed");
         }
 
-        setVisibleAndManaged(sidebarBrandSubtitle, !sidebarCollapsed);
-        setVisibleAndManaged(userIdentity, !sidebarCollapsed);
+        setVisibleAndManaged(sidebarBrandCopy, !sidebarCollapsed);
         for (Label label : navigationSectionLabels()) {
             setVisibleAndManaged(label, !sidebarCollapsed);
         }
@@ -325,7 +307,6 @@ public class MainDashboardController {
             button.setMinWidth(0);
             button.setMaxWidth(Double.MAX_VALUE);
         }
-        sidebarBrandTitle.setText(sidebarCollapsed ? "P" : "Pusula");
 
         if (animate) {
             javafx.animation.FadeTransition fade = new javafx.animation.FadeTransition(
@@ -404,6 +385,7 @@ public class MainDashboardController {
         setActiveNav(navButton);
         pageTitleLabel.setText(title);
         pageSubtitleLabel.setText(subtitle != null ? subtitle : "");
+        setVisibleAndManaged(pageSubtitleLabel, subtitle != null && !subtitle.isBlank());
         ViewTransitionHelper.swapContent(contentArea,
                 com.pusula.desktop.util.ResponsiveLayoutSupport.wrapPage(view));
     }
@@ -475,34 +457,12 @@ public class MainDashboardController {
 
     @FXML
     private void toggleTheme() {
-        // Get the root scene node for animation
         Scene scene = contentArea.getScene();
-        if (scene == null)
-            return;
-
-        Parent root = scene.getRoot();
-
-        // Phase 1: Fade Out (250ms)
-        javafx.animation.FadeTransition fadeOut = new javafx.animation.FadeTransition(
-                javafx.util.Duration.millis(250), root);
-        fadeOut.setFromValue(1.0);
-        fadeOut.setToValue(0.0);
-
-        fadeOut.setOnFinished(event -> {
-            isDark = !isDark;
-            ThemeHelper.applyToScene(scene, isDark);
-            PreferencesHelper.setDarkMode(isDark);
-            updateThemeToggleIcon();
-
-            javafx.animation.FadeTransition fadeIn = new javafx.animation.FadeTransition(
-                    javafx.util.Duration.millis(250), root);
-            fadeIn.setFromValue(0.0);
-            fadeIn.setToValue(1.0);
-            fadeIn.play();
-        });
-
-        // Start the transition sequence
-        fadeOut.play();
+        if (scene == null) return;
+        isDark = !isDark;
+        ThemeHelper.applyToScene(scene, isDark);
+        PreferencesHelper.setDarkMode(isDark);
+        updateThemeToggleIcon();
     }
 
     @FXML
@@ -512,7 +472,7 @@ public class MainDashboardController {
             Parent view = loader.load();
             DashboardController controller = loader.getController();
             controller.setMainController(this);
-            loadContent(view, bundle().getString("menu.dashboard"), "Operasyon özeti", navDashboard);
+            loadContent(view, bundle().getString("menu.dashboard"), null, navDashboard);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -520,10 +480,16 @@ public class MainDashboardController {
 
     @FXML
     public void showServiceManagement() {
+        openServiceList(ServiceTicketController.TicketFilter.PENDING_ASSIGNMENT);
+    }
+
+    void openServiceList(ServiceTicketController.TicketFilter filter) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/service_tickets.fxml"), bundle());
             Parent view = loader.load();
-            loadContent(view, bundle().getString("tickets.title"), "Servis fişlerini yönetin", navTickets);
+            ServiceTicketController controller = loader.getController();
+            controller.selectFilter(filter);
+            loadContent(view, bundle().getString("tickets.title"), "", navTickets);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -648,10 +614,15 @@ public class MainDashboardController {
 
     @FXML
     public void showProposals() {
+        openProposals(false);
+    }
+
+    void openProposals(boolean draftsOnly) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/proposal_view.fxml"), bundle());
             Parent content = loader.load();
-            loadContent(content, "Teklifler", "Teklif yönetimi", btnProposals);
+            if (draftsOnly) loader.<ProposalViewController>getController().selectDrafts();
+            loadContent(content, "Teklifler", null, btnProposals);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -806,8 +777,8 @@ public class MainDashboardController {
     }
 
     private Stage currentStage() {
-        if (userLabel != null && userLabel.getScene() != null
-                && userLabel.getScene().getWindow() instanceof Stage stage) {
+        if (appShell != null && appShell.getScene() != null
+                && appShell.getScene().getWindow() instanceof Stage stage) {
             return stage;
         }
         return javafx.stage.Window.getWindows().stream()

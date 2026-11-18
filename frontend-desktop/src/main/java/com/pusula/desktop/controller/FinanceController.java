@@ -97,6 +97,7 @@ public class FinanceController {
     private TableColumn<MonthlySummaryDTO, Void> colReportActions;
     @FXML
     private VBox reportDetailContainer;
+    @FXML private javafx.scene.control.ScrollPane reportSummaryScroll;
     @FXML
     private Label todayIncomeLabel;
     @FXML
@@ -107,6 +108,9 @@ public class FinanceController {
     // Right Panel - Analytics
     @FXML
     private LineChart<String, Number> trendChart;
+    @FXML private Label trendStatus;
+    @FXML private Label ledgerStatus;
+    @FXML private SplitPane dailyLedger;
     @FXML
     private PieChart expensePieChart;
     @FXML
@@ -300,24 +304,41 @@ public class FinanceController {
                     Platform.runLater(() -> {
                         updateDailySummaryUI(summary);
                     });
+                } else {
+                    Platform.runLater(() -> showLoadError(ledgerStatus, "Günün hareketleri alınamadı."));
                 }
             }
 
             @Override
             public void onFailure(Call<DailySummaryDTO> call, Throwable t) {
-                System.err.println("Failed to load daily summary: " + t.getMessage());
+                Platform.runLater(() -> showLoadError(ledgerStatus, "Günün hareketleri alınamadı."));
             }
         });
+    }
+
+    private void showLoadError(Label label, String message) {
+        label.setText(message);
+        label.setManaged(true);
+        label.setVisible(true);
     }
 
     private void updateDailySummaryUI(DailySummaryDTO summary) {
         // Update expense table
         todayExpensesTable.setItems(FXCollections.observableArrayList(summary.getExpenseDetails()));
         todayExpenseLabel.setText(formatCurrency(summary.getTotalExpense()));
+        applyAmountClass(todayExpenseLabel, summary.getTotalExpense(), "amount-negative");
 
         // Update income table
         todayIncomesTable.setItems(FXCollections.observableArrayList(summary.getIncomeDetails()));
         todayIncomeLabel.setText(formatCurrency(summary.getTotalIncome()));
+        applyAmountClass(todayIncomeLabel, summary.getTotalIncome(), null);
+
+        boolean hasEntries = !todayExpensesTable.getItems().isEmpty() || !todayIncomesTable.getItems().isEmpty();
+        dailyLedger.setManaged(hasEntries);
+        dailyLedger.setVisible(hasEntries);
+        ledgerStatus.setText("Bugün tahsilat veya gider kaydı yok.");
+        ledgerStatus.setManaged(!hasEntries);
+        ledgerStatus.setVisible(!hasEntries);
 
         // Update net cash
         netCashLabel.setText(formatCurrency(summary.getNetCash()));
@@ -412,12 +433,14 @@ public class FinanceController {
                     Platform.runLater(() -> {
                         populateTrendChart(response.body());
                     });
+                } else {
+                    Platform.runLater(() -> showLoadError(trendStatus, "Son 30 günün hareketleri alınamadı."));
                 }
             }
 
             @Override
             public void onFailure(Call<List<DailyTotalDTO>> call, Throwable t) {
-                System.err.println("Failed to load 30-day trends: " + t.getMessage());
+                Platform.runLater(() -> showLoadError(trendStatus, "Son 30 günün hareketleri alınamadı."));
             }
         });
     }
@@ -435,19 +458,28 @@ public class FinanceController {
         BigDecimal totalIncome = BigDecimal.ZERO;
         BigDecimal totalExpense = BigDecimal.ZERO;
 
+        boolean hasMovement = false;
         for (DailyTotalDTO total : dailyTotals) {
             String dateStr = total.getDate().format(formatter);
             BigDecimal income = total.getIncome() != null ? total.getIncome() : BigDecimal.ZERO;
             BigDecimal expense = total.getExpense() != null ? total.getExpense() : BigDecimal.ZERO;
+            if (income.signum() != 0 || expense.signum() != 0) hasMovement = true;
             incomeSeries.getData().add(new XYChart.Data<>(dateStr, income));
             expenseSeries.getData().add(new XYChart.Data<>(dateStr, expense));
             totalIncome = totalIncome.add(income);
             totalExpense = totalExpense.add(expense);
         }
 
-        trendChart.getData().addAll(incomeSeries, expenseSeries);
+        if (hasMovement) trendChart.getData().addAll(incomeSeries, expenseSeries);
+        trendChart.setManaged(hasMovement);
+        trendChart.setVisible(hasMovement);
+        trendStatus.setText("Son 30 günde gelir veya gider hareketi yok.");
+        trendStatus.setVisible(!hasMovement);
+        trendStatus.setManaged(!hasMovement);
         analyticsIncomeLabel.setText(formatCurrency(totalIncome));
+        applyAmountClass(analyticsIncomeLabel, totalIncome, null);
         analyticsExpenseLabel.setText(formatCurrency(totalExpense));
+        applyAmountClass(analyticsExpenseLabel, totalExpense, "amount-negative");
         BigDecimal net = totalIncome.subtract(totalExpense);
         analyticsNetLabel.setText(formatCurrency(net));
         applyAmountClass(analyticsNetLabel, net, null);
@@ -778,12 +810,9 @@ public class FinanceController {
 
     private void renderReportDetails(MonthlySummaryDTO summary) {
         reportDetailContainer.getChildren().clear();
-        if (summary == null) {
-            Label empty = new Label("Aylık özeti görmek için arşivden bir dönem seçin.");
-            empty.getStyleClass().add("empty-state");
-            reportDetailContainer.getChildren().add(empty);
-            return;
-        }
+        reportSummaryScroll.setVisible(summary != null);
+        reportSummaryScroll.setManaged(summary != null);
+        if (summary == null) return;
 
         Label title = new Label(summary.getDisplayPeriod() + " Özeti");
         title.getStyleClass().add("report-detail-title");

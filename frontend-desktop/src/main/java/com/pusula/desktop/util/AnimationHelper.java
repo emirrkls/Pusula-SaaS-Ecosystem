@@ -2,79 +2,13 @@ package com.pusula.desktop.util;
 
 import javafx.animation.*;
 import javafx.scene.Node;
-import javafx.scene.effect.DropShadow;
-import javafx.scene.paint.Color;
 import javafx.util.Duration;
 
 /**
  * AnimationHelper - Reusable micro-interactions for premium UI feel.
- * Provides static methods for common animations: bounce, hover, shake, fade-in.
+ * Provides static methods for common animations: validation and transitions.
  */
 public class AnimationHelper {
-
-    // =========================================
-    // BUTTON BOUNCE - Tactile press feedback
-    // =========================================
-
-    /**
-     * Applies a bouncy press effect to any node (typically buttons).
-     * On press: scales down to 0.95 (50ms)
-     * On release: springs back to 1.0 (100ms, ease-out)
-     */
-    public static void applyButtonBounce(Node node) {
-        ScaleTransition pressDown = new ScaleTransition(Duration.millis(50), node);
-        pressDown.setToX(0.95);
-        pressDown.setToY(0.95);
-
-        ScaleTransition releaseUp = new ScaleTransition(Duration.millis(100), node);
-        releaseUp.setToX(1.0);
-        releaseUp.setToY(1.0);
-        releaseUp.setInterpolator(Interpolator.EASE_OUT);
-
-        node.setOnMousePressed(e -> pressDown.playFromStart());
-        node.setOnMouseReleased(e -> releaseUp.playFromStart());
-    }
-
-    // =========================================
-    // CARD HOVER - Lift effect with shadow
-    // =========================================
-
-    /**
-     * Applies a hover "lift" effect to cards/panes.
-     * On hover: translates Y by -5px and increases shadow.
-     * On exit: returns to normal.
-     */
-    public static void applyCardHover(Node node) {
-        // Store original shadow or create default
-        DropShadow originalShadow = new DropShadow();
-        originalShadow.setRadius(15);
-        originalShadow.setOffsetY(4);
-        originalShadow.setColor(Color.rgb(0, 0, 0, 0.06));
-
-        DropShadow hoverShadow = new DropShadow();
-        hoverShadow.setRadius(25);
-        hoverShadow.setOffsetY(8);
-        hoverShadow.setColor(Color.rgb(0, 0, 0, 0.12));
-
-        node.setOnMouseEntered(e -> {
-            TranslateTransition lift = new TranslateTransition(Duration.millis(150), node);
-            lift.setToY(-5);
-            lift.setInterpolator(Interpolator.EASE_OUT);
-            lift.play();
-            node.setEffect(hoverShadow);
-        });
-
-        node.setOnMouseExited(e -> {
-            TranslateTransition drop = new TranslateTransition(Duration.millis(150), node);
-            drop.setToY(0);
-            drop.setInterpolator(Interpolator.EASE_OUT);
-            drop.play();
-            node.setEffect(originalShadow);
-        });
-
-        // Set initial effect
-        node.setEffect(originalShadow);
-    }
 
     // =========================================
     // SHAKE - Error indication (validation)
@@ -214,32 +148,5 @@ public class AnimationHelper {
                 }
             }
         });
-    }
-
-    // =========================================
-    // COUNTER ANIMATION - Number increment
-    // =========================================
-
-    /**
-     * Animates a Label counting up from 0 to a target value smoothly.
-     */
-    public static void animateCounter(javafx.scene.control.Label label, long targetValue, int durationMs) {
-        if (targetValue == 0) {
-            label.setText("0");
-            return;
-        }
-        
-        Animation animation = new Transition() {
-            {
-                setCycleDuration(Duration.millis(durationMs));
-                setInterpolator(Interpolator.EASE_OUT);
-            }
-            @Override
-            protected void interpolate(double frac) {
-                long current = Math.round(targetValue * frac);
-                label.setText(String.valueOf(current));
-            }
-        };
-        animation.play();
     }
 }

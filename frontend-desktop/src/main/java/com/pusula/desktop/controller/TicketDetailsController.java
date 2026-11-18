@@ -851,31 +851,35 @@ public class TicketDetailsController {
     }
 
     private void loadCustomerInfo() {
-        if (currentTicket == null || currentTicket.getCustomerId() == null)
-            return;
+        if (currentTicket == null) return;
+        Long customerId = currentTicket.getCustomerId();
+        String listedName = currentTicket.getCustomerName();
+        lblCustomerName.setText(listedName == null || listedName.isBlank() ? "—" : listedName);
+        lblCustomerPhone.setText("—");
+        lblCustomerAddress.setText("—");
+        btnWhatsApp.setDisable(true);
+        if (customerId == null) return;
 
         CustomerApi customerApi = RetrofitClient.getClient().create(CustomerApi.class);
-        customerApi.getCustomerById(currentTicket.getCustomerId()).enqueue(new Callback<CustomerDTO>() {
+        customerApi.getCustomerById(customerId).enqueue(new Callback<CustomerDTO>() {
             @Override
             public void onResponse(Call<CustomerDTO> call, Response<CustomerDTO> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    CustomerDTO customer = response.body();
-                    Platform.runLater(() -> {
-                        lblCustomerName.setText(customer.getName() != null ? customer.getName() : "-");
-                        lblCustomerPhone.setText(customer.getPhone() != null ? customer.getPhone() : "-");
-                        lblCustomerAddress.setText(customer.getAddress() != null ? customer.getAddress() : "-");
-                    });
-                }
+                if (!response.isSuccessful() || response.body() == null) return;
+                CustomerDTO customer = response.body();
+                Platform.runLater(() -> {
+                    if (currentTicket == null || !customerId.equals(currentTicket.getCustomerId())) return;
+                    if (customer.getName() != null && !customer.getName().isBlank()) lblCustomerName.setText(customer.getName());
+                    if (customer.getAddress() != null && !customer.getAddress().isBlank()) lblCustomerAddress.setText(customer.getAddress());
+                    if (customer.getPhone() != null && !customer.getPhone().isBlank()) {
+                        lblCustomerPhone.setText(customer.getPhone());
+                        btnWhatsApp.setDisable(false);
+                    }
+                });
             }
 
             @Override
-            public void onFailure(Call<CustomerDTO> call, Throwable t) {
-                // Silently fail - customer info is optional
-                Platform.runLater(() -> {
-                    lblCustomerName.setText("-");
-                    lblCustomerPhone.setText("-");
-                    lblCustomerAddress.setText("-");
-                });
+            public void onFailure(Call<CustomerDTO> call, Throwable failure) {
+                // The name from the service ticket remains available offline.
             }
         });
     }

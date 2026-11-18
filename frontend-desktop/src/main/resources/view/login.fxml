@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.PasswordField?>
@@ -10,38 +11,20 @@
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane fx:id="loginRoot" prefHeight="640.0" prefWidth="960.0" styleClass="login-root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.pusula.desktop.controller.LoginController">
-   <left>
-      <VBox prefWidth="420.0" styleClass="login-brand-panel" BorderPane.alignment="CENTER">
-         <children>
-            <Label styleClass="login-brand-logo" text="Pusula" />
-            <Label styleClass="login-brand-tagline" text="Servis operasyonlarınızı tek platformdan yönetin. İş emirleri, stok, finans ve müşteri takibi bir arada." wrapText="true" />
-            <VBox styleClass="login-brand-features">
-               <children>
-                  <Label styleClass="login-feature-item" text="✓  Gerçek zamanlı servis fişi takibi" />
-                  <Label styleClass="login-feature-item" text="✓  Stok ve teknisyen yönetimi" />
-                  <Label styleClass="login-feature-item" text="✓  Finans ve raporlama modülleri" />
-               </children>
-            </VBox>
-            <VBox styleClass="login-brand-contact">
-               <children>
-                  <Label styleClass="login-brand-contact-title" text="İletişim" />
-                  <Label styleClass="login-brand-contact-email" text="emirrkeles@gmail.com" />
-               </children>
-            </VBox>
-         </children>
-      </VBox>
-   </left>
    <center>
-      <VBox alignment="TOP_CENTER" styleClass="login-form-panel" BorderPane.alignment="CENTER">
+      <VBox alignment="CENTER" styleClass="login-form-panel" BorderPane.alignment="CENTER">
          <children>
             <VBox fx:id="alertContainer" managed="false" spacing="0.0" visible="false" styleClass="update-banner-container" />
-            <VBox fx:id="loginForm" alignment="CENTER_LEFT" spacing="18.0" styleClass="login-form-card">
+            <VBox fx:id="loginForm" alignment="CENTER_LEFT" spacing="14" maxWidth="390" styleClass="login-form-card">
                <children>
 
-                  <VBox spacing="6.0">
+                  <HBox alignment="CENTER_LEFT" spacing="12">
+                     <ImageView fitWidth="40" fitHeight="40" preserveRatio="true"><image><Image url="@../pusula-mark.png"/></image></ImageView>
+                     <Label text="Pusula" styleClass="sidebar-brand-title"/>
+                  </HBox>
+                  <VBox spacing="4">
                      <children>
-                        <Label styleClass="login-form-title" text="%login.title" />
-                        <Label styleClass="login-form-subtitle" text="Hesabınıza giriş yapın" />
+                        <Label styleClass="login-form-title" text="Oturum aç" />
                      </children>
                   </VBox>
 
@@ -65,7 +48,7 @@
                   <Button fx:id="loginButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleLogin" styleClass="login-primary-button" text="%login.button" />
                   <Label fx:id="messageLabel" styleClass="label-muted" />
                   <Label fx:id="appVersionLabel" styleClass="login-version-tag" text="v0.0.0" />
-                  <Button mnemonicParsing="false" onAction="#showSupport" text="Giriş yapamıyorum / Destek al" />
+                  <Button mnemonicParsing="false" onAction="#showSupport" text="Giriş için yardım al" styleClass="button-secondary" />
                </children>
             </VBox>
          </children>
